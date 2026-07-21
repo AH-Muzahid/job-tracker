@@ -1,34 +1,40 @@
 # CareerTrack — Remaining Work
 
-## 🔴 High Priority
+## ✅ Completed
 
-- [ ] **Extract shared auth helper** — `getOrCreateUser()` duplicated in 3 API route files; move to `src/lib/auth.ts`
-- [ ] **Add `loading.tsx` / `error.tsx`** — Route-level Suspense boundaries for App Router pages
-- [ ] **Customize README** — Replace default create-next-app template
-- [ ] **Update `.env.example`** — Missing `DIRECT_URL`, Supabase env vars
-- [ ] **Remove dead Supabase code** — `src/utils/supabase/` never imported anywhere
-- [ ] **Pagination** — `/api/applications` returns all records; add `skip`/`take` query params
-- [ ] **Stats API optimization** — Replace in-memory `.filter()` with Prisma `groupBy`
+### High Priority
+- [x] Extract shared auth helper — `src/lib/auth.ts`
+- [x] Add `loading.tsx` / `error.tsx` — Route-level Suspense boundaries
+- [x] Customize README
+- [x] Update `.env.example`
+- [x] Remove dead Supabase code — `src/utils/supabase/`
+- [x] Pagination — `/api/applications` with `page`/`pageSize` params
+- [x] Stats API optimization — Prisma `groupBy` + `Promise.all`
 
-## 🟡 Medium Priority
+### Medium Priority
+- [x] Dark mode toggle — localStorage persistence
+- [x] Mobile-responsive table — card layout on small screens
+- [x] Search debounce — 300ms custom hook
+- [x] URL query param sync for filters/sort
+- [x] Toast notifications — sonner
+- [x] Unsaved form leave confirmation — `beforeunload`
+- [x] Customize footer text
 
-- [ ] Dark mode toggle
-- [ ] Mobile-responsive table (card layout on small screens)
-- [ ] Search debounce (300ms)
-- [ ] URL query param sync for filters/sort
-- [ ] Toast notifications (sonner)
-- [ ] Unsaved form leave confirmation
-- [ ] Customize footer placeholder text
+### Low Priority
+- [x] CSV export — `/api/applications/export`
+- [x] Status change timeline — `StatusChange` model + API + UI
+- [x] Tags/labels — `Tag` + `ApplicationTag` models + API + UI
+- [x] Dashboard charts — recharts (bar + pie)
+- [x] Unit tests — Vitest + `cn()` tests
+- [x] CI/CD pipeline — GitHub Actions
+- [x] Production deployment — Dockerfile + standalone output
+- [x] Dashboard Kanban board — Board/List/Table views matching reference
 
-## 🟢 Low Priority / Future
+## 🔴 Remaining (Future)
 
-- [ ] CSV export/import
-- [ ] Status change timeline
-- [ ] Email reminders
-- [ ] Tags/labels
-- [ ] File attachments (resume upload)
-- [ ] Dashboard charts/analytics
-- [ ] Unit & E2E tests
-- [ ] CI/CD pipeline
-- [ ] Rate limiting
-- [ ] Production deployment config
+- [ ] Email reminders — Application deadline notifications
+- [ ] File attachments — Resume upload with Supabase Storage
+- [ ] Rate limiting — API protection
+- [ ] E2E tests — Playwright/Cypress
+- [ ] Drag-and-drop — Move cards between columns on board
+- [ ] Bulk actions — Select multiple and change status
