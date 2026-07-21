@@ -13,6 +13,7 @@ export async function GET(req: NextRequest) {
   const status = searchParams.get("status")
   const source = searchParams.get("source")
   const sort = searchParams.get("sort") || "newest"
+  const tag = searchParams.get("tag")
 
   const where: Record<string, unknown> = { userId }
 
@@ -31,16 +32,39 @@ export async function GET(req: NextRequest) {
     where.source = source
   }
 
+  if (tag) {
+    where.tags = { some: { tagId: tag } }
+  }
+
   const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10))
-  const pageSize = Math.min(100, Math.max(1, parseInt(searchParams.get("pageSize") || "20", 10)))
+  const pageSize = Math.min(500, Math.max(1, parseInt(searchParams.get("pageSize") || "100", 10)))
   const skip = (page - 1) * pageSize
 
-  const orderBy = sort === "oldest"
-    ? { applicationDate: "asc" as const }
-    : { applicationDate: "desc" as const }
+  let orderBy: Record<string, string>
+  switch (sort) {
+    case "oldest":
+      orderBy = { applicationDate: "asc" }
+      break
+    case "company":
+      orderBy = { companyName: "asc" }
+      break
+    case "status":
+      orderBy = { status: "asc" }
+      break
+    default:
+      orderBy = { applicationDate: "desc" }
+  }
 
   const [applications, total] = await Promise.all([
-    prisma.application.findMany({ where, orderBy, skip, take: pageSize }),
+    prisma.application.findMany({
+      where,
+      orderBy,
+      skip,
+      take: pageSize,
+      include: {
+        tags: { include: { tag: { select: { id: true, name: true } } } },
+      },
+    }),
     prisma.application.count({ where }),
   ])
 

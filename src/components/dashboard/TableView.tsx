@@ -18,6 +18,7 @@ export default function TableView({ applications }: { applications: Application[
             <tr className="border-b bg-muted/50">
               <th className="px-4 py-3 text-left font-medium">Company</th>
               <th className="px-4 py-3 text-left font-medium">Job Title</th>
+              <th className="px-4 py-3 text-left font-medium">Tags</th>
               <th className="px-4 py-3 text-left font-medium">Source</th>
               <th className="px-4 py-3 text-left font-medium">Date</th>
               <th className="px-4 py-3 text-left font-medium">Status</th>
@@ -44,6 +45,15 @@ export default function TableView({ applications }: { applications: Application[
                     </div>
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">{application.jobTitle}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex flex-wrap gap-1">
+                      {application.tags.slice(0, 2).map(({ tag }) => (
+                        <Badge key={tag.id} variant="outline" className="text-xs">
+                          {tag.name}
+                        </Badge>
+                      ))}
+                    </div>
+                  </td>
                   <td className="px-4 py-3">
                     <Badge variant="secondary">{application.source}</Badge>
                   </td>

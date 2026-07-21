@@ -8,6 +8,13 @@ import {
 
 export type ViewMode = "board" | "list" | "table"
 
+export type SortOption = "newest" | "oldest" | "company" | "status"
+
+export type Tag = {
+  id: string
+  name: string
+}
+
 export type Application = {
   id: string
   companyName: string
@@ -17,6 +24,7 @@ export type Application = {
   status: string
   applicationDate: string
   createdAt: string
+  tags: Array<{ tag: Tag }>
 }
 
 export interface Stats {
@@ -36,6 +44,40 @@ export interface Stats {
   }>
   trend: Array<{ month: string; count: number }>
 }
+
+export interface DashboardFilters {
+  search: string
+  status: string
+  source: string
+  sort: SortOption
+  tag: string
+}
+
+export const STATUS_OPTIONS = [
+  "Saved",
+  "Applied",
+  "Assessment",
+  "Interview",
+  "Rejected",
+  "Offer",
+] as const
+
+export const SOURCE_OPTIONS = [
+  "LinkedIn",
+  "Bdjobs",
+  "Indeed",
+  "Wellfound",
+  "Facebook",
+  "Referral",
+  "Other",
+] as const
+
+export const SORT_OPTIONS: { value: SortOption; label: string }[] = [
+  { value: "newest", label: "Newest first" },
+  { value: "oldest", label: "Oldest first" },
+  { value: "company", label: "Company name" },
+  { value: "status", label: "Status" },
+]
 
 export const boardColumns = [
   {

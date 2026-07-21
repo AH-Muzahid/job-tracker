@@ -47,6 +47,13 @@ function ListItem({ application }: { application: Application }) {
         <p className="truncate text-sm font-semibold">{application.jobTitle}</p>
         <p className="truncate text-xs text-muted-foreground">{application.companyName}</p>
       </div>
+      <div className="hidden sm:flex items-center gap-2">
+        {application.tags.slice(0, 2).map(({ tag }) => (
+          <Badge key={tag.id} variant="outline" className="text-xs">
+            {tag.name}
+          </Badge>
+        ))}
+      </div>
       <StatusBadge status={application.status} />
       <Badge variant="secondary">{application.source}</Badge>
       <span className="shrink-0 text-xs text-muted-foreground">
