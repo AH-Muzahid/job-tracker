@@ -7,7 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import StatusBadge from "@/components/StatusBadge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { ChevronLeft, ChevronRight } from "lucide-react"
+import { ChevronLeft, ChevronRight, Download } from "lucide-react"
 import { useDebounce } from "@/lib/use-debounce"
 import {
   Select,
@@ -111,9 +111,17 @@ export default function ApplicationsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Applications</h1>
-        <Button asChild>
-          <Link href="/applications/new">Add Application</Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" asChild>
+            <a href={`/api/applications/export?status=${statusFilter}&source=${sourceFilter}`} download>
+              <Download className="mr-2 h-4 w-4" />
+              Export CSV
+            </a>
+          </Button>
+          <Button asChild>
+            <Link href="/applications/new">Add Application</Link>
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-3">
