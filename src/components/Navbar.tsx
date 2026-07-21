@@ -107,10 +107,14 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* Mobile Nav */}
+      {/* Mobile Nav Overlay */}
       {mobileOpen && (
-        <div className="sm:hidden border-t bg-background/95 backdrop-blur-xl">
-          <nav className="mx-auto max-w-screen-xl px-4 py-2 space-y-1">
+        <>
+          <div
+            className="fixed inset-0 top-14 z-40 bg-black/20 backdrop-blur-sm sm:hidden"
+            onClick={() => setMobileOpen(false)}
+          />
+          <nav className="fixed left-0 right-0 top-14 z-50 border-b bg-background/95 backdrop-blur-xl sm:hidden px-4 py-3 space-y-1 shadow-lg">
             {navItems.map((item) => {
               const isActive = pathname.startsWith(item.href)
               return (
@@ -130,7 +134,7 @@ export default function Navbar() {
               )
             })}
           </nav>
-        </div>
+        </>
       )}
     </header>
   )
