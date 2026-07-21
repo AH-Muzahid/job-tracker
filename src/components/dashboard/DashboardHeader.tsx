@@ -1,8 +1,15 @@
-import Link from "next/link"
+"use client"
+
 import { CalendarDays, Plus, TrendingUp } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
-export default function DashboardHeader({ dateRange }: { dateRange: string }) {
+export default function DashboardHeader({
+  dateRange,
+  onAddNew,
+}: {
+  dateRange: string
+  onAddNew: () => void
+}) {
   return (
     <div className="flex flex-col gap-4 border-b pb-4 lg:flex-row lg:items-center lg:justify-between">
       <div className="space-y-1">
@@ -19,15 +26,13 @@ export default function DashboardHeader({ dateRange }: { dateRange: string }) {
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <div className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm text-muted-foreground">
+        <div className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm text-muted-foreground">
           <CalendarDays className="h-4 w-4" />
           <span>{dateRange}</span>
         </div>
-        <Button asChild>
-          <Link href="/applications/new">
-            <Plus className="h-4 w-4" />
-            Add Job
-          </Link>
+        <Button onClick={onAddNew}>
+          <Plus className="h-4 w-4" />
+          Add Job
         </Button>
       </div>
     </div>

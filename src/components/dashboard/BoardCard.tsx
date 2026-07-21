@@ -1,4 +1,5 @@
-import Link from "next/link"
+"use client"
+
 import { ExternalLink, MoreHorizontal } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { getCompanyColor, getInitials } from "./utils"
@@ -16,16 +17,21 @@ const tagColors: Record<string, string> = {
 
 const defaultTagColor = "bg-secondary text-secondary-foreground"
 
-export default function BoardCard({ application }: { application: Application }) {
+interface Props {
+  application: Application
+  onClick: () => void
+}
+
+export default function BoardCard({ application, onClick }: Props) {
   const initials = getInitials(application.companyName)
   const colorClass = getCompanyColor(application.companyName)
 
   return (
-    <Link
-      href={`/applications/${application.id}`}
-      className="group block"
+    <button
+      onClick={onClick}
+      className="group block w-full text-left"
     >
-      <Card className="p-3 transition-all hover:shadow-md hover:ring-1 hover:ring-primary/20">
+      <Card className="p-3 transition-all duration-200 hover:shadow-md hover:ring-1 hover:ring-primary/20 cursor-pointer active:scale-[0.98]">
         <div className="flex items-start justify-between gap-2">
           <div className="flex min-w-0 items-start gap-2.5">
             <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-xs font-bold text-white ${colorClass}`}>
@@ -44,7 +50,7 @@ export default function BoardCard({ application }: { application: Application })
             {application.tags.map(({ tag }) => (
               <span
                 key={tag.id}
-                className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${tagColors[tag.name] || defaultTagColor}`}
+                className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-medium ${tagColors[tag.name] || defaultTagColor}`}
               >
                 {tag.name}
               </span>
@@ -55,18 +61,18 @@ export default function BoardCard({ application }: { application: Application })
         <div className="mt-2.5 flex items-center justify-between text-xs text-muted-foreground">
           <span>{new Date(application.applicationDate).toLocaleDateString()}</span>
           {application.jobUrl && (
-            <a
-              href={application.jobUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
-              className="inline-flex items-center gap-1 hover:text-foreground"
+            <span
+              className="inline-flex items-center gap-1 text-muted-foreground group-hover:text-foreground"
+              onClick={(e) => {
+                e.stopPropagation()
+                window.open(application.jobUrl!, "_blank")
+              }}
             >
               <ExternalLink className="h-3 w-3" />
-            </a>
+            </span>
           )}
         </div>
       </Card>
-    </Link>
+    </button>
   )
 }
