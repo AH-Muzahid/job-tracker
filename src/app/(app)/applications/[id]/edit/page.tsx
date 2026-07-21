@@ -13,6 +13,7 @@ export default function EditApplicationPage() {
   const [application, setApplication] = useState<ApplicationFormData | null>(
     null
   )
+  const [initialTagIds, setInitialTagIds] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -37,6 +38,7 @@ export default function EditApplicationPage() {
           status: data.status,
           notes: data.notes || "",
         })
+        setInitialTagIds((data.tags || []).map((t: { tag: { id: string } }) => t.tag.id))
         setLoading(false)
       })
       .catch(() => {
@@ -61,6 +63,7 @@ export default function EditApplicationPage() {
       <ApplicationForm
         initialData={application}
         applicationId={params.id as string}
+        initialTagIds={initialTagIds}
       />
     </div>
   )

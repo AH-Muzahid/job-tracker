@@ -3,6 +3,7 @@
 import { useState, FormEvent, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -25,9 +26,15 @@ export interface ApplicationFormData {
   notes: string
 }
 
+interface TagOption {
+  id: string
+  name: string
+}
+
 interface ApplicationFormProps {
   initialData?: ApplicationFormData
   applicationId?: string
+  initialTagIds?: string[]
 }
 
 const defaultData: ApplicationFormData = {
@@ -43,6 +50,7 @@ const defaultData: ApplicationFormData = {
 export default function ApplicationForm({
   initialData,
   applicationId,
+  initialTagIds,
 }: ApplicationFormProps) {
   const router = useRouter()
   const [form, setForm] = useState<ApplicationFormData>(
@@ -51,6 +59,16 @@ export default function ApplicationForm({
   const initialForm = initialData || defaultData
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
+  const [tags, setTags] = useState<TagOption[]>([])
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>(initialTagIds || [])
+  const [newTagName, setNewTagName] = useState("")
+
+  useEffect(() => {
+    fetch("/api/tags")
+      .then((r) => r.json())
+      .then(setTags)
+      .catch(() => {})
+  }, [])
 
   const hasUnsaved = JSON.stringify(form) !== JSON.stringify(initialForm)
 
@@ -74,6 +92,24 @@ export default function ApplicationForm({
     return Object.keys(errs).length === 0
   }
 
+  async function addTag() {
+    const name = newTagName.trim()
+    if (!name) return
+    try {
+      const res = await fetch("/api/tags", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      })
+      if (res.ok) {
+        const tag = await res.json()
+        setTags((prev) => [...prev.filter((t) => t.id !== tag.id), tag])
+        setSelectedTagIds((prev) => [...prev, tag.id])
+        setNewTagName("")
+      }
+    } catch {}
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     if (!validate()) return
@@ -89,7 +125,7 @@ export default function ApplicationForm({
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, tagIds: selectedTagIds }),
       })
 
       if (!res.ok) {
@@ -236,6 +272,48 @@ export default function ApplicationForm({
           value={form.notes}
           onChange={(e) => updateField("notes", e.target.value)}
         />
+      </div>
+
+      <div className="space-y-2">
+        <Label>Tags</Label>
+        <div className="flex flex-wrap gap-2 mb-2">
+          {selectedTagIds.map((id) => {
+            const tag = tags.find((t) => t.id === id)
+            if (!tag) return null
+            return (
+              <Badge key={id} variant="secondary" className="cursor-pointer" onClick={() => setSelectedTagIds((prev) => prev.filter((t) => t !== id))}>
+                {tag.name} &times;
+              </Badge>
+            )
+          })}
+        </div>
+        <div className="flex gap-2">
+          <select
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            value=""
+            onChange={(e) => {
+              const id = e.target.value
+              if (id && !selectedTagIds.includes(id)) {
+                setSelectedTagIds((prev) => [...prev, id])
+              }
+            }}
+          >
+            <option value="">Add tag...</option>
+            {tags
+              .filter((t) => !selectedTagIds.includes(t.id))
+              .map((t) => (
+                <option key={t.id} value={t.id}>{t.name}</option>
+              ))}
+          </select>
+          <Input
+            placeholder="New tag name"
+            value={newTagName}
+            onChange={(e) => setNewTagName(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addTag())}
+            className="max-w-40"
+          />
+          <Button type="button" variant="outline" size="sm" onClick={addTag}>Add</Button>
+        </div>
       </div>
 
       {errors.form && (

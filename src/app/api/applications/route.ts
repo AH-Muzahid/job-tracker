@@ -95,7 +95,12 @@ export async function POST(req: Request) {
         applicationDate: new Date(body.applicationDate),
         status: body.status,
         notes: body.notes || null,
+        statusChanges: { create: { toStatus: body.status } },
+        ...(body.tagIds?.length
+          ? { tags: { create: body.tagIds.map((id: string) => ({ tagId: id })) } }
+          : {}),
       },
+      include: { tags: { include: { tag: true } } },
     })
 
     return NextResponse.json(application, { status: 201 })

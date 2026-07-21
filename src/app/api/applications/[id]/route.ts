@@ -13,7 +13,10 @@ export async function GET(
 
   const { id } = await params
 
-  const application = await prisma.application.findUnique({ where: { id } })
+  const application = await prisma.application.findUnique({
+    where: { id },
+    include: { tags: { include: { tag: true } }, statusChanges: { orderBy: { changedAt: "desc" } } },
+  })
 
   if (!application) {
     return NextResponse.json({ error: "Not found" }, { status: 404 })
@@ -69,6 +72,9 @@ export async function PATCH(
       )
     }
 
+    const newStatus = body.status
+    const statusChanged = newStatus && newStatus !== existing.status
+
     const application = await prisma.application.update({
       where: { id },
       data: {
@@ -77,9 +83,12 @@ export async function PATCH(
         ...(body.jobUrl !== undefined && { jobUrl: body.jobUrl }),
         ...(body.source && { source: body.source }),
         ...(body.applicationDate && { applicationDate: new Date(body.applicationDate) }),
-        ...(body.status && { status: body.status }),
+        ...(newStatus && { status: newStatus }),
         ...(body.notes !== undefined && { notes: body.notes }),
+        ...(statusChanged ? { statusChanges: { create: { fromStatus: existing.status, toStatus: newStatus } } } : {}),
+        ...(body.tagIds ? { tags: { deleteMany: {}, create: body.tagIds.map((id: string) => ({ tagId: id })) } } : {}),
       },
+      include: { tags: { include: { tag: true } }, statusChanges: { orderBy: { changedAt: "desc" } } },
     })
 
     return NextResponse.json(application)

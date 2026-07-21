@@ -6,6 +6,7 @@ import Link from "next/link"
 import { useUser } from "@clerk/nextjs"
 import StatusBadge from "@/components/StatusBadge"
 import { toast } from "sonner"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -19,6 +20,17 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 
+interface StatusChange {
+  id: string
+  fromStatus: string | null
+  toStatus: string
+  changedAt: string
+}
+
+interface TagItem {
+  tag: { id: string; name: string }
+}
+
 interface Application {
   id: string
   companyName: string
@@ -30,6 +42,8 @@ interface Application {
   notes: string | null
   createdAt: string
   updatedAt: string
+  tags: TagItem[]
+  statusChanges: StatusChange[]
 }
 
 export default function ApplicationDetailPage() {
@@ -189,10 +203,44 @@ export default function ApplicationDetailPage() {
             )}
           </div>
 
+          {application.tags?.length > 0 && (
+            <div>
+              <p className="text-sm text-muted-foreground mb-2">Tags</p>
+              <div className="flex flex-wrap gap-2">
+                {application.tags.map((t) => (
+                  <Badge key={t.tag.id} variant="secondary">{t.tag.name}</Badge>
+                ))}
+              </div>
+            </div>
+          )}
+
           {application.notes && (
             <div>
               <p className="text-sm text-muted-foreground">Notes</p>
               <p className="whitespace-pre-wrap">{application.notes}</p>
+            </div>
+          )}
+
+          {application.statusChanges?.length > 1 && (
+            <div>
+              <p className="text-sm text-muted-foreground mb-2">Status Timeline</p>
+              <div className="space-y-2">
+                {application.statusChanges.map((sc) => (
+                  <div key={sc.id} className="flex items-center gap-3 text-sm">
+                    <div className="h-2 w-2 rounded-full bg-primary" />
+                    <span className="text-muted-foreground">
+                      {new Date(sc.changedAt).toLocaleString()}
+                    </span>
+                    {sc.fromStatus && (
+                      <>
+                        <StatusBadge status={sc.fromStatus} />
+                        <span className="text-muted-foreground">&rarr;</span>
+                      </>
+                    )}
+                    <StatusBadge status={sc.toStatus} />
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
