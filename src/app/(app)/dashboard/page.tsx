@@ -4,11 +4,24 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useUser } from "@clerk/nextjs"
 import { useRouter } from "next/navigation"
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell, Legend,
+} from "recharts"
 import StatCard from "@/components/StatCard"
 import StatusBadge from "@/components/StatusBadge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+
+const STATUS_COLORS: Record<string, string> = {
+  Saved: "#6366f1",
+  Applied: "#3b82f6",
+  Assessment: "#f59e0b",
+  Interview: "#8b5cf6",
+  Rejected: "#ef4444",
+  Offer: "#22c55e",
+}
 
 interface Stats {
   total: number
@@ -25,6 +38,7 @@ interface Stats {
     status: string
     createdAt: string
   }>
+  trend: Array<{ month: string; count: number }>
 }
 
 export default function DashboardPage() {
@@ -104,6 +118,69 @@ export default function DashboardPage() {
         {statCards.map((card) => (
           <StatCard key={card.label} label={card.label} value={card.value} />
         ))}
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Applications Over Time</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {stats.trend.length === 0 ? (
+              <p className="text-center py-8 text-muted-foreground">No data yet</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={250}>
+                <BarChart data={stats.trend}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis dataKey="month" className="text-xs" />
+                  <YAxis allowDecimals={false} className="text-xs" />
+                  <Tooltip />
+                  <Bar dataKey="count" fill="var(--color-primary)" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Status Distribution</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {stats.total === 0 ? (
+              <p className="text-center py-8 text-muted-foreground">No data yet</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={250}>
+                <PieChart>
+                  <Pie
+                    data={[
+                      { name: "Saved", value: stats.saved },
+                      { name: "Applied", value: stats.applied },
+                      { name: "Assessment", value: stats.assessment },
+                      { name: "Interview", value: stats.interview },
+                      { name: "Rejected", value: stats.rejected },
+                      { name: "Offer", value: stats.offer },
+                    ].filter((d) => (d.value as number) > 0)}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={80}
+                    label
+                  >
+                    {(["Saved", "Applied", "Assessment", "Interview", "Rejected", "Offer"] as const)
+                      .filter((s) => (stats[s.toLowerCase() as keyof Stats] as number) > 0)
+                      .map((s) => (
+                        <Cell key={s} fill={STATUS_COLORS[s]} />
+                      ))}
+                  </Pie>
+                  <Legend />
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       <Card>
