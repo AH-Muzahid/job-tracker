@@ -2,28 +2,36 @@ import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getInternalUserId } from "@/lib/auth"
 
+const statuses = ["Saved", "Applied", "Assessment", "Interview", "Rejected", "Offer"] as const
+
 export async function GET() {
   const userId = await getInternalUserId()
   if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  const allApps = await prisma.application.findMany({
-    where: { userId },
-    orderBy: { createdAt: "desc" },
-  })
+  const [grouped, recent, total] = await Promise.all([
+    prisma.application.groupBy({
+      by: ["status"],
+      where: { userId },
+      _count: true,
+    }),
+    prisma.application.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+    }),
+    prisma.application.count({ where: { userId } }),
+  ])
 
-  const total = allApps.length
+  const countMap = Object.fromEntries(
+    grouped.map((g) => [g.status, g._count])
+  )
 
   const stats = {
     total,
-    saved: allApps.filter((a) => a.status === "Saved").length,
-    applied: allApps.filter((a) => a.status === "Applied").length,
-    assessment: allApps.filter((a) => a.status === "Assessment").length,
-    interview: allApps.filter((a) => a.status === "Interview").length,
-    rejected: allApps.filter((a) => a.status === "Rejected").length,
-    offer: allApps.filter((a) => a.status === "Offer").length,
-    recent: allApps.slice(0, 5),
+    ...Object.fromEntries(statuses.map((s) => [s.toLowerCase(), countMap[s] ?? 0])),
+    recent,
   }
 
   return NextResponse.json(stats)
