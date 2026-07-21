@@ -148,7 +148,7 @@ export default function ApplicationFormModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit Application" : "Add Application"}</DialogTitle>
         </DialogHeader>
@@ -163,7 +163,7 @@ export default function ApplicationFormModal({
             ))}
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-3">
             <FormField label="Company" error={errors.companyName} required>
               <Input
                 value={form.companyName}
@@ -227,7 +227,7 @@ export default function ApplicationFormModal({
 
             <FormField label="Notes" error={undefined}>
               <Textarea
-                rows={3}
+                rows={2}
                 placeholder="Optional notes..."
                 value={form.notes}
                 onChange={(e) => updateField("notes", e.target.value)}

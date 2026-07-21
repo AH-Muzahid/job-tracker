@@ -118,7 +118,7 @@ export default function ApplicationDetailModal({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-xl max-h-[90vh] overflow-hidden p-0 gap-0 rounded-2xl">
+        <DialogContent className="max-w-xl max-h-[90vh] overflow-hidden p-0 gap-0 rounded-2xl [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           {loading || !application ? (
             <DetailSkeleton />
           ) : (
@@ -176,7 +176,7 @@ export default function ApplicationDetailModal({
               </div>
 
               {/* Content */}
-              <div className="px-6 py-4 max-h-[calc(90vh-120px)] overflow-y-auto space-y-5">
+              <div className="px-6 py-4 max-h-[calc(90vh-120px)] overflow-y-auto space-y-5 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                 {/* Info Grid */}
                 <div className="grid grid-cols-3 gap-4">
                   <InfoCard
