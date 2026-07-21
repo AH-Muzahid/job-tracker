@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation"
 import StatusBadge from "@/components/StatusBadge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { ChevronLeft, ChevronRight } from "lucide-react"
 import {
   Select,
   SelectContent,
@@ -38,11 +39,14 @@ export default function ApplicationsPage() {
   const { isLoaded, isSignedIn } = useUser()
   const router = useRouter()
   const [applications, setApplications] = useState<Application[]>([])
+  const [total, setTotal] = useState(0)
+  const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState("")
   const [sourceFilter, setSourceFilter] = useState("")
   const [sort, setSort] = useState("newest")
+  const pageSize = 20
 
   const fetchApplications = useCallback(async () => {
     setLoading(true)
@@ -51,17 +55,24 @@ export default function ApplicationsPage() {
     if (statusFilter) params.set("status", statusFilter)
     if (sourceFilter) params.set("source", sourceFilter)
     params.set("sort", sort)
+    params.set("page", String(page))
+    params.set("pageSize", String(pageSize))
 
     try {
       const res = await fetch(`/api/applications?${params.toString()}`)
       if (!res.ok) throw new Error("Failed to fetch")
-      const data = await res.json()
-      setApplications(data)
+      const json = await res.json()
+      setApplications(json.data)
+      setTotal(json.total)
     } catch {
       // silent
     } finally {
       setLoading(false)
     }
+  }, [search, statusFilter, sourceFilter, sort, page])
+
+  useEffect(() => {
+    setPage(1)
   }, [search, statusFilter, sourceFilter, sort])
 
   useEffect(() => {
@@ -156,36 +167,64 @@ export default function ApplicationsPage() {
           </Button>
         </div>
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Company</TableHead>
-              <TableHead>Job Title</TableHead>
-              <TableHead>Source</TableHead>
-              <TableHead>Date</TableHead>
-              <TableHead>Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {applications.map((app) => (
-              <TableRow
-                key={app.id}
-                className="cursor-pointer"
-                onClick={() => router.push(`/applications/${app.id}`)}
-              >
-                <TableCell className="font-medium">{app.companyName}</TableCell>
-                <TableCell>{app.jobTitle}</TableCell>
-                <TableCell>{app.source}</TableCell>
-                <TableCell>
-                  {new Date(app.applicationDate).toLocaleDateString()}
-                </TableCell>
-                <TableCell>
-                  <StatusBadge status={app.status} />
-                </TableCell>
+        <>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Company</TableHead>
+                <TableHead>Job Title</TableHead>
+                <TableHead>Source</TableHead>
+                <TableHead>Date</TableHead>
+                <TableHead>Status</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {applications.map((app) => (
+                <TableRow
+                  key={app.id}
+                  className="cursor-pointer"
+                  onClick={() => router.push(`/applications/${app.id}`)}
+                >
+                  <TableCell className="font-medium">{app.companyName}</TableCell>
+                  <TableCell>{app.jobTitle}</TableCell>
+                  <TableCell>{app.source}</TableCell>
+                  <TableCell>
+                    {new Date(app.applicationDate).toLocaleDateString()}
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge status={app.status} />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">
+              Showing {(page - 1) * pageSize + 1}-{Math.min(page * pageSize, total)} of {total}
+            </p>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page <= 1}
+                onClick={() => setPage((p) => p - 1)}
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Previous
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page * pageSize >= total}
+                onClick={() => setPage((p) => p + 1)}
+              >
+                Next
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </>
       )}
     </div>
   )

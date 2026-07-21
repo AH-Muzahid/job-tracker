@@ -31,16 +31,20 @@ export async function GET(req: NextRequest) {
     where.source = source
   }
 
+  const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10))
+  const pageSize = Math.min(100, Math.max(1, parseInt(searchParams.get("pageSize") || "20", 10)))
+  const skip = (page - 1) * pageSize
+
   const orderBy = sort === "oldest"
     ? { applicationDate: "asc" as const }
     : { applicationDate: "desc" as const }
 
-  const applications = await prisma.application.findMany({
-    where,
-    orderBy,
-  })
+  const [applications, total] = await Promise.all([
+    prisma.application.findMany({ where, orderBy, skip, take: pageSize }),
+    prisma.application.count({ where }),
+  ])
 
-  return NextResponse.json(applications)
+  return NextResponse.json({ data: applications, total, page, pageSize })
 }
 
 export async function POST(req: Request) {
