@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { ExternalLink } from "lucide-react"
+import { ExternalLink, Inbox, Plus } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import StatusBadge from "@/components/StatusBadge"
@@ -10,9 +10,13 @@ export default function ListView({ applications }: { applications: Application[]
   if (applications.length === 0) {
     return (
       <div className="rounded-lg border border-dashed p-12 text-center text-sm text-muted-foreground">
+        <Inbox className="mx-auto mb-3 h-10 w-10 text-muted-foreground/50" />
         <p className="mb-2">No applications yet.</p>
         <Button asChild variant="outline">
-          <Link href="/applications/new">Add your first application</Link>
+          <Link href="/applications/new">
+            <Plus className="h-4 w-4" />
+            Add your first application
+          </Link>
         </Button>
       </div>
     )

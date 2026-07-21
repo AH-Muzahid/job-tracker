@@ -42,6 +42,7 @@ function BoardColumnCard({ column }: { column: BoardColumn & { items: Applicatio
       <div className="flex items-center justify-between border-b p-4">
         <div className="flex items-center gap-2.5">
           <span className={`h-2.5 w-2.5 rounded-full ${column.dot}`} />
+          <Icon className="h-4 w-4 text-muted-foreground" />
           <h2 className="text-sm font-semibold">{column.title}</h2>
           <Badge variant="secondary" className="text-xs">
             {column.items.length}

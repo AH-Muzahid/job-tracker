@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { CalendarDays, TrendingUp } from "lucide-react"
+import { CalendarDays, Plus, TrendingUp } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 export default function DashboardHeader({ dateRange }: { dateRange: string }) {
@@ -24,7 +24,10 @@ export default function DashboardHeader({ dateRange }: { dateRange: string }) {
           <span>{dateRange}</span>
         </div>
         <Button asChild>
-          <Link href="/applications/new">Add Job</Link>
+          <Link href="/applications/new">
+            <Plus className="h-4 w-4" />
+            Add Job
+          </Link>
         </Button>
       </div>
     </div>
