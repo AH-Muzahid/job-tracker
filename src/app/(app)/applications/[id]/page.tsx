@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import { useUser } from "@clerk/nextjs"
 import StatusBadge from "@/components/StatusBadge"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -68,9 +69,11 @@ export default function ApplicationDetailPage() {
         method: "DELETE",
       })
       if (!res.ok) throw new Error("Failed to delete")
+      toast.success("Application deleted")
       router.push("/applications")
       router.refresh()
     } catch {
+      toast.error("Failed to delete application")
       setError("Failed to delete application")
       setDeleting(false)
       setDialogOpen(false)

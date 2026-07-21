@@ -8,6 +8,7 @@ import StatusBadge from "@/components/StatusBadge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ChevronLeft, ChevronRight } from "lucide-react"
+import { useDebounce } from "@/lib/use-debounce"
 import {
   Select,
   SelectContent,
@@ -43,6 +44,7 @@ export default function ApplicationsPage() {
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
+  const debouncedSearch = useDebounce(search, 300)
   const [statusFilter, setStatusFilter] = useState("")
   const [sourceFilter, setSourceFilter] = useState("")
   const [sort, setSort] = useState("newest")
@@ -51,7 +53,7 @@ export default function ApplicationsPage() {
   const fetchApplications = useCallback(async () => {
     setLoading(true)
     const params = new URLSearchParams()
-    if (search) params.set("search", search)
+    if (debouncedSearch) params.set("search", debouncedSearch)
     if (statusFilter) params.set("status", statusFilter)
     if (sourceFilter) params.set("source", sourceFilter)
     params.set("sort", sort)
@@ -69,11 +71,11 @@ export default function ApplicationsPage() {
     } finally {
       setLoading(false)
     }
-  }, [search, statusFilter, sourceFilter, sort, page])
+  }, [debouncedSearch, statusFilter, sourceFilter, sort, page])
 
   useEffect(() => {
     setPage(1)
-  }, [search, statusFilter, sourceFilter, sort])
+  }, [debouncedSearch, statusFilter, sourceFilter, sort])
 
   useEffect(() => {
     if (!isLoaded) return

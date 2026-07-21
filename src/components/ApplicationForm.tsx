@@ -2,6 +2,7 @@
 
 import { useState, FormEvent } from "react"
 import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -82,13 +83,16 @@ export default function ApplicationForm({
       if (!res.ok) {
         const data = await res.json()
         setErrors({ form: data.error || "Something went wrong" })
+        toast.error(data.error || "Something went wrong")
         return
       }
 
+      toast.success(applicationId ? "Application updated" : "Application created")
       router.push("/applications")
       router.refresh()
     } catch {
       setErrors({ form: "Network error. Please try again." })
+      toast.error("Network error. Please try again.")
     } finally {
       setSubmitting(false)
     }
