@@ -10,11 +10,17 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  const [grouped, recent, total, allByDate] = await Promise.all([
+  const [grouped, groupedSource, recent, total, allByDate] = await Promise.all([
     prisma.application.groupBy({
       by: ["status"],
       where: { userId },
       _count: true,
+    }),
+    prisma.application.groupBy({
+      by: ["source"],
+      where: { userId },
+      _count: true,
+      orderBy: { _count: { source: "desc" } },
     }),
     prisma.application.findMany({
       where: { userId },
@@ -40,11 +46,14 @@ export async function GET() {
   }
   const trend = Object.entries(monthlyMap).map(([month, count]) => ({ month, count }))
 
+  const bySource = groupedSource.map((g) => ({ source: g.source, count: g._count }))
+
   const stats = {
     total,
     ...Object.fromEntries(statuses.map((s) => [s.toLowerCase(), countMap[s] ?? 0])),
     recent,
     trend,
+    bySource,
   }
 
   return NextResponse.json(stats)

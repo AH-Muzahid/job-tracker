@@ -17,6 +17,10 @@ model User {
   updatedAt   DateTime      @updatedAt
   applications Application[]
   tags         Tag[]
+  companies    Company[]
+  resumes      Resume[]
+  prepQuestions PrepQuestion[]
+  prepNotes    PrepNote[]
 }
 
 model Application {
@@ -29,14 +33,18 @@ model Application {
   applicationDate DateTime
   status          String
   notes           String?
+  companyId       String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company       Company?        @relation(fields: [companyId], references: [id], onDelete: SetNull)
   statusChanges StatusChange[]
   tags          ApplicationTag[]
+  prepNotes     PrepNote[]
 
   @@index([userId])
+  @@index([companyId])
 }
 
 model StatusChange {
@@ -71,4 +79,71 @@ model ApplicationTag {
   tag         Tag         @relation(fields: [tagId], references: [id], onDelete: Cascade)
 
   @@id([applicationId, tagId])
+}
+
+model Company {
+  id        String   @id @default(uuid())
+  userId    String
+  name      String
+  website   String?
+  industry  String?
+  notes     String?
+  logoUrl   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  applications Application[]
+
+  @@unique([userId, name])
+  @@index([userId])
+}
+
+model Resume {
+  id          String   @id @default(uuid())
+  userId      String
+  title       String
+  fileName    String
+  fileUrl     String
+  fileSize    Int
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model PrepQuestion {
+  id          String   @id @default(uuid())
+  userId      String
+  question    String
+  answer      String?
+  category    String
+  difficulty  String   @default("Medium")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, category])
+}
+
+model PrepNote {
+  id            String   @id @default(uuid())
+  userId        String
+  applicationId String?
+  title         String
+  content       String
+  category      String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  application Application?  @relation(fields: [applicationId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([applicationId])
 }
