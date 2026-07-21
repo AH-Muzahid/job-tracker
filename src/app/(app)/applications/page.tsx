@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react"
 import Link from "next/link"
 import { useUser } from "@clerk/nextjs"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import StatusBadge from "@/components/StatusBadge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -39,23 +39,24 @@ interface Application {
 export default function ApplicationsPage() {
   const { isLoaded, isSignedIn } = useUser()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [applications, setApplications] = useState<Application[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
-  const [search, setSearch] = useState("")
+  const [search, setSearch] = useState(searchParams.get("search") || "")
   const debouncedSearch = useDebounce(search, 300)
-  const [statusFilter, setStatusFilter] = useState("")
-  const [sourceFilter, setSourceFilter] = useState("")
-  const [sort, setSort] = useState("newest")
+  const [statusFilter, setStatusFilter] = useState(searchParams.get("status") || "all")
+  const [sourceFilter, setSourceFilter] = useState(searchParams.get("source") || "all")
+  const [sort, setSort] = useState(searchParams.get("sort") || "newest")
   const pageSize = 20
 
   const fetchApplications = useCallback(async () => {
     setLoading(true)
     const params = new URLSearchParams()
     if (debouncedSearch) params.set("search", debouncedSearch)
-    if (statusFilter) params.set("status", statusFilter)
-    if (sourceFilter) params.set("source", sourceFilter)
+    if (statusFilter && statusFilter !== "all") params.set("status", statusFilter)
+    if (sourceFilter && sourceFilter !== "all") params.set("source", sourceFilter)
     params.set("sort", sort)
     params.set("page", String(page))
     params.set("pageSize", String(pageSize))
@@ -76,6 +77,16 @@ export default function ApplicationsPage() {
   useEffect(() => {
     setPage(1)
   }, [debouncedSearch, statusFilter, sourceFilter, sort])
+
+  useEffect(() => {
+    const params = new URLSearchParams()
+    if (debouncedSearch) params.set("search", debouncedSearch)
+    if (statusFilter && statusFilter !== "all") params.set("status", statusFilter)
+    if (sourceFilter && sourceFilter !== "all") params.set("source", sourceFilter)
+    if (sort !== "newest") params.set("sort", sort)
+    const qs = params.toString()
+    router.replace(`/applications${qs ? `?${qs}` : ""}`, { scroll: false })
+  }, [debouncedSearch, statusFilter, sourceFilter, sort, router])
 
   useEffect(() => {
     if (!isLoaded) return
@@ -118,7 +129,7 @@ export default function ApplicationsPage() {
             <SelectValue placeholder="All statuses" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value=" ">All statuses</SelectItem>
+            <SelectItem value="all">All statuses</SelectItem>
             <SelectItem value="Saved">Saved</SelectItem>
             <SelectItem value="Applied">Applied</SelectItem>
             <SelectItem value="Assessment">Assessment</SelectItem>
@@ -133,7 +144,7 @@ export default function ApplicationsPage() {
             <SelectValue placeholder="All sources" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value=" ">All sources</SelectItem>
+            <SelectItem value="all">All sources</SelectItem>
             <SelectItem value="LinkedIn">LinkedIn</SelectItem>
             <SelectItem value="Bdjobs">Bdjobs</SelectItem>
             <SelectItem value="Indeed">Indeed</SelectItem>
@@ -170,36 +181,60 @@ export default function ApplicationsPage() {
         </div>
       ) : (
         <>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Company</TableHead>
-                <TableHead>Job Title</TableHead>
-                <TableHead>Source</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {applications.map((app) => (
-                <TableRow
-                  key={app.id}
-                  className="cursor-pointer"
-                  onClick={() => router.push(`/applications/${app.id}`)}
-                >
-                  <TableCell className="font-medium">{app.companyName}</TableCell>
-                  <TableCell>{app.jobTitle}</TableCell>
-                  <TableCell>{app.source}</TableCell>
-                  <TableCell>
-                    {new Date(app.applicationDate).toLocaleDateString()}
-                  </TableCell>
-                  <TableCell>
-                    <StatusBadge status={app.status} />
-                  </TableCell>
+          <div className="hidden md:block">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Company</TableHead>
+                  <TableHead>Job Title</TableHead>
+                  <TableHead className="hidden lg:table-cell">Source</TableHead>
+                  <TableHead className="hidden sm:table-cell">Date</TableHead>
+                  <TableHead>Status</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {applications.map((app) => (
+                  <TableRow
+                    key={app.id}
+                    className="cursor-pointer"
+                    onClick={() => router.push(`/applications/${app.id}`)}
+                  >
+                    <TableCell className="font-medium">{app.companyName}</TableCell>
+                    <TableCell>{app.jobTitle}</TableCell>
+                    <TableCell className="hidden lg:table-cell">{app.source}</TableCell>
+                    <TableCell className="hidden sm:table-cell">
+                      {new Date(app.applicationDate).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge status={app.status} />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+
+          <div className="space-y-3 md:hidden">
+            {applications.map((app) => (
+              <div
+                key={app.id}
+                className="cursor-pointer rounded-lg border p-4 transition-colors hover:bg-muted/50"
+                onClick={() => router.push(`/applications/${app.id}`)}
+              >
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="font-medium">{app.companyName}</p>
+                    <p className="text-sm text-muted-foreground">{app.jobTitle}</p>
+                  </div>
+                  <StatusBadge status={app.status} />
+                </div>
+                <div className="mt-2 flex gap-4 text-xs text-muted-foreground">
+                  <span>{app.source}</span>
+                  <span>{new Date(app.applicationDate).toLocaleDateString()}</span>
+                </div>
+              </div>
+            ))}
+          </div>
 
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">

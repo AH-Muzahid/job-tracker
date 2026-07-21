@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, FormEvent } from "react"
+import { useState, FormEvent, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -48,8 +48,20 @@ export default function ApplicationForm({
   const [form, setForm] = useState<ApplicationFormData>(
     initialData || defaultData
   )
+  const initialForm = initialData || defaultData
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
+
+  const hasUnsaved = JSON.stringify(form) !== JSON.stringify(initialForm)
+
+  useEffect(() => {
+    if (!hasUnsaved || submitting) return
+    function onBeforeUnload(e: BeforeUnloadEvent) {
+      e.preventDefault()
+    }
+    window.addEventListener("beforeunload", onBeforeUnload)
+    return () => window.removeEventListener("beforeunload", onBeforeUnload)
+  }, [hasUnsaved, submitting])
 
   function validate() {
     const errs: Record<string, string> = {}
