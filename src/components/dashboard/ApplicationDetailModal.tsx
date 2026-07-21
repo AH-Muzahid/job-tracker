@@ -1,7 +1,15 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { ExternalLink, Pencil, Trash2 } from "lucide-react"
+import {
+  Calendar,
+  ExternalLink,
+  Globe,
+  Pencil,
+  StickyNote,
+  Tag,
+  Trash2,
+} from "lucide-react"
 import { toast } from "sonner"
 import StatusBadge from "@/components/StatusBadge"
 import { Badge } from "@/components/ui/badge"
@@ -10,8 +18,6 @@ import { Skeleton } from "@/components/ui/skeleton"
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
 } from "@/components/ui/dialog"
 import DeleteConfirmModal from "./DeleteConfirmModal"
 import ApplicationFormModal from "./ApplicationFormModal"
@@ -50,13 +56,31 @@ interface Props {
   onDeleted: () => void
 }
 
-const statusColors: Record<string, string> = {
-  Saved: "bg-gray-100 dark:bg-gray-800",
-  Applied: "bg-blue-100 dark:bg-blue-900/50",
-  Assessment: "bg-yellow-100 dark:bg-yellow-900/50",
-  Interview: "bg-purple-100 dark:bg-purple-900/50",
-  Rejected: "bg-red-100 dark:bg-red-900/50",
-  Offer: "bg-green-100 dark:bg-green-900/50",
+const statusGradients: Record<string, string> = {
+  Saved: "from-gray-500/10 via-gray-500/5 to-transparent",
+  Applied: "from-blue-500/10 via-blue-500/5 to-transparent",
+  Assessment: "from-amber-500/10 via-amber-500/5 to-transparent",
+  Interview: "from-purple-500/10 via-purple-500/5 to-transparent",
+  Rejected: "from-red-500/10 via-red-500/5 to-transparent",
+  Offer: "from-emerald-500/10 via-emerald-500/5 to-transparent",
+}
+
+const statusDots: Record<string, string> = {
+  Saved: "bg-gray-500",
+  Applied: "bg-blue-500",
+  Assessment: "bg-amber-500",
+  Interview: "bg-purple-500",
+  Rejected: "bg-red-500",
+  Offer: "bg-emerald-500",
+}
+
+const statusBg: Record<string, string> = {
+  Saved: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
+  Applied: "bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300",
+  Assessment: "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300",
+  Interview: "bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300",
+  Rejected: "bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300",
+  Offer: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300",
 }
 
 export default function ApplicationDetailModal({
@@ -88,95 +112,106 @@ export default function ApplicationDetailModal({
       .finally(() => setLoading(false))
   }, [open, applicationId])
 
+  const gradient = application ? statusGradients[application.status] || statusGradients.Saved : ""
+  const dot = application ? statusDots[application.status] || statusDots.Saved : ""
+
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto p-0 gap-0">
+        <DialogContent className="max-w-xl max-h-[90vh] overflow-hidden p-0 gap-0 rounded-2xl">
           {loading || !application ? (
-            <div className="p-6 space-y-4">
-              <Skeleton className="h-8 w-48" />
-              <Skeleton className="h-4 w-32" />
-              <div className="grid grid-cols-2 gap-4">
-                {Array.from({ length: 6 }).map((_, i) => (
-                  <div key={i} className="space-y-1">
-                    <Skeleton className="h-3 w-16" />
-                    <Skeleton className="h-5 w-28" />
-                  </div>
-                ))}
-              </div>
-            </div>
+            <DetailSkeleton />
           ) : (
             <>
-              <DialogHeader className="p-6 pb-0">
+              {/* Header Banner */}
+              <div className={`relative bg-gradient-to-b ${gradient} px-6 pt-6 pb-4`}>
                 <div className="flex items-start justify-between">
                   <div className="flex items-start gap-4">
-                    <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-xl text-lg font-bold ${statusColors[application.status] || "bg-gray-100"}`}>
-                      {application.companyName.slice(0, 2).toUpperCase()}
+                    <div className="relative">
+                      <div className={`flex h-14 w-14 items-center justify-center rounded-2xl text-lg font-bold text-white shadow-lg ${statusBg[application.status]?.split(" ")[0] || "bg-gray-200"}`}>
+                        {application.companyName.slice(0, 2).toUpperCase()}
+                      </div>
+                      <div className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-background ${dot}`} />
                     </div>
-                    <div>
-                      <DialogTitle className="text-xl">{application.companyName}</DialogTitle>
+                    <div className="pt-0.5">
+                      <h2 className="text-lg font-bold leading-tight">{application.companyName}</h2>
                       <p className="text-sm text-muted-foreground mt-0.5">{application.jobTitle}</p>
-                      <div className="flex items-center gap-2 mt-2">
+                      <div className="flex items-center gap-2 mt-2.5">
                         <StatusBadge status={application.status} />
-                        <Badge variant="outline">{application.source}</Badge>
+                        <Badge variant="outline" className="text-xs font-normal">{application.source}</Badge>
+                        {application.jobUrl && (
+                          <a
+                            href={application.jobUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                          >
+                            <Globe className="h-3 w-3" />
+                            Job post
+                            <ExternalLink className="h-2.5 w-2.5" />
+                          </a>
+                        )}
                       </div>
                     </div>
                   </div>
                   <div className="flex gap-1.5">
                     <Button
                       size="sm"
-                      variant="outline"
+                      variant="ghost"
+                      className="h-8 px-2.5 text-muted-foreground hover:text-foreground"
                       onClick={() => setEditOpen(true)}
                     >
                       <Pencil className="h-3.5 w-3.5" />
-                      Edit
                     </Button>
                     <Button
                       size="sm"
-                      variant="outline"
-                      className="text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                      variant="ghost"
+                      className="h-8 px-2.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                       onClick={() => setDeleteOpen(true)}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </div>
                 </div>
-              </DialogHeader>
+              </div>
 
-              <div className="p-6 space-y-6">
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                  <DetailItem label="Source" value={application.source} />
-                  <DetailItem
-                    label="Applied"
-                    value={new Date(application.applicationDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+              {/* Content */}
+              <div className="px-6 py-4 max-h-[calc(90vh-120px)] overflow-y-auto space-y-5">
+                {/* Info Grid */}
+                <div className="grid grid-cols-3 gap-4">
+                  <InfoCard
+                    icon={<Globe className="h-3.5 w-3.5" />}
+                    label="Source"
+                    value={application.source}
                   />
-                  <DetailItem
+                  <InfoCard
+                    icon={<Calendar className="h-3.5 w-3.5" />}
+                    label="Applied"
+                    value={new Date(application.applicationDate).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
+                  />
+                  <InfoCard
+                    icon={<Tag className="h-3.5 w-3.5" />}
                     label="Status"
                     value={application.status}
-                    badge={<StatusBadge status={application.status} />}
+                    highlight
                   />
-                  {application.jobUrl && (
-                    <div className="space-y-1">
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Job Post</p>
-                      <a
-                        href={application.jobUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
-                      >
-                        View posting
-                        <ExternalLink className="h-3 w-3" />
-                      </a>
-                    </div>
-                  )}
                 </div>
 
+                {/* Tags */}
                 {application.tags.length > 0 && (
-                  <div className="space-y-2">
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Tags</p>
-                    <div className="flex flex-wrap gap-1.5">
+                  <div>
+                    <SectionHeader icon={<Tag className="h-3.5 w-3.5" />} title="Tags" />
+                    <div className="flex flex-wrap gap-1.5 mt-2">
                       {application.tags.map(({ tag }) => (
-                        <Badge key={tag.id} variant="secondary" className="text-xs">
+                        <Badge
+                          key={tag.id}
+                          variant="secondary"
+                          className="text-xs font-normal"
+                        >
                           {tag.name}
                         </Badge>
                       ))}
@@ -184,37 +219,48 @@ export default function ApplicationDetailModal({
                   </div>
                 )}
 
+                {/* Notes */}
                 {application.notes && (
-                  <div className="space-y-2">
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Notes</p>
-                    <p className="text-sm whitespace-pre-wrap rounded-lg bg-muted/50 p-3">{application.notes}</p>
+                  <div>
+                    <SectionHeader icon={<StickyNote className="h-3.5 w-3.5" />} title="Notes" />
+                    <div className="mt-2 rounded-xl bg-muted/40 border p-3.5">
+                      <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">
+                        {application.notes}
+                      </p>
+                    </div>
                   </div>
                 )}
 
+                {/* Timeline */}
                 {application.statusChanges.length > 0 && (
-                  <div className="space-y-3">
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Timeline</p>
-                    <div className="relative ml-2">
-                      <div className="absolute left-0 top-2 bottom-2 w-px bg-border" />
-                      <div className="space-y-3">
+                  <div>
+                    <SectionHeader icon={<Calendar className="h-3.5 w-3.5" />} title="Activity" />
+                    <div className="mt-3 relative">
+                      <div className="absolute left-[11px] top-3 bottom-3 w-px bg-border" />
+                      <div className="space-y-0">
                         {application.statusChanges.map((sc, i) => (
-                          <div key={sc.id} className="relative flex items-start gap-3 pl-4">
-                            <div className={`absolute left-[-3px] top-1.5 h-[7px] w-[7px] rounded-full ring-2 ring-background ${i === 0 ? "bg-primary" : "bg-muted-foreground/40"}`} />
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
+                          <div key={sc.id} className="relative flex items-start gap-3 py-2.5 first:pt-0">
+                            <div className={`relative z-10 mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full ring-4 ring-background ${
+                              i === 0
+                                ? `${statusDots[sc.toStatus] || "bg-primary"} text-white`
+                                : "bg-muted text-muted-foreground"
+                            }`}>
+                              <div className="h-1.5 w-1.5 rounded-full bg-current" />
+                            </div>
+                            <div className="flex-1 min-w-0 pt-0.5">
+                              <div className="flex items-center gap-1.5 flex-wrap">
                                 {sc.fromStatus && (
                                   <>
                                     <StatusBadge status={sc.fromStatus} />
-                                    <span className="text-muted-foreground text-xs">→</span>
+                                    <span className="text-muted-foreground text-[10px]">→</span>
                                   </>
                                 )}
                                 <StatusBadge status={sc.toStatus} />
                               </div>
-                              <p className="text-xs text-muted-foreground mt-0.5">
+                              <p className="text-[11px] text-muted-foreground/70 mt-1">
                                 {new Date(sc.changedAt).toLocaleString("en-US", {
                                   month: "short",
                                   day: "numeric",
-                                  year: "numeric",
                                   hour: "numeric",
                                   minute: "2-digit",
                                 })}
@@ -223,6 +269,16 @@ export default function ApplicationDetailModal({
                           </div>
                         ))}
                       </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Empty Timeline State */}
+                {application.statusChanges.length === 0 && (
+                  <div>
+                    <SectionHeader icon={<Calendar className="h-3.5 w-3.5" />} title="Activity" />
+                    <div className="mt-2 rounded-xl border border-dashed p-6 text-center">
+                      <p className="text-xs text-muted-foreground/60">No activity yet</p>
                     </div>
                   </div>
                 )}
@@ -241,7 +297,6 @@ export default function ApplicationDetailModal({
             onUpdated={() => {
               setEditOpen(false)
               onUpdated()
-              // Re-fetch detail
               fetch(`/api/applications/${application.id}`)
                 .then((r) => r.json())
                 .then(setApplication)
@@ -264,19 +319,63 @@ export default function ApplicationDetailModal({
   )
 }
 
-function DetailItem({
+function SectionHeader({ icon, title }: { icon: React.ReactNode; title: string }) {
+  return (
+    <div className="flex items-center gap-2">
+      <div className="text-muted-foreground">{icon}</div>
+      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{title}</h3>
+    </div>
+  )
+}
+
+function InfoCard({
+  icon,
   label,
   value,
-  badge,
+  highlight,
 }: {
+  icon: React.ReactNode
   label: string
   value: string
-  badge?: React.ReactNode
+  highlight?: boolean
 }) {
   return (
-    <div className="space-y-1">
-      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{label}</p>
-      {badge || <p className="text-sm font-medium">{value}</p>}
+    <div className="rounded-xl bg-muted/30 border px-3.5 py-3 space-y-1.5">
+      <div className="flex items-center gap-1.5 text-muted-foreground">
+        {icon}
+        <span className="text-[10px] font-medium uppercase tracking-wider">{label}</span>
+      </div>
+      {highlight ? (
+        <StatusBadge status={value} />
+      ) : (
+        <p className="text-sm font-medium">{value}</p>
+      )}
+    </div>
+  )
+}
+
+function DetailSkeleton() {
+  return (
+    <div className="p-6 space-y-6">
+      <div className="flex items-start gap-4">
+        <Skeleton className="h-14 w-14 rounded-2xl" />
+        <div className="space-y-2 flex-1">
+          <Skeleton className="h-5 w-36" />
+          <Skeleton className="h-4 w-28" />
+          <div className="flex gap-2 mt-2">
+            <Skeleton className="h-5 w-16 rounded-full" />
+            <Skeleton className="h-5 w-14 rounded-full" />
+          </div>
+        </div>
+      </div>
+      <div className="grid grid-cols-3 gap-4">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} className="rounded-xl bg-muted/30 border p-3.5 space-y-2">
+            <Skeleton className="h-3 w-12" />
+            <Skeleton className="h-4 w-16" />
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
