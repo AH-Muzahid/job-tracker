@@ -21,6 +21,9 @@ model User {
   resumes      Resume[]
   prepQuestions PrepQuestion[]
   prepNotes    PrepNote[]
+  profile      UserProfile?
+  weeklyGoals  WeeklyGoal[]
+  chatSessions ChatSession[]
 }
 
 model Application {
@@ -42,6 +45,7 @@ model Application {
   statusChanges StatusChange[]
   tags          ApplicationTag[]
   prepNotes     PrepNote[]
+  analysis      ApplicationAnalysis?
 
   @@index([userId])
   @@index([companyId])
@@ -146,4 +150,112 @@ model PrepNote {
 
   @@index([userId])
   @@index([applicationId])
+}
+
+model UserProfile {
+  id                    String   @id @default(uuid())
+  userId                String   @unique
+  phone                 String?
+  location              String?
+  targetRoles           String[]
+  workPreference        String?
+  salaryExpectation     String?
+  experienceLevel       String?
+  currentStatus         String?
+  linkedInUrl           String?
+  githubUrl             String?
+  portfolioUrl          String?
+  bestProjects          Json?
+  strengths             String?
+  weaknesses            String?
+  weeklyHours           Int?
+  bestDays              String?
+  noticePeriod          String?
+  communicationLevel    String?
+  englishLevel          String?
+  preferredIndustries   String?
+  preferredCompanies    String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model WeeklyGoal {
+  id            String   @id @default(uuid())
+  userId        String
+  weekStart     DateTime
+
+  goal1         String
+  goal1Target   Int?
+  goal1Progress Int?
+  goal1Status   String   @default("NotStarted")
+
+  goal2         String?
+  goal2Target   Int?
+  goal2Progress Int?
+  goal2Status   String   @default("NotStarted")
+
+  goal3         String?
+  goal3Target   Int?
+  goal3Progress Int?
+  goal3Status   String   @default("NotStarted")
+
+  blockers      String?
+  notes         String?
+  weekReview    Json?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, weekStart])
+  @@index([userId])
+}
+
+model ApplicationAnalysis {
+  id                  String   @id @default(uuid())
+  applicationId       String   @unique
+  matchScore          Int?
+  confidence          String?
+  verdict             String?
+  jdKeywords          Json?
+  gapAnalysis         Json?
+  resumeAdvice        Json?
+  applyStrategy       Json?
+  redFlags            String?
+  finalRecommendation String?
+  rawJd               String?
+  rawAnalysis         String?
+  analyzedAt          DateTime @default(now())
+
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+}
+
+model ChatSession {
+  id        String   @id @default(uuid())
+  userId    String
+  mode      String?
+  title     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages ChatMessage[]
+
+  @@index([userId])
+}
+
+model ChatMessage {
+  id        String   @id @default(uuid())
+  sessionId String
+  role      String
+  content   String
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  session ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@index([sessionId, createdAt])
 }
