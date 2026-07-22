@@ -54,11 +54,24 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
 
   const sidebarContent = (
     <div className="flex h-full flex-col">
-      <div className={cn("flex h-14 items-center border-b px-3", collapsed ? "justify-center" : "gap-2.5")}>
+      <div className={cn("flex h-14 items-center border-b px-3", collapsed ? "justify-center" : "justify-between")}>
         <Link href="/dashboard" className="flex items-center gap-2.5 group" onClick={onMobileClose}>
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-sm transition-transform group-hover:scale-105">C</div>
           {!collapsed && <span className="text-base font-bold tracking-tight">CareerTrack</span>}
         </Link>
+        <div className="hidden lg:block">
+          <Tooltip delayDuration={0}>
+            <TooltipTrigger asChild>
+              <button
+                onClick={onToggle}
+                className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all"
+              >
+                {collapsed ? <PanelLeft className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+              </button>
+            </TooltipTrigger>
+            {collapsed && <TooltipContent side="right" sideOffset={8}>Expand</TooltipContent>}
+          </Tooltip>
+        </div>
       </div>
 
       <nav className="flex-1 space-y-1 px-2 py-3">
@@ -131,20 +144,6 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
           <UserButton appearance={{ elements: { avatarBox: "h-7 w-7" } }} />
           {!collapsed && <span className="text-xs text-muted-foreground truncate">Account</span>}
         </div>
-      </div>
-
-      <div className="border-t px-2 py-2 hidden lg:block">
-        <Tooltip delayDuration={0}>
-          <TooltipTrigger asChild>
-            <button
-              onClick={onToggle}
-              className="flex w-full items-center justify-center rounded-lg px-2 py-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all"
-            >
-              {collapsed ? <PanelLeft className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
-            </button>
-          </TooltipTrigger>
-          {collapsed && <TooltipContent side="right" sideOffset={8}>Expand</TooltipContent>}
-        </Tooltip>
       </div>
     </div>
   )
