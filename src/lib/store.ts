@@ -1,5 +1,24 @@
 import { create } from "zustand"
 
+export type AIMode =
+  | "profile" | "jd-scan" | "application" | "tracker"
+  | "response" | "interview" | "weekly" | "recovery"
+
+export interface AISession {
+  id: string
+  mode: string | null
+  title: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+interface AIState {
+  sessions: AISession[]
+  sessionsLoading: boolean
+  setSessions: (sessions: AISession[]) => void
+  setSessionsLoading: (v: boolean) => void
+}
+
 interface UIState {
   // Sidebar
   collapsed: boolean
@@ -52,4 +71,11 @@ export const useUI = create<UIState>((set) => ({
   setDetailModal: (open, id = null) => set({ detailModal: { open, id } }),
   setFormModal: (open, editId) => set({ formModal: open ? { open, editId } : { open: false } }),
   setDeleteModal: (open, id = null) => set({ deleteModal: { open, id } }),
+}))
+
+export const useAI = create<AIState>((set) => ({
+  sessions: [],
+  sessionsLoading: false,
+  setSessions: (sessions) => set({ sessions }),
+  setSessionsLoading: (v) => set({ sessionsLoading: v }),
 }))
