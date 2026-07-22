@@ -1,8 +1,10 @@
 "use client"
 
-import { ExternalLink, MoreHorizontal } from "lucide-react"
+import { ExternalLink, MoreHorizontal, Pencil, Trash2, ArrowRight } from "lucide-react"
 import { Card } from "@/components/ui/card"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { getCompanyColor, getInitials } from "./utils"
+import { STATUS_OPTIONS } from "./types"
 import type { Application } from "./types"
 
 const tagColors: Record<string, string> = {
@@ -20,20 +22,20 @@ const defaultTagColor = "bg-secondary text-secondary-foreground"
 interface Props {
   application: Application
   onClick: () => void
+  onEdit: () => void
+  onDelete: () => void
+  onMoveTo: (status: string) => void
 }
 
-export default function BoardCard({ application, onClick }: Props) {
+export default function BoardCard({ application, onClick, onEdit, onDelete, onMoveTo }: Props) {
   const initials = getInitials(application.companyName)
   const colorClass = getCompanyColor(application.companyName)
 
   return (
-    <button
-      onClick={onClick}
-      className="group block w-full text-left"
-    >
+    <div className="group block w-full text-left">
       <Card className="p-3 transition-all duration-200 hover:shadow-md hover:ring-1 hover:ring-primary/20 cursor-pointer active:scale-[0.98]">
         <div className="flex items-start justify-between gap-2">
-          <div className="flex min-w-0 items-start gap-2.5">
+          <button onClick={onClick} className="flex min-w-0 items-start gap-2.5 flex-1 text-left">
             <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-xs font-bold text-white ${colorClass}`}>
               {initials}
             </div>
@@ -41,8 +43,47 @@ export default function BoardCard({ application, onClick }: Props) {
               <p className="text-xs text-muted-foreground">{application.companyName}</p>
               <p className="truncate text-sm font-semibold leading-tight">{application.jobTitle}</p>
             </div>
-          </div>
-          <MoreHorizontal className="h-4 w-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+          </button>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className="shrink-0 rounded-md p-1 text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-muted hover:text-foreground transition-all"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <MoreHorizontal className="h-4 w-4" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44">
+              <DropdownMenuItem onClick={onEdit} className="gap-2 text-xs">
+                <Pencil className="h-3.5 w-3.5" /> Edit
+              </DropdownMenuItem>
+              {application.jobUrl && (
+                <DropdownMenuItem
+                  onClick={() => window.open(application.jobUrl!, "_blank")}
+                  className="gap-2 text-xs"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" /> Open Link
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger className="gap-2 text-xs">
+                  <ArrowRight className="h-3.5 w-3.5" /> Move to
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent className="w-36">
+                  {STATUS_OPTIONS.filter((s) => s !== application.status).map((status) => (
+                    <DropdownMenuItem key={status} onClick={() => onMoveTo(status)} className="text-xs">
+                      {status}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={onDelete} className="gap-2 text-xs text-destructive focus:text-destructive">
+                <Trash2 className="h-3.5 w-3.5" /> Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         {application.tags.length > 0 && (
@@ -61,18 +102,18 @@ export default function BoardCard({ application, onClick }: Props) {
         <div className="mt-2.5 flex items-center justify-between text-xs text-muted-foreground">
           <span>{new Date(application.applicationDate).toLocaleDateString()}</span>
           {application.jobUrl && (
-            <span
-              className="inline-flex items-center gap-1 text-muted-foreground group-hover:text-foreground"
+            <button
+              className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
               onClick={(e) => {
                 e.stopPropagation()
                 window.open(application.jobUrl!, "_blank")
               }}
             >
               <ExternalLink className="h-3 w-3" />
-            </span>
+            </button>
           )}
         </div>
       </Card>
-    </button>
+    </div>
   )
 }

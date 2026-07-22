@@ -3,9 +3,14 @@
 import { Suspense, useCallback, useMemo, useState } from "react"
 import { useUser } from "@clerk/nextjs"
 import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter,
+  DialogHeader, DialogTitle,
+} from "@/components/ui/dialog"
 import ViewSwitcher from "@/components/dashboard/ViewSwitcher"
 import FilterBar from "@/components/dashboard/FilterBar"
 import BoardView from "@/components/dashboard/BoardView"
@@ -16,6 +21,7 @@ import ApplicationFormModal from "@/components/dashboard/ApplicationFormModal"
 import { useSearchParams } from "@/hooks/use-search-params"
 import { useApplications } from "@/hooks/use-applications"
 import type { ViewMode, SortOption, DashboardFilters } from "@/components/dashboard/types"
+import type { DropResult } from "@hello-pangea/dnd"
 
 function ApplicationsContent() {
   const { isLoaded, isSignedIn } = useUser()
@@ -34,7 +40,9 @@ function ApplicationsContent() {
   const { applications, total, loading, error, refetch } = useApplications(filters)
 
   const [detailModal, setDetailModal] = useState<{ open: boolean; id: string | null }>({ open: false, id: null })
-  const [formModal, setFormModal] = useState(false)
+  const [formModal, setFormModal] = useState<{ open: boolean; editId?: string }>({ open: false })
+  const [deleteModal, setDeleteModal] = useState<{ open: boolean; id: string | null }>({ open: false, id: null })
+  const [deleting, setDeleting] = useState(false)
 
   const updateFilter = useCallback((key: string, value: string) => {
     setUrlParams({ ...urlParams, [key]: value })
@@ -47,6 +55,62 @@ function ApplicationsContent() {
   const setView = useCallback((v: ViewMode) => {
     setUrlParams({ ...urlParams, view: v })
   }, [urlParams, setUrlParams])
+
+  const handleMoveTo = useCallback(async (id: string, status: string) => {
+    try {
+      const res = await fetch(`/api/applications/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      })
+      if (!res.ok) throw new Error("Failed to move")
+      toast.success(`Moved to ${status}`)
+      refetch()
+    } catch {
+      toast.error("Failed to move application")
+    }
+  }, [refetch])
+
+  const handleDelete = useCallback(async () => {
+    if (!deleteModal.id) return
+    setDeleting(true)
+    try {
+      const res = await fetch(`/api/applications/${deleteModal.id}`, { method: "DELETE" })
+      if (!res.ok) throw new Error("Failed to delete")
+      toast.success("Application deleted")
+      setDeleteModal({ open: false, id: null })
+      refetch()
+    } catch {
+      toast.error("Failed to delete application")
+    } finally {
+      setDeleting(false)
+    }
+  }, [deleteModal.id, refetch])
+
+  const handleDragEnd = useCallback((result: DropResult) => {
+    const { destination, source, draggableId } = result
+    if (!destination) return
+    if (destination.droppableId === source.droppableId && destination.index === source.index) return
+
+    const columnMap: Record<string, string[]> = {
+      saved: ["Saved"],
+      applied: ["Applied"],
+      interviews: ["Assessment", "Interview"],
+      rejected: ["Rejected"],
+      offer: ["Offer"],
+    }
+
+    const targetStatuses = columnMap[destination.droppableId]
+    if (!targetStatuses) return
+
+    const app = applications.find((a) => a.id === draggableId)
+    if (!app) return
+
+    const newStatus = targetStatuses[0]
+    if (app.status === newStatus) return
+
+    handleMoveTo(draggableId, newStatus)
+  }, [applications, handleMoveTo])
 
   if (!isLoaded) return <ApplicationsSkeleton />
   if (!isSignedIn) { router.push("/login"); return null }
@@ -67,7 +131,7 @@ function ApplicationsContent() {
           <h1 className="text-2xl font-bold">Applications</h1>
           <p className="text-sm text-muted-foreground">{total} total applications</p>
         </div>
-        <Button onClick={() => setFormModal(true)}>Add Application</Button>
+        <Button onClick={() => setFormModal({ open: true })}>Add Application</Button>
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -91,7 +155,17 @@ function ApplicationsContent() {
         <ViewSkeleton view={view} />
       ) : (
         <>
-          {view === "board" && <BoardView applications={applications} onSelect={(id) => setDetailModal({ open: true, id })} onAddNew={() => setFormModal(true)} />}
+          {view === "board" && (
+            <BoardView
+              applications={applications}
+              onSelect={(id) => setDetailModal({ open: true, id })}
+              onAddNew={() => setFormModal({ open: true })}
+              onEdit={(id) => setFormModal({ open: true, editId: id })}
+              onDelete={(id) => setDeleteModal({ open: true, id })}
+              onMoveTo={handleMoveTo}
+              onDragEnd={handleDragEnd}
+            />
+          )}
           {view === "list" && <ListView applications={applications} onSelect={(id) => setDetailModal({ open: true, id })} />}
           {view === "table" && <TableView applications={applications} onSelect={(id) => setDetailModal({ open: true, id })} />}
         </>
@@ -104,7 +178,27 @@ function ApplicationsContent() {
         onUpdated={refetch}
         onDeleted={refetch}
       />
-      <ApplicationFormModal open={formModal} onOpenChange={setFormModal} onUpdated={refetch} />
+      <ApplicationFormModal
+        open={formModal.open}
+        onOpenChange={(open) => setFormModal({ open })}
+        applicationId={formModal.editId}
+        onUpdated={() => { setFormModal({ open: false }); refetch() }}
+      />
+
+      <Dialog open={deleteModal.open} onOpenChange={(open) => setDeleteModal({ open, id: deleteModal.id })}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Application</DialogTitle>
+            <DialogDescription>Are you sure you want to delete this application? This action cannot be undone.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteModal({ open: false, id: null })} disabled={deleting}>Cancel</Button>
+            <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
+              {deleting ? "Deleting..." : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
