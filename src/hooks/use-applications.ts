@@ -9,6 +9,8 @@ interface UseApplicationsResult {
   loading: boolean
   error: string | null
   refetch: () => void
+  silentRefetch: () => void
+  optimisticUpdate: (id: string, updates: Partial<Application>) => void
 }
 
 export function useApplications(filters: DashboardFilters): UseApplicationsResult {
@@ -18,12 +20,12 @@ export function useApplications(filters: DashboardFilters): UseApplicationsResul
   const [error, setError] = useState<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
 
-  const fetchApplications = useCallback(async () => {
+  const fetchApplications = useCallback(async (silent = false) => {
     abortRef.current?.abort()
     const controller = new AbortController()
     abortRef.current = controller
 
-    setLoading(true)
+    if (!silent) setLoading(true)
     setError(null)
 
     const params = new URLSearchParams()
@@ -60,5 +62,15 @@ export function useApplications(filters: DashboardFilters): UseApplicationsResul
     return () => abortRef.current?.abort()
   }, [fetchApplications])
 
-  return { applications, total, loading, error, refetch: fetchApplications }
+  const silentRefetch = useCallback(() => {
+    fetchApplications(true)
+  }, [fetchApplications])
+
+  const optimisticUpdate = useCallback((id: string, updates: Partial<Application>) => {
+    setApplications((prev) =>
+      prev.map((app) => (app.id === id ? { ...app, ...updates } : app))
+    )
+  }, [])
+
+  return { applications, total, loading, error, refetch: () => fetchApplications(false), silentRefetch, optimisticUpdate }
 }

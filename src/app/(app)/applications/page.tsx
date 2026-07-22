@@ -37,7 +37,7 @@ function ApplicationsContent() {
   }), [urlParams.search, urlParams.status, urlParams.source, urlParams.sort, urlParams.tag])
 
   const view: ViewMode = (urlParams.view as ViewMode) || "board"
-  const { applications, total, loading, error, refetch } = useApplications(filters)
+  const { applications, total, loading, error, silentRefetch, optimisticUpdate } = useApplications(filters)
 
   const [detailModal, setDetailModal] = useState<{ open: boolean; id: string | null }>({ open: false, id: null })
   const [formModal, setFormModal] = useState<{ open: boolean; editId?: string }>({ open: false })
@@ -57,6 +57,11 @@ function ApplicationsContent() {
   }, [urlParams, setUrlParams])
 
   const handleMoveTo = useCallback(async (id: string, status: string) => {
+    const app = applications.find((a) => a.id === id)
+    const oldStatus = app?.status
+
+    optimisticUpdate(id, { status })
+
     try {
       const res = await fetch(`/api/applications/${id}`, {
         method: "PATCH",
@@ -65,11 +70,11 @@ function ApplicationsContent() {
       })
       if (!res.ok) throw new Error("Failed to move")
       toast.success(`Moved to ${status}`)
-      refetch()
     } catch {
+      if (oldStatus) optimisticUpdate(id, { status: oldStatus })
       toast.error("Failed to move application")
     }
-  }, [refetch])
+  }, [applications, optimisticUpdate])
 
   const handleDelete = useCallback(async () => {
     if (!deleteModal.id) return
@@ -79,13 +84,13 @@ function ApplicationsContent() {
       if (!res.ok) throw new Error("Failed to delete")
       toast.success("Application deleted")
       setDeleteModal({ open: false, id: null })
-      refetch()
+      silentRefetch()
     } catch {
       toast.error("Failed to delete application")
     } finally {
       setDeleting(false)
     }
-  }, [deleteModal.id, refetch])
+  }, [deleteModal.id, silentRefetch])
 
   const handleDragEnd = useCallback((result: DropResult) => {
     const { destination, source, draggableId } = result
@@ -119,7 +124,7 @@ function ApplicationsContent() {
     return (
       <div className="text-center py-20">
         <p className="text-destructive mb-4">{error}</p>
-        <Button onClick={refetch}>Retry</Button>
+        <Button onClick={silentRefetch}>Retry</Button>
       </div>
     )
   }
@@ -175,14 +180,14 @@ function ApplicationsContent() {
         applicationId={detailModal.id}
         open={detailModal.open}
         onOpenChange={(open) => setDetailModal({ open, id: detailModal.id })}
-        onUpdated={refetch}
-        onDeleted={refetch}
+        onUpdated={silentRefetch}
+        onDeleted={silentRefetch}
       />
       <ApplicationFormModal
         open={formModal.open}
         onOpenChange={(open) => setFormModal({ open })}
         applicationId={formModal.editId}
-        onUpdated={() => { setFormModal({ open: false }); refetch() }}
+        onUpdated={() => { setFormModal({ open: false }); silentRefetch() }}
       />
 
       <Dialog open={deleteModal.open} onOpenChange={(open) => setDeleteModal({ open, id: deleteModal.id })}>
