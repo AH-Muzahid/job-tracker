@@ -2,23 +2,14 @@
 
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
-import Link from "next/link"
 import { useUser } from "@clerk/nextjs"
-import StatusBadge from "@/components/StatusBadge"
 import { toast } from "sonner"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
+import ApplicationDetailHeader from "@/components/applications/ApplicationDetailHeader"
+import ApplicationDeleteDialog from "@/components/applications/ApplicationDeleteDialog"
+import ApplicationDetailsCard from "@/components/applications/ApplicationDetailsCard"
+import ApplicationAnalysisSection from "@/components/applications/ApplicationAnalysisSection"
 
 interface StatusChange {
   id: string
@@ -55,13 +46,13 @@ export default function ApplicationDetailPage() {
   const [error, setError] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [analysis, setAnalysis] = useState<Record<string, unknown> | null>(null)
+  const [analysisLoading, setAnalysisLoading] = useState(false)
+  const [showAnalysis, setShowAnalysis] = useState(false)
 
   useEffect(() => {
     if (!isLoaded) return
-    if (!isSignedIn) {
-      router.push("/login")
-      return
-    }
+    if (!isSignedIn) { router.push("/login"); return }
 
     fetch(`/api/applications/${params.id}`)
       .then((res) => {
@@ -72,23 +63,63 @@ export default function ApplicationDetailPage() {
         return res.json()
       })
       .then(setApplication)
-      .catch((err) => setError(err.message))
+      .catch((err: Error) => setError(err.message))
       .finally(() => setLoading(false))
+
+    fetchAnalysis()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoaded, isSignedIn, params.id, router])
+
+  async function fetchAnalysis() {
+    try {
+      const res = await fetch(`/api/applications/${params.id}/analysis`)
+      if (res.ok) {
+        const data = await res.json()
+        if (data && data.id) {
+          setAnalysis(data)
+          setShowAnalysis(true)
+        }
+      }
+    } catch {}
+  }
+
+  async function triggerAnalysis() {
+    setAnalysisLoading(true)
+    try {
+      const app = application
+      const jdText = `Company: ${app?.companyName}\nRole: ${app?.jobTitle}\nDescription: ${app?.notes || "No JD text provided"}\nURL: ${app?.jobUrl || "N/A"}`
+      const res = await fetch("/api/ai/scan-jd", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jdText, applicationId: params.id }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setAnalysis(data)
+        setShowAnalysis(true)
+        toast.success("Analysis complete!")
+        await fetchAnalysis()
+      } else {
+        const err = await res.json()
+        toast.error(err.error || "Analysis failed. Configure AI in Settings first.")
+      }
+    } catch {
+      toast.error("Analysis failed")
+    } finally {
+      setAnalysisLoading(false)
+    }
+  }
 
   async function handleDelete() {
     setDeleting(true)
     try {
-      const res = await fetch(`/api/applications/${params.id}`, {
-        method: "DELETE",
-      })
+      const res = await fetch(`/api/applications/${params.id}`, { method: "DELETE" })
       if (!res.ok) throw new Error("Failed to delete")
       toast.success("Application deleted")
       router.push("/applications")
       router.refresh()
     } catch {
       toast.error("Failed to delete application")
-      setError("Failed to delete application")
       setDeleting(false)
       setDialogOpen(false)
     }
@@ -118,139 +149,41 @@ export default function ApplicationDetailPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">{application.companyName}</h1>
-          <p className="text-muted-foreground">{application.jobTitle}</p>
-        </div>
-        <div className="flex gap-2">
-          <Button asChild variant="outline">
-            <Link href={`/applications/${application.id}/edit`}>Edit</Link>
-          </Button>
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild>
-              <Button variant="destructive">Delete</Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Delete Application</DialogTitle>
-                <DialogDescription>
-                  Are you sure you want to delete this application for{" "}
-                  <strong>{application.companyName}</strong>? This action cannot
-                  be undone.
-                </DialogDescription>
-              </DialogHeader>
-              <DialogFooter>
-                <Button
-                  variant="outline"
-                  onClick={() => setDialogOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  variant="destructive"
-                  onClick={handleDelete}
-                  disabled={deleting}
-                >
-                  {deleting ? "Deleting..." : "Delete"}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </div>
-      </div>
+      <ApplicationDetailHeader
+        companyName={application.companyName}
+        jobTitle={application.jobTitle}
+        applicationId={application.id}
+        onDelete={() => setDialogOpen(true)}
+      />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Details</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-sm text-muted-foreground">Company</p>
-              <p className="font-medium">{application.companyName}</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Job Title</p>
-              <p className="font-medium">{application.jobTitle}</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Source</p>
-              <p className="font-medium">{application.source}</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Status</p>
-              <StatusBadge status={application.status} />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Applied Date</p>
-              <p className="font-medium">
-                {new Date(application.applicationDate).toLocaleDateString()}
-              </p>
-            </div>
-            {application.jobUrl && (
-              <div>
-                <p className="text-sm text-muted-foreground">Job URL</p>
-                <a
-                  href={application.jobUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm text-blue-600 hover:underline"
-                >
-                  View posting
-                </a>
-              </div>
-            )}
-          </div>
+      <ApplicationDetailsCard
+        companyName={application.companyName}
+        jobTitle={application.jobTitle}
+        source={application.source}
+        status={application.status}
+        applicationDate={application.applicationDate}
+        jobUrl={application.jobUrl}
+        tags={application.tags}
+        notes={application.notes}
+        statusChanges={application.statusChanges}
+        createdAt={application.createdAt}
+        updatedAt={application.updatedAt}
+      />
 
-          {application.tags?.length > 0 && (
-            <div>
-              <p className="text-sm text-muted-foreground mb-2">Tags</p>
-              <div className="flex flex-wrap gap-2">
-                {application.tags.map((t) => (
-                  <Badge key={t.tag.id} variant="secondary">{t.tag.name}</Badge>
-                ))}
-              </div>
-            </div>
-          )}
+      <ApplicationAnalysisSection
+        analysis={analysis}
+        showAnalysis={showAnalysis}
+        analysisLoading={analysisLoading}
+        onTriggerAnalysis={triggerAnalysis}
+      />
 
-          {application.notes && (
-            <div>
-              <p className="text-sm text-muted-foreground">Notes</p>
-              <p className="whitespace-pre-wrap">{application.notes}</p>
-            </div>
-          )}
-
-          {application.statusChanges?.length > 1 && (
-            <div>
-              <p className="text-sm text-muted-foreground mb-2">Status Timeline</p>
-              <div className="space-y-2">
-                {application.statusChanges.map((sc) => (
-                  <div key={sc.id} className="flex items-center gap-3 text-sm">
-                    <div className="h-2 w-2 rounded-full bg-primary" />
-                    <span className="text-muted-foreground">
-                      {new Date(sc.changedAt).toLocaleString()}
-                    </span>
-                    {sc.fromStatus && (
-                      <>
-                        <StatusBadge status={sc.fromStatus} />
-                        <span className="text-muted-foreground">&rarr;</span>
-                      </>
-                    )}
-                    <StatusBadge status={sc.toStatus} />
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div className="pt-3 text-xs text-muted-foreground">
-            Created: {new Date(application.createdAt).toLocaleString()}
-            <br />
-            Updated: {new Date(application.updatedAt).toLocaleString()}
-          </div>
-        </CardContent>
-      </Card>
+      <ApplicationDeleteDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        companyName={application.companyName}
+        deleting={deleting}
+        onConfirm={handleDelete}
+      />
     </div>
   )
 }

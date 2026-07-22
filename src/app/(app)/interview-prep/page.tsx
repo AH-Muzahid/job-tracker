@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { useUser } from "@clerk/nextjs"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { Plus, Trash2, Brain, FileText } from "lucide-react"
+import { Plus, Trash2, Brain, FileText, Sparkles } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -59,6 +59,11 @@ export default function InterviewPrepPage() {
   const [nForm, setNForm] = useState({ title: "", content: "", category: "General" })
   const [expanded, setExpanded] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [aiOpen, setAiOpen] = useState(false)
+  const [aiJd, setAiJd] = useState("")
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiQuestions, setAiQuestions] = useState<string[]>([])
+  const [suggestingAnswer, setSuggestingAnswer] = useState<string | null>(null)
 
   function fetchAll() {
     Promise.all([
@@ -111,6 +116,89 @@ export default function InterviewPrepPage() {
     fetchAll()
   }
 
+  async function generateFromJd() {
+    if (!aiJd.trim()) return
+    setAiLoading(true)
+    setAiQuestions([])
+    try {
+      const res = await fetch("/api/ai/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: `Generate 5 interview questions for this job description:\n\n${aiJd}`,
+          mode: "interview",
+        }),
+      })
+      if (!res.ok) throw new Error("Failed")
+      const reader = res.body?.getReader()
+      if (!reader) return
+      const decoder = new TextDecoder()
+      let done = false
+      let text = ""
+      while (!done) {
+        const { value, done: doneReading } = await reader.read()
+        done = doneReading
+        if (value) text += decoder.decode(value, { stream: !done })
+      }
+      const parsed = JSON.parse(text)
+      const qs = parsed.content?.split("\n").filter((l: string) => l.trim()) || [parsed.content || text]
+      setAiQuestions(qs)
+    } catch {
+      toast.error("Failed to generate questions")
+    } finally {
+      setAiLoading(false)
+    }
+  }
+
+  async function addAiQuestion(q: string) {
+    await fetch("/api/prep-questions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question: q, category: "General", difficulty: "Medium" }),
+    })
+    fetchAll()
+    toast.success("Question added")
+  }
+
+  async function suggestAnswer(questionId: string, questionText: string) {
+    setSuggestingAnswer(questionId)
+    try {
+      const res = await fetch("/api/ai/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: `Provide a concise answer for this interview question:\n\n${questionText}`,
+          mode: "interview",
+        }),
+      })
+      if (!res.ok) throw new Error("Failed")
+      const reader = res.body?.getReader()
+      if (!reader) return
+      const decoder = new TextDecoder()
+      let done = false
+      let text = ""
+      while (!done) {
+        const { value, done: doneReading } = await reader.read()
+        done = doneReading
+        if (value) text += decoder.decode(value, { stream: !done })
+      }
+      const parsed = JSON.parse(text)
+      const answer = parsed.content || text
+      await fetch(`/api/prep-questions/${questionId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ answer }),
+      })
+      fetchAll()
+      setExpanded(questionId)
+      toast.success("Answer added")
+    } catch {
+      toast.error("Failed to generate answer")
+    } finally {
+      setSuggestingAnswer(null)
+    }
+  }
+
   if (!isLoaded || loading) {
     return <div className="space-y-4"><Skeleton className="h-8 w-48" /><div className="grid gap-3">{Array.from({ length: 4 }).map((_, i) => <Card key={i}><CardContent className="p-4"><Skeleton className="h-16 w-full" /></CardContent></Card>)}</div></div>
   }
@@ -134,7 +222,10 @@ export default function InterviewPrepPage() {
 
       {tab === "questions" && (
         <>
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setAiOpen(true)} className="gap-1.5">
+              <Sparkles className="h-4 w-4" /> Generate from JD
+            </Button>
             <Button onClick={() => setQOpen(true)}><Plus className="h-4 w-4" /> Add Question</Button>
           </div>
           {questions.length === 0 ? (
@@ -156,14 +247,56 @@ export default function InterviewPrepPage() {
                         </div>
                       )}
                     </button>
-                    <button onClick={() => deleteQuestion(q.id)} className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive p-1 transition-all">
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                      <button
+                        onClick={() => suggestAnswer(q.id, q.question)}
+                        disabled={suggestingAnswer === q.id}
+                        className="text-muted-foreground hover:text-primary p-1"
+                        title="Suggest answer with AI"
+                      >
+                        <Sparkles className="h-3.5 w-3.5" />
+                      </button>
+                      <button onClick={() => deleteQuestion(q.id)} className="text-muted-foreground hover:text-destructive p-1 transition-all">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
                   </div>
                 </Card>
               ))}
             </div>
           )}
+
+          <Dialog open={aiOpen} onOpenChange={setAiOpen}>
+            <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Generate Questions from JD</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-3">
+                <Textarea
+                  value={aiJd}
+                  onChange={(e) => setAiJd(e.target.value)}
+                  placeholder="Paste the job description here..."
+                  rows={6}
+                />
+                <Button onClick={generateFromJd} disabled={aiLoading || !aiJd.trim()} className="w-full gap-1.5">
+                  <Sparkles className="h-4 w-4" /> {aiLoading ? "Generating..." : "Generate Questions"}
+                </Button>
+                {aiQuestions.length > 0 && (
+                  <div className="space-y-2 pt-2 border-t">
+                    <p className="text-sm font-medium">Generated Questions</p>
+                    {aiQuestions.map((q, i) => (
+                      <div key={i} className="flex items-start gap-2 rounded-lg border p-2.5">
+                        <p className="text-xs flex-1">{q}</p>
+                        <Button size="sm" variant="outline" className="text-xs h-7 shrink-0" onClick={() => addAiQuestion(q)}>
+                          Add
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
 
           <Dialog open={qOpen} onOpenChange={setQOpen}>
             <DialogContent className="max-w-lg">

@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation"
 import { useUser } from "@clerk/nextjs"
 import {
   LayoutDashboard, Briefcase, Building2,
-  Brain, FileText, CalendarDays,
+  Brain, FileText, CalendarDays, Bot,
   PanelLeftClose, PanelLeft,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -18,6 +18,7 @@ const navItems = [
   { href: "/applications", label: "Applications", icon: Briefcase },
   { href: "/companies", label: "Companies", icon: Building2 },
   { href: "/interview-prep", label: "Prep", icon: Brain },
+  { href: "/ai-assistant", label: "AI Assistant", icon: Bot },
   { href: "/resumes", label: "Resumes", icon: FileText },
   { href: "/calendar", label: "Calendar", icon: CalendarDays },
 ]

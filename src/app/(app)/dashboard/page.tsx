@@ -7,14 +7,16 @@ import Link from "next/link"
 import {
   Plus, TrendingUp, Briefcase, Clock,
   CheckCircle2, XCircle, Bookmark, Sparkles, Target,
-  ChevronRight,
+  ChevronRight, Bot, Send, FileText,
 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Input } from "@/components/ui/input"
 import ApplicationFormModal from "@/components/dashboard/ApplicationFormModal"
-import { useStats } from "@/lib/api"
+import WeeklyGoalsWidget from "@/components/weekly-goals/WeeklyGoalsWidget"
+import { useStats, useWeeklyGoals } from "@/lib/api"
 import { useUI } from "@/lib/store"
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -38,6 +40,7 @@ function DashboardContent() {
   const formModal = useUI((s) => s.formModal)
   const setFormModal = useUI((s) => s.setFormModal)
   const { data: stats, isLoading } = useStats()
+  const { data: weeklyGoals, isLoading: goalsLoading } = useWeeklyGoals()
 
   useEffect(() => {
     if (isLoaded && !isSignedIn) router.push("/login")
@@ -114,6 +117,48 @@ function DashboardContent() {
             </div>
           )
         })}
+      </div>
+
+      {/* AI Section */}
+      <div className="grid gap-4 md:grid-cols-3">
+        <div className="md:col-span-1">
+          <WeeklyGoalsWidget goals={weeklyGoals?.[0] || null} loading={goalsLoading} />
+        </div>
+        <div className="md:col-span-2">
+          <Card className="overflow-hidden h-full">
+            <CardContent className="p-5 flex flex-col h-full">
+              <div className="flex items-center gap-2 mb-3">
+                <Bot className="h-4 w-4 text-primary" />
+                <span className="text-sm font-semibold">Quick Analyze</span>
+              </div>
+              <p className="text-xs text-muted-foreground mb-3">Paste a job description or ask the AI assistant anything.</p>
+              <div className="flex gap-2 mt-auto">
+                <Input
+                  placeholder="Paste a JD or ask a question..."
+                  className="flex-1 text-sm"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && (e.target as HTMLInputElement).value.trim()) {
+                      window.location.href = `/ai-assistant?q=${encodeURIComponent((e.target as HTMLInputElement).value)}`
+                    }
+                  }}
+                />
+                <Button size="icon" asChild>
+                  <Link href="/ai-assistant">
+                    <Send className="h-4 w-4" />
+                  </Link>
+                </Button>
+              </div>
+              <div className="flex flex-wrap gap-1.5 mt-3">
+                <Button variant="outline" size="sm" className="text-xs h-7 gap-1" asChild>
+                  <Link href="/ai-assistant"><FileText className="h-3 w-3" /> Scan a JD</Link>
+                </Button>
+                <Button variant="outline" size="sm" className="text-xs h-7 gap-1" asChild>
+                  <Link href="/weekly-goals"><Target className="h-3 w-3" /> Set Goals</Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       {/* Charts Row */}

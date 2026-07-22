@@ -3,9 +3,11 @@
 import { useUser } from "@clerk/nextjs"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
-import { Download, Moon, Sun, User, Bell } from "lucide-react"
+import { Download, Moon, Sun, User, Bell, Bot, CheckCircle, XCircle } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "sonner"
 
@@ -13,12 +15,76 @@ export default function SettingsPage() {
   const { isLoaded, isSignedIn, user } = useUser()
   const router = useRouter()
   const [dark, setDark] = useState(false)
+  const [aiProvider, setAiProvider] = useState("openai")
+  const [aiApiKey, setAiApiKey] = useState("")
+  const [aiBaseUrl, setAiBaseUrl] = useState("")
+  const [aiModel, setAiModel] = useState("")
+  const [hasApiKey, setHasApiKey] = useState(false)
+  const [savingAi, setSavingAi] = useState(false)
+  const [testing, setTesting] = useState(false)
+  const [testResult, setTestResult] = useState<boolean | null>(null)
 
   useEffect(() => {
     if (!isLoaded) return
     if (!isSignedIn) { router.push("/login"); return }
     setDark(document.documentElement.classList.contains("dark"))
+    loadAiConfig()
   }, [isLoaded, isSignedIn, router])
+
+  async function loadAiConfig() {
+    try {
+      const res = await fetch("/api/settings/ai-key")
+      if (res.ok) {
+        const data = await res.json()
+        setHasApiKey(data.hasKey)
+        if (data.providerType) setAiProvider(data.providerType)
+        if (data.baseUrl) setAiBaseUrl(data.baseUrl)
+        if (data.model) setAiModel(data.model)
+      }
+    } catch {}
+  }
+
+  async function saveAiConfig() {
+    setSavingAi(true)
+    try {
+      const res = await fetch("/api/settings/ai-key", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          providerType: aiProvider,
+          apiKey: aiApiKey || undefined,
+          baseUrl: aiProvider === "custom-openai" ? aiBaseUrl : undefined,
+          model: aiProvider === "custom-openai" ? aiModel : undefined,
+        }),
+      })
+      if (!res.ok) throw new Error("Failed")
+      toast.success("AI configuration saved")
+      setHasApiKey(true)
+    } catch {
+      toast.error("Failed to save AI config")
+    } finally {
+      setSavingAi(false)
+    }
+  }
+
+  async function testConnection() {
+    setTesting(true)
+    setTestResult(null)
+    try {
+      const res = await fetch("/api/ai/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: "Say 'connected' and nothing else" }),
+      })
+      setTestResult(res.ok)
+      if (!res.ok) toast.error("Connection failed. Check your API key.")
+    } catch {
+      setTestResult(false)
+      toast.error("Connection failed")
+    } finally {
+      setTesting(false)
+    }
+  }
 
   function toggleTheme() {
     const next = !dark
@@ -114,6 +180,74 @@ export default function SettingsPage() {
               <Download className="h-4 w-4 mr-1.5" />
               Export CSV
             </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm flex items-center gap-2"><Bot className="h-4 w-4" /> AI Configuration</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label>Provider Type</Label>
+            <select
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+              value={aiProvider}
+              onChange={(e) => setAiProvider(e.target.value)}
+            >
+              <option value="openai">OpenAI</option>
+              <option value="anthropic">Anthropic</option>
+              <option value="google">Google</option>
+              <option value="custom-openai">Custom (OpenAI-compatible)</option>
+            </select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>API Key</Label>
+            <Input
+              type="password"
+              value={aiApiKey}
+              onChange={(e) => setAiApiKey(e.target.value)}
+              placeholder={hasApiKey ? "•••••••••• (saved)" : "sk-..."}
+            />
+          </div>
+
+          {aiProvider === "custom-openai" && (
+            <>
+              <div className="space-y-2">
+                <Label>Base URL</Label>
+                <Input
+                  value={aiBaseUrl}
+                  onChange={(e) => setAiBaseUrl(e.target.value)}
+                  placeholder="https://api.openrouter.ai/v1"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Model</Label>
+                <Input
+                  value={aiModel}
+                  onChange={(e) => setAiModel(e.target.value)}
+                  placeholder="deepseek-chat"
+                />
+              </div>
+            </>
+          )}
+
+          <div className="flex items-center gap-2">
+            <Button size="sm" onClick={saveAiConfig} disabled={savingAi}>
+              {savingAi ? "Saving..." : "Save"}
+            </Button>
+            {hasApiKey && (
+              <Button size="sm" variant="outline" onClick={testConnection} disabled={testing}>
+                {testing ? "Testing..." : "Test Connection"}
+              </Button>
+            )}
+            {testResult !== null && (
+              <span className={`flex items-center gap-1 text-xs ${testResult ? "text-emerald-600" : "text-destructive"}`}>
+                {testResult ? <><CheckCircle className="h-3 w-3" /> Connected</> : <><XCircle className="h-3 w-3" /> Failed</>}
+              </span>
+            )}
           </div>
         </CardContent>
       </Card>
