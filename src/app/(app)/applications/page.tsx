@@ -1,108 +1,61 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
-import Link from "next/link"
+import { Suspense, useCallback, useMemo, useState } from "react"
 import { useUser } from "@clerk/nextjs"
-import { useRouter, useSearchParams } from "next/navigation"
-import StatusBadge from "@/components/StatusBadge"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { ChevronLeft, ChevronRight, Download } from "lucide-react"
-import { useDebounce } from "@/lib/use-debounce"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
+import { useRouter } from "next/navigation"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Button } from "@/components/ui/button"
+import { Card } from "@/components/ui/card"
+import ViewSwitcher from "@/components/dashboard/ViewSwitcher"
+import FilterBar from "@/components/dashboard/FilterBar"
+import BoardView from "@/components/dashboard/BoardView"
+import ListView from "@/components/dashboard/ListView"
+import TableView from "@/components/dashboard/TableView"
+import ApplicationDetailModal from "@/components/dashboard/ApplicationDetailModal"
+import ApplicationFormModal from "@/components/dashboard/ApplicationFormModal"
+import { useSearchParams } from "@/hooks/use-search-params"
+import { useApplications } from "@/hooks/use-applications"
+import type { ViewMode, SortOption, DashboardFilters } from "@/components/dashboard/types"
 
-interface Application {
-  id: string
-  companyName: string
-  jobTitle: string
-  source: string
-  status: string
-  applicationDate: string
-  createdAt: string
-}
-
-export default function ApplicationsPage() {
+function ApplicationsContent() {
   const { isLoaded, isSignedIn } = useUser()
   const router = useRouter()
-  const searchParams = useSearchParams()
-  const [applications, setApplications] = useState<Application[]>([])
-  const [total, setTotal] = useState(0)
-  const [page, setPage] = useState(1)
-  const [loading, setLoading] = useState(true)
-  const [search, setSearch] = useState(searchParams.get("search") || "")
-  const debouncedSearch = useDebounce(search, 300)
-  const [statusFilter, setStatusFilter] = useState(searchParams.get("status") || "all")
-  const [sourceFilter, setSourceFilter] = useState(searchParams.get("source") || "all")
-  const [sort, setSort] = useState(searchParams.get("sort") || "newest")
-  const pageSize = 20
+  const [urlParams, setUrlParams] = useSearchParams()
 
-  const fetchApplications = useCallback(async () => {
-    setLoading(true)
-    const params = new URLSearchParams()
-    if (debouncedSearch) params.set("search", debouncedSearch)
-    if (statusFilter && statusFilter !== "all") params.set("status", statusFilter)
-    if (sourceFilter && sourceFilter !== "all") params.set("source", sourceFilter)
-    params.set("sort", sort)
-    params.set("page", String(page))
-    params.set("pageSize", String(pageSize))
+  const filters: DashboardFilters = useMemo(() => ({
+    search: urlParams.search || "",
+    status: urlParams.status || "",
+    source: urlParams.source || "",
+    sort: (urlParams.sort as SortOption) || "newest",
+    tag: urlParams.tag || "",
+  }), [urlParams.search, urlParams.status, urlParams.source, urlParams.sort, urlParams.tag])
 
-    try {
-      const res = await fetch(`/api/applications?${params.toString()}`)
-      if (!res.ok) throw new Error("Failed to fetch")
-      const json = await res.json()
-      setApplications(json.data)
-      setTotal(json.total)
-    } catch {
-      // silent
-    } finally {
-      setLoading(false)
-    }
-  }, [debouncedSearch, statusFilter, sourceFilter, sort, page])
+  const view: ViewMode = (urlParams.view as ViewMode) || "board"
+  const { applications, total, loading, error, refetch } = useApplications(filters)
 
-  useEffect(() => {
-    setPage(1)
-  }, [debouncedSearch, statusFilter, sourceFilter, sort])
+  const [detailModal, setDetailModal] = useState<{ open: boolean; id: string | null }>({ open: false, id: null })
+  const [formModal, setFormModal] = useState(false)
 
-  useEffect(() => {
-    const params = new URLSearchParams()
-    if (debouncedSearch) params.set("search", debouncedSearch)
-    if (statusFilter && statusFilter !== "all") params.set("status", statusFilter)
-    if (sourceFilter && sourceFilter !== "all") params.set("source", sourceFilter)
-    if (sort !== "newest") params.set("sort", sort)
-    const qs = params.toString()
-    router.replace(`/applications${qs ? `?${qs}` : ""}`, { scroll: false })
-  }, [debouncedSearch, statusFilter, sourceFilter, sort, router])
+  const updateFilter = useCallback((key: string, value: string) => {
+    setUrlParams({ ...urlParams, [key]: value })
+  }, [urlParams, setUrlParams])
 
-  useEffect(() => {
-    if (!isLoaded) return
-    if (!isSignedIn) {
-      router.push("/login")
-      return
-    }
-    fetchApplications()
-  }, [isLoaded, isSignedIn, fetchApplications, router])
+  const clearFilters = useCallback(() => {
+    setUrlParams({ view: urlParams.view || "board" })
+  }, [urlParams.view, setUrlParams])
 
-  if (!isLoaded) {
+  const setView = useCallback((v: ViewMode) => {
+    setUrlParams({ ...urlParams, view: v })
+  }, [urlParams, setUrlParams])
+
+  if (!isLoaded) return <ApplicationsSkeleton />
+  if (!isSignedIn) { router.push("/login"); return null }
+
+  if (error) {
     return (
-      <div className="space-y-4">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-10 w-full" />
-        <Skeleton className="h-64 w-full" />
+      <div className="text-center py-20">
+        <p className="text-destructive mb-4">{error}</p>
+        <Button onClick={refetch}>Retry</Button>
       </div>
     )
   }
@@ -110,167 +63,97 @@ export default function ApplicationsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Applications</h1>
-        <div className="flex gap-2">
-          <Button variant="outline" asChild>
-            <a href={`/api/applications/export?status=${statusFilter}&source=${sourceFilter}`} download>
-              <Download className="mr-2 h-4 w-4" />
-              Export CSV
-            </a>
-          </Button>
-          <Button asChild>
-            <Link href="/applications/new">Add Application</Link>
-          </Button>
+        <div>
+          <h1 className="text-2xl font-bold">Applications</h1>
+          <p className="text-sm text-muted-foreground">{total} total applications</p>
         </div>
+        <Button onClick={() => setFormModal(true)}>Add Application</Button>
       </div>
 
-      <div className="flex flex-wrap gap-3">
-        <Input
-          placeholder="Search by company or title..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="max-w-xs"
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <ViewSwitcher current={view} onChange={setView} />
+        <FilterBar
+          search={filters.search}
+          status={filters.status}
+          source={filters.source}
+          sort={filters.sort}
+          onSearchChange={(v) => updateFilter("search", v)}
+          onStatusChange={(v) => updateFilter("status", v)}
+          onSourceChange={(v) => updateFilter("source", v)}
+          onSortChange={(v) => updateFilter("sort", v)}
+          onClearAll={clearFilters}
+          total={total}
+          filteredCount={applications.length}
         />
-
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-36">
-            <SelectValue placeholder="All statuses" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All statuses</SelectItem>
-            <SelectItem value="Saved">Saved</SelectItem>
-            <SelectItem value="Applied">Applied</SelectItem>
-            <SelectItem value="Assessment">Assessment</SelectItem>
-            <SelectItem value="Interview">Interview</SelectItem>
-            <SelectItem value="Rejected">Rejected</SelectItem>
-            <SelectItem value="Offer">Offer</SelectItem>
-          </SelectContent>
-        </Select>
-
-        <Select value={sourceFilter} onValueChange={setSourceFilter}>
-          <SelectTrigger className="w-36">
-            <SelectValue placeholder="All sources" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All sources</SelectItem>
-            <SelectItem value="LinkedIn">LinkedIn</SelectItem>
-            <SelectItem value="Bdjobs">Bdjobs</SelectItem>
-            <SelectItem value="Indeed">Indeed</SelectItem>
-            <SelectItem value="Wellfound">Wellfound</SelectItem>
-            <SelectItem value="Facebook">Facebook</SelectItem>
-            <SelectItem value="Referral">Referral</SelectItem>
-            <SelectItem value="Other">Other</SelectItem>
-          </SelectContent>
-        </Select>
-
-        <Select value={sort} onValueChange={setSort}>
-          <SelectTrigger className="w-36">
-            <SelectValue placeholder="Sort" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="newest">Newest first</SelectItem>
-            <SelectItem value="oldest">Oldest first</SelectItem>
-          </SelectContent>
-        </Select>
       </div>
 
       {loading ? (
-        <div className="space-y-3">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-12 w-full" />
-          ))}
-        </div>
-      ) : applications.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground">
-          <p className="mb-2">No applications found.</p>
-          <Button asChild variant="outline">
-            <Link href="/applications/new">Add your first application</Link>
-          </Button>
-        </div>
+        <ViewSkeleton view={view} />
       ) : (
         <>
-          <div className="hidden md:block">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Company</TableHead>
-                  <TableHead>Job Title</TableHead>
-                  <TableHead className="hidden lg:table-cell">Source</TableHead>
-                  <TableHead className="hidden sm:table-cell">Date</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {applications.map((app) => (
-                  <TableRow
-                    key={app.id}
-                    className="cursor-pointer"
-                    onClick={() => router.push(`/applications/${app.id}`)}
-                  >
-                    <TableCell className="font-medium">{app.companyName}</TableCell>
-                    <TableCell>{app.jobTitle}</TableCell>
-                    <TableCell className="hidden lg:table-cell">{app.source}</TableCell>
-                    <TableCell className="hidden sm:table-cell">
-                      {new Date(app.applicationDate).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell>
-                      <StatusBadge status={app.status} />
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-
-          <div className="space-y-3 md:hidden">
-            {applications.map((app) => (
-              <div
-                key={app.id}
-                className="cursor-pointer rounded-lg border p-4 transition-colors hover:bg-muted/50"
-                onClick={() => router.push(`/applications/${app.id}`)}
-              >
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="font-medium">{app.companyName}</p>
-                    <p className="text-sm text-muted-foreground">{app.jobTitle}</p>
-                  </div>
-                  <StatusBadge status={app.status} />
-                </div>
-                <div className="mt-2 flex gap-4 text-xs text-muted-foreground">
-                  <span>{app.source}</span>
-                  <span>{new Date(app.applicationDate).toLocaleDateString()}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">
-              Showing {(page - 1) * pageSize + 1}-{Math.min(page * pageSize, total)} of {total}
-            </p>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page <= 1}
-                onClick={() => setPage((p) => p - 1)}
-              >
-                <ChevronLeft className="h-4 w-4" />
-                Previous
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page * pageSize >= total}
-                onClick={() => setPage((p) => p + 1)}
-              >
-                Next
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
+          {view === "board" && <BoardView applications={applications} onSelect={(id) => setDetailModal({ open: true, id })} onAddNew={() => setFormModal(true)} />}
+          {view === "list" && <ListView applications={applications} onSelect={(id) => setDetailModal({ open: true, id })} />}
+          {view === "table" && <TableView applications={applications} onSelect={(id) => setDetailModal({ open: true, id })} />}
         </>
       )}
+
+      <ApplicationDetailModal
+        applicationId={detailModal.id}
+        open={detailModal.open}
+        onOpenChange={(open) => setDetailModal({ open, id: detailModal.id })}
+        onUpdated={refetch}
+        onDeleted={refetch}
+      />
+      <ApplicationFormModal open={formModal} onOpenChange={setFormModal} onUpdated={refetch} />
     </div>
   )
+}
+
+function ApplicationsSkeleton() {
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between"><Skeleton className="h-8 w-40" /><Skeleton className="h-10 w-28" /></div>
+      <div className="flex gap-3"><Skeleton className="h-8 w-32" /><Skeleton className="h-8 w-24" /><Skeleton className="h-8 w-24" /></div>
+      <div className="grid gap-4 xl:grid-cols-5">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <Card key={i} className="p-4 space-y-3">
+            <Skeleton className="h-4 w-24" />
+            {Array.from({ length: 2 }).map((_, j) => <Card key={j} className="p-3 space-y-2"><div className="flex gap-2.5"><Skeleton className="h-9 w-9 rounded-lg" /><div className="space-y-1.5"><Skeleton className="h-3 w-20" /><Skeleton className="h-4 w-32" /></div></div></Card>)}
+          </Card>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function ViewSkeleton({ view }: { view: ViewMode }) {
+  if (view === "board") {
+    return (
+      <div className="grid gap-4 xl:grid-cols-5">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <Card key={i} className="p-3 space-y-3">
+            <Skeleton className="h-4 w-24" />
+            {Array.from({ length: 2 }).map((_, j) => <Card key={j} className="p-3 space-y-2"><div className="flex gap-2.5"><Skeleton className="h-9 w-9 rounded-lg" /><div className="space-y-1.5"><Skeleton className="h-3 w-20" /><Skeleton className="h-4 w-32" /></div></div></Card>)}
+          </Card>
+        ))}
+      </div>
+    )
+  }
+  if (view === "list") {
+    return (
+      <div className="space-y-2">
+        {Array.from({ length: 6 }).map((_, i) => <Card key={i} className="flex items-center gap-4 p-3"><Skeleton className="h-10 w-10 rounded-xl" /><div className="flex-1 space-y-1.5"><Skeleton className="h-4 w-40" /><Skeleton className="h-3 w-28" /></div><Skeleton className="h-5 w-16 rounded-full" /><Skeleton className="h-3 w-20" /></Card>)}
+      </div>
+    )
+  }
+  return (
+    <div className="rounded-xl border overflow-hidden">
+      <div className="p-3 border-b bg-muted/50"><div className="flex gap-4">{Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-4 w-20" />)}</div></div>
+      {Array.from({ length: 5 }).map((_, i) => <div key={i} className="flex items-center gap-4 p-3 border-b last:border-0"><Skeleton className="h-8 w-8 rounded-lg" /><Skeleton className="h-4 w-32" /><Skeleton className="h-4 w-28" /><Skeleton className="h-5 w-16 rounded-full" /><Skeleton className="h-3 w-20" /></div>)}
+    </div>
+  )
+}
+
+export default function ApplicationsPage() {
+  return <Suspense fallback={<ApplicationsSkeleton />}><ApplicationsContent /></Suspense>
 }
