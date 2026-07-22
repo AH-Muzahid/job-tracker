@@ -10,7 +10,7 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { useEffect, useState } from "react"
+import { useUI } from "@/lib/store"
 
 const pageMap: Record<string, { title: string; icon: React.ReactNode }> = {
   "/dashboard": { title: "Dashboard", icon: <LayoutDashboard className="h-4 w-4" /> },
@@ -22,30 +22,13 @@ const pageMap: Record<string, { title: string; icon: React.ReactNode }> = {
   "/settings": { title: "Settings", icon: <Settings className="h-4 w-4" /> },
 }
 
-interface NavbarProps {
-  mobileOpen: boolean
-  onMobileToggle: () => void
-}
-
-export default function Navbar({ mobileOpen, onMobileToggle }: NavbarProps) {
+export default function Navbar() {
   const pathname = usePathname()
   const { isSignedIn } = useUser()
-  const [dark, setDark] = useState(false)
-
-  useEffect(() => {
-    const stored = localStorage.getItem("theme")
-    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches
-    const isDark = stored ? stored === "dark" : prefersDark
-    setDark(isDark)
-    document.documentElement.classList.toggle("dark", isDark)
-  }, [])
-
-  function toggleTheme() {
-    const next = !dark
-    setDark(next)
-    document.documentElement.classList.toggle("dark", next)
-    localStorage.setItem("theme", next ? "dark" : "light")
-  }
+  const dark = useUI((s) => s.dark)
+  const toggleTheme = useUI((s) => s.toggleTheme)
+  const mobileOpen = useUI((s) => s.mobileOpen)
+  const setMobileOpen = useUI((s) => s.setMobileOpen)
 
   if (!isSignedIn) return null
 
@@ -54,17 +37,15 @@ export default function Navbar({ mobileOpen, onMobileToggle }: NavbarProps) {
 
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center border-b bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 px-4 sm:px-6 gap-3">
-      {/* Mobile hamburger */}
       <Button
         variant="ghost"
         size="icon"
         className="h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground lg:hidden"
-        onClick={onMobileToggle}
+        onClick={() => setMobileOpen(!mobileOpen)}
       >
         {mobileOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
       </Button>
 
-      {/* Breadcrumb */}
       <div className="flex items-center gap-1.5 min-w-0">
         <Link href="/dashboard" className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors shrink-0">
           <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary text-primary-foreground font-bold text-[10px]">C</div>
@@ -77,10 +58,8 @@ export default function Navbar({ mobileOpen, onMobileToggle }: NavbarProps) {
         </div>
       </div>
 
-      {/* Spacer */}
       <div className="flex-1" />
 
-      {/* Search bar */}
       <button className="hidden sm:flex items-center gap-2 h-8 rounded-lg border bg-muted/50 px-3 text-xs text-muted-foreground hover:bg-muted transition-colors w-56">
         <Search className="h-3.5 w-3.5 shrink-0" />
         <span>Search...</span>
@@ -89,14 +68,8 @@ export default function Navbar({ mobileOpen, onMobileToggle }: NavbarProps) {
         </kbd>
       </button>
 
-      {/* Right actions */}
       <div className="flex items-center gap-1">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 text-muted-foreground hover:text-foreground"
-          onClick={toggleTheme}
-        >
+        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={toggleTheme}>
           {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
         </Button>
 
@@ -119,9 +92,7 @@ export default function Navbar({ mobileOpen, onMobileToggle }: NavbarProps) {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button className="flex items-center gap-2 rounded-lg p-1 hover:bg-muted transition-colors">
-              <UserButton
-                appearance={{ elements: { avatarBox: "h-7 w-7" } }}
-              />
+              <UserButton appearance={{ elements: { avatarBox: "h-7 w-7" } }} />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">

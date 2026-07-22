@@ -1,25 +1,20 @@
 "use client"
 
-import { useCallback, useState } from "react"
+import { useEffect } from "react"
 import Sidebar from "@/components/Sidebar"
 import Navbar from "@/components/Navbar"
+import { useUI } from "@/lib/store"
 
 export default function Shell({ children }: { children: React.ReactNode }) {
-  const [collapsed, setCollapsed] = useState(false)
-  const [mobileOpen, setMobileOpen] = useState(false)
+  const initTheme = useUI((s) => s.initTheme)
 
-  const handleMobileClose = useCallback(() => setMobileOpen(false), [])
+  useEffect(() => { initTheme() }, [initTheme])
 
   return (
     <div className="flex h-screen overflow-hidden">
-      <Sidebar
-        collapsed={collapsed}
-        onToggle={() => setCollapsed(!collapsed)}
-        mobileOpen={mobileOpen}
-        onMobileClose={handleMobileClose}
-      />
+      <Sidebar />
       <div className="flex flex-1 flex-col overflow-hidden">
-        <Navbar mobileOpen={mobileOpen} onMobileToggle={() => setMobileOpen(!mobileOpen)} />
+        <Navbar />
         <main className="flex-1 overflow-y-auto px-4 py-6 sm:px-6">
           {children}
         </main>

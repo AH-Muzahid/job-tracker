@@ -1,16 +1,13 @@
 "use client"
 
-import { Suspense, useCallback, useMemo, useState } from "react"
+import { Suspense, useCallback, useMemo } from "react"
 import { useUser } from "@clerk/nextjs"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import {
-  Dialog, DialogContent, DialogDescription, DialogFooter,
-  DialogHeader, DialogTitle,
-} from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import ViewSwitcher from "@/components/dashboard/ViewSwitcher"
 import FilterBar from "@/components/dashboard/FilterBar"
 import BoardView from "@/components/dashboard/BoardView"
@@ -19,8 +16,9 @@ import TableView from "@/components/dashboard/TableView"
 import ApplicationDetailModal from "@/components/dashboard/ApplicationDetailModal"
 import ApplicationFormModal from "@/components/dashboard/ApplicationFormModal"
 import { useSearchParams } from "@/hooks/use-search-params"
-import { useApplications } from "@/hooks/use-applications"
-import type { ViewMode, SortOption, DashboardFilters } from "@/components/dashboard/types"
+import { useApplications, useMoveApplication, useDeleteApplication } from "@/lib/api"
+import { useUI } from "@/lib/store"
+import type { ViewMode, SortOption, DashboardFilters, Application } from "@/components/dashboard/types"
 import type { DropResult } from "@hello-pangea/dnd"
 
 function ApplicationsContent() {
@@ -37,12 +35,19 @@ function ApplicationsContent() {
   }), [urlParams.search, urlParams.status, urlParams.source, urlParams.sort, urlParams.tag])
 
   const view: ViewMode = (urlParams.view as ViewMode) || "board"
-  const { applications, total, loading, error, silentRefetch, optimisticUpdate } = useApplications(filters)
+  const { data, isLoading, error } = useApplications(filters)
+  const applications = useMemo(() => (data?.data ?? []) as Application[], [data])
+  const total = data?.total ?? 0
 
-  const [detailModal, setDetailModal] = useState<{ open: boolean; id: string | null }>({ open: false, id: null })
-  const [formModal, setFormModal] = useState<{ open: boolean; editId?: string }>({ open: false })
-  const [deleteModal, setDeleteModal] = useState<{ open: boolean; id: string | null }>({ open: false, id: null })
-  const [deleting, setDeleting] = useState(false)
+  const moveMutation = useMoveApplication()
+  const deleteMutation = useDeleteApplication()
+
+  const detailModal = useUI((s) => s.detailModal)
+  const formModal = useUI((s) => s.formModal)
+  const deleteModal = useUI((s) => s.deleteModal)
+  const setDetailModal = useUI((s) => s.setDetailModal)
+  const setFormModal = useUI((s) => s.setFormModal)
+  const setDeleteModal = useUI((s) => s.setDeleteModal)
 
   const updateFilter = useCallback((key: string, value: string) => {
     setUrlParams({ ...urlParams, [key]: value })
@@ -56,63 +61,36 @@ function ApplicationsContent() {
     setUrlParams({ ...urlParams, view: v })
   }, [urlParams, setUrlParams])
 
-  const handleMoveTo = useCallback(async (id: string, status: string) => {
-    const app = applications.find((a) => a.id === id)
-    const oldStatus = app?.status
+  const handleMoveTo = useCallback((id: string, status: string) => {
+    moveMutation.mutate(
+      { id, status },
+      { onSuccess: () => toast.success(`Moved to ${status}`), onError: () => toast.error("Failed to move") }
+    )
+  }, [moveMutation])
 
-    optimisticUpdate(id, { status })
-
-    try {
-      const res = await fetch(`/api/applications/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
-      })
-      if (!res.ok) throw new Error("Failed to move")
-      toast.success(`Moved to ${status}`)
-    } catch {
-      if (oldStatus) optimisticUpdate(id, { status: oldStatus })
-      toast.error("Failed to move application")
-    }
-  }, [applications, optimisticUpdate])
-
-  const handleDelete = useCallback(async () => {
+  const handleDelete = useCallback(() => {
     if (!deleteModal.id) return
-    setDeleting(true)
-    try {
-      const res = await fetch(`/api/applications/${deleteModal.id}`, { method: "DELETE" })
-      if (!res.ok) throw new Error("Failed to delete")
-      toast.success("Application deleted")
-      setDeleteModal({ open: false, id: null })
-      silentRefetch()
-    } catch {
-      toast.error("Failed to delete application")
-    } finally {
-      setDeleting(false)
-    }
-  }, [deleteModal.id, silentRefetch])
+    deleteMutation.mutate(deleteModal.id, {
+      onSuccess: () => { toast.success("Application deleted"); setDeleteModal(false) },
+      onError: () => toast.error("Failed to delete"),
+    })
+  }, [deleteModal.id, deleteMutation, setDeleteModal])
 
   const handleDragEnd = useCallback((result: DropResult) => {
     const { destination, source, draggableId } = result
     if (!destination) return
     if (destination.droppableId === source.droppableId && destination.index === source.index) return
 
-    const columnMap: Record<string, string[]> = {
-      saved: ["Saved"],
-      applied: ["Applied"],
-      interviews: ["Assessment", "Interview"],
-      rejected: ["Rejected"],
-      offer: ["Offer"],
+    const columnMap: Record<string, string> = {
+      saved: "Saved", applied: "Applied", interviews: "Assessment",
+      rejected: "Rejected", offer: "Offer",
     }
 
-    const targetStatuses = columnMap[destination.droppableId]
-    if (!targetStatuses) return
+    const newStatus = columnMap[destination.droppableId]
+    if (!newStatus) return
 
     const app = applications.find((a) => a.id === draggableId)
-    if (!app) return
-
-    const newStatus = targetStatuses[0]
-    if (app.status === newStatus) return
+    if (!app || app.status === newStatus) return
 
     handleMoveTo(draggableId, newStatus)
   }, [applications, handleMoveTo])
@@ -123,8 +101,8 @@ function ApplicationsContent() {
   if (error) {
     return (
       <div className="text-center py-20">
-        <p className="text-destructive mb-4">{error}</p>
-        <Button onClick={silentRefetch}>Retry</Button>
+        <p className="text-destructive mb-4">Failed to load applications</p>
+        <Button onClick={() => window.location.reload()}>Retry</Button>
       </div>
     )
   }
@@ -136,70 +114,48 @@ function ApplicationsContent() {
           <h1 className="text-2xl font-bold">Applications</h1>
           <p className="text-sm text-muted-foreground">{total} total applications</p>
         </div>
-        <Button onClick={() => setFormModal({ open: true })}>Add Application</Button>
+        <Button onClick={() => setFormModal(true)}>Add Application</Button>
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <ViewSwitcher current={view} onChange={setView} />
         <FilterBar
-          search={filters.search}
-          status={filters.status}
-          source={filters.source}
-          sort={filters.sort}
-          onSearchChange={(v) => updateFilter("search", v)}
-          onStatusChange={(v) => updateFilter("status", v)}
-          onSourceChange={(v) => updateFilter("source", v)}
-          onSortChange={(v) => updateFilter("sort", v)}
-          onClearAll={clearFilters}
-          total={total}
-          filteredCount={applications.length}
+          search={filters.search} status={filters.status} source={filters.source} sort={filters.sort}
+          onSearchChange={(v) => updateFilter("search", v)} onStatusChange={(v) => updateFilter("status", v)}
+          onSourceChange={(v) => updateFilter("source", v)} onSortChange={(v) => updateFilter("sort", v)}
+          onClearAll={clearFilters} total={total} filteredCount={applications.length}
         />
       </div>
 
-      {loading ? (
+      {isLoading ? (
         <ViewSkeleton view={view} />
       ) : (
         <>
           {view === "board" && (
-            <BoardView
-              applications={applications}
-              onSelect={(id) => setDetailModal({ open: true, id })}
-              onAddNew={() => setFormModal({ open: true })}
-              onEdit={(id) => setFormModal({ open: true, editId: id })}
-              onDelete={(id) => setDeleteModal({ open: true, id })}
-              onMoveTo={handleMoveTo}
-              onDragEnd={handleDragEnd}
-            />
+            <BoardView applications={applications} onSelect={(id) => setDetailModal(true, id)}
+              onAddNew={() => setFormModal(true)} onEdit={(id) => setFormModal(true, id)}
+              onDelete={(id) => setDeleteModal(true, id)} onMoveTo={handleMoveTo} onDragEnd={handleDragEnd} />
           )}
-          {view === "list" && <ListView applications={applications} onSelect={(id) => setDetailModal({ open: true, id })} />}
-          {view === "table" && <TableView applications={applications} onSelect={(id) => setDetailModal({ open: true, id })} />}
+          {view === "list" && <ListView applications={applications} onSelect={(id) => setDetailModal(true, id)} />}
+          {view === "table" && <TableView applications={applications} onSelect={(id) => setDetailModal(true, id)} />}
         </>
       )}
 
-      <ApplicationDetailModal
-        applicationId={detailModal.id}
-        open={detailModal.open}
-        onOpenChange={(open) => setDetailModal({ open, id: detailModal.id })}
-        onUpdated={silentRefetch}
-        onDeleted={silentRefetch}
-      />
-      <ApplicationFormModal
-        open={formModal.open}
-        onOpenChange={(open) => setFormModal({ open })}
-        applicationId={formModal.editId}
-        onUpdated={() => { setFormModal({ open: false }); silentRefetch() }}
-      />
+      <ApplicationDetailModal applicationId={detailModal.id} open={detailModal.open}
+        onOpenChange={(open) => setDetailModal(open, detailModal.id)} onUpdated={() => {}} onDeleted={() => setDetailModal(false)} />
+      <ApplicationFormModal open={formModal.open} onOpenChange={(open) => setFormModal(open)}
+        applicationId={formModal.editId} onUpdated={() => setFormModal(false)} />
 
-      <Dialog open={deleteModal.open} onOpenChange={(open) => setDeleteModal({ open, id: deleteModal.id })}>
+      <Dialog open={deleteModal.open} onOpenChange={(open) => setDeleteModal(open, deleteModal.id)}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Delete Application</DialogTitle>
-            <DialogDescription>Are you sure you want to delete this application? This action cannot be undone.</DialogDescription>
+            <DialogDescription>Are you sure? This action cannot be undone.</DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteModal({ open: false, id: null })} disabled={deleting}>Cancel</Button>
-            <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
-              {deleting ? "Deleting..." : "Delete"}
+            <Button variant="outline" onClick={() => setDeleteModal(false)} disabled={deleteMutation.isPending}>Cancel</Button>
+            <Button variant="destructive" onClick={handleDelete} disabled={deleteMutation.isPending}>
+              {deleteMutation.isPending ? "Deleting..." : "Delete"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -239,16 +195,12 @@ function ViewSkeleton({ view }: { view: ViewMode }) {
     )
   }
   if (view === "list") {
-    return (
-      <div className="space-y-2">
-        {Array.from({ length: 6 }).map((_, i) => <Card key={i} className="flex items-center gap-4 p-3"><Skeleton className="h-10 w-10 rounded-xl" /><div className="flex-1 space-y-1.5"><Skeleton className="h-4 w-40" /><Skeleton className="h-3 w-28" /></div><Skeleton className="h-5 w-16 rounded-full" /><Skeleton className="h-3 w-20" /></Card>)}
-      </div>
-    )
+    return <div className="space-y-2">{Array.from({ length: 6 }).map((_, i) => <Card key={i} className="flex items-center gap-4 p-3"><Skeleton className="h-10 w-10 rounded-xl" /><div className="flex-1 space-y-1.5"><Skeleton className="h-4 w-40" /><Skeleton className="h-3 w-28" /></div></Card>)}</div>
   }
   return (
     <div className="rounded-xl border overflow-hidden">
       <div className="p-3 border-b bg-muted/50"><div className="flex gap-4">{Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-4 w-20" />)}</div></div>
-      {Array.from({ length: 5 }).map((_, i) => <div key={i} className="flex items-center gap-4 p-3 border-b last:border-0"><Skeleton className="h-8 w-8 rounded-lg" /><Skeleton className="h-4 w-32" /><Skeleton className="h-4 w-28" /><Skeleton className="h-5 w-16 rounded-full" /><Skeleton className="h-3 w-20" /></div>)}
+      {Array.from({ length: 5 }).map((_, i) => <div key={i} className="flex items-center gap-4 p-3 border-b last:border-0"><Skeleton className="h-8 w-8 rounded-lg" /><Skeleton className="h-4 w-32" /><Skeleton className="h-4 w-28" /><Skeleton className="h-5 w-16 rounded-full" /></div>)}
     </div>
   )
 }

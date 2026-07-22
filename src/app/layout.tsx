@@ -4,6 +4,7 @@ import { ClerkProvider } from "@clerk/nextjs"
 import { shadcn } from "@clerk/ui/themes"
 import { Toaster } from "sonner"
 import { TooltipProvider } from "@/components/ui/tooltip"
+import Providers from "@/components/Providers"
 import "./globals.css"
 
 const geistSans = Geist({
@@ -32,10 +33,12 @@ export default function RootLayout({
         <body
           className={`${geistSans.variable} ${geistMono.variable} antialiased`}
         >
-          <TooltipProvider>
-            {children}
-            <Toaster richColors />
-          </TooltipProvider>
+          <Providers>
+            <TooltipProvider>
+              {children}
+              <Toaster richColors />
+            </TooltipProvider>
+          </Providers>
         </body>
       </html>
     </ClerkProvider>

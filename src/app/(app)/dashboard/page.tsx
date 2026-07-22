@@ -1,6 +1,6 @@
 "use client"
 
-import { Suspense, useEffect, useState } from "react"
+import { Suspense, useEffect } from "react"
 import { useUser } from "@clerk/nextjs"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
@@ -14,23 +14,12 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import ApplicationFormModal from "@/components/dashboard/ApplicationFormModal"
+import { useStats } from "@/lib/api"
+import { useUI } from "@/lib/store"
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, AreaChart, Area,
 } from "recharts"
-
-interface Stats {
-  total: number
-  saved: number
-  applied: number
-  assessment: number
-  interview: number
-  rejected: number
-  offer: number
-  recent: Array<{ id: string; companyName: string; jobTitle: string; status: string; createdAt: string }>
-  trend: Array<{ month: string; count: number }>
-  bySource: Array<{ source: string; count: number }>
-}
 
 const STATUS_CONFIG: Record<string, { color: string; bg: string; icon: React.ReactNode }> = {
   Saved: { color: "text-sky-600 dark:text-sky-400", bg: "bg-sky-100 dark:bg-sky-500/20", icon: <Bookmark className="h-3.5 w-3.5" /> },
@@ -46,20 +35,15 @@ const PIE_COLORS = ["#6366f1", "#3b82f6", "#f59e0b", "#a855f7", "#ef4444", "#22c
 function DashboardContent() {
   const { isLoaded, isSignedIn } = useUser()
   const router = useRouter()
-  const [stats, setStats] = useState<Stats | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [formOpen, setFormOpen] = useState(false)
+  const formModal = useUI((s) => s.formModal)
+  const setFormModal = useUI((s) => s.setFormModal)
+  const { data: stats, isLoading } = useStats()
 
   useEffect(() => {
-    if (!isLoaded) return
-    if (!isSignedIn) { router.push("/login"); return }
-    fetch("/api/dashboard/stats").then((r) => r.json())
-      .then(setStats)
-      .finally(() => setLoading(false))
+    if (isLoaded && !isSignedIn) router.push("/login")
   }, [isLoaded, isSignedIn, router])
 
-  if (!isLoaded || loading) return <DashboardSkeleton />
-
+  if (!isLoaded || isLoading) return <DashboardSkeleton />
   if (!stats) return null
 
   const interviewRate = stats.total > 0 ? Math.round(((stats.interview + stats.assessment) / stats.total) * 100) : 0
@@ -96,7 +80,7 @@ function DashboardContent() {
             <Button variant="outline" size="sm" asChild>
               <Link href="/applications"><Briefcase className="h-4 w-4" /> View All</Link>
             </Button>
-            <Button size="sm" onClick={() => setFormOpen(true)}>
+            <Button size="sm" onClick={() => setFormModal(true)}>
               <Plus className="h-4 w-4" /> Add Job
             </Button>
           </div>
@@ -105,36 +89,10 @@ function DashboardContent() {
 
       {/* Big Stat Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <StatCard
-          title="Total Applications"
-          value={stats.total}
-          icon={<Briefcase className="h-5 w-5" />}
-          gradient="from-indigo-500 to-indigo-600"
-          trend={`+${stats.trend[stats.trend.length - 1]?.count || 0} this month`}
-        />
-        <StatCard
-          title="Interview Rate"
-          value={`${interviewRate}%`}
-          icon={<Target className="h-5 w-5" />}
-          gradient="from-amber-500 to-orange-600"
-          ring={interviewRate}
-          suffix=""
-        />
-        <StatCard
-          title="Active Pipeline"
-          value={activePipeline}
-          icon={<TrendingUp className="h-5 w-5" />}
-          gradient="from-violet-500 to-purple-600"
-          trend={`${stats.applied} applied, ${stats.interview + stats.assessment} interviewing`}
-        />
-        <StatCard
-          title="Success Rate"
-          value={`${successRate}%`}
-          icon={<CheckCircle2 className="h-5 w-5" />}
-          gradient="from-emerald-500 to-green-600"
-          ring={successRate}
-          suffix=""
-        />
+        <StatCard title="Total Applications" value={stats.total} icon={<Briefcase className="h-5 w-5" />} gradient="from-indigo-500 to-indigo-600" trend={`+${stats.trend[stats.trend.length - 1]?.count || 0} this month`} />
+        <StatCard title="Interview Rate" value={`${interviewRate}%`} icon={<Target className="h-5 w-5" />} gradient="from-amber-500 to-orange-600" ring={interviewRate} />
+        <StatCard title="Active Pipeline" value={activePipeline} icon={<TrendingUp className="h-5 w-5" />} gradient="from-violet-500 to-purple-600" trend={`${stats.applied} applied, ${stats.interview + stats.assessment} interviewing`} />
+        <StatCard title="Success Rate" value={`${successRate}%`} icon={<CheckCircle2 className="h-5 w-5" />} gradient="from-emerald-500 to-green-600" ring={successRate} />
       </div>
 
       {/* Status Pills */}
@@ -181,9 +139,7 @@ function DashboardContent() {
                 </defs>
                 <XAxis dataKey="month" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 11 }} axisLine={false} tickLine={false} width={30} />
-                <Tooltip
-                  contentStyle={{ borderRadius: 8, border: "1px solid hsl(var(--border))", background: "hsl(var(--background))" }}
-                />
+                <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid hsl(var(--border))", background: "hsl(var(--background))" }} />
                 <Area type="monotone" dataKey="count" stroke="#6366f1" strokeWidth={2.5} fill="url(#colorCount)" />
               </AreaChart>
             </ResponsiveContainer>
@@ -204,9 +160,7 @@ function DashboardContent() {
                   <Pie data={statusData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={75} strokeWidth={0}>
                     {statusData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
                   </Pie>
-                  <Tooltip
-                    contentStyle={{ borderRadius: 8, border: "1px solid hsl(var(--border))", background: "hsl(var(--background))" }}
-                  />
+                  <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid hsl(var(--border))", background: "hsl(var(--background))" }} />
                 </PieChart>
               </ResponsiveContainer>
               <div className="flex-1 space-y-2">
@@ -237,9 +191,7 @@ function DashboardContent() {
               <BarChart data={stats.bySource} layout="vertical" margin={{ left: 10 }}>
                 <XAxis type="number" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
                 <YAxis type="category" dataKey="source" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} width={80} />
-                <Tooltip
-                  contentStyle={{ borderRadius: 8, border: "1px solid hsl(var(--border))", background: "hsl(var(--background))" }}
-                />
+                <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid hsl(var(--border))", background: "hsl(var(--background))" }} />
                 <Bar dataKey="count" fill="#3b82f6" radius={[0, 4, 4, 0]} barSize={16} />
               </BarChart>
             </ResponsiveContainer>
@@ -258,7 +210,7 @@ function DashboardContent() {
               </Link>
             </div>
             <div className="space-y-1">
-              {stats.recent.map((app) => {
+              {stats.recent.map((app: { id: string; companyName: string; jobTitle: string; status: string }) => {
                 const cfg = STATUS_CONFIG[app.status] || STATUS_CONFIG.Saved
                 return (
                   <div key={app.id} className="flex items-center gap-3 rounded-lg p-2.5 hover:bg-muted/50 transition-colors">
@@ -280,17 +232,14 @@ function DashboardContent() {
         </Card>
       </div>
 
-      <ApplicationFormModal open={formOpen} onOpenChange={setFormOpen} onUpdated={() => {
-        setFormOpen(false)
-        fetch("/api/dashboard/stats").then((r) => r.json()).then(setStats)
-      }} />
+      <ApplicationFormModal open={formModal.open} onOpenChange={(open) => setFormModal(open)} applicationId={formModal.editId} onUpdated={() => setFormModal(false)} />
     </div>
   )
 }
 
-function StatCard({ title, value, icon, gradient, ring, suffix = "", trend }: {
+function StatCard({ title, value, icon, gradient, ring, trend }: {
   title: string; value: string | number; icon: React.ReactNode; gradient: string
-  ring?: number; suffix?: string; trend?: string
+  ring?: number; trend?: string
 }) {
   return (
     <Card className="overflow-hidden hover:shadow-lg transition-all duration-200 group">
@@ -298,7 +247,7 @@ function StatCard({ title, value, icon, gradient, ring, suffix = "", trend }: {
         <div className="flex items-start justify-between">
           <div className="space-y-1">
             <p className="text-xs font-medium text-muted-foreground">{title}</p>
-            <p className="text-2xl font-bold tracking-tight">{value}{suffix}</p>
+            <p className="text-2xl font-bold tracking-tight">{value}</p>
             {trend && <p className="text-[10px] text-muted-foreground">{trend}</p>}
           </div>
           <div className={`flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br ${gradient} text-white shadow-lg shadow-primary/20 group-hover:scale-110 transition-transform`}>
@@ -322,15 +271,10 @@ function DashboardSkeleton() {
   return (
     <div className="space-y-6">
       <Skeleton className="h-32 w-full rounded-2xl" />
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-28 rounded-xl" />)}
-      </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-28 rounded-xl" />)}</div>
       <div className="flex gap-2">{Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-8 w-20 rounded-full" />)}</div>
       <div className="grid gap-4 md:grid-cols-2">{Array.from({ length: 2 }).map((_, i) => <Skeleton key={i} className="h-72 rounded-xl" />)}</div>
-      <div className="grid gap-4 md:grid-cols-5">
-        <Skeleton className="h-72 rounded-xl md:col-span-2" />
-        <Skeleton className="h-72 rounded-xl md:col-span-3" />
-      </div>
+      <div className="grid gap-4 md:grid-cols-5"><Skeleton className="h-72 rounded-xl md:col-span-2" /><Skeleton className="h-72 rounded-xl md:col-span-3" /></div>
     </div>
   )
 }
