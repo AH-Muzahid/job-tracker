@@ -71,10 +71,8 @@ export default function SettingsPage() {
     setTesting(true)
     setTestResult(null)
     try {
-      const res = await fetch("/api/ai/chat", {
+      const res = await fetch("/api/ai/test-connection", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: "Say 'connected' and nothing else" }),
       })
       setTestResult(res.ok)
       if (!res.ok) toast.error("Connection failed. Check your API key.")

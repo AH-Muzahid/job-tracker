@@ -6,7 +6,7 @@ import { UserButton, useUser } from "@clerk/nextjs"
 import {
   Moon, Sun, Menu, X, Search, Bell,
   LayoutDashboard, Briefcase, Building2, Brain,
-  FileText, CalendarDays, Settings, ChevronRight,
+  FileText, CalendarDays, Settings, ChevronRight, Bot,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -32,8 +32,48 @@ export default function Navbar() {
 
   if (!isSignedIn) return null
 
+  const isFullscreen = pathname.startsWith("/ai-assistant")
   const segments = pathname.split("/").filter(Boolean)
   const currentPage = pageMap["/" + segments[0]] || { title: segments[0], icon: null }
+
+  if (isFullscreen) {
+    return (
+      <header className="sticky top-0 z-30 flex h-12 items-center border-b border-border/50 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 px-4 sm:px-6">
+        <div className="flex items-center gap-2 shrink-0">
+          <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary/10">
+            <Bot className="h-3.5 w-3.5 text-primary" />
+          </div>
+          <span className="text-sm font-medium">AI Assistant</span>
+        </div>
+
+        <div className="flex-1" />
+
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={toggleTheme}>
+            {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          </Button>
+          <div className="h-5 w-px bg-border hidden sm:block" />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="flex items-center gap-2 rounded-lg p-1 hover:bg-muted transition-colors">
+                <UserButton appearance={{ elements: { avatarBox: "h-7 w-7" } }} />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem asChild>
+                <Link href="/settings" className="flex items-center gap-2 cursor-pointer">
+                  <Settings className="h-4 w-4" />
+                  Settings
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem className="text-xs text-muted-foreground cursor-default">CareerTrack v1.0</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </header>
+    )
+  }
 
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center border-b bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 px-4 sm:px-6 gap-3">

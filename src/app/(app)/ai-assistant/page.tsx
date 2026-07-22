@@ -1,11 +1,9 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useUser } from "@clerk/nextjs"
 import { useRouter } from "next/navigation"
-import { Bot, Plus, MessageSquare, Trash2, Settings } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
+import { MessageSquare, Trash2, Settings, PanelLeftClose, PanelLeft } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import AIChat from "@/components/ai/AIChat"
@@ -25,6 +23,7 @@ export default function AIAssistantPage() {
   const [activeId, setActiveId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [mobileSessionOpen, setMobileSessionOpen] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
   useEffect(() => {
     if (isLoaded && !isSignedIn) {
@@ -35,6 +34,17 @@ export default function AIAssistantPage() {
     fetchSessions()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoaded, isSignedIn])
+
+  useEffect(() => {
+    const saved = localStorage.getItem("ai-sidebar-collapsed")
+    if (saved === "true") setSidebarCollapsed(true)
+  }, [])
+
+  function toggleSidebar() {
+    const next = !sidebarCollapsed
+    setSidebarCollapsed(next)
+    localStorage.setItem("ai-sidebar-collapsed", String(next))
+  }
 
   async function fetchSessions() {
     try {
@@ -48,22 +58,6 @@ export default function AIAssistantPage() {
     }
   }
 
-  async function createSession() {
-    try {
-      const res = await fetch("/api/ai/sessions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: "New Chat" }),
-      })
-      if (res.ok) {
-        const session = await res.json()
-        setSessions((prev) => [session, ...prev])
-        setActiveId(session.id)
-        setMobileSessionOpen(false)
-      }
-    } catch {}
-  }
-
   async function deleteSession(id: string) {
     try {
       const res = await fetch(`/api/ai/sessions/${id}`, { method: "DELETE" })
@@ -74,9 +68,19 @@ export default function AIAssistantPage() {
     } catch {}
   }
 
+  const handleSessionCreated = useCallback((id: string) => {
+    setActiveId(id)
+    fetchSessions()
+    setMobileSessionOpen(false)
+  }, [])
+
+  const visibleSessions = sessions.filter(
+    (s) => s._count.messages > 0 && s.title !== "New Chat"
+  )
+
   if (!isLoaded || loading) {
     return (
-      <div className="flex h-[calc(100vh-4rem)] gap-4 p-4">
+      <div className="flex h-[calc(100vh-3rem)] gap-4 p-4">
         <div className="hidden md:flex w-64 flex-col gap-2">
           {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10 rounded-lg" />)}
         </div>
@@ -86,7 +90,7 @@ export default function AIAssistantPage() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] gap-0 overflow-hidden">
+    <div className="flex h-[calc(100vh-3rem)] overflow-hidden">
       {/* Mobile session toggle */}
       <button
         className="md:hidden fixed bottom-4 right-4 z-50 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg"
@@ -97,85 +101,92 @@ export default function AIAssistantPage() {
 
       {/* Sessions sidebar */}
       <div className={cn(
-        "flex flex-col border-r bg-muted/30 w-64 shrink-0",
+        "flex flex-col shrink-0 border-r border-border/50 bg-background transition-all duration-300",
+        sidebarCollapsed ? "w-12" : "w-64",
         "max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-40 max-md:bg-background max-md:shadow-xl max-md:transition-transform max-md:duration-200",
         mobileSessionOpen ? "max-md:translate-x-0" : "max-md:-translate-x-full"
       )}>
-        <div className="flex items-center justify-between border-b px-4 h-14">
-          <span className="font-semibold text-sm">Chat History</span>
-          <Button variant="ghost" size="icon" onClick={createSession}>
-            <Plus className="h-4 w-4" />
-          </Button>
+        {/* Header */}
+        <div className={cn(
+          "flex items-center border-b border-border/50",
+          sidebarCollapsed ? "flex-col gap-2 py-3 px-1" : "justify-between px-3 h-11"
+        )}>
+          {!sidebarCollapsed && (
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">History</span>
+          )}
+          <div className={cn("flex", sidebarCollapsed ? "flex-col gap-1" : "items-center gap-0.5")}>
+            <button
+              onClick={() => { setActiveId(null); setMobileSessionOpen(false) }}
+              className={cn(
+                "flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors",
+                sidebarCollapsed ? "h-8 w-8" : "h-6 w-6"
+              )}
+              title="New chat"
+            >
+              <svg className={cn(sidebarCollapsed ? "h-4 w-4" : "h-3.5 w-3.5")} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+            </button>
+            <button
+              onClick={toggleSidebar}
+              className={cn(
+                "hidden md:flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors",
+                sidebarCollapsed ? "h-8 w-8" : "h-6 w-6"
+              )}
+              title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            >
+              {sidebarCollapsed ? <PanelLeft className="h-4 w-4" /> : <PanelLeftClose className="h-3.5 w-3.5" />}
+            </button>
+          </div>
         </div>
-        <div className="flex-1 overflow-y-auto p-2 space-y-1">
-          {sessions.length === 0 && (
+        <div className="flex-1 overflow-y-auto px-2 py-1 space-y-0.5">
+          {visibleSessions.length === 0 && !sidebarCollapsed && (
             <p className="text-xs text-muted-foreground text-center py-8">No chats yet</p>
           )}
-          {sessions.map((session) => (
+          {visibleSessions.map((session) => (
             <div
               key={session.id}
               className={cn(
-                "group flex items-center gap-2 rounded-lg px-3 py-2 text-sm cursor-pointer transition-colors",
+                "group flex items-center rounded-lg cursor-pointer transition-colors",
+                sidebarCollapsed ? "justify-center p-2" : "gap-2 px-2.5 py-2",
                 activeId === session.id
                   ? "bg-primary/10 text-primary font-medium"
-                  : "hover:bg-muted text-muted-foreground hover:text-foreground"
+                  : "text-muted-foreground hover:text-foreground hover:bg-accent"
               )}
               onClick={() => { setActiveId(session.id); setMobileSessionOpen(false) }}
+              title={sidebarCollapsed ? session.title : undefined}
             >
-              <Bot className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate flex-1">{session.title}</span>
-              <span className="text-xs text-muted-foreground opacity-0 group-hover:opacity-100">{session._count.messages}</span>
-              <button
-                className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity"
-                onClick={(e) => { e.stopPropagation(); deleteSession(session.id) }}
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
+              <MessageSquare className="h-3.5 w-3.5 shrink-0 opacity-70" />
+              {!sidebarCollapsed && (
+                <>
+                  <span className="truncate flex-1 text-sm">{session.title}</span>
+                  <button
+                    className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity shrink-0"
+                    onClick={(e) => { e.stopPropagation(); deleteSession(session.id) }}
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </button>
+                </>
+              )}
             </div>
           ))}
         </div>
-        <div className="border-t p-3">
-          <Button variant="outline" size="sm" className="w-full gap-2" asChild>
-            <a href="/settings"><Settings className="h-3.5 w-3.5" /> Configure AI</a>
-          </Button>
+        <div className={cn("border-t border-border/50", sidebarCollapsed ? "p-2" : "p-2")}>
+          <button
+            onClick={() => router.push("/settings")}
+            className={cn(
+              "flex items-center gap-2 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors",
+              sidebarCollapsed ? "justify-center w-full p-2" : "w-full px-2.5 py-1.5"
+            )}
+            title={sidebarCollapsed ? "Configure AI" : undefined}
+          >
+            <Settings className="h-3.5 w-3.5" />
+            {!sidebarCollapsed && "Configure AI"}
+          </button>
         </div>
       </div>
 
       {/* Chat area */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {activeId ? (
-          <AIChat key={activeId} sessionId={activeId} />
-        ) : (
-          <div className="flex-1 flex items-center justify-center p-8">
-            <Card className="max-w-md w-full">
-              <CardContent className="p-8 text-center space-y-4">
-                <div className="flex justify-center">
-                  <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center">
-                    <Bot className="h-8 w-8 text-primary" />
-                  </div>
-                </div>
-                <h2 className="text-xl font-semibold">AI Workflow Assistant</h2>
-                <p className="text-sm text-muted-foreground">
-                  Paste a job description, ask for cover letter help, track your applications,
-                  or get interview prep. I&apos;m here to help you get hired.
-                </p>
-                <div className="flex flex-wrap justify-center gap-2">
-                  <Button size="sm" variant="outline" onClick={createSession}>
-                    <Plus className="h-4 w-4 mr-1" /> New Chat
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => setActiveId("new")}>
-                    Quick Analyze
-                  </Button>
-                </div>
-                {sessions.length > 0 && (
-                  <div className="border-t pt-4 mt-4">
-                    <p className="text-xs text-muted-foreground mb-2">Or select a chat from history</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        )}
+      <div className="flex-1 flex flex-col min-w-0 relative overflow-hidden">
+        <AIChat sessionId={activeId} onSessionCreated={handleSessionCreated} />
       </div>
 
       {/* Mobile overlay */}

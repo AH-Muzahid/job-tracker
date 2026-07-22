@@ -39,12 +39,12 @@ export default function Sidebar() {
     const isCollapsed = isMobile ? false : collapsed
     return (
       <>
-        <div className={cn("flex h-14 items-center border-b px-3", isCollapsed ? "justify-center" : "justify-between")}>
-          <Link href="/dashboard" className="flex items-center gap-2.5 group" onClick={() => setMobileOpen(false)}>
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-sm transition-transform group-hover:scale-105">C</div>
+        <div className={cn("flex h-14 items-center border-b border-border/50 px-3 group/header", isCollapsed ? "justify-center" : "justify-between")}>
+          <Link href="/dashboard" className="flex items-center gap-2.5" onClick={() => setMobileOpen(false)}>
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-sm transition-transform hover:scale-105">C</div>
             {!isCollapsed && <span className="text-base font-bold tracking-tight">CareerTrack</span>}
           </Link>
-          <div className="hidden lg:block">
+          <div className="hidden lg:block opacity-0 group-hover/header:opacity-100 transition-opacity">
             <Tooltip delayDuration={0}>
               <TooltipTrigger asChild>
                 <button
@@ -97,7 +97,7 @@ export default function Sidebar() {
     <>
       {/* Desktop sidebar */}
       <aside className={cn(
-        "hidden lg:flex flex-col border-r bg-background transition-all duration-300 shrink-0",
+        "hidden lg:flex flex-col border-r border-border/50 bg-background transition-all duration-300 shrink-0",
         collapsed ? "w-16" : "w-56"
       )}>
         <div className="flex h-full flex-col">{renderNav(false)}</div>
@@ -111,7 +111,7 @@ export default function Sidebar() {
             style={{ backgroundColor: "rgba(0, 0, 0, 0.4)", backdropFilter: "blur(4px)" }}
             onClick={() => setMobileOpen(false)}
           />
-          <aside className="fixed inset-y-0 left-0 z-50 flex w-56 flex-col border-r bg-background shadow-xl lg:hidden animate-in slide-in-from-left duration-200">
+          <aside className="fixed inset-y-0 left-0 z-50 flex w-56 flex-col border-r border-border/50 bg-background shadow-xl lg:hidden animate-in slide-in-from-left duration-200">
             {renderNav(true)}
           </aside>
         </>
