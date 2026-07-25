@@ -69,14 +69,9 @@ export function Header() {
 								<Link href="/dashboard">Dashboard</Link>
 							</Button>
 						) : (
-							<>
-								<Button size="sm" variant="outline" onClick={() => setSignInOpen(true)}>
-									Sign In
-								</Button>
-								<Button size="sm" asChild>
-									<Link href="/sign-up">Get Started</Link>
-								</Button>
-							</>
+							<Button size="sm" variant="outline" onClick={() => setSignInOpen(true)}>
+								Sign In
+							</Button>
 						)}
 					</div>
 					<div className="flex items-center gap-2 md:hidden">

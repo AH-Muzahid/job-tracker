@@ -1,11 +1,11 @@
 import { cn } from "@/lib/utils";
 import React from "react";
-import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Portal, PortalBackdrop } from "@/components/portal";
 import { navLinks } from "@/components/header";
 import { XIcon, MenuIcon } from "lucide-react";
 import { useAuth } from "@clerk/nextjs";
+import Link from "next/link";
 
 interface MobileNavProps {
 	onSignIn?: () => void;
@@ -71,20 +71,15 @@ export function MobileNav({ onSignIn }: MobileNavProps) {
 								</Button>
 							))}
 						</div>
-						<div className="mt-12 flex flex-col gap-2">
+						<div className="mt-12">
 							{isSignedIn ? (
 								<Button className="w-full" asChild onClick={close}>
-									<a href="/dashboard">Dashboard</a>
+									<Link href="/dashboard">Dashboard</Link>
 								</Button>
 							) : (
-								<>
-									<Button className="w-full" variant="outline" onClick={handleSignIn}>
-										Sign In
-									</Button>
-									<Button className="w-full" asChild onClick={close}>
-										<Link href="/sign-up">Get Started</Link>
-									</Button>
-								</>
+								<Button className="w-full" variant="outline" onClick={handleSignIn}>
+									Sign In
+								</Button>
 							)}
 						</div>
 					</div>
