@@ -4,6 +4,7 @@ import { ClerkProvider } from "@clerk/nextjs"
 import { shadcn } from "@clerk/ui/themes"
 import { Toaster } from "sonner"
 import { TooltipProvider } from "@/components/ui/tooltip"
+import { ThemeProvider } from "@/components/theme-provider"
 import Providers from "@/components/Providers"
 import "./globals.css"
 
@@ -29,16 +30,18 @@ export default function RootLayout({
 }>) {
   return (
     <ClerkProvider appearance={{ theme: shadcn }}>
-      <html lang="en" className="dark overflow-x-hidden">
+      <html lang="en" suppressHydrationWarning className="dark overflow-x-hidden">
         <body
           className={`${geistSans.variable} ${geistMono.variable} antialiased`}
         >
-          <Providers>
-            <TooltipProvider>
-              {children}
-              <Toaster richColors />
-            </TooltipProvider>
-          </Providers>
+          <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
+            <Providers>
+              <TooltipProvider>
+                {children}
+                <Toaster richColors />
+              </TooltipProvider>
+            </Providers>
+          </ThemeProvider>
         </body>
       </html>
     </ClerkProvider>

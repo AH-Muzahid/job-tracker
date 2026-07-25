@@ -84,7 +84,7 @@ function AmbientParticles() {
 			{particles.map((p) => (
 				<motion.div
 					key={p.id}
-					className="absolute rounded-full bg-white/[0.1]"
+					className="absolute rounded-full bg-foreground/[0.1]"
 					style={{ width: p.size, height: p.size, left: `${p.x}%`, top: `${p.y}%` }}
 					animate={{ y: [0, -40, 0], x: [0, 15, -15, 0], opacity: [0, 0.4, 0] }}
 					transition={{ duration: p.duration, repeat: Infinity, delay: p.delay, ease: "easeInOut" }}
@@ -161,15 +161,15 @@ function TrackingVisual() {
 					{ val: counts[1], label: "Interviews", color: "text-purple-400" },
 					{ val: counts[2], label: "Offers", color: "text-emerald-400" },
 				].map((s) => (
-					<div key={s.label} className="rounded-xl border border-white/[0.08] bg-[#0c0e14]/60 p-3 text-center backdrop-blur-xl">
+					<div key={s.label} className="rounded-xl border border-border bg-card/60 p-3 text-center backdrop-blur-xl">
 						<div className={cn("text-2xl font-bold tabular-nums", s.color)}>{s.val}</div>
-						<div className="text-[10px] text-white/40 mt-0.5">{s.label}</div>
+						<div className="text-[10px] text-muted-foreground mt-0.5">{s.label}</div>
 					</div>
 				))}
 			</div>
 
 			{/* Isometric Workflow */}
-			<div className="relative rounded-xl border border-white/[0.08] bg-[#0c0e14]/60 p-4 backdrop-blur-xl overflow-hidden">
+			<div className="relative rounded-xl border border-border bg-card/60 p-4 backdrop-blur-xl overflow-hidden">
 				{/* Ambient glow behind AI center */}
 				<div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 rounded-full bg-cyan-500/[0.06] blur-[40px]" />
 
@@ -237,7 +237,7 @@ function TrackingVisual() {
 					<div className="flex flex-col gap-2">
 						{inputSources.map((src) => (
 							<motion.div key={src.label}
-								className="flex items-center gap-2 text-[11px] px-2.5 py-1.5 rounded-lg border border-white/[0.08] bg-white/[0.04] text-white/60 backdrop-blur-sm"
+								className="flex items-center gap-2 text-[11px] px-2.5 py-1.5 rounded-lg border border-border bg-muted/50 text-muted-foreground backdrop-blur-sm"
 								whileHover={{ borderColor: "rgba(255,255,255,0.2)", scale: 1.02 }}
 							>
 								<src.icon className={cn("size-3.5", src.color)} />
@@ -265,7 +265,7 @@ function TrackingVisual() {
 								transition={{ duration: 1.8, repeat: Infinity }}
 							/>
 						</motion.div>
-						<span className="absolute -bottom-0.5 text-[8px] font-medium text-cyan-400/60 bg-[#0c0e14]/90 px-1.5 py-0.5 rounded">AI Extract</span>
+						<span className="absolute -bottom-0.5 text-[8px] font-medium text-cyan-400/60 bg-card px-1.5 py-0.5 rounded">AI Extract</span>
 					</div>
 
 					{/* Output Nodes */}
@@ -291,11 +291,11 @@ function TrackingVisual() {
 
 function InterviewVisual() {
 	return (
-		<div className="rounded-xl border border-white/[0.08] bg-[#0c0e14]/60 overflow-hidden backdrop-blur-xl">
+		<div className="rounded-xl border border-border bg-card/60 overflow-hidden backdrop-blur-xl">
 			{/* Header */}
-			<div className="flex items-center gap-2 px-4 py-2.5 border-b border-white/[0.06]">
+			<div className="flex items-center gap-2 px-4 py-2.5 border-b border-border">
 				<BrainCircuitIcon className="size-4 text-purple-400" />
-				<span className="text-xs font-medium text-white/70">AI Interview Coach</span>
+				<span className="text-xs font-medium text-foreground/70">AI Interview Coach</span>
 				<div className="ml-auto flex items-center gap-1.5">
 					<motion.div className="h-2 w-2 rounded-full bg-rose-400 shadow-[0_0_8px_rgba(251,113,133,0.6)]"
 						animate={{ opacity: [1, 0.4, 1] }}
@@ -317,8 +317,8 @@ function InterviewVisual() {
 						className={cn(
 							"rounded-2xl px-3 py-2 max-w-[85%] text-[11px] leading-relaxed",
 							msg.role === "ai"
-								? "bg-white/[0.05] border border-white/[0.08] text-white/60"
-								: "bg-gradient-to-r from-purple-500/10 to-purple-500/5 border border-purple-500/15 text-white/70 ml-auto"
+								? "bg-muted/50 border border-border text-muted-foreground"
+								: "bg-gradient-to-r from-purple-500/10 to-purple-500/5 border border-purple-500/15 text-foreground/70 ml-auto"
 						)}
 						initial={{ opacity: 0, y: 8 }}
 						whileInView={{ opacity: 1, y: 0 }}
@@ -332,7 +332,7 @@ function InterviewVisual() {
 
 			{/* Audio Spectrum */}
 			<div className="px-4 pt-3">
-				<div className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-3 overflow-hidden">
+				<div className="rounded-lg border border-border bg-muted/30 p-3 overflow-hidden">
 					<AudioSpectrum />
 				</div>
 			</div>
@@ -351,7 +351,7 @@ function InterviewVisual() {
 						</motion.span>
 					))}
 				</div>
-				<span className="text-[10px] text-white/40">STAR-method coach</span>
+				<span className="text-[10px] text-muted-foreground">STAR-method coach</span>
 			</div>
 		</div>
 	);
@@ -640,57 +640,57 @@ function OfferVisual() {
 			<svg className="absolute inset-0 w-full h-full" viewBox="0 0 260 170" preserveAspectRatio="xMidYMid meet">
 				<defs>
 					<pattern id="offer-grid" width="18" height="18" patternUnits="userSpaceOnUse">
-						<path d="M 18 0 L 0 0 0 18" fill="none" stroke="rgba(255,255,255,0.03)" strokeWidth={0.5} />
+						<path d="M 18 0 L 0 0 0 18" fill="none" stroke="currentColor" className="text-border" strokeWidth={0.5} />
 					</pattern>
 				</defs>
 				<rect width="260" height="170" fill="url(#offer-grid)" />
 
-				{/* Orbital ring */}
-				<motion.ellipse cx={130} cy={75} rx={100} ry={40}
-					fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={1} strokeDasharray="4 4"
-					animate={{ strokeDashoffset: [0, -32] }}
-					transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-				/>
-				<motion.ellipse cx={130} cy={75} rx={75} ry={28}
-					fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth={0.8}
-					animate={{ strokeDashoffset: [0, 24] }}
-					transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
-				/>
+			{/* Orbital ring */}
+			<motion.ellipse cx={130} cy={75} rx={100} ry={40}
+				fill="none" stroke="currentColor" className="text-border" strokeWidth={1} strokeDasharray="4 4"
+				animate={{ strokeDashoffset: [0, -32] }}
+				transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+			/>
+			<motion.ellipse cx={130} cy={75} rx={75} ry={28}
+				fill="none" stroke="currentColor" className="text-border" strokeWidth={0.8}
+				animate={{ strokeDashoffset: [0, 24] }}
+				transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
+			/>
 
-				{/* Connection lines to center */}
-				{offers.map((o, i) => (
-					<line key={`conn-${i}`}
-						x1={o.x + o.size / 2} y1={o.y + o.size / 2}
-						x2={130} y2={75}
-						stroke="rgba(255,255,255,0.05)" strokeWidth={0.6} strokeDasharray="3 3"
-					/>
-				))}
+			{/* Connection lines to center */}
+			{offers.map((o, i) => (
+				<line key={`conn-${i}`}
+					x1={o.x + o.size / 2} y1={o.y + o.size / 2}
+					x2={130} y2={75}
+					stroke="currentColor" className="text-border" strokeWidth={0.6} strokeDasharray="3 3"
+				/>
+			))}
 
-				{/* Connection lines between offers */}
-				<line x1={51} y1={46} x2={192} y2={42} stroke="rgba(255,255,255,0.04)" strokeWidth={0.5} strokeDasharray="2 2" />
-				<line x1={51} y1={46} x2={126} y2={126} stroke="rgba(255,255,255,0.04)" strokeWidth={0.5} strokeDasharray="2 2" />
-				<line x1={192} y1={42} x2={126} y2={126} stroke="rgba(255,255,255,0.04)" strokeWidth={0.5} strokeDasharray="2 2" />
+			{/* Connection lines between offers */}
+			<line x1={51} y1={46} x2={192} y2={42} stroke="currentColor" className="text-border" strokeWidth={0.5} strokeDasharray="2 2" />
+			<line x1={51} y1={46} x2={126} y2={126} stroke="currentColor" className="text-border" strokeWidth={0.5} strokeDasharray="2 2" />
+			<line x1={192} y1={42} x2={126} y2={126} stroke="currentColor" className="text-border" strokeWidth={0.5} strokeDasharray="2 2" />
 			</svg>
 
 			{/* Offer cards */}
 			{offers.map((o, i) => (
 				<motion.div
 					key={i}
-					className="absolute flex flex-col items-center justify-center rounded-xl border border-white/10 bg-[#0c0e14]/80 backdrop-blur-xl shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_4px_20px_rgba(0,0,0,0.5)]"
+					className="absolute flex flex-col items-center justify-center rounded-xl border border-border bg-card/80 backdrop-blur-xl shadow-lg"
 					style={{ left: o.x, top: o.y, width: o.size, height: o.size }}
 					animate={{ y: [0, -4, 0] }}
 					transition={{ duration: 4 + i * 0.6, repeat: Infinity, ease: "easeInOut", delay: i * 0.4 }}
 					whileHover={{ scale: 1.08, borderColor: o.color }}
 				>
 					<div className="text-sm font-bold text-foreground">{o.amount}</div>
-					<div className="text-[9px] text-white/40 mt-0.5">{o.badge}</div>
+					<div className="text-[9px] text-muted-foreground mt-0.5">{o.badge}</div>
 				</motion.div>
 			))}
 
 			{/* Center rocket + label — positioned between the cards */}
 			<div className="absolute left-1/2 top-[42%] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-1.5">
 				<motion.div
-					className="w-11 h-11 rounded-full border border-white/15 bg-gradient-to-br from-white/[0.08] to-white/[0.02] flex items-center justify-center backdrop-blur-sm"
+					className="w-11 h-11 rounded-full border border-border bg-muted/50 flex items-center justify-center backdrop-blur-sm"
 					animate={{
 						boxShadow: [
 							"0 0 15px rgba(255,255,255,0.03)",
@@ -700,9 +700,9 @@ function OfferVisual() {
 					}}
 					transition={{ duration: 4, repeat: Infinity }}
 				>
-					<RocketIcon className="size-4 text-white/50" />
+					<RocketIcon className="size-4 text-muted-foreground" />
 				</motion.div>
-				<span className="text-[9px] text-white/40 font-medium">Offer Comparison</span>
+				<span className="text-[9px] text-muted-foreground font-medium">Offer Comparison</span>
 			</div>
 		</div>
 	);
@@ -717,10 +717,10 @@ function Card({ children, className, ...props }: React.ComponentProps<"div">) {
 		<div
 			className={cn(
 				"relative flex flex-col h-full rounded-2xl overflow-hidden",
-				"bg-[#0c0e14]/80 backdrop-blur-2xl border border-white/10",
-				"shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_4px_24px_rgba(0,0,0,0.5)]",
+				"bg-card/80 backdrop-blur-2xl border border-border",
+				"shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_4px_24px_rgba(0,0,0,0.15)]",
 				"transition-all duration-300",
-				"hover:border-white/[0.15] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_4px_40px_rgba(0,0,0,0.6)]",
+				"hover:border-border hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_4px_40px_rgba(0,0,0,0.2)]",
 				className
 			)}
 			{...props}
@@ -732,7 +732,7 @@ function Card({ children, className, ...props }: React.ComponentProps<"div">) {
 
 function CardVisual({ children, className, ...props }: React.ComponentProps<"div">) {
 	return (
-		<div className={cn("relative border-b border-white/5 bg-white/[0.02] flex-1 flex flex-col", className)} {...props}>
+		<div className={cn("relative border-b border-border bg-muted/30 flex-1 flex flex-col", className)} {...props}>
 			{children}
 		</div>
 	);
@@ -740,7 +740,7 @@ function CardVisual({ children, className, ...props }: React.ComponentProps<"div
 
 function CardContent({ children, className, ...props }: React.ComponentProps<"div">) {
 	return (
-		<div className={cn("min-h-[100px] flex flex-col justify-end p-6 border-t border-white/5", className)} {...props}>
+		<div className={cn("min-h-[100px] flex flex-col justify-end p-6 border-t border-border", className)} {...props}>
 			{children}
 		</div>
 	);

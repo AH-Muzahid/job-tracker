@@ -7,6 +7,7 @@ import { useScroll } from "@/hooks/use-scroll";
 import { Button } from "@/components/ui/button";
 import { MobileNav } from "@/components/mobile-nav";
 import { SignInModal } from "@/components/sign-in-modal";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { useAuth } from "@clerk/nextjs";
 
 export const navLinks = [
@@ -62,6 +63,7 @@ export function Header() {
 								</Button>
 							))}
 						</div>
+						<ThemeToggle />
 						{isSignedIn ? (
 							<Button size="sm" asChild>
 								<Link href="/dashboard">Dashboard</Link>
@@ -77,7 +79,10 @@ export function Header() {
 							</>
 						)}
 					</div>
-					<MobileNav onSignIn={() => setSignInOpen(true)} />
+					<div className="flex items-center gap-2 md:hidden">
+						<ThemeToggle />
+						<MobileNav onSignIn={() => setSignInOpen(true)} />
+					</div>
 				</nav>
 			</header>
 			<SignInModal open={signInOpen} onOpenChange={setSignInOpen} />
