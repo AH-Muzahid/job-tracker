@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { DecorIcon } from "@/components/decor-icon";
 import { FullWidthDivider } from "@/components/full-width-divider";
 import { ArrowRightIcon } from "lucide-react";
+import Link from "next/link";
 
 export function CallToAction() {
 	return (
@@ -22,10 +23,14 @@ export function CallToAction() {
 					</p>
 
 					<div className="flex items-center justify-center gap-3">
-						<Button variant="outline" size="lg">Learn More</Button>
-						<Button size="lg">
-							Get Started
-							<ArrowRightIcon data-icon="inline-end" />
+						<Button variant="outline" size="lg" asChild>
+							<a href="#features">Learn More</a>
+						</Button>
+						<Button size="lg" asChild>
+							<Link href="/sign-up">
+								Get Started
+								<ArrowRightIcon data-icon="inline-end" />
+							</Link>
 						</Button>
 					</div>
 				</div>

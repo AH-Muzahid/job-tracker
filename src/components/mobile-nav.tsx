@@ -7,11 +7,20 @@ import { navLinks } from "@/components/header";
 import { XIcon, MenuIcon } from "lucide-react";
 import { useAuth } from "@clerk/nextjs";
 
-export function MobileNav() {
+interface MobileNavProps {
+	onSignIn?: () => void;
+}
+
+export function MobileNav({ onSignIn }: MobileNavProps) {
 	const [open, setOpen] = React.useState(false);
 	const { isSignedIn } = useAuth();
 
 	const close = () => setOpen(false);
+
+	const handleSignIn = () => {
+		close();
+		onSignIn?.();
+	};
 
 	React.useEffect(() => {
 		if (!open) return;
@@ -69,8 +78,8 @@ export function MobileNav() {
 								</Button>
 							) : (
 								<>
-									<Button className="w-full" variant="outline" asChild onClick={close}>
-										<Link href="/sign-in">Sign In</Link>
+									<Button className="w-full" variant="outline" onClick={handleSignIn}>
+										Sign In
 									</Button>
 									<Button className="w-full" asChild onClick={close}>
 										<Link href="/sign-up">Get Started</Link>
