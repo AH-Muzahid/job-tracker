@@ -1,5 +1,6 @@
 "use client";
 import { cn } from "@/lib/utils";
+import Link from "next/link";
 import { Logo } from "@/components/logo";
 import { useScroll } from "@/hooks/use-scroll";
 import { Button } from "@/components/ui/button";
@@ -43,12 +44,12 @@ export function Header() {
 					}
 				)}
 			>
-				<a
+				<Link
 					className="rounded-md p-2 hover:bg-muted dark:hover:bg-muted/50"
 					href="/"
 				>
 					<Logo />
-				</a>
+				</Link>
 				<div className="hidden items-center gap-2 md:flex">
 					<div>
 						{navLinks.map((link) => (
@@ -59,15 +60,15 @@ export function Header() {
 					</div>
 					{isSignedIn ? (
 						<Button size="sm" asChild>
-							<a href="/dashboard">Dashboard</a>
+							<Link href="/dashboard">Dashboard</Link>
 						</Button>
 					) : (
 						<>
 							<Button size="sm" variant="outline" asChild>
-								<a href="/sign-in">Sign In</a>
+								<Link href="/sign-in">Sign In</Link>
 							</Button>
 							<Button size="sm" asChild>
-								<a href="/sign-up">Get Started</a>
+								<Link href="/sign-up">Get Started</Link>
 							</Button>
 						</>
 					)}

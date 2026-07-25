@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { DecorIcon } from "@/components/decor-icon";
 import { FullWidthDivider } from "@/components/full-width-divider";
 import { motion } from "framer-motion";
-import { useEffect, useState, useMemo, useRef } from "react";
+import { useEffect, useState, useMemo } from "react";
 import {
 	BrainCircuitIcon,
 	BarChart3Icon,
