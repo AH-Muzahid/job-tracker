@@ -9,7 +9,7 @@ import {
   FileText, CalendarDays, Settings, ChevronRight, Bot,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { useUI } from "@/lib/store"
 
 const pageMap: Record<string, { title: string; icon: React.ReactNode }> = {
@@ -29,6 +29,7 @@ export default function Navbar() {
   const toggleTheme = useUI((s) => s.toggleTheme)
   const mobileOpen = useUI((s) => s.mobileOpen)
   const setMobileOpen = useUI((s) => s.setMobileOpen)
+  const setSearchOpen = useUI((s) => s.setSearchOpen)
 
   if (!isSignedIn) return null
 
@@ -53,23 +54,17 @@ export default function Navbar() {
             {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           </Button>
           <div className="h-5 w-px bg-border hidden sm:block" />
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="flex items-center gap-2 rounded-lg p-1 hover:bg-muted transition-colors">
-                <UserButton appearance={{ elements: { avatarBox: "h-7 w-7" } }} />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem asChild>
-                <Link href="/settings" className="flex items-center gap-2 cursor-pointer">
-                  <Settings className="h-4 w-4" />
-                  Settings
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-xs text-muted-foreground cursor-default">CareerTrack v1.0</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <UserButton
+            appearance={{ elements: { avatarBox: "h-7 w-7" } }}
+          >
+            <UserButton.MenuItems>
+              <UserButton.Link
+                label="Settings"
+                labelIcon={<Settings className="h-4 w-4" />}
+                href="/settings"
+              />
+            </UserButton.MenuItems>
+          </UserButton>
         </div>
       </header>
     )
@@ -100,7 +95,10 @@ export default function Navbar() {
 
       <div className="flex-1" />
 
-      <button className="hidden sm:flex items-center gap-2 h-8 rounded-lg border bg-muted/50 px-3 text-xs text-muted-foreground hover:bg-muted transition-colors w-56">
+      <button
+        onClick={() => setSearchOpen(true)}
+        className="hidden sm:flex items-center gap-2 h-8 rounded-lg border bg-muted/50 px-3 text-xs text-muted-foreground hover:bg-muted transition-colors w-56"
+      >
         <Search className="h-3.5 w-3.5 shrink-0" />
         <span>Search...</span>
         <kbd className="ml-auto pointer-events-none inline-flex h-5 select-none items-center gap-0.5 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
@@ -129,23 +127,17 @@ export default function Navbar() {
 
         <div className="h-5 w-px bg-border mx-1 hidden sm:block" />
 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button className="flex items-center gap-2 rounded-lg p-1 hover:bg-muted transition-colors">
-              <UserButton appearance={{ elements: { avatarBox: "h-7 w-7" } }} />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48">
-            <DropdownMenuItem asChild>
-              <Link href="/settings" className="flex items-center gap-2 cursor-pointer">
-                <Settings className="h-4 w-4" />
-                Settings
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-xs text-muted-foreground cursor-default">CareerTrack v1.0</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+          <UserButton
+            appearance={{ elements: { avatarBox: "h-7 w-7" } }}
+          >
+            <UserButton.MenuItems>
+              <UserButton.Link
+                label="Settings"
+                labelIcon={<Settings className="h-4 w-4" />}
+                href="/settings"
+              />
+            </UserButton.MenuItems>
+          </UserButton>
       </div>
     </header>
   )

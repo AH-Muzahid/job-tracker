@@ -4,6 +4,7 @@ import { useEffect } from "react"
 import { usePathname } from "next/navigation"
 import Sidebar from "@/components/Sidebar"
 import Navbar from "@/components/Navbar"
+import CommandPalette from "@/components/CommandPalette"
 import { useUI } from "@/lib/store"
 
 export default function Shell({ children }: { children: React.ReactNode }) {
@@ -22,6 +23,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
           {children}
         </main>
       </div>
+      <CommandPalette />
     </div>
   )
 }
