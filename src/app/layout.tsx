@@ -29,7 +29,7 @@ export default function RootLayout({
 }>) {
   return (
     <ClerkProvider appearance={{ theme: shadcn }}>
-      <html lang="en">
+      <html lang="en" className="dark overflow-x-hidden">
         <body
           className={`${geistSans.variable} ${geistMono.variable} antialiased`}
         >

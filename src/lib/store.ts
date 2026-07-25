@@ -31,6 +31,10 @@ interface UIState {
   toggleTheme: () => void
   initTheme: () => void
 
+  // Search
+  searchOpen: boolean
+  setSearchOpen: (open: boolean) => void
+
   // Modals
   detailModal: { open: boolean; id: string | null }
   formModal: { open: boolean; editId?: string }
@@ -63,6 +67,10 @@ export const useUI = create<UIState>((set) => ({
     document.documentElement.classList.toggle("dark", isDark)
     set({ dark: isDark })
   },
+
+  // Search
+  searchOpen: false,
+  setSearchOpen: (open) => set({ searchOpen: open }),
 
   // Modals
   detailModal: { open: false, id: null },
