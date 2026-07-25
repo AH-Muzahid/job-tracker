@@ -16,8 +16,7 @@ export function SignInModal({ open, onOpenChange }: SignInModalProps) {
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent className="p-0 bg-transparent border-none shadow-none max-w-md w-full [&>button]:hidden">
 				<SignIn
-					routing="path"
-					path="/sign-in"
+					routing="hash"
 					forceRedirectUrl="/dashboard"
 					appearance={{
 						elements: {
