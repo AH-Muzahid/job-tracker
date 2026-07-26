@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation"
 import { useUser } from "@clerk/nextjs"
 import {
   LayoutDashboard, Briefcase, Building2,
-  Brain, FileText, CalendarDays, Bot,
+  Brain, FileText, CalendarDays, Bot, UserCircle2,
   PanelLeftClose, PanelLeft,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -21,6 +21,7 @@ const navItems = [
   { href: "/ai-assistant", label: "AI Assistant", icon: Bot },
   { href: "/resumes", label: "Resumes", icon: FileText },
   { href: "/calendar", label: "Calendar", icon: CalendarDays },
+  { href: "/profile-setup", label: "Profile", icon: UserCircle2 },
 ]
 
 export default function Sidebar() {

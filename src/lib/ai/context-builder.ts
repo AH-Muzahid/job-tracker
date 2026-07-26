@@ -13,7 +13,11 @@ export type AIMode =
 export async function buildFullContext(userId: string, mode: AIMode): Promise<string> {
   const parts: string[] = []
 
-  const [profile, recentApps, pipelineStats, defaultResume] = await Promise.all([
+  const [user, profile, recentApps, pipelineStats, defaultResume, recentCompanies, recentPrepNotes, recentStatusChanges, recentAnalyses] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true, email: true },
+    }),
     prisma.userProfile.findUnique({ where: { userId } }),
     prisma.application.findMany({
       where: { userId },
@@ -31,13 +35,56 @@ export async function buildFullContext(userId: string, mode: AIMode): Promise<st
     }),
     prisma.resume.findFirst({
       where: { userId, isDefault: true },
-      select: { title: true, fileName: true },
+      select: { title: true, fileName: true, fileUrl: true },
+    }),
+    prisma.company.findMany({
+      where: { userId },
+      orderBy: { updatedAt: "desc" },
+      take: 5,
+      select: { name: true, industry: true, website: true, notes: true },
+    }),
+    prisma.prepNote.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+      select: { title: true, category: true, content: true },
+    }),
+    prisma.statusChange.findMany({
+      where: { application: { userId } },
+      orderBy: { changedAt: "desc" },
+      take: 8,
+      select: {
+        fromStatus: true,
+        toStatus: true,
+        changedAt: true,
+        application: { select: { companyName: true, jobTitle: true } },
+      },
+    }),
+    prisma.applicationAnalysis.findMany({
+      where: { application: { userId } },
+      orderBy: { analyzedAt: "desc" },
+      take: 5,
+      select: {
+        matchScore: true,
+        confidence: true,
+        verdict: true,
+        finalRecommendation: true,
+        application: { select: { companyName: true, jobTitle: true } },
+      },
     }),
   ])
 
+  const displayName = user?.name || user?.email || "there"
+  const hasProfile = Boolean(profile)
+
+  parts.push(`User Identity:
+- Name: ${displayName}
+- Email: ${user?.email || "Not set"}
+- Profile Complete: ${hasProfile ? "Yes" : "No"}`)
+
   if (profile) {
     parts.push(`User Profile:
-- Name: ${profile.userId}
+- Name: ${displayName}
 - Location: ${profile.location || "Not set"}
 - Target Roles: ${profile.targetRoles?.join(", ") || "Not set"}
 - Work Preference: ${profile.workPreference || "Not set"}
@@ -57,8 +104,13 @@ export async function buildFullContext(userId: string, mode: AIMode): Promise<st
     }
   }
 
+  if (!profile) {
+    parts.push("Onboarding Status: The user has not completed their profile yet. Ask for the most important missing details before giving highly personalized advice.")
+  }
+
   if (defaultResume) {
     parts.push(`Default Resume: ${defaultResume.title} (${defaultResume.fileName})`)
+    parts.push(`- File URL: ${defaultResume.fileUrl}`)
   }
 
   const statsMap: Record<string, number> = {}
@@ -83,6 +135,30 @@ export async function buildFullContext(userId: string, mode: AIMode): Promise<st
   if (mode === "jd-scan" || mode === "application") {
     parts.push("Recent Applications:\n" + recentApps.slice(0, 5).map((a) =>
       `- ${a.companyName} | ${a.jobTitle} | ${a.status} | Source: ${a.source}`
+    ).join("\n"))
+  }
+
+  if (recentCompanies.length > 0) {
+    parts.push("Recent Companies:\n" + recentCompanies.map((company) =>
+      `- ${company.name}${company.industry ? ` | Industry: ${company.industry}` : ""}${company.website ? ` | Website: ${company.website}` : ""}${company.notes ? ` | Notes: ${company.notes}` : ""}`
+    ).join("\n"))
+  }
+
+  if (recentPrepNotes.length > 0) {
+    parts.push("Recent Prep Notes:\n" + recentPrepNotes.map((note) =>
+      `- [${note.category}] ${note.title}: ${note.content}`
+    ).join("\n"))
+  }
+
+  if (recentStatusChanges.length > 0) {
+    parts.push("Recent Status Changes:\n" + recentStatusChanges.map((change) =>
+      `- ${change.application.companyName} (${change.application.jobTitle}): ${change.fromStatus || "Unknown"} -> ${change.toStatus} on ${change.changedAt.toLocaleDateString()}`
+    ).join("\n"))
+  }
+
+  if (recentAnalyses.length > 0) {
+    parts.push("Recent Application Analyses:\n" + recentAnalyses.map((analysis) =>
+      `- ${analysis.application.companyName} (${analysis.application.jobTitle}): ${analysis.matchScore ?? "N/A"}% match, ${analysis.confidence || "unknown"} confidence, ${analysis.verdict || "no verdict"}${analysis.finalRecommendation ? ` | ${analysis.finalRecommendation}` : ""}`
     ).join("\n"))
   }
 

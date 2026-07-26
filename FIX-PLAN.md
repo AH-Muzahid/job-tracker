@@ -105,9 +105,23 @@
 
 ## Success Criteria
 
-- [ ] New users auto-redirect to profile setup
-- [ ] Profile link visible in sidebar
-- [ ] AI shows correct user name
-- [ ] AI asks for profile data when empty
+- [x] New users auto-redirect to profile setup
+- [x] Profile link visible in sidebar
+- [x] AI shows correct user name
+- [x] AI asks for profile data when empty
+- [x] Rich data tables loaded in context
 - [ ] Resume content available to AI
-- [ ] All relevant data tables loaded in context
+
+## Implementation Status
+
+### Completed
+- Added onboarding redirect for authenticated users without a profile.
+- Added a Profile entry in the sidebar for later profile edits.
+- Fixed AI context identity so it uses the internal user name/email instead of the UUID.
+- Expanded AI context with recent companies, prep notes, status changes, and application analyses.
+- Marked empty-profile state in the AI context so onboarding flows can ask for missing details.
+
+### Still Pending
+- Resume content parsing from uploaded or linked files.
+- Resume upload flow improvement beyond URL-based entries.
+- Optional AI chat auto-save of profile answers into `UserProfile`.
