@@ -486,9 +486,9 @@ function FunnelVisual() {
 				/>
 
 				{/* Labels — Left side */}
-				<text x={2} y={30} fill="rgba(255,255,255,0.4)" fontSize={7} fontFamily="monospace">Application</text>
-				<text x={10} y={72} fill="rgba(255,255,255,0.4)" fontSize={7} fontFamily="monospace">Interview</text>
-				<text x={35} y={112} fill="rgba(255,255,255,0.4)" fontSize={7} fontFamily="monospace">Offer</text>
+				<text x={2} y={30} fill="var(--svg-text-muted)" fontSize={7} fontFamily="monospace">Application</text>
+				<text x={10} y={72} fill="var(--svg-text-muted)" fontSize={7} fontFamily="monospace">Interview</text>
+				<text x={35} y={112} fill="var(--svg-text-muted)" fontSize={7} fontFamily="monospace">Offer</text>
 
 				{/* Labels — Right side (conversion rates) */}
 				<text x={138} y={30} fill="rgba(6,182,212,0.6)" fontSize={6} fontFamily="monospace">App-to-Interview: 26%</text>
@@ -558,7 +558,7 @@ function ReviewVisual() {
 							{item.done ? (
 								<motion.circle
 									cx={nodeX} cy={y} r={9}
-									fill="rgba(16,185,129,0.2)" stroke="rgba(16,185,129,0.7)" strokeWidth={1.5}
+									fill="rgba(16,185,129,0.2)" stroke="var(--svg-done-stroke)" strokeWidth={1.5}
 									filter="url(#node-glow-green)"
 									initial={{ scale: 0 }} whileInView={{ scale: 1 }}
 									viewport={{ once: true }}
@@ -567,7 +567,7 @@ function ReviewVisual() {
 							) : (
 								<motion.circle
 									cx={nodeX} cy={y} r={9}
-									fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.2)" strokeWidth={1.2}
+									fill="var(--svg-node-bg)" stroke="var(--svg-node-stroke)" strokeWidth={1.2}
 									initial={{ scale: 0 }} whileInView={{ scale: 1 }}
 									viewport={{ once: true }}
 									transition={{ delay: 0.2 + i * 0.1, type: "spring", stiffness: 200 }}
@@ -595,7 +595,7 @@ function ReviewVisual() {
 							{/* Connection line from item to AI core */}
 							<motion.line
 								x1={nodeX + 115} y1={y} x2={215} y2={65}
-								stroke={item.ai ? "rgba(34,211,238,0.12)" : "rgba(255,255,255,0.04)"}
+								stroke="var(--svg-stroke-muted)"
 								strokeWidth={0.6} strokeDasharray="2 2"
 								initial={{ pathLength: 0 }} whileInView={{ pathLength: 1 }}
 								viewport={{ once: true }} transition={{ delay: 0.3 + i * 0.08, duration: 0.5 }}
@@ -640,19 +640,19 @@ function OfferVisual() {
 			<svg className="absolute inset-0 w-full h-full" viewBox="0 0 260 170" preserveAspectRatio="xMidYMid meet">
 				<defs>
 					<pattern id="offer-grid" width="18" height="18" patternUnits="userSpaceOnUse">
-						<path d="M 18 0 L 0 0 0 18" fill="none" stroke="currentColor" className="text-border" strokeWidth={0.5} />
+						<path d="M 18 0 L 0 0 0 18" fill="none" stroke="var(--svg-stroke-muted)" strokeWidth={0.5} />
 					</pattern>
 				</defs>
 				<rect width="260" height="170" fill="url(#offer-grid)" />
 
 			{/* Orbital ring */}
 			<motion.ellipse cx={130} cy={75} rx={100} ry={40}
-				fill="none" stroke="currentColor" className="text-border" strokeWidth={1} strokeDasharray="4 4"
+				fill="none" stroke="var(--svg-stroke-muted)" strokeWidth={1} strokeDasharray="4 4"
 				animate={{ strokeDashoffset: [0, -32] }}
 				transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
 			/>
 			<motion.ellipse cx={130} cy={75} rx={75} ry={28}
-				fill="none" stroke="currentColor" className="text-border" strokeWidth={0.8}
+				fill="none" stroke="var(--svg-stroke-muted)" strokeWidth={0.8}
 				animate={{ strokeDashoffset: [0, 24] }}
 				transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
 			/>
@@ -662,14 +662,14 @@ function OfferVisual() {
 				<line key={`conn-${i}`}
 					x1={o.x + o.size / 2} y1={o.y + o.size / 2}
 					x2={130} y2={75}
-					stroke="currentColor" className="text-border" strokeWidth={0.6} strokeDasharray="3 3"
+					stroke="var(--svg-stroke-muted)" strokeWidth={0.6} strokeDasharray="3 3"
 				/>
 			))}
 
 			{/* Connection lines between offers */}
-			<line x1={51} y1={46} x2={192} y2={42} stroke="currentColor" className="text-border" strokeWidth={0.5} strokeDasharray="2 2" />
-			<line x1={51} y1={46} x2={126} y2={126} stroke="currentColor" className="text-border" strokeWidth={0.5} strokeDasharray="2 2" />
-			<line x1={192} y1={42} x2={126} y2={126} stroke="currentColor" className="text-border" strokeWidth={0.5} strokeDasharray="2 2" />
+			<line x1={51} y1={46} x2={192} y2={42} stroke="var(--svg-stroke-muted)" strokeWidth={0.5} strokeDasharray="2 2" />
+			<line x1={51} y1={46} x2={126} y2={126} stroke="var(--svg-stroke-muted)" strokeWidth={0.5} strokeDasharray="2 2" />
+			<line x1={192} y1={42} x2={126} y2={126} stroke="var(--svg-stroke-muted)" strokeWidth={0.5} strokeDasharray="2 2" />
 			</svg>
 
 			{/* Offer cards */}

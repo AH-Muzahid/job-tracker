@@ -45,7 +45,7 @@ export default async function HomePage() {
   return (
     <LenisProvider>
       <div className="relative flex min-h-screen flex-col">
-        <div className="pointer-events-none absolute inset-y-0 left-1/2 mx-auto w-full max-w-7xl -translate-x-1/2">
+        <div className="pointer-events-none absolute inset-y-0 left-1/2 z-10 mx-auto w-full max-w-7xl -translate-x-1/2">
           <div className="absolute inset-y-0 left-0 w-px bg-border/40 md:bg-border" />
           <div className="absolute inset-y-0 right-0 w-px bg-border/40 md:bg-border" />
         </div>
