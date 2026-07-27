@@ -2,8 +2,9 @@
 
 import { useEffect, useState, useRef, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import { Search, LayoutDashboard, Briefcase, Building2, Brain, FileText, CalendarDays, Settings, ArrowRight } from "lucide-react"
+import { Search, LayoutDashboard, Briefcase, Building2, Brain, FileText, CalendarDays, Settings, ArrowRight, Plus, Mail } from "lucide-react"
 import { useUI } from "@/lib/store"
+import { toast } from "sonner"
 
 const pages = [
   { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -13,6 +14,13 @@ const pages = [
   { title: "Resumes", href: "/resumes", icon: FileText },
   { title: "Calendar", href: "/calendar", icon: CalendarDays },
   { title: "Settings", href: "/settings", icon: Settings },
+]
+
+const slashCommands = [
+  { title: "/status", placeholder: "/status [Company] [Status]", description: "Change status of a job (e.g. /status Acme Applied)", icon: Briefcase },
+  { title: "/add", placeholder: "/add [Company] [Title]", description: "Add a new job application (e.g. /add Google Frontend)", icon: Plus },
+  { title: "/outreach", placeholder: "/outreach [Company]", description: "Open AI outreach draft workbench", icon: Mail },
+  { title: "/prep", placeholder: "/prep [Company]", description: "Open AI interview prep workbench", icon: Brain },
 ]
 
 interface SearchResult {
@@ -95,38 +103,169 @@ export default function CommandPalette() {
     }
   }, [searchOpen])
 
-  const filteredPages = pages.filter((p) =>
-    !query.trim() || p.title.toLowerCase().includes(query.toLowerCase())
-  )
+  const handleCommandExecute = async (cmdText: string) => {
+    const parts = cmdText.trim().split(" ")
+    const command = parts[0].toLowerCase()
 
-  const allItems = [
-    ...filteredPages.map((p) => ({
-      id: p.href,
-      title: p.title,
-      href: p.href,
-      icon: <p.icon className="h-4 w-4" />,
-    })),
-    ...results,
-  ]
+    if (command === "/add") {
+      const company = parts[1]
+      const title = parts.slice(2).join(" ")
+      if (!company || !title) {
+        toast.error("Format: /add [Company] [Title]")
+        return
+      }
+      setLoading(true)
+      try {
+        const res = await fetch("/api/applications", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            companyName: company,
+            jobTitle: title,
+            source: "LinkedIn",
+            status: "Saved",
+            applicationDate: new Date().toISOString(),
+          }),
+        })
+        if (!res.ok) throw new Error()
+        const app = await res.json()
+        toast.success(`Application created for ${title} at ${company}!`)
+        setSearchOpen(false)
+        router.push(`/applications/${app.id}`)
+        router.refresh()
+      } catch {
+        toast.error("Failed to create application via command")
+      } finally {
+        setLoading(false)
+      }
+    } else if (command === "/status") {
+      const status = parts[parts.length - 1]
+      const queryName = parts.slice(1, parts.length - 1).join(" ")
+      const validStatuses = ["Saved", "Applied", "Assessment", "Interview", "Rejected", "Offer"]
+      const matchedStatus = validStatuses.find(s => s.toLowerCase() === status.toLowerCase())
+
+      if (!queryName || !matchedStatus) {
+        toast.error("Format: /status [Company] [Saved|Applied|Assessment|Interview|Rejected|Offer]")
+        return
+      }
+
+      setLoading(true)
+      try {
+        const searchRes = await fetch(`/api/applications?search=${encodeURIComponent(queryName)}&limit=1`)
+        const data = await searchRes.json()
+        const app = data.applications?.[0] || data.data?.[0]
+        if (!app) {
+          toast.error(`Application matching "${queryName}" not found`)
+          return
+        }
+
+        const updateRes = await fetch(`/api/applications/${app.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: matchedStatus }),
+        })
+        if (!updateRes.ok) throw new Error()
+        toast.success(`Updated ${app.companyName} status to ${matchedStatus}!`)
+        setSearchOpen(false)
+        router.refresh()
+      } catch {
+        toast.error("Failed to update status via command")
+      } finally {
+        setLoading(false)
+      }
+    } else if (command === "/outreach" || command === "/prep") {
+      const queryName = parts.slice(1).join(" ")
+      if (!queryName) {
+        toast.error(`Format: ${command} [Company]`)
+        return
+      }
+      setLoading(true)
+      try {
+        const searchRes = await fetch(`/api/applications?search=${encodeURIComponent(queryName)}&limit=1`)
+        const data = await searchRes.json()
+        const app = data.applications?.[0] || data.data?.[0]
+        if (!app) {
+          toast.error(`Application matching "${queryName}" not found`)
+          return
+        }
+        setSearchOpen(false)
+        router.push(`/applications/${app.id}`)
+      } catch {
+        toast.error("Failed to process command")
+      } finally {
+        setLoading(false)
+      }
+    } else {
+      toast.error("Unknown command")
+    }
+  }
+
+  const isCommand = query.startsWith("/")
+  const filteredCommands = isCommand
+    ? slashCommands.filter((sc) => sc.title.toLowerCase().startsWith(query.toLowerCase().split(" ")[0]))
+    : []
+
+  const filteredPages = isCommand
+    ? []
+    : pages.filter((p) =>
+        !query.trim() || p.title.toLowerCase().includes(query.toLowerCase())
+      )
+
+  const allItems = isCommand
+    ? filteredCommands.map((sc) => ({
+        id: sc.title,
+        title: sc.placeholder,
+        subtitle: sc.description,
+        href: sc.title + " ",
+        icon: <sc.icon className="h-4 w-4" />,
+        isCmd: true
+      }))
+    : [
+        ...filteredPages.map((p) => ({
+          id: p.href,
+          title: p.title,
+          subtitle: undefined,
+          href: p.href,
+          icon: <p.icon className="h-4 w-4" />,
+          isCmd: false
+        })),
+        ...results.map((r) => ({
+          ...r,
+          isCmd: false
+        })),
+      ]
 
   useEffect(() => {
     setSelectedIndex(0)
   }, [query])
 
-  const handleSelect = (href: string) => {
-    router.push(href)
-    setSearchOpen(false)
+  const handleSelect = (item: typeof allItems[0]) => {
+    if (item.isCmd) {
+      setQuery(item.href)
+      setTimeout(() => inputRef.current?.focus(), 50)
+    } else {
+      router.push(item.href)
+      setSearchOpen(false)
+    }
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "ArrowDown") {
       e.preventDefault()
-      setSelectedIndex((i) => (i + 1) % allItems.length)
+      setSelectedIndex((i) => (allItems.length > 0 ? (i + 1) % allItems.length : 0))
     } else if (e.key === "ArrowUp") {
       e.preventDefault()
-      setSelectedIndex((i) => (i - 1 + allItems.length) % allItems.length)
-    } else if (e.key === "Enter" && allItems[selectedIndex]) {
-      handleSelect(allItems[selectedIndex].href)
+      setSelectedIndex((i) => (allItems.length > 0 ? (i - 1 + allItems.length) % allItems.length : 0))
+    } else if (e.key === "Enter") {
+      e.preventDefault()
+      const currentItem = allItems[selectedIndex]
+      if (currentItem) {
+        if (isCommand && query.trim().split(" ").length > 1) {
+          handleCommandExecute(query)
+        } else {
+          handleSelect(currentItem)
+        }
+      }
     }
   }
 
@@ -168,7 +307,7 @@ export default function CommandPalette() {
             )}
             {allItems.length === 0 && !query.trim() && (
               <div className="py-6 text-center text-sm text-muted-foreground">
-                Type to search...
+                Type to search pages, or type / for commands...
               </div>
             )}
             {loading && (
@@ -176,7 +315,30 @@ export default function CommandPalette() {
                 Searching...
               </div>
             )}
-            {filteredPages.length > 0 && !query.trim() && (
+            {isCommand && filteredCommands.length > 0 && (
+              <div>
+                <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">Slash Commands</div>
+                {allItems.map((item, i) => (
+                  <button
+                    key={item.id}
+                    onClick={() => handleSelect(item)}
+                    onMouseEnter={() => setSelectedIndex(i)}
+                    className={`flex w-full items-center gap-3 rounded-lg px-2 py-2 text-sm transition-colors ${
+                      selectedIndex === i ? "bg-accent text-accent-foreground" : "text-foreground hover:bg-accent"
+                    }`}
+                  >
+                    {item.icon}
+                    <div className="flex-1 text-left">
+                      <div className="font-mono text-xs font-semibold text-indigo-400">{item.title}</div>
+                      {item.subtitle && (
+                        <div className="text-[11px] text-muted-foreground mt-0.5">{item.subtitle}</div>
+                      )}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+            {!isCommand && filteredPages.length > 0 && !query.trim() && (
               <div className="mb-1">
                 <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">Pages</div>
                 {filteredPages.map((page, i) => {
@@ -184,7 +346,7 @@ export default function CommandPalette() {
                   return (
                     <button
                       key={page.href}
-                      onClick={() => handleSelect(page.href)}
+                      onClick={() => handleSelect({ id: page.href, title: page.title, href: page.href, icon: null, isCmd: false })}
                       onMouseEnter={() => setSelectedIndex(i)}
                       className={`flex w-full items-center gap-3 rounded-lg px-2 py-2 text-sm transition-colors ${
                         selectedIndex === i ? "bg-accent text-accent-foreground" : "text-foreground hover:bg-accent"
@@ -198,7 +360,7 @@ export default function CommandPalette() {
                 })}
               </div>
             )}
-            {results.length > 0 && (
+            {!isCommand && results.length > 0 && (
               <div>
                 <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">Applications</div>
                 {results.map((result, i) => {
@@ -206,7 +368,7 @@ export default function CommandPalette() {
                   return (
                     <button
                       key={result.id}
-                      onClick={() => handleSelect(result.href)}
+                      onClick={() => handleSelect({ id: result.id, title: result.title, href: result.href, icon: null, isCmd: false })}
                       onMouseEnter={() => setSelectedIndex(idx)}
                       className={`flex w-full items-center gap-3 rounded-lg px-2 py-2 text-sm transition-colors ${
                         selectedIndex === idx ? "bg-accent text-accent-foreground" : "text-foreground hover:bg-accent"
@@ -225,7 +387,7 @@ export default function CommandPalette() {
                 })}
               </div>
             )}
-            {query.trim() && filteredPages.length > 0 && results.length === 0 && !loading && (
+            {!isCommand && query.trim() && filteredPages.length > 0 && results.length === 0 && !loading && (
               <div>
                 <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">Pages</div>
                 {filteredPages.map((page, i) => {
@@ -233,7 +395,7 @@ export default function CommandPalette() {
                   return (
                     <button
                       key={page.href}
-                      onClick={() => handleSelect(page.href)}
+                      onClick={() => handleSelect({ id: page.href, title: page.title, href: page.href, icon: null, isCmd: false })}
                       onMouseEnter={() => setSelectedIndex(i)}
                       className={`flex w-full items-center gap-3 rounded-lg px-2 py-2 text-sm transition-colors ${
                         selectedIndex === i ? "bg-accent text-accent-foreground" : "text-foreground hover:bg-accent"
