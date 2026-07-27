@@ -11,10 +11,12 @@ interface Props {
 }
 
 export default function ApplicationDetailHeader({ companyName, jobTitle, applicationId, onDelete }: Props) {
+  const cleanCompanyName = companyName.replace(/\s*\(inferred from.*?\)\s*/gi, "").trim()
+
   return (
     <div className="flex items-center justify-between">
       <div>
-        <h1 className="text-2xl font-bold">{companyName}</h1>
+        <h1 className="text-2xl font-bold">{cleanCompanyName}</h1>
         <p className="text-muted-foreground">{jobTitle}</p>
       </div>
       <div className="flex gap-2">
