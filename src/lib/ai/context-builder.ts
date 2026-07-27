@@ -35,7 +35,7 @@ export async function buildFullContext(userId: string, mode: AIMode): Promise<st
     }),
     prisma.resume.findFirst({
       where: { userId, isDefault: true },
-      select: { title: true, fileName: true, fileUrl: true },
+      select: { title: true, fileName: true, fileUrl: true, textContent: true },
     }),
     prisma.company.findMany({
       where: { userId },
@@ -111,6 +111,9 @@ export async function buildFullContext(userId: string, mode: AIMode): Promise<st
   if (defaultResume) {
     parts.push(`Default Resume: ${defaultResume.title} (${defaultResume.fileName})`)
     parts.push(`- File URL: ${defaultResume.fileUrl}`)
+    if (defaultResume.textContent) {
+      parts.push(`- Resume Text Content:\n${defaultResume.textContent}`)
+    }
   }
 
   const statsMap: Record<string, number> = {}

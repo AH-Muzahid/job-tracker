@@ -2,11 +2,11 @@ import { z } from "zod"
 
 export const JDAnalysisSchema = z.object({
   roleSnapshot: z.object({
-    company: z.string().optional(),
+    company: z.string().nullable().optional(),
     role: z.string(),
     experienceAsked: z.string(),
     keyStack: z.array(z.string()),
-    workSetup: z.string().optional(),
+    workSetup: z.string().nullable().optional(),
   }),
   matchScore: z.number().min(0).max(100),
   confidence: z.enum(["High", "Medium", "Low"]),
@@ -35,19 +35,19 @@ export const JDAnalysisSchema = z.object({
   applyStrategy: z.object({
     bestPath: z.string(),
     outreachNeeded: z.boolean(),
-    contactTarget: z.string().optional(),
-    timing: z.string().optional(),
-    angle: z.string().optional(),
+    contactTarget: z.string().nullable().optional(),
+    timing: z.string().nullable().optional(),
+    angle: z.string().nullable().optional(),
   }),
-  redFlags: z.string().optional(),
+  redFlags: z.string().nullable().optional(),
   finalRecommendation: z.string(),
 })
 
 export const CoverLetterSchema = z.object({
   recommendation: z.string(),
   email: z.string(),
-  coverLetter: z.string().optional(),
-  alternateShort: z.string().optional(),
+  coverLetter: z.string().nullable().optional(),
+  alternateShort: z.string().nullable().optional(),
   subjectLines: z.array(z.string()),
   beforeSendChecklist: z.array(z.string()),
 })
