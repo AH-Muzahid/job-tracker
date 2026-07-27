@@ -41,6 +41,7 @@ export interface WorkbenchAnalysis {
 }
 
 export interface OutreachDrafts {
+  recommendation?: string
   email?: string
   coverLetter?: string
   subjectLines?: string[]

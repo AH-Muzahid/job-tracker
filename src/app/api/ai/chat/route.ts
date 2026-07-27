@@ -73,17 +73,21 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  await prisma.chatMessage.create({
+  const userMsgPromise = prisma.chatMessage.create({
     data: { sessionId, role: "user", content: message, metadata: { mode } },
   })
 
-  const previousMessages = await prisma.chatMessage.findMany({
-    where: { sessionId, role: { in: ["user", "assistant"] } },
-    orderBy: { createdAt: "asc" },
-    take: 20,
-  })
+  const contextPromise = buildFullContext(userId, mode)
 
-  const context = await buildFullContext(userId, mode)
+  const [_, previousMessages, context] = await Promise.all([
+    userMsgPromise,
+    prisma.chatMessage.findMany({
+      where: { sessionId, role: { in: ["user", "assistant"] } },
+      orderBy: { createdAt: "asc" },
+      take: 15,
+    }),
+    contextPromise,
+  ])
   const systemBase = getSystemBase()
   const modePrompt = MODE_PROMPTS[mode]?.() || ""
   const systemPrompt = `${systemBase}\n\n${modePrompt}\n\n## User Context\n${context}`

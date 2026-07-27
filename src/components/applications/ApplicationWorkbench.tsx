@@ -68,6 +68,31 @@ export function ApplicationWorkbench({
     setSelectedTagIds(application.tags.map((t) => t.tag.id))
   }, [application])
 
+  // Restore saved outreach drafts from localStorage on mount/load
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(`outreach_${application.id}`)
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        if (parsed.subject || parsed.email) {
+          setDraftSubject(parsed.subject || "")
+          setDraftBody(parsed.email || "")
+          setOutreachDrafts({
+            recommendation: "Saved outreach email draft",
+            email: parsed.email || "",
+            subjectLines: [parsed.subject || `Application for ${application.jobTitle}`],
+            beforeSendChecklist: [
+              "Verified GitHub/LinkedIn/portfolio links included",
+              "Mentioned 3+ matching skills from JD",
+              "Highlighted best projects from profile",
+              "Addressed key requirements & work setup preference",
+            ],
+          })
+        }
+      }
+    } catch {}
+  }, [application.id, application.jobTitle])
+
   // Fetch all tags
   useEffect(() => {
     fetch("/api/tags")
@@ -134,41 +159,85 @@ export function ApplicationWorkbench({
 
   const handleGenerateOutreach = async () => {
     setOutreachLoading(true)
+    setDraftSubject(`Application for ${application.jobTitle}`)
+    setDraftBody("")
+    setOutreachDrafts({
+      recommendation: "Direct application email draft",
+      email: "",
+      subjectLines: [`Application for ${application.jobTitle}`],
+      beforeSendChecklist: [
+        "Verified GitHub/LinkedIn/portfolio links included",
+        "Mentioned 3+ matching skills from JD",
+        "Highlighted best projects from profile",
+        "Addressed key requirements & work setup preference",
+      ],
+    })
+
     try {
       const res = await fetch(`/api/applications/${application.id}/outreach`, {
         method: "POST",
       })
-      if (!res.ok) throw new Error("Failed to generate outreach drafts")
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}))
+        throw new Error(errData.error || "Failed to generate outreach note")
+      }
+
       const data = await res.json()
-      setOutreachDrafts(data)
-      setDraftSubject(data.subjectLines?.[0] || `Application for ${application.jobTitle}`)
-      setDraftBody(data.email || data.coverLetter || "")
-      toast.success("AI Outreach Drafts created!")
+      const finalSubject = data.subject || `Application for ${application.jobTitle}`
+      const fullEmail = data.email || ""
+
+      if (finalSubject) setDraftSubject(finalSubject)
+      setOutreachLoading(false)
+
+      // Persist in localStorage per application ID
+      try {
+        localStorage.setItem(
+          `outreach_${application.id}`,
+          JSON.stringify({ subject: finalSubject, email: fullEmail })
+        )
+      } catch {}
+
+      let charIdx = 0
+      const timer = setInterval(() => {
+        if (charIdx < fullEmail.length) {
+          charIdx += 4
+          setDraftBody(fullEmail.slice(0, charIdx))
+        } else {
+          setDraftBody(fullEmail)
+          clearInterval(timer)
+          toast.success("Outreach email generated successfully!")
+        }
+      }, 15)
     } catch (err: unknown) {
+      setOutreachLoading(false)
       const errMsg = err instanceof Error ? err.message : "Outreach generation failed"
       toast.error(errMsg)
-    } finally {
-      setOutreachLoading(false)
     }
   }
 
   const handleOpenMailClient = () => {
-    const to = outreachDrafts?.email || ""
+    const emailRegex = /([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/gi
+    const inferredEmails = (application.notes || "").match(emailRegex) || []
+    const to = inferredEmails[0] || ""
     const subject = encodeURIComponent(draftSubject)
     const body = encodeURIComponent(draftBody)
     window.location.href = `mailto:${to}?subject=${subject}&body=${body}`
   }
 
-  const copyToClipboard = (text: string, type: "subject" | "body") => {
+  const copyToClipboard = (text: string, type: "to" | "subject" | "body") => {
     navigator.clipboard.writeText(text)
-    if (type === "subject") {
+    if (type === "to") {
+      toast.success("Recipient email copied!")
+    } else if (type === "subject") {
       setCopiedSubject(true)
       setTimeout(() => setCopiedSubject(false), 2000)
+      toast.success("Subject copied to clipboard!")
     } else {
       setCopiedBody(true)
       setTimeout(() => setCopiedBody(false), 2000)
+      toast.success("Message body copied to clipboard!")
     }
-    toast.success(`${type === "subject" ? "Subject" : "Email body"} copied to clipboard!`)
   }
 
   const handleMarkAppliedManually = async () => {
@@ -190,8 +259,8 @@ export function ApplicationWorkbench({
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      {/* Left Column (Details, Forms, Notes) */}
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+      {/* Left Primary Workspace (Details, Forms, Notes & Outreach Assistant) */}
       <div className="lg:col-span-2 space-y-6">
         <Card className="border border-border bg-card/60 backdrop-blur-md shadow-lg rounded-2xl">
           <CardHeader className="pb-3 flex flex-row items-center justify-between border-b border-border/50 bg-secondary/10">
@@ -344,16 +413,8 @@ export function ApplicationWorkbench({
             )}
           </CardContent>
         </Card>
-      </div>
 
-      {/* Right Column (AI Match + Outreach Mailer) */}
-      <div className="lg:col-span-1 space-y-6">
-        <FitAssessmentCard
-          analysis={analysis}
-          analysisLoading={analysisLoading}
-          onTriggerAnalysis={onTriggerAnalysis}
-        />
-
+        {/* Outreach Assistant Card moved to Primary Column for full width breathing room */}
         <OutreachAssistantCard
           analysisExists={!!analysis}
           outreachDrafts={outreachDrafts}
@@ -369,6 +430,15 @@ export function ApplicationWorkbench({
           onMarkAppliedManually={handleMarkAppliedManually}
           onCopyToClipboard={copyToClipboard}
           jdNotes={application.notes || ""}
+        />
+      </div>
+
+      {/* Right Column (Sticky AI Fit Assessment Sidebar) */}
+      <div className="lg:col-span-1 space-y-6 lg:sticky lg:top-6">
+        <FitAssessmentCard
+          analysis={analysis}
+          analysisLoading={analysisLoading}
+          onTriggerAnalysis={onTriggerAnalysis}
         />
       </div>
     </div>

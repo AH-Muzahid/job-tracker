@@ -1,10 +1,10 @@
 "use client"
 
-import { Bot, Sparkles, AlertTriangle, CheckCircle2, Target, ArrowRight } from "lucide-react"
+import { useState, useEffect } from "react"
+import { Bot, Sparkles, AlertTriangle, CheckCircle2, ArrowRight, Loader2 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Skeleton } from "@/components/ui/skeleton"
 import { WorkbenchAnalysis } from "./types"
 
 interface FitAssessmentCardProps {
@@ -13,12 +13,35 @@ interface FitAssessmentCardProps {
   onTriggerAnalysis: () => void
 }
 
+const ANALYSIS_STEPS = [
+  "Extracting key role requirements & stack...",
+  "Matching candidate resume & skills...",
+  "Evaluating strengths, stretch areas & red flags...",
+  "Compiling tailored resume advice & fit verdict...",
+]
+
 export function FitAssessmentCard({
   analysis,
   analysisLoading,
   onTriggerAnalysis,
 }: FitAssessmentCardProps) {
-  
+  const [loadingStep, setLoadingStep] = useState(0)
+
+  // Cycle through progress steps to make analysis feel fast, alive & responsive
+  useEffect(() => {
+    if (!analysisLoading) {
+      setLoadingStep(0)
+      return
+    }
+
+    setLoadingStep(0)
+    const interval = setInterval(() => {
+      setLoadingStep((prev) => (prev < ANALYSIS_STEPS.length - 1 ? prev + 1 : prev))
+    }, 1400)
+
+    return () => clearInterval(interval)
+  }, [analysisLoading])
+
   // Calculate SVG circular progress values
   const radius = 20
   const circumference = 2 * Math.PI * radius
@@ -32,19 +55,18 @@ export function FitAssessmentCard({
   }
 
   return (
-    <Card className="border border-border bg-card/60 backdrop-blur-md shadow-lg overflow-hidden rounded-2xl">
+    <Card className="border border-border/80 bg-card/60 backdrop-blur-md shadow-lg overflow-hidden rounded-2xl">
       <CardHeader className="pb-3 border-b border-border/50 bg-secondary/10">
         <div className="flex items-center justify-between">
           <CardTitle className="text-xs font-bold uppercase tracking-wider flex items-center gap-2 text-foreground/85">
             <Bot className="h-4 w-4 text-primary" />
             Fit Assessment
           </CardTitle>
-          {analysis && (
+          {analysis && !analysisLoading && (
             <Button
               variant="outline"
               size="sm"
               onClick={onTriggerAnalysis}
-              disabled={analysisLoading}
               className="h-7 text-[10px] px-2.5 gap-1 border-border text-primary hover:bg-primary/5 cursor-pointer font-semibold"
             >
               <Sparkles className="h-3 w-3" /> Re-Analyze
@@ -55,16 +77,37 @@ export function FitAssessmentCard({
       
       <CardContent className="p-4 space-y-4">
         {analysisLoading ? (
-          <div className="space-y-4 py-3">
-            <div className="flex items-center gap-3">
-              <Skeleton className="h-12 w-12 rounded-full shrink-0" />
-              <div className="space-y-1.5 flex-1">
-                <Skeleton className="h-3.5 w-24" />
-                <Skeleton className="h-3 w-16" />
-              </div>
+          <div className="py-6 px-4 space-y-4 flex flex-col items-center justify-center text-center animate-fade-in-up">
+            <div className="relative flex items-center justify-center">
+              <Loader2 className="h-10 w-10 text-primary animate-spin" />
+              <Bot className="absolute h-4 w-4 text-primary animate-pulse" />
             </div>
-            <Skeleton className="h-16 w-full" />
-            <Skeleton className="h-16 w-full" />
+
+            <div className="space-y-1">
+              <h4 className="text-xs font-bold text-foreground">AI Evaluating Job Compatibility</h4>
+              <p className="text-[11px] font-mono text-primary animate-pulse">
+                {ANALYSIS_STEPS[loadingStep]}
+              </p>
+            </div>
+
+            {/* Live Progress Bar */}
+            <div className="w-full max-w-[240px] h-1.5 rounded-full bg-muted overflow-hidden">
+              <div
+                className="h-full rounded-full bg-primary transition-all duration-500 ease-out"
+                style={{ width: `${((loadingStep + 1) / ANALYSIS_STEPS.length) * 100}%` }}
+              />
+            </div>
+
+            <div className="flex items-center justify-center gap-1.5 pt-1">
+              {ANALYSIS_STEPS.map((_, idx) => (
+                <div
+                  key={idx}
+                  className={`h-1.5 rounded-full transition-all duration-300 ${
+                    idx <= loadingStep ? "w-5 bg-primary" : "w-1.5 bg-muted"
+                  }`}
+                />
+              ))}
+            </div>
           </div>
         ) : analysis ? (
           <div className="space-y-4">

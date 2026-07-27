@@ -13,7 +13,17 @@ export type AIMode =
 export async function buildFullContext(userId: string, mode: AIMode): Promise<string> {
   const parts: string[] = []
 
-  const [user, profile, recentApps, pipelineStats, defaultResume, recentCompanies, recentPrepNotes, recentStatusChanges, recentAnalyses] = await Promise.all([
+  // Determine selective flags based on mode
+  const needResume = mode === "jd-scan" || mode === "application" || mode === "profile" || mode === "interview"
+  const needCompanies = mode === "jd-scan" || mode === "application" || mode === "tracker"
+  const needPrepNotes = mode === "interview" || mode === "profile"
+  const needStatusChanges = mode === "tracker" || mode === "recovery"
+  const needAnalyses = mode === "jd-scan" || mode === "application" || mode === "recovery"
+  const needPrepQuestions = mode === "interview"
+  const needWeeklyGoals = mode === "weekly"
+
+  // Base queries executed in parallel
+  const [user, profile, recentApps, pipelineStats] = await Promise.all([
     prisma.user.findUnique({
       where: { id: userId },
       select: { name: true, email: true },
@@ -22,7 +32,7 @@ export async function buildFullContext(userId: string, mode: AIMode): Promise<st
     prisma.application.findMany({
       where: { userId },
       orderBy: { createdAt: "desc" },
-      take: 10,
+      take: 5,
       select: {
         id: true, companyName: true, jobTitle: true, status: true,
         source: true, applicationDate: true, notes: true,
@@ -33,45 +43,75 @@ export async function buildFullContext(userId: string, mode: AIMode): Promise<st
       where: { userId },
       _count: true,
     }),
-    prisma.resume.findFirst({
-      where: { userId, isDefault: true },
-      select: { title: true, fileName: true, fileUrl: true, textContent: true },
-    }),
-    prisma.company.findMany({
-      where: { userId },
-      orderBy: { updatedAt: "desc" },
-      take: 5,
-      select: { name: true, industry: true, website: true, notes: true },
-    }),
-    prisma.prepNote.findMany({
-      where: { userId },
-      orderBy: { createdAt: "desc" },
-      take: 5,
-      select: { title: true, category: true, content: true },
-    }),
-    prisma.statusChange.findMany({
-      where: { application: { userId } },
-      orderBy: { changedAt: "desc" },
-      take: 8,
-      select: {
-        fromStatus: true,
-        toStatus: true,
-        changedAt: true,
-        application: { select: { companyName: true, jobTitle: true } },
-      },
-    }),
-    prisma.applicationAnalysis.findMany({
-      where: { application: { userId } },
-      orderBy: { analyzedAt: "desc" },
-      take: 5,
-      select: {
-        matchScore: true,
-        confidence: true,
-        verdict: true,
-        finalRecommendation: true,
-        application: { select: { companyName: true, jobTitle: true } },
-      },
-    }),
+  ])
+
+  // Selective targeted secondary queries
+  const [defaultResume, recentCompanies, recentPrepNotes, recentStatusChanges, recentAnalyses, prepQuestions, currentGoals] = await Promise.all([
+    needResume
+      ? prisma.resume.findFirst({
+          where: { userId, isDefault: true },
+          select: { title: true, fileName: true, fileUrl: true, textContent: true },
+        })
+      : null,
+    needCompanies
+      ? prisma.company.findMany({
+          where: { userId },
+          orderBy: { updatedAt: "desc" },
+          take: 3,
+          select: { name: true, industry: true, website: true, notes: true },
+        })
+      : null,
+    needPrepNotes
+      ? prisma.prepNote.findMany({
+          where: { userId },
+          orderBy: { createdAt: "desc" },
+          take: 3,
+          select: { title: true, category: true, content: true },
+        })
+      : null,
+    needStatusChanges
+      ? prisma.statusChange.findMany({
+          where: { application: { userId } },
+          orderBy: { changedAt: "desc" },
+          take: 5,
+          select: {
+            fromStatus: true,
+            toStatus: true,
+            changedAt: true,
+            application: { select: { companyName: true, jobTitle: true } },
+          },
+        })
+      : null,
+    needAnalyses
+      ? prisma.applicationAnalysis.findMany({
+          where: { application: { userId } },
+          orderBy: { analyzedAt: "desc" },
+          take: 3,
+          select: {
+            matchScore: true,
+            confidence: true,
+            verdict: true,
+            finalRecommendation: true,
+            application: { select: { companyName: true, jobTitle: true } },
+          },
+        })
+      : null,
+    needPrepQuestions
+      ? prisma.prepQuestion.findMany({
+          where: { userId },
+          take: 10,
+          orderBy: { createdAt: "desc" },
+        })
+      : null,
+    needWeeklyGoals
+      ? (async () => {
+          const now = new Date()
+          const weekStart = new Date(now)
+          weekStart.setDate(now.getDate() - now.getDay() + 1)
+          weekStart.setHours(0, 0, 0, 0)
+          return prisma.weeklyGoal.findFirst({ where: { userId, weekStart } })
+        })()
+      : null,
   ])
 
   const displayName = user?.name || user?.email || "there"
@@ -105,24 +145,22 @@ export async function buildFullContext(userId: string, mode: AIMode): Promise<st
   }
 
   if (!profile) {
-    parts.push("Onboarding Status: The user has not completed their profile yet. Ask for the most important missing details before giving highly personalized advice.")
+    parts.push("Onboarding Status: Profile incomplete. Advise on key details.")
   }
 
   if (defaultResume) {
     parts.push(`Default Resume: ${defaultResume.title} (${defaultResume.fileName})`)
-    parts.push(`- File URL: ${defaultResume.fileUrl}`)
     if (defaultResume.textContent) {
-      parts.push(`- Resume Text Content:\n${defaultResume.textContent}`)
+      const excerpt = defaultResume.textContent.length > 1500
+        ? defaultResume.textContent.slice(0, 1500) + "..."
+        : defaultResume.textContent
+      parts.push(`- Resume Excerpt:\n${excerpt}`)
     }
   }
 
   const statsMap: Record<string, number> = {}
   pipelineStats.forEach((s) => { statsMap[s.status] = s._count })
-  parts.push(`Pipeline Stats:
-- Total: ${recentApps.length}
-- Saved: ${statsMap.Saved || 0} | Applied: ${statsMap.Applied || 0}
-- Assessment: ${statsMap.Assessment || 0} | Interview: ${statsMap.Interview || 0}
-- Rejected: ${statsMap.Rejected || 0} | Offer: ${statsMap.Offer || 0}`)
+  parts.push(`Pipeline Stats: Saved: ${statsMap.Saved || 0} | Applied: ${statsMap.Applied || 0} | Assessment: ${statsMap.Assessment || 0} | Interview: ${statsMap.Interview || 0} | Rejected: ${statsMap.Rejected || 0} | Offer: ${statsMap.Offer || 0}`)
 
   if (mode === "tracker" || mode === "recovery") {
     const pendingFollowUps = recentApps.filter(
@@ -136,63 +174,46 @@ export async function buildFullContext(userId: string, mode: AIMode): Promise<st
   }
 
   if (mode === "jd-scan" || mode === "application") {
-    parts.push("Recent Applications:\n" + recentApps.slice(0, 5).map((a) =>
-      `- ${a.companyName} | ${a.jobTitle} | ${a.status} | Source: ${a.source}`
+    parts.push("Recent Applications:\n" + recentApps.map((a) =>
+      `- ${a.companyName} | ${a.jobTitle} | ${a.status}`
     ).join("\n"))
   }
 
-  if (recentCompanies.length > 0) {
+  if (recentCompanies && recentCompanies.length > 0) {
     parts.push("Recent Companies:\n" + recentCompanies.map((company) =>
-      `- ${company.name}${company.industry ? ` | Industry: ${company.industry}` : ""}${company.website ? ` | Website: ${company.website}` : ""}${company.notes ? ` | Notes: ${company.notes}` : ""}`
+      `- ${company.name}${company.industry ? ` (${company.industry})` : ""}`
     ).join("\n"))
   }
 
-  if (recentPrepNotes.length > 0) {
+  if (recentPrepNotes && recentPrepNotes.length > 0) {
     parts.push("Recent Prep Notes:\n" + recentPrepNotes.map((note) =>
       `- [${note.category}] ${note.title}: ${note.content}`
     ).join("\n"))
   }
 
-  if (recentStatusChanges.length > 0) {
+  if (recentStatusChanges && recentStatusChanges.length > 0) {
     parts.push("Recent Status Changes:\n" + recentStatusChanges.map((change) =>
-      `- ${change.application.companyName} (${change.application.jobTitle}): ${change.fromStatus || "Unknown"} -> ${change.toStatus} on ${change.changedAt.toLocaleDateString()}`
+      `- ${change.application.companyName} (${change.application.jobTitle}): ${change.fromStatus || "Unknown"} -> ${change.toStatus}`
     ).join("\n"))
   }
 
-  if (recentAnalyses.length > 0) {
-    parts.push("Recent Application Analyses:\n" + recentAnalyses.map((analysis) =>
-      `- ${analysis.application.companyName} (${analysis.application.jobTitle}): ${analysis.matchScore ?? "N/A"}% match, ${analysis.confidence || "unknown"} confidence, ${analysis.verdict || "no verdict"}${analysis.finalRecommendation ? ` | ${analysis.finalRecommendation}` : ""}`
+  if (recentAnalyses && recentAnalyses.length > 0) {
+    parts.push("Recent Analyses:\n" + recentAnalyses.map((analysis) =>
+      `- ${analysis.application.companyName} (${analysis.application.jobTitle}): ${analysis.matchScore ?? "N/A"}% match, ${analysis.verdict || "no verdict"}`
     ).join("\n"))
   }
 
-  if (mode === "interview") {
-    const prepQuestions = await prisma.prepQuestion.findMany({
-      where: { userId },
-      take: 20,
-      orderBy: { createdAt: "desc" },
-    })
-    if (prepQuestions.length > 0) {
-      parts.push("Existing Prep Questions:\n" + prepQuestions.map((q) =>
-        `[${q.category}/${q.difficulty}] ${q.question}`
-      ).join("\n"))
-    }
+  if (prepQuestions && prepQuestions.length > 0) {
+    parts.push("Existing Prep Questions:\n" + prepQuestions.map((q) =>
+      `[${q.category}/${q.difficulty}] ${q.question}`
+    ).join("\n"))
   }
 
-  if (mode === "weekly") {
-    const now = new Date()
-    const weekStart = new Date(now)
-    weekStart.setDate(now.getDate() - now.getDay() + 1)
-    weekStart.setHours(0, 0, 0, 0)
-    const currentGoals = await prisma.weeklyGoal.findFirst({
-      where: { userId, weekStart },
-    })
-    if (currentGoals) {
-      parts.push(`Current Weekly Goals:
-- Goal 1: ${currentGoals.goal1} (${currentGoals.goal1Status}, ${currentGoals.goal1Progress || 0}/${currentGoals.goal1Target || "N/A"})
+  if (currentGoals) {
+    parts.push(`Current Weekly Goals:
+- Goal 1: ${currentGoals.goal1} (${currentGoals.goal1Status})
 - Goal 2: ${currentGoals.goal2 || "N/A"} (${currentGoals.goal2Status})
-- Goal 3: ${currentGoals.goal3 || "N/A"} (${currentGoals.goal3Status})
-- Blockers: ${currentGoals.blockers || "None"}`)
-    }
+- Goal 3: ${currentGoals.goal3 || "N/A"} (${currentGoals.goal3Status})`)
   }
 
   return parts.join("\n\n")

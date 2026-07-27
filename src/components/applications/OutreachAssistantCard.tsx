@@ -1,9 +1,9 @@
 "use client"
 
-import { Mail, Copy, Check, Info, Send, RotateCcw, CheckSquare } from "lucide-react"
+import { useState } from "react"
+import { Mail, Copy, Check, Send, RotateCcw, CheckSquare, Loader2 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Skeleton } from "@/components/ui/skeleton"
 import { OutreachDrafts } from "./types"
 
 interface OutreachAssistantCardProps {
@@ -19,7 +19,7 @@ interface OutreachAssistantCardProps {
   onGenerateOutreach: () => void
   onOpenMailClient: () => void
   onMarkAppliedManually: () => void
-  onCopyToClipboard: (text: string, type: "subject" | "body") => void
+  onCopyToClipboard: (text: string, type: "to" | "subject" | "body") => void
   // pass notes to extract recipient email
   jdNotes?: string
 }
@@ -40,11 +40,18 @@ export function OutreachAssistantCard({
   onCopyToClipboard,
   jdNotes = "",
 }: OutreachAssistantCardProps) {
+  const [copiedTo, setCopiedTo] = useState(false)
 
   // Auto extract email address from JD description
   const emailRegex = /([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/gi
   const inferredEmails = jdNotes.match(emailRegex) || []
-  const recipientEmail = inferredEmails[0] || "recruiter@company.com"
+  const recipientEmail = inferredEmails[0] || "hr@company.com"
+
+  const handleCopyRecipient = () => {
+    onCopyToClipboard(recipientEmail, "to")
+    setCopiedTo(true)
+    setTimeout(() => setCopiedTo(false), 2000)
+  }
 
   return (
     <Card className="border border-border bg-card/60 backdrop-blur-md shadow-lg overflow-hidden rounded-2xl">
@@ -57,10 +64,20 @@ export function OutreachAssistantCard({
       
       <CardContent className="p-4 space-y-4">
         {outreachLoading ? (
-          <div className="space-y-3 py-2">
-            <Skeleton className="h-3.5 w-24" />
-            <Skeleton className="h-28 w-full rounded-lg" />
-            <Skeleton className="h-9 w-full rounded-lg" />
+          <div className="py-6 px-4 space-y-3 flex flex-col items-center justify-center text-center animate-fade-in-up">
+            <div className="relative flex items-center justify-center">
+              <Loader2 className="h-8 w-8 text-primary animate-spin" />
+              <Mail className="absolute h-3.5 w-3.5 text-primary animate-pulse" />
+            </div>
+            <div className="space-y-1">
+              <h4 className="text-xs font-bold text-foreground">Drafting High-Impact Outreach</h4>
+              <p className="text-[11px] font-mono text-primary animate-pulse">
+                Extracting role details & matching your credentials...
+              </p>
+            </div>
+            <div className="w-full max-w-[200px] h-1.5 rounded-full bg-muted overflow-hidden">
+              <div className="h-full rounded-full bg-primary animate-pulse w-3/4" />
+            </div>
           </div>
         ) : outreachDrafts ? (
           <div className="space-y-4">
@@ -68,12 +85,26 @@ export function OutreachAssistantCard({
             <div className="rounded-xl border border-border bg-background/40 overflow-hidden shadow-sm">
               {/* Header Fields */}
               <div className="bg-secondary/20 p-3 border-b border-border space-y-2">
+                {/* TO Field */}
                 <div className="flex items-center gap-2 text-xs">
                   <span className="w-12 text-muted-foreground font-semibold text-[10px] uppercase">To:</span>
-                  <span className="text-foreground font-medium bg-background/60 px-2 py-0.5 rounded border border-border/50 truncate flex-1 select-all">
-                    {recipientEmail}
-                  </span>
+                  <div className="flex-1 flex gap-2 items-center min-w-0">
+                    <span className="text-foreground font-medium bg-background/60 px-2 py-1 rounded border border-border/50 truncate flex-1 select-all text-xs font-mono">
+                      {recipientEmail}
+                    </span>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      onClick={handleCopyRecipient}
+                      className="h-7 w-7 text-muted-foreground hover:text-foreground shrink-0 cursor-pointer"
+                      title="Copy email address"
+                    >
+                      {copiedTo ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+                    </Button>
+                  </div>
                 </div>
+
+                {/* SUBJECT Field */}
                 <div className="flex items-center gap-2 text-xs">
                   <span className="w-12 text-muted-foreground font-semibold text-[10px] uppercase">Subject:</span>
                   <div className="flex-1 flex gap-2 min-w-0">
@@ -87,6 +118,7 @@ export function OutreachAssistantCard({
                       size="icon" 
                       onClick={() => onCopyToClipboard(draftSubject, "subject")}
                       className="h-7 w-7 text-muted-foreground hover:text-foreground shrink-0 cursor-pointer"
+                      title="Copy subject line"
                     >
                       {copiedSubject ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
                     </Button>
@@ -103,6 +135,7 @@ export function OutreachAssistantCard({
                     size="icon" 
                     onClick={() => onCopyToClipboard(draftBody, "body")}
                     className="h-5 w-5 text-muted-foreground hover:text-foreground cursor-pointer"
+                    title="Copy message body"
                   >
                     {copiedBody ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
                   </Button>

@@ -44,12 +44,12 @@ export const JDAnalysisSchema = z.object({
 })
 
 export const CoverLetterSchema = z.object({
-  recommendation: z.string(),
-  email: z.string(),
-  coverLetter: z.string().nullable().optional(),
-  alternateShort: z.string().nullable().optional(),
-  subjectLines: z.array(z.string()),
-  beforeSendChecklist: z.array(z.string()),
+  recommendation: z.string().default("Recommended direct email application").describe("Recommendation and rationale"),
+  email: z.string().default("").describe("The body text of the application email ONLY. Do NOT include subject lines, 'Subject:', 'Body:', or 'Cover Letter:' labels in this field."),
+  coverLetter: z.string().nullable().optional().describe("Clean standalone cover letter text ONLY"),
+  alternateShort: z.string().nullable().optional().describe("Alternative short DM version"),
+  subjectLines: z.array(z.string()).default([]).describe("Array of plain subject line strings without 'Subject Line 1:' prefixes"),
+  beforeSendChecklist: z.array(z.string()).default([]).describe("Checklist items before sending"),
 })
 
 export const TrackerUpdateSchema = z.object({
