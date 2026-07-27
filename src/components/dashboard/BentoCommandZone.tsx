@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useUser } from "@clerk/nextjs"
-import { Bot, Plus, Sparkles, Loader2, Upload, Clipboard, CheckCircle, AlertCircle, FileText, ArrowRight } from "lucide-react"
+import { Plus, Sparkles, Loader2, Upload, Clipboard, CheckCircle, AlertCircle, FileText, ArrowRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -27,7 +27,6 @@ export default function BentoCommandZone({ activePipeline, totalThisWeek = 0 }: 
   // Scan state
   const [jdText, setJdText] = useState("")
   const [aiLoading, setAiLoading] = useState(false)
-  const [loadingStep, setLoadingStep] = useState(0)
 
   // Real-time quick detection heuristic
   const [detectedCompany, setDetectedCompany] = useState<string | null>(null)
@@ -128,7 +127,6 @@ export default function BentoCommandZone({ activePipeline, totalThisWeek = 0 }: 
     }
 
     setAiLoading(true)
-    setLoadingStep(0)
     setAnalysisResult(null)
 
     const steps = [
@@ -142,7 +140,6 @@ export default function BentoCommandZone({ activePipeline, totalThisWeek = 0 }: 
     const stepInterval = setInterval(() => {
       if (currentStep < steps.length - 1) {
         currentStep++
-        setLoadingStep(currentStep)
       }
     }, 1400)
 

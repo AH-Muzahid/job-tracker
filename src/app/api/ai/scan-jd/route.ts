@@ -178,7 +178,7 @@ export async function POST(request: NextRequest) {
  */
 function parseAndNormalizeJdAnalysis(rawText: string): z.infer<typeof JDAnalysisSchema> {
   // Strip markdown codeblocks
-  let cleaned = rawText.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim()
+  const cleaned = rawText.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim()
   
   const jsonStart = cleaned.indexOf("{")
   const jsonEnd = cleaned.lastIndexOf("}")

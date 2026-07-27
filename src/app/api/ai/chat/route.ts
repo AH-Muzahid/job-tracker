@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
 
   const contextPromise = buildFullContext(userId, mode)
 
-  const [_, previousMessages, context] = await Promise.all([
+  const [, previousMessages, context] = await Promise.all([
     userMsgPromise,
     prisma.chatMessage.findMany({
       where: { sessionId, role: { in: ["user", "assistant"] } },
