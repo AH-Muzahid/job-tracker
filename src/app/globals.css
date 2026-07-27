@@ -43,6 +43,14 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  --color-status-saved: var(--status-saved);
+  --color-status-applied: var(--status-applied);
+  --color-status-assessment: var(--status-assessment);
+  --color-status-interview: var(--status-interview);
+  --color-status-rejected: var(--status-rejected);
+  --color-status-offer: var(--status-offer);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
 }
 
 :root {
@@ -83,6 +91,14 @@
   --svg-node-bg: rgba(0,0,0,0.03);
   --svg-node-stroke: rgba(0,0,0,0.15);
   --svg-done-stroke: rgba(16,185,129,0.8);
+  --status-saved: oklch(0.6 0.14 250);
+  --status-applied: oklch(0.55 0.18 265);
+  --status-assessment: oklch(0.7 0.16 75);
+  --status-interview: oklch(0.58 0.19 295);
+  --status-rejected: oklch(0.6 0.2 25);
+  --status-offer: oklch(0.62 0.19 155);
+  --success: oklch(0.62 0.19 155);
+  --warning: oklch(0.7 0.16 75);
 }
 
 .dark {
@@ -122,6 +138,14 @@
   --svg-node-bg: rgba(255,255,255,0.03);
   --svg-node-stroke: rgba(255,255,255,0.2);
   --svg-done-stroke: rgba(16,185,129,0.9);
+  --status-saved: oklch(0.7 0.12 250);
+  --status-applied: oklch(0.68 0.15 265);
+  --status-assessment: oklch(0.78 0.14 75);
+  --status-interview: oklch(0.72 0.16 295);
+  --status-rejected: oklch(0.72 0.18 25);
+  --status-offer: oklch(0.75 0.17 155);
+  --success: oklch(0.75 0.17 155);
+  --warning: oklch(0.78 0.14 75);
 }
 
 @layer base {
@@ -160,3 +184,67 @@
     animation: accordion-up 0.3s ease-in;
   }
 }
+
+/* Dashboard animations */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes draw-ring {
+  from {
+    stroke-dashoffset: var(--ring-circumference);
+  }
+  to {
+    stroke-dashoffset: var(--ring-offset);
+  }
+}
+
+@layer utilities {
+  .animate-fade-in-up {
+    animation: fade-in-up 0.4s ease-out both;
+  }
+  .animate-draw-ring {
+    animation: draw-ring 1s ease-out 0.3s both;
+  }
+  .animation-delay-100 { animation-delay: 100ms; }
+  .animation-delay-200 { animation-delay: 200ms; }
+  .animation-delay-300 { animation-delay: 300ms; }
+  .animation-delay-400 { animation-delay: 400ms; }
+}
+
+/* App-wide Custom Sleek Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: oklch(0.5 0 0 / 25%);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: oklch(0.5 0 0 / 45%);
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Firefox scrollbar styling */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: oklch(0.5 0 0 / 25%) transparent;
+}
+
