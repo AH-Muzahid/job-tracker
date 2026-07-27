@@ -7,16 +7,16 @@ import Link from "next/link"
 import {
   Plus, TrendingUp, Briefcase, Clock,
   CheckCircle2, XCircle, Bookmark, Sparkles, Target,
-  ChevronRight, Bot, Send, FileText,
+  ChevronRight,
 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Input } from "@/components/ui/input"
 import ApplicationFormModal from "@/components/dashboard/ApplicationFormModal"
 import WeeklyGoalsWidget from "@/components/weekly-goals/WeeklyGoalsWidget"
-import { useStats, useWeeklyGoals } from "@/lib/api"
+import { JDIntakePanel } from "@/components/ai/JDIntakePanel"
+import { useStats, useWeeklyGoals, useApplications } from "@/lib/api"
 import { useUI } from "@/lib/store"
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -34,6 +34,14 @@ const STATUS_CONFIG: Record<string, { color: string; bg: string; icon: React.Rea
 
 const PIE_COLORS = ["#6366f1", "#3b82f6", "#f59e0b", "#a855f7", "#ef4444", "#22c55e"]
 
+interface DashboardApplication {
+  id: string
+  companyName: string
+  jobTitle: string
+  applicationDate: string
+  status: string
+}
+
 function DashboardContent() {
   const { isLoaded, isSignedIn } = useUser()
   const router = useRouter()
@@ -41,6 +49,13 @@ function DashboardContent() {
   const setFormModal = useUI((s) => s.setFormModal)
   const { data: stats, isLoading } = useStats()
   const { data: weeklyGoals, isLoading: goalsLoading } = useWeeklyGoals()
+  const { data: appsData } = useApplications({
+    search: "",
+    status: "",
+    source: "",
+    sort: "newest",
+    tag: "",
+  })
 
   useEffect(() => {
     if (isLoaded && !isSignedIn) router.push("/login")
@@ -125,41 +140,52 @@ function DashboardContent() {
           <WeeklyGoalsWidget goals={weeklyGoals?.[0] || null} loading={goalsLoading} />
         </div>
         <div className="md:col-span-2">
-          <Card className="overflow-hidden h-full">
-            <CardContent className="p-5 flex flex-col h-full">
-              <div className="flex items-center gap-2 mb-3">
-                <Bot className="h-4 w-4 text-primary" />
-                <span className="text-sm font-semibold">Quick Analyze</span>
+          <JDIntakePanel />
+        </div>
+      </div>
+
+      {/* Recommended Follow-up Queue */}
+      {(() => {
+        const followUpApps = (appsData?.data || []).filter(
+          (app: DashboardApplication) => {
+            if (app.status !== "Applied" && app.status !== "Assessment") return false
+            const days = Math.floor((Date.now() - new Date(app.applicationDate).getTime()) / (1000 * 60 * 60 * 24))
+            return days >= 7
+          }
+        ).slice(0, 3)
+
+        if (followUpApps.length === 0) return null
+
+        return (
+          <Card className="border border-amber-500/10 bg-amber-500/5 backdrop-blur shadow-md">
+            <CardContent className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-500/15">
+                  <Clock className="h-5 w-5 text-amber-500" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-amber-200">Outreach Alert: Stale Applications</p>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    You applied to these roles over 7 days ago. We recommend sending a follow-up outreach.
+                  </p>
+                </div>
               </div>
-              <p className="text-xs text-muted-foreground mb-3">Paste a job description or ask the AI assistant anything.</p>
-              <div className="flex gap-2 mt-auto">
-                <Input
-                  placeholder="Paste a JD or ask a question..."
-                  className="flex-1 text-sm"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && (e.target as HTMLInputElement).value.trim()) {
-                      window.location.href = `/ai-assistant?q=${encodeURIComponent((e.target as HTMLInputElement).value)}`
-                    }
-                  }}
-                />
-                <Button size="icon" asChild>
-                  <Link href="/ai-assistant">
-                    <Send className="h-4 w-4" />
-                  </Link>
-                </Button>
-              </div>
-              <div className="flex flex-wrap gap-1.5 mt-3">
-                <Button variant="outline" size="sm" className="text-xs h-7 gap-1" asChild>
-                  <Link href="/ai-assistant"><FileText className="h-3 w-3" /> Scan a JD</Link>
-                </Button>
-                <Button variant="outline" size="sm" className="text-xs h-7 gap-1" asChild>
-                  <Link href="/weekly-goals"><Target className="h-3 w-3" /> Set Goals</Link>
-                </Button>
+              <div className="flex flex-col gap-2 shrink-0 w-full md:w-auto">
+                {followUpApps.map((app: DashboardApplication) => (
+                  <div key={app.id} className="flex items-center justify-between gap-4 bg-slate-950/20 px-3 py-2 rounded-lg border border-slate-850">
+                    <div className="text-xs">
+                      <span className="font-semibold text-slate-200">{app.jobTitle}</span> at <span className="text-slate-400">{app.companyName}</span>
+                    </div>
+                    <Button size="sm" variant="ghost" className="h-7 text-[10px] text-amber-400 hover:text-amber-300 font-medium px-2 py-0 cursor-pointer" asChild>
+                      <Link href={`/applications/${app.id}`}>Follow up</Link>
+                    </Button>
+                  </div>
+                ))}
               </div>
             </CardContent>
           </Card>
-        </div>
-      </div>
+        )
+      })()}
 
       {/* Charts Row */}
       <div className="grid gap-4 md:grid-cols-2">
@@ -258,7 +284,7 @@ function DashboardContent() {
               {stats.recent.map((app: { id: string; companyName: string; jobTitle: string; status: string }) => {
                 const cfg = STATUS_CONFIG[app.status] || STATUS_CONFIG.Saved
                 return (
-                  <div key={app.id} className="flex items-center gap-3 rounded-lg p-2.5 hover:bg-muted/50 transition-colors">
+                  <Link key={app.id} href={`/applications/${app.id}`} className="flex items-center gap-3 rounded-lg p-2.5 hover:bg-muted/50 transition-colors cursor-pointer">
                     <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted font-semibold text-xs text-muted-foreground">
                       {app.companyName.slice(0, 2).toUpperCase()}
                     </div>
@@ -269,7 +295,7 @@ function DashboardContent() {
                     <Badge variant="secondary" className={`${cfg.bg} ${cfg.color} border-0 text-[10px] font-medium shrink-0`}>
                       {app.status}
                     </Badge>
-                  </div>
+                  </Link>
                 )
               })}
             </div>

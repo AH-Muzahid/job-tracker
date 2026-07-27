@@ -19,6 +19,7 @@ import {
   Dialog,
   DialogContent,
 } from "@/components/ui/dialog"
+import Link from "next/link"
 import DeleteConfirmModal from "./DeleteConfirmModal"
 import ApplicationFormModal from "./ApplicationFormModal"
 
@@ -154,7 +155,17 @@ export default function ApplicationDetailModal({
                       </div>
                     </div>
                   </div>
-                  <div className="flex gap-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 px-2.5 text-xs gap-1 border-border text-foreground hover:bg-secondary cursor-pointer font-semibold"
+                      asChild
+                    >
+                      <Link href={`/applications/${application.id}`}>
+                        Open Workbench <ExternalLink className="h-3 w-3" />
+                      </Link>
+                    </Button>
                     <Button
                       size="sm"
                       variant="ghost"

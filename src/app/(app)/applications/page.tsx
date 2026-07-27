@@ -132,12 +132,12 @@ function ApplicationsContent() {
       ) : (
         <>
           {view === "board" && (
-            <BoardView applications={applications} onSelect={(id) => setDetailModal(true, id)}
+            <BoardView applications={applications} onSelect={(id) => router.push(`/applications/${id}`)}
               onAddNew={() => setFormModal(true)} onEdit={(id) => setFormModal(true, id)}
               onDelete={(id) => setDeleteModal(true, id)} onMoveTo={handleMoveTo} onDragEnd={handleDragEnd} />
           )}
-          {view === "list" && <ListView applications={applications} onSelect={(id) => setDetailModal(true, id)} />}
-          {view === "table" && <TableView applications={applications} onSelect={(id) => setDetailModal(true, id)} />}
+          {view === "list" && <ListView applications={applications} onSelect={(id) => router.push(`/applications/${id}`)} />}
+          {view === "table" && <TableView applications={applications} onSelect={(id) => router.push(`/applications/${id}`)} />}
         </>
       )}
 
