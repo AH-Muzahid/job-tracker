@@ -43,7 +43,8 @@ export async function POST(request: NextRequest) {
 
   const result = await generateObject({
     model: resolvedProvider.model(aiConfig.model || resolvedProvider.defaultModel),
-    system: systemPrompt,
+    mode: "json",
+    system: systemPrompt + "\n\nCRITICAL: Respond ONLY with a valid JSON object matching the requested schema. Ignore any formatting request that asks for markdown, headers, bullet points, or raw text blocks. Your response must start with '{' and end with '}' and be valid JSON.",
     prompt: `Analyze this job description:\n\n${jdText}`,
     schema: JDAnalysisSchema,
   })
@@ -89,6 +90,27 @@ export async function POST(request: NextRequest) {
           rawAnalysis: JSON.stringify(analysis),
         },
       })
+    }
+
+    // Auto-enrich placeholder details on parent Application
+    const app = await prisma.application.findUnique({
+      where: { id: applicationId },
+    })
+    if (app) {
+      const updateData: { companyName?: string; jobTitle?: string } = {}
+      if (app.companyName === "Analyzing..." && analysis.roleSnapshot.company) {
+        const cleanCompany = analysis.roleSnapshot.company.replace(/\s*\(.*?\)\s*/g, " ").trim()
+        updateData.companyName = cleanCompany || analysis.roleSnapshot.company
+      }
+      if (app.jobTitle === "Analyzing..." && analysis.roleSnapshot.role) {
+        updateData.jobTitle = analysis.roleSnapshot.role
+      }
+      if (Object.keys(updateData).length > 0) {
+        await prisma.application.update({
+          where: { id: applicationId },
+          data: updateData,
+        })
+      }
     }
   }
 
