@@ -10,7 +10,9 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  const [grouped, groupedSource, recent, total, allByDate] = await Promise.all([
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+
+  const [grouped, groupedSource, recent, total, allByDate, followUpApps] = await Promise.all([
     prisma.application.groupBy({
       by: ["status"],
       where: { userId },
@@ -33,6 +35,22 @@ export async function GET() {
       select: { createdAt: true },
       orderBy: { createdAt: "asc" },
     }),
+    prisma.application.findMany({
+      where: {
+        userId,
+        status: { in: ["Applied", "Assessment"] },
+        applicationDate: { lte: sevenDaysAgo },
+      },
+      select: {
+        id: true,
+        companyName: true,
+        jobTitle: true,
+        applicationDate: true,
+        status: true,
+      },
+      orderBy: { applicationDate: "asc" },
+      take: 3,
+    }),
   ])
 
   const countMap = Object.fromEntries(
@@ -54,6 +72,7 @@ export async function GET() {
     recent,
     trend,
     bySource,
+    followUpApps,
   }
 
   return NextResponse.json(stats)
