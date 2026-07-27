@@ -37,8 +37,8 @@ export async function PUT(request: NextRequest) {
   const body = await request.json()
   const { providerType, apiKey, baseUrl, model } = body
 
-  if (!providerType || !apiKey) {
-    return NextResponse.json({ error: "providerType and apiKey are required" }, { status: 400 })
+  if (!providerType) {
+    return NextResponse.json({ error: "providerType is required" }, { status: 400 })
   }
 
   const validTypes = ["openai", "anthropic", "google", "custom-openai"]
@@ -46,10 +46,25 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: "Invalid provider type" }, { status: 400 })
   }
 
-  const config = { providerType, apiKey, baseUrl, model }
+  const cookieStore = await cookies()
+  const existingEncrypted = cookieStore.get(COOKIE_NAME)?.value
+  let finalApiKey = apiKey
+
+  if (!finalApiKey && existingEncrypted) {
+    try {
+      const decrypted = decrypt(existingEncrypted)
+      const parsed = JSON.parse(decrypted)
+      finalApiKey = parsed.apiKey
+    } catch {}
+  }
+
+  if (!finalApiKey) {
+    return NextResponse.json({ error: "apiKey is required" }, { status: 400 })
+  }
+
+  const config = { providerType, apiKey: finalApiKey, baseUrl, model }
   const encrypted = encrypt(JSON.stringify(config))
 
-  const cookieStore = await cookies()
   cookieStore.set(COOKIE_NAME, encrypted, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
