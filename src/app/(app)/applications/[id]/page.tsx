@@ -6,36 +6,10 @@ import { useUser } from "@clerk/nextjs"
 import { toast } from "sonner"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
+import { Application, WorkbenchAnalysis } from "@/components/applications/types"
 import ApplicationDetailHeader from "@/components/applications/ApplicationDetailHeader"
 import ApplicationDeleteDialog from "@/components/applications/ApplicationDeleteDialog"
-import ApplicationDetailsCard from "@/components/applications/ApplicationDetailsCard"
-import ApplicationAnalysisSection from "@/components/applications/ApplicationAnalysisSection"
-
-interface StatusChange {
-  id: string
-  fromStatus: string | null
-  toStatus: string
-  changedAt: string
-}
-
-interface TagItem {
-  tag: { id: string; name: string }
-}
-
-interface Application {
-  id: string
-  companyName: string
-  jobTitle: string
-  jobUrl: string | null
-  source: string
-  applicationDate: string
-  status: string
-  notes: string | null
-  createdAt: string
-  updatedAt: string
-  tags: TagItem[]
-  statusChanges: StatusChange[]
-}
+import { ApplicationWorkbench } from "@/components/applications/ApplicationWorkbench"
 
 export default function ApplicationDetailPage() {
   const { isLoaded, isSignedIn } = useUser()
@@ -46,9 +20,8 @@ export default function ApplicationDetailPage() {
   const [error, setError] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [dialogOpen, setDialogOpen] = useState(false)
-  const [analysis, setAnalysis] = useState<Record<string, unknown> | null>(null)
+  const [analysis, setAnalysis] = useState<WorkbenchAnalysis | null>(null)
   const [analysisLoading, setAnalysisLoading] = useState(false)
-  const [showAnalysis, setShowAnalysis] = useState(false)
 
   useEffect(() => {
     if (!isLoaded) return
@@ -70,6 +43,52 @@ export default function ApplicationDetailPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoaded, isSignedIn, params.id, router])
 
+  useEffect(() => {
+    if (!application) return
+    const isAnalyzing = localStorage.getItem(`analyzing_${params.id}`) === "true" || application.companyName === "Analyzing..."
+    
+    if (isAnalyzing && !analysis && !analysisLoading) {
+      setAnalysisLoading(true)
+      let attempts = 0
+      const maxAttempts = 30 // 60 seconds
+      
+      const pollInterval = setInterval(async () => {
+        attempts++
+        try {
+          const res = await fetch(`/api/applications/${params.id}/analysis`)
+          if (res.ok) {
+            const data = await res.json()
+            if (data && data.id) {
+              setAnalysis(data)
+              setAnalysisLoading(false)
+              localStorage.removeItem(`analyzing_${params.id}`)
+              clearInterval(pollInterval)
+              
+              // Refetch parent application to get updated companyName and jobTitle
+              const appRes = await fetch(`/api/applications/${params.id}`)
+              if (appRes.ok) {
+                const appData = await appRes.json()
+                setApplication(appData)
+              }
+              toast.success("AI analysis & extraction complete!")
+            }
+          }
+        } catch (e) {
+          console.error(e)
+        }
+        
+        if (attempts >= maxAttempts) {
+          setAnalysisLoading(false)
+          localStorage.removeItem(`analyzing_${params.id}`)
+          clearInterval(pollInterval)
+          toast.error("AI analysis timed out. You can trigger it manually.")
+        }
+      }, 2000)
+
+      return () => clearInterval(pollInterval)
+    }
+  }, [application, analysis, analysisLoading, params.id])
+
   async function fetchAnalysis() {
     try {
       const res = await fetch(`/api/applications/${params.id}/analysis`)
@@ -77,7 +96,6 @@ export default function ApplicationDetailPage() {
         const data = await res.json()
         if (data && data.id) {
           setAnalysis(data)
-          setShowAnalysis(true)
         }
       }
     } catch {}
@@ -96,7 +114,6 @@ export default function ApplicationDetailPage() {
       if (res.ok) {
         const data = await res.json()
         setAnalysis(data)
-        setShowAnalysis(true)
         toast.success("Analysis complete!")
         await fetchAnalysis()
       } else {
@@ -156,25 +173,13 @@ export default function ApplicationDetailPage() {
         onDelete={() => setDialogOpen(true)}
       />
 
-      <ApplicationDetailsCard
-        companyName={application.companyName}
-        jobTitle={application.jobTitle}
-        source={application.source}
-        status={application.status}
-        applicationDate={application.applicationDate}
-        jobUrl={application.jobUrl}
-        tags={application.tags}
-        notes={application.notes}
-        statusChanges={application.statusChanges}
-        createdAt={application.createdAt}
-        updatedAt={application.updatedAt}
-      />
-
-      <ApplicationAnalysisSection
+      <ApplicationWorkbench
+        application={application}
         analysis={analysis}
-        showAnalysis={showAnalysis}
         analysisLoading={analysisLoading}
         onTriggerAnalysis={triggerAnalysis}
+        onDelete={() => setDialogOpen(true)}
+        onUpdate={setApplication}
       />
 
       <ApplicationDeleteDialog
