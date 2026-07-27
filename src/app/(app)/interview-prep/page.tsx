@@ -125,11 +125,14 @@ export default function InterviewPrepPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          message: `Generate 5 interview questions for this job description:\n\n${aiJd}`,
+          message: `Generate 5 interview questions for this job description. Return ONLY the questions, one per line, numbered 1-5. No explanations or answers.\n\n${aiJd}`,
           mode: "interview",
         }),
       })
-      if (!res.ok) throw new Error("Failed")
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}))
+        throw new Error(errData.error || "Failed to generate")
+      }
       const reader = res.body?.getReader()
       if (!reader) return
       const decoder = new TextDecoder()
@@ -140,11 +143,19 @@ export default function InterviewPrepPage() {
         done = doneReading
         if (value) text += decoder.decode(value, { stream: !done })
       }
-      const parsed = JSON.parse(text)
-      const qs = parsed.content?.split("\n").filter((l: string) => l.trim()) || [parsed.content || text]
-      setAiQuestions(qs)
-    } catch {
-      toast.error("Failed to generate questions")
+      // The response is raw streamed text, not JSON
+      const qs = text
+        .split("\n")
+        .map((l: string) => l.replace(/^\d+[\.\)]\s*/, "").trim())
+        .filter((l: string) => l.length > 10)
+      if (qs.length === 0) {
+        toast.error("AI returned empty response. Please try again.")
+      } else {
+        setAiQuestions(qs)
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to generate questions"
+      toast.error(message)
     } finally {
       setAiLoading(false)
     }
@@ -167,11 +178,14 @@ export default function InterviewPrepPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          message: `Provide a concise answer for this interview question:\n\n${questionText}`,
+          message: `Provide a concise, practical answer for this interview question. Keep it under 200 words.\n\n${questionText}`,
           mode: "interview",
         }),
       })
-      if (!res.ok) throw new Error("Failed")
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}))
+        throw new Error(errData.error || "Failed to generate")
+      }
       const reader = res.body?.getReader()
       if (!reader) return
       const decoder = new TextDecoder()
@@ -182,8 +196,12 @@ export default function InterviewPrepPage() {
         done = doneReading
         if (value) text += decoder.decode(value, { stream: !done })
       }
-      const parsed = JSON.parse(text)
-      const answer = parsed.content || text
+      // The response is raw streamed text
+      const answer = text.trim()
+      if (!answer) {
+        toast.error("AI returned empty answer")
+        return
+      }
       await fetch(`/api/prep-questions/${questionId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -192,8 +210,9 @@ export default function InterviewPrepPage() {
       fetchAll()
       setExpanded(questionId)
       toast.success("Answer added")
-    } catch {
-      toast.error("Failed to generate answer")
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to generate answer"
+      toast.error(message)
     } finally {
       setSuggestingAnswer(null)
     }
