@@ -14,37 +14,15 @@ const PROTECTED_API_PATHS = [
   "/api/prep-questions", "/api/prep-notes", "/api/settings",
 ]
 
-async function hasProfile(req: Request): Promise<boolean> {
-  const response = await fetch(new URL("/api/user/profile", req.url), {
-    headers: {
-      cookie: req.headers.get("cookie") ?? "",
-    },
-    cache: "no-store",
-  })
-
-  if (!response.ok) {
-    return true
-  }
-
-  const profile = await response.json() as { id?: string }
-  return Boolean(profile?.id)
-}
-
 export default clerkMiddleware(async (auth, req) => {
   const { pathname } = req.nextUrl
 
-  const isProtected = PROTECTED_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/")) ||
+  const isProtected =
+    PROTECTED_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/")) ||
     PROTECTED_API_PATHS.some((p) => pathname.startsWith(p))
 
   if (isProtected) {
     await auth.protect()
-
-    const isApiRoute = pathname.startsWith("/api/")
-    const isProfileSetupRoute = pathname === "/profile-setup" || pathname.startsWith("/profile-setup/")
-
-    if (!isApiRoute && !isProfileSetupRoute && !(await hasProfile(req))) {
-      return NextResponse.redirect(new URL("/profile-setup", req.url))
-    }
   }
 })
 
