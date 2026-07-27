@@ -1,11 +1,11 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useCallback } from "react"
 import { useUser } from "@clerk/nextjs"
 import { useRouter } from "next/navigation"
 import {
   User, Link, Code, Briefcase, BarChart3, Frown, Clock,
-  ChevronLeft, ChevronRight, Save,
+  ChevronLeft, ChevronRight, Save, Trash2, Plus, Pencil,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -13,6 +13,88 @@ import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { SearchableTagsInput } from "@/components/profile-setup/SearchableTagsInput"
+
+const POPULAR_STACKS = [
+  // Frontend & Mobile
+  "React", "Next.js", "TypeScript", "JavaScript", "Vue.js", "Svelte", "Angular", "HTML5", "CSS3",
+  "TailwindCSS", "Redux", "Zustand", "React Query", "Shadcn UI", "Radix UI", "Framer Motion",
+  "React Native", "Flutter", "Swift", "Kotlin", "Dart",
+  // Backend & APIs
+  "Node.js", "Express.js", "NestJS", "Python", "Django", "FastAPI", "Flask", "Go", "Rust",
+  "Ruby on Rails", "Spring Boot", "ASP.NET Core", "Laravel", "GraphQL", "gRPC", "REST API",
+  // Databases & ORMs
+  "PostgreSQL", "MySQL", "MongoDB", "Redis", "SQLite", "DynamoDB", "Supabase", "Firebase",
+  "Prisma", "Drizzle ORM", "Mongoose", "Elasticsearch",
+  // DevOps & Cloud
+  "Docker", "Kubernetes", "AWS", "Google Cloud (GCP)", "Azure", "Terraform", "GitHub Actions",
+  "GitLab CI", "CI/CD", "Nginx", "Vercel", "Netlify",
+  // AI & Data Science
+  "OpenAI API", "LangChain", "PyTorch", "TensorFlow", "Pandas", "NumPy", "Scikit-Learn",
+  // Programming Languages
+  "C++", "Java", "C#", "PHP", "Ruby", "Scala", "Shell Scripting"
+]
+
+const POPULAR_ROLES = [
+  "Frontend Developer", "Backend Developer", "Fullstack Developer", 
+  "Software Engineer", "Senior Software Engineer", "React Developer", 
+  "Node.js Developer", "Python Developer", "Go Developer",
+  "Mobile App Developer (iOS/Android)", "DevOps Engineer", "Cloud Engineer", 
+  "System Administrator", "Database Administrator", "Site Reliability Engineer (SRE)",
+  "QA Engineer", "Automation Test Engineer", "Security Engineer",
+  "Data Scientist", "Data Engineer", "Machine Learning Engineer", "AI Engineer",
+  "Product Manager", "Project Manager", "Scrum Master", "Agile Coach",
+  "UI/UX Designer", "Product Designer", "Graphic Designer",
+  "Technical Writer", "Developer Advocate", "Solutions Architect"
+]
+
+const POPULAR_STRENGTHS = [
+  // Core Technical
+  "JavaScript", "TypeScript", "React", "Next.js", "Node.js", "Python", "SQL", "Git", 
+  "API Design & Development", "System Design", "Database Design & Optimization",
+  "Clean Code & Refactoring", "Microservices Architecture", "Cloud Infrastructure (AWS/GCP)",
+  "CI/CD & DevOps Automation", "Unit & Integration Testing", "Performance Optimization",
+  "Responsive Web Design", "State Management", "Mobile App Development",
+  // Problem Solving & Methodology
+  "Data Structures & Algorithms", "Debugging & Troubleshooting", "Agile & Scrum Methodologies",
+  "Problem Solving", "Logical Reasoning", "Analytical Thinking",
+  // Interpersonal & Soft Skills
+  "Team Collaboration", "Technical Mentorship", "Effective Communication", "Fast Learner",
+  "Adaptability & Flexibility", "Self-Motivation", "Time Management", "Project Ownership"
+]
+
+const POPULAR_WEAKNESSES = [
+  // Interpersonal & Communication
+  "Public Speaking & Presenting", "Giving Constructive Feedback", "Asking for Help Early",
+  "Networking & Building Connections", "Written Communication (Briefness)", "Negotiation Skills",
+  "Dealing with Ambiguity", "Sharing Unfinished Work Early",
+  
+  // Professional Habits & Self-Management
+  "Delegating Tasks", "Saying 'No' (Over-committing)", "Imposter Syndrome / Self-Doubt",
+  "Work-Life Balance Management", "Perfectionism (Detail Obsession)", "Estimating Project Timelines",
+  "Impatience with Slow Processes", "Handling Negative Feedback", "Multitasking Under Pressure",
+  
+  // Technical/Engineering Growth Areas (Minimal)
+  "System Design & Scalability", "Testing / TDD (Test-Driven Development)", "UI/UX Design & Typography",
+  "Legacy Codebase Refactoring", "Technical Documentation"
+]
+
+const POPULAR_DAYS = [
+  "Weekdays", "Weekends", "Saturday", "Sunday", "Monday", 
+  "Tuesday", "Wednesday", "Thursday", "Friday"
+]
+
+const POPULAR_INDUSTRIES = [
+  "SaaS (Software as a Service)", "Fintech (Financial Technology)", "AI / Machine Learning",
+  "E-commerce & Retail", "Healthcare & Medtech", "Edtech (Educational Technology)", 
+  "Web3 & Blockchain", "E-learning", "Cybersecurity", "Cloud Computing & Infrastructure",
+  "Agile Product Development", "Mobile App Development", "Startups & Venture Capital",
+  "Adtech (Advertising Technology)", "Proptech (Property Technology)", "Logistics & Supply Chain",
+  "Travel & Hospitality", "Gaming & Entertainment", "Social Media & Networking",
+  "Data Analytics & Business Intelligence", "Internet of Things (IoT)", "Telecommunications",
+  "Enterprise Software", "Non-Profit & Social Impact", "Human Resources (HR) Tech"
+]
 
 const STEPS = [
   { title: "Basic Info", icon: User },
@@ -25,15 +107,21 @@ const STEPS = [
 ]
 
 export default function ProfileSetupPage() {
-  const { isLoaded, isSignedIn, user } = useUser()
+  const { isLoaded, isSignedIn } = useUser()
   const router = useRouter()
   const [step, setStep] = useState(0)
   const [saving, setSaving] = useState(false)
+  const [tempProject, setTempProject] = useState({ name: "", stack: "", description: "" })
+  const [selectedStacks, setSelectedStacks] = useState<string[]>([])
+  const [editingIndex, setEditingIndex] = useState<number | null>(null)
+  const [profileLoaded, setProfileLoaded] = useState(false)
+  const [loadingProfile, setLoadingProfile] = useState(true)
+
   const [form, setForm] = useState({
     phone: "", location: "", targetRoles: "", workPreference: "",
     salaryExpectation: "", experienceLevel: "", currentStatus: "",
     linkedInUrl: "", githubUrl: "", portfolioUrl: "",
-    projects: "",
+    projects: [] as { name: string; stack: string; description: string }[],
     strengths: "", weaknesses: "",
     weeklyHours: "", bestDays: "", noticePeriod: "",
     communicationLevel: "", englishLevel: "",
@@ -42,14 +130,51 @@ export default function ProfileSetupPage() {
 
   useEffect(() => {
     if (isLoaded && !isSignedIn) { router.push("/sign-in"); return }
-    if (isLoaded && user) {
-      setForm((prev) => ({
-        ...prev,
-        location: `${user.primaryEmailAddress?.emailAddress || ""}`,
-      }))
+    if (isLoaded && isSignedIn && !profileLoaded) {
+      setProfileLoaded(true)
+      fetch("/api/user/profile")
+        .then((res) => res.json())
+        .then((data) => {
+          if (data && data.userId) {
+            setForm({
+              phone: data.phone || "",
+              location: data.location || "",
+              targetRoles: Array.isArray(data.targetRoles) ? data.targetRoles.join(", ") : "",
+              workPreference: data.workPreference || "",
+              salaryExpectation: data.salaryExpectation || "",
+              experienceLevel: data.experienceLevel || "",
+              currentStatus: data.currentStatus || "",
+              linkedInUrl: data.linkedInUrl || "",
+              githubUrl: data.githubUrl || "",
+              portfolioUrl: data.portfolioUrl || "",
+              projects: Array.isArray(data.bestProjects) ? data.bestProjects : [],
+              strengths: data.strengths || "",
+              weaknesses: data.weaknesses || "",
+              weeklyHours: data.weeklyHours !== null && data.weeklyHours !== undefined ? String(data.weeklyHours) : "",
+              bestDays: data.bestDays || "",
+              noticePeriod: data.noticePeriod || "",
+              communicationLevel: data.communicationLevel || "",
+              englishLevel: data.englishLevel || "",
+              preferredIndustries: data.preferredIndustries || "",
+              preferredCompanies: data.preferredCompanies || "",
+            })
+          }
+        })
+        .catch((err) => {
+          console.error("Error fetching profile:", err)
+          setProfileLoaded(false) // retry on error
+        })
+        .finally(() => {
+          setLoadingProfile(false)
+        })
+    } else if (isLoaded && !isSignedIn) {
+      setLoadingProfile(false)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoaded, isSignedIn])
+  }, [isLoaded, isSignedIn, profileLoaded, router])
+
+  useEffect(() => {
+    router.prefetch("/ai-assistant")
+  }, [router])
 
   async function handleSave() {
     setSaving(true)
@@ -65,10 +190,7 @@ export default function ProfileSetupPage() {
         linkedInUrl: form.linkedInUrl || null,
         githubUrl: form.githubUrl || null,
         portfolioUrl: form.portfolioUrl || null,
-        bestProjects: form.projects ? form.projects.split("\n").filter(Boolean).map((p: string) => {
-          const parts = p.split("|").map((s: string) => s.trim())
-          return { name: parts[0] || "", stack: parts[1] || "", description: parts[2] || "" }
-        }) : [],
+        bestProjects: form.projects || [],
         strengths: form.strengths || null,
         weaknesses: form.weaknesses || null,
         weeklyHours: form.weeklyHours ? parseInt(form.weeklyHours) : null,
@@ -96,9 +218,10 @@ export default function ProfileSetupPage() {
     }
   }
 
-  function update(field: string, value: string) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const update = useCallback((field: string, value: any) => {
     setForm((prev) => ({ ...prev, [field]: value }))
-  }
+  }, [])
 
   const renderStep = () => {
     switch (step) {
@@ -132,27 +255,204 @@ export default function ProfileSetupPage() {
           </div>
         </div>
       )
-      case 2: return (
-        <div className="space-y-2">
-          <Label>Best Projects (one per line: Name | Stack | Description)</Label>
-          <Textarea
-            value={form.projects}
-            onChange={(e) => update("projects", e.target.value)}
-            placeholder="E-Commerce App | React, Node, MongoDB | Built full-stack with auth and payment&#10;Task Manager | Next.js, Prisma | CRUD app with drag-drop UI"
-            className="min-h-[120px]"
-          />
-        </div>
-      )
+      case 2: {
+        const projectList = form.projects || []
+        
+        const handleStartEdit = (idx: number) => {
+          const proj = projectList[idx]
+          setTempProject({
+            name: proj.name,
+            stack: proj.stack,
+            description: proj.description
+          })
+          setSelectedStacks(proj.stack ? proj.stack.split(", ").filter(Boolean) : [])
+          setEditingIndex(idx)
+        }
+
+        return (
+          <div className="space-y-6">
+            <div className="space-y-1">
+              <Label className="text-sm font-semibold text-foreground">Best Projects</Label>
+              <p className="text-xs text-muted-foreground">Add the key personal or professional projects you&apos;d like to show off.</p>
+            </div>
+
+            {/* List of current projects */}
+            {projectList.length > 0 && (
+              <div className="space-y-3">
+                {projectList.map((proj, idx) => (
+                  <div key={idx} className="flex items-start justify-between p-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 gap-4">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm font-bold text-foreground">{proj.name}</span>
+                        {proj.stack && (
+                          <div className="flex flex-wrap gap-1 mt-0.5">
+                            {proj.stack.split(", ").map((tech, i) => (
+                              <span key={i} className="text-[10px] bg-secondary text-secondary-foreground px-2 py-0.5 rounded font-mono border border-border">
+                                {tech}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground leading-relaxed">{proj.description}</p>
+                    </div>
+                    
+                    <div className="flex gap-1 shrink-0">
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        type="button"
+                        onClick={() => handleStartEdit(idx)}
+                        className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-accent cursor-pointer"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        type="button"
+                        onClick={() => {
+                          const updated = projectList.filter((_, i) => i !== idx)
+                          setForm(prev => ({ ...prev, projects: updated }))
+                          if (editingIndex === idx) {
+                            setEditingIndex(null)
+                            setTempProject({ name: "", stack: "", description: "" })
+                            setSelectedStacks([])
+                          }
+                        }}
+                        className="h-7 w-7 text-rose-500 hover:text-rose-455 hover:bg-rose-500/10 cursor-pointer"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Add Project Form inline (capped at 3 unless editing) */}
+            {projectList.length >= 3 && editingIndex === null ? (
+              <div className="p-4 rounded-lg border border-amber-550/10 bg-amber-500/5 text-center text-xs text-amber-600 dark:text-amber-455 font-semibold">
+                Maximum of 3 best projects reached. Delete an existing project to add a new one.
+              </div>
+            ) : (
+              <div className="p-4 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 space-y-4">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                  {editingIndex !== null ? "Edit Project Details" : `Add New Project (${projectList.length}/3)`}
+                </h4>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="projName" className="text-xs text-slate-650 dark:text-slate-300">Project Name</Label>
+                    <Input 
+                      id="projName" 
+                      placeholder="e.g. Portfolio Website" 
+                      className="h-9 text-xs bg-background border-input text-foreground" 
+                      value={tempProject.name}
+                      onChange={(e) => setTempProject(p => ({ ...p, name: e.target.value }))}
+                    />
+                  </div>
+                  
+                  {/* Searchable Stack Selection */}
+                  <SearchableTagsInput
+                    id="project-tech-stack"
+                    label="Tech Stack"
+                    placeholder="Search or type tech..."
+                    popularItems={POPULAR_STACKS}
+                    value={selectedStacks.join(", ")}
+                    onChange={(val) => setSelectedStacks(val ? val.split(", ") : [])}
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="projDesc" className="text-xs text-slate-655 dark:text-slate-300">Description</Label>
+                  <Textarea 
+                    id="projDesc" 
+                    placeholder="Describe what you built and any key features..." 
+                    className="min-h-[80px] text-xs bg-background border border-input rounded-lg p-3 text-foreground placeholder:text-muted-foreground/50 focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-0 focus:border-primary transition-all resize-none outline-none"
+                    value={tempProject.description}
+                    onChange={(e) => setTempProject(p => ({ ...p, description: e.target.value }))}
+                  />
+                </div>
+                <div className="flex justify-end gap-2">
+                  {editingIndex !== null && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => {
+                        setEditingIndex(null)
+                        setTempProject({ name: "", stack: "", description: "" })
+                        setSelectedStacks([])
+                      }}
+                      className="h-8 text-xs cursor-pointer"
+                    >
+                      Cancel
+                    </Button>
+                  )}
+                  <Button 
+                    type="button" 
+                    onClick={() => {
+                      if (!tempProject.name.trim()) {
+                        toast.error("Project Name is required")
+                        return
+                      }
+                      
+                      const newProject = {
+                        name: tempProject.name,
+                        stack: selectedStacks.join(", "),
+                        description: tempProject.description
+                      }
+
+                      if (editingIndex !== null) {
+                        const updated = [...projectList]
+                        updated[editingIndex] = newProject
+                        setForm(prev => ({ ...prev, projects: updated }))
+                        setEditingIndex(null)
+                        toast.success("Project updated successfully!")
+                      } else {
+                        setForm(prev => ({ 
+                          ...prev, 
+                          projects: [...projectList, newProject]
+                        }))
+                        toast.success("Project added to list!")
+                      }
+                      
+                      setTempProject({ name: "", stack: "", description: "" })
+                      setSelectedStacks([])
+                    }}
+                    className="h-8 text-xs bg-primary text-primary-foreground hover:bg-primary/90 font-semibold cursor-pointer"
+                  >
+                    {editingIndex !== null ? "Update Project" : <><Plus className="h-3 w-3 mr-1" /> Add Project</>}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        )
+      }
       case 3: return (
         <div className="space-y-4">
-          <div className="space-y-2">
-            <Label>Target Roles (comma separated)</Label>
-            <Input value={form.targetRoles} onChange={(e) => update("targetRoles", e.target.value)} placeholder="Frontend Developer, React Developer" />
-          </div>
+          <SearchableTagsInput
+            id="target-roles"
+            label="Target Roles"
+            placeholder="Search or type roles (e.g. Frontend Developer)..."
+            popularItems={POPULAR_ROLES}
+            value={form.targetRoles}
+            onChange={(val) => update("targetRoles", val)}
+          />
+
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Work Preference</Label>
-              <Input value={form.workPreference} onChange={(e) => update("workPreference", e.target.value)} placeholder="remote / onsite / hybrid" />
+              <Select value={form.workPreference} onValueChange={(val) => update("workPreference", val)}>
+                <SelectTrigger className="bg-background border-input text-xs text-foreground h-10">
+                  <SelectValue placeholder="Select preference..." />
+                </SelectTrigger>
+                <SelectContent className="bg-popover border-border text-popover-foreground">
+                  {["Remote", "Onsite", "Hybrid"].map((s) => (
+                    <SelectItem key={s} value={s.toLowerCase()} className="text-xs">{s}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label>Salary Expectation</Label>
@@ -166,33 +466,78 @@ export default function ProfileSetupPage() {
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Experience Level</Label>
-              <Input value={form.experienceLevel} onChange={(e) => update("experienceLevel", e.target.value)} placeholder="fresher / junior / career-switcher" />
+              <Select value={form.experienceLevel} onValueChange={(val) => update("experienceLevel", val)}>
+                <SelectTrigger className="bg-background border-input text-xs text-foreground h-10">
+                  <SelectValue placeholder="Select experience..." />
+                </SelectTrigger>
+                <SelectContent className="bg-popover border-border text-popover-foreground">
+                  {["Fresher", "Junior", "Mid-level", "Senior", "Career-switcher"].map((s) => (
+                    <SelectItem key={s} value={s.toLowerCase()} className="text-xs">{s}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label>Current Status</Label>
-              <Input value={form.currentStatus} onChange={(e) => update("currentStatus", e.target.value)} placeholder="actively-looking / employed / studying" />
+              <Select value={form.currentStatus} onValueChange={(val) => update("currentStatus", val)}>
+                <SelectTrigger className="bg-background border-input text-xs text-foreground h-10">
+                  <SelectValue placeholder="Select status..." />
+                </SelectTrigger>
+                <SelectContent className="bg-popover border-border text-popover-foreground">
+                  {["Actively-looking", "Employed", "Studying", "Not-looking"].map((s) => (
+                    <SelectItem key={s} value={s.toLowerCase()} className="text-xs">{s}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
-          <div className="space-y-2">
-            <Label>Strengths</Label>
-            <Textarea value={form.strengths} onChange={(e) => update("strengths", e.target.value)} placeholder="Your strongest technical and soft skills" />
-          </div>
+          <SearchableTagsInput
+            id="strengths-selection"
+            label="Strengths"
+            placeholder="Search or type strengths (e.g. React)..."
+            popularItems={POPULAR_STRENGTHS}
+            value={form.strengths}
+            onChange={(val) => update("strengths", val)}
+          />
         </div>
       )
       case 5: return (
         <div className="space-y-4">
-          <div className="space-y-2">
-            <Label>Weaknesses (comma separated)</Label>
-            <Input value={form.weaknesses} onChange={(e) => update("weaknesses", e.target.value)} placeholder="DSA, communication, confidence" />
-          </div>
+          <SearchableTagsInput
+            id="weaknesses-selection"
+            label="Weaknesses"
+            placeholder="Search or type weaknesses (e.g. DSA)..."
+            popularItems={POPULAR_WEAKNESSES}
+            value={form.weaknesses}
+            onChange={(val) => update("weaknesses", val)}
+          />
+
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Communication Level</Label>
-              <Input value={form.communicationLevel} onChange={(e) => update("communicationLevel", e.target.value)} placeholder="beginner / intermediate / fluent" />
+              <Select value={form.communicationLevel} onValueChange={(val) => update("communicationLevel", val)}>
+                <SelectTrigger className="bg-background border-input text-xs text-foreground h-10">
+                  <SelectValue placeholder="Select level..." />
+                </SelectTrigger>
+                <SelectContent className="bg-popover border-border text-popover-foreground">
+                  {["Beginner", "Intermediate", "Fluent"].map((s) => (
+                    <SelectItem key={s} value={s.toLowerCase()} className="text-xs">{s}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label>English Level</Label>
-              <Input value={form.englishLevel} onChange={(e) => update("englishLevel", e.target.value)} placeholder="beginner / intermediate / advanced" />
+              <Select value={form.englishLevel} onValueChange={(val) => update("englishLevel", val)}>
+                <SelectTrigger className="bg-background border-input text-xs text-foreground h-10">
+                  <SelectValue placeholder="Select level..." />
+                </SelectTrigger>
+                <SelectContent className="bg-popover border-border text-popover-foreground">
+                  {["Beginner", "Intermediate", "Advanced", "Fluent"].map((s) => (
+                    <SelectItem key={s} value={s.toLowerCase()} className="text-xs">{s}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </div>
@@ -204,19 +549,38 @@ export default function ProfileSetupPage() {
               <Label>Hours per day for job search</Label>
               <Input type="number" value={form.weeklyHours} onChange={(e) => update("weeklyHours", e.target.value)} />
             </div>
-            <div className="space-y-2">
-              <Label>Best days for deep work</Label>
-              <Input value={form.bestDays} onChange={(e) => update("bestDays", e.target.value)} placeholder="Weekdays, Saturday, etc." />
-            </div>
+            <SearchableTagsInput
+              id="best-days"
+              label="Best days for deep work"
+              placeholder="Search or type days (e.g. Weekdays)..."
+              popularItems={POPULAR_DAYS}
+              value={form.bestDays}
+              onChange={(val) => update("bestDays", val)}
+            />
           </div>
+
           <div className="space-y-2">
             <Label>Notice Period</Label>
-            <Input value={form.noticePeriod} onChange={(e) => update("noticePeriod", e.target.value)} placeholder="e.g. 30 days" />
+            <Select value={form.noticePeriod} onValueChange={(val) => update("noticePeriod", val)}>
+              <SelectTrigger className="bg-background border-input text-xs text-foreground h-10">
+                <SelectValue placeholder="Select notice period..." />
+              </SelectTrigger>
+              <SelectContent className="bg-popover border-border text-popover-foreground">
+                {["Immediate", "15 days", "30 days", "60 days", "90 days"].map((s) => (
+                  <SelectItem key={s} value={s.toLowerCase()} className="text-xs">{s}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-          <div className="space-y-2">
-            <Label>Preferred Companies / Industries</Label>
-            <Input value={form.preferredIndustries} onChange={(e) => update("preferredIndustries", e.target.value)} placeholder="e.g. SaaS, Fintech, Startups" />
-          </div>
+
+          <SearchableTagsInput
+            id="preferred-industries"
+            label="Preferred Companies / Industries"
+            placeholder="Search or type industries (e.g. SaaS)..."
+            popularItems={POPULAR_INDUSTRIES}
+            value={form.preferredIndustries}
+            onChange={(val) => update("preferredIndustries", val)}
+          />
         </div>
       )
     }
@@ -245,7 +609,19 @@ export default function ProfileSetupPage() {
       </div>
 
       <Card>
-        <CardContent className="p-6">{renderStep()}</CardContent>
+        <CardContent className="p-6">
+          {!isLoaded || (isSignedIn && loadingProfile) ? (
+            <div className="space-y-5 animate-pulse py-2">
+              <div className="h-4 bg-secondary rounded w-1/3" />
+              <div className="space-y-3 pt-2">
+                <div className="h-10 bg-secondary/80 rounded-lg" />
+                <div className="h-20 bg-secondary/85 rounded-lg" />
+              </div>
+            </div>
+          ) : (
+            renderStep()
+          )}
+        </CardContent>
       </Card>
 
       <div className="flex justify-between mt-6">
