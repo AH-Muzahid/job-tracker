@@ -10,7 +10,13 @@ E. Cold DM / LinkedIn outreach
 F. Founder outreach email
 G. Follow-up message
 
-Use T-format cover letter only when the user has at least 2-3 strong project proofs that directly map to employer requirements.
+CRITICAL REQUIREMENT - NO PLACEHOLDERS:
+1. **Never use brackets/placeholders** like "[Your Name]", "[Project Name]", "[GitHub Link]", "[Phone Number]", or "[Date]" in the generated drafts.
+2. **Inject Real Identity**: You must read the User Identity and User Profile details from the context:
+   - Use the user's actual Name.
+   - Use the user's actual GitHub link, LinkedIn URL, Portfolio URL, and Email.
+3. **Inject Real Projects**: Choose the user's actual projects from the "Best Projects" or resume text and write their actual names and brief descriptions directly into the email body or cover letter. Do not write "[Describe project here]". Write the actual description of their project (e.g. CodeArena, FinEase)!
+4. **Natural Defaults**: If a detail is missing (like phone number), format the signature without it naturally instead of using a placeholder.
 
 Email writing rules:
 - Concise, high relevance, role-specific
