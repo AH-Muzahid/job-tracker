@@ -250,7 +250,7 @@ Required actions:
   - Does not create an active application by default.
   - Optionally saves as skipped/rejected/archived if the product adds that status.
 
-### Apply By Email Section
+### Apply By Email Section (Tiered Email Outreach)
 
 If the JD includes an email address or says to apply by email, the AI result UI should show a dedicated mail section.
 
@@ -284,40 +284,25 @@ Attachments:
   [Cover letter optional]
 ```
 
-Required controls:
+To optimize security and reduce setup friction, a **tiered integration approach** is used:
 
-- `Edit Draft`
-- `Copy Email`
-- `Send From My Email`
-- `Mark Sent Manually`
-- `Save Job Only`
+#### Tier 1: Zero-Friction Native Mailer (Default)
+- **`Copy Subject / Body`**: Instant clipboard copying.
+- **`Open Mail Client`**: Generates a standard `mailto:` link populated with recipient, subject, and body:
+  `mailto:recipient@company.com?subject=SubjectLine&body=BodyContent`
+- **`Mark Sent Manually`**: Moves the tracker status to `Applied` and records the email outreach event.
 
-Send behavior:
-
-```txt
-User clicks Send From My Email
-  -> If email account is not connected, ask user to connect Gmail/Outlook
-  -> User confirms account permission through OAuth
-  -> App sends email through provider API
-  -> On success, create/save application if needed
-  -> Set status to Applied
-  -> Add activity: Application email sent
-  -> Store recipient, subject, sentAt, provider message id if available
-  -> Suggest follow-up date
-```
+#### Tier 2: Connect SMTP/API (Optional Extension)
+- **`Send From My Email`**: Connects via SMTP settings or OAuth (Gmail/Outlook) to send directly.
+- **`OAuth Authorization`**: Safe auth configuration flow for Gmail/Outlook API.
 
 Important safety rules:
 
 - Never send automatically after AI generation.
-- User must click `Send`.
-- Show final confirmation before sending.
+- User must review and edit the draft.
 - Attachments must be explicitly selected by the user.
 - If send fails, do not move status to `Applied` automatically.
 - Provide `Mark Sent Manually` for users who send from outside the app.
-
-Implementation note:
-
-Sending from the user's own email requires OAuth integration with a mail provider, such as Gmail API or Outlook/Microsoft Graph. SMTP with raw passwords should be avoided.
 
 Recommended future data fields or model:
 
@@ -326,7 +311,7 @@ model EmailActivity {
   id            String   @id @default(uuid())
   userId        String
   applicationId String
-  provider      String   // gmail | outlook | manual
+  provider      String   // mailto | gmail | outlook | smtp | manual
   to            String
   subject       String
   body          String?
@@ -335,6 +320,7 @@ model EmailActivity {
   sentAt        DateTime?
   createdAt     DateTime @default(now())
 }
+```
 ```
 ### Status Behavior
 
@@ -586,34 +572,19 @@ AI role:
 2. User manually enters company, title, URL, source, status, notes.
 3. User separately goes to AI assistant or application detail to analyze.
 
-### New Flow
+### New Flow (Asynchronous & Optimistic)
 
 1. User opens `Add Job` or uses Dashboard JD intake.
 2. User pastes JD text or job URL.
-3. AI extracts:
-   - company name
-   - job title
-   - source
-   - job URL
-   - seniority
-   - location/work mode
-   - tech stack
-   - salary if present
-   - red flags
-4. AI generates match analysis:
-   - score
-   - verdict
-   - why this score
-   - missing keywords
-   - resume advice
-   - apply strategy
-5. UI shows preview:
-   - `Create application`
-   - `Save analysis`
-   - editable extracted fields
-6. User clicks `Save job`.
-7. App creates `Application` and `ApplicationAnalysis`.
-8. UI offers next actions:
+3. The app **instantly creates the Application record** with optimistic/placeholder fields (e.g., matching company name or title via basic client-side URL parsing, or asking the user for a quick 2-field entry).
+4. The user is redirected to the Application Workbench immediately, preventing a 5-10 second blocking spinner.
+5. In the background, the app calls `/api/ai/jobs/extract` to asynchronously parse the JD.
+6. The AI extracts job details and generates match analysis:
+   - company, title, tech stack, salary, location
+   - match score, verdict, red flags
+   - missing keywords, resume advice, apply strategy
+7. Once analysis finishes (updated via polling/SSE), the UI merges the extracted fields, updates the `Application` record, and populates the `ApplicationAnalysis` model.
+8. The UI offers subsequent actions:
    - `Draft cover letter`
    - `Tailor resume bullets`
    - `Create interview prep`
@@ -704,49 +675,19 @@ This route validates the proposal and creates:
 2. User changes status.
 3. User adds notes separately.
 
-### New Flow
+### New Flow (Deterministic Suggestions & Autocomplete)
 
-User can type in command palette, Today page, or application workbench:
+To prevent latency, token cost, and parsing fragility, we avoid raw NLP-to-DB updates. Instead:
 
-```txt
-I applied to Google today through LinkedIn.
-```
-
-AI proposes:
-
-```txt
-Create application
-Company: Google
-Role: needs confirmation
-Status: Applied
-Source: LinkedIn
-Date: Today
-```
-
-Or:
-
-```txt
-Move existing application
-Google - Frontend Developer
-Saved -> Applied
-Add note: Applied through LinkedIn today.
-```
+1. **Deterministic Autocomplete:** Inside the Command Palette, typing a command (e.g., `/status Google Applied`) uses client-side keyword matching against active applications. No LLM call is made.
+2. **AI Suggestion Cards:** Inside the Chat Panel, if a user mentions an update (e.g., *"I applied to Google today"*), the AI returns a formatted **Action Suggestion Card** containing a direct link/button to trigger the REST update. 
+3. **Implicit Contextual Forms:** Updates are applied deterministically via standard client-side forms/API calls, ensuring 100% precision.
 
 ### Required UI
 
-Create component:
-
-```txt
-src/components/ai/ActionPreviewCard.tsx
-```
-
-The card should support:
-
-- create
-- update
-- delete
-- generate-only artifacts
-- multi-action batches
+Update:
+- `src/components/CommandPalette.tsx` to handle prefix autocomplete commands.
+- `src/components/ai/ActionPreviewCard.tsx` to display deterministic UI buttons/cards suggested by the AI assistant.
 
 ### Required API
 
@@ -965,46 +906,45 @@ AI role:
 
 ## Required Data/Schema Changes
 
-### Option A: Minimal Schema
+### 1. Resume Text Content (Critical for Match Score)
 
-Use existing models and store action logs in `ChatMessage.metadata`.
-
-Pros:
-
-- fastest implementation
-- no migration needed
-
-Cons:
-
-- action audit data is mixed with chat data
-- harder to query action history
-
-### Option B: Add AIActionLog
-
-Recommended for production.
+Currently, the `Resume` model only stores file metadata. To enable accurate AI fit scoring, we must store the parsed text of the resume.
 
 ```prisma
-model AIActionLog {
+model Resume {
   id          String   @id @default(uuid())
   userId      String
-  sessionId   String?
-  entityType  String
-  entityId    String?
-  actionType  String
-  status      String   // proposed | applied | rejected | failed
-  confidence  String?
-  before      Json?
-  after       Json?
-  warnings    Json?
-  error       String?
+  title       String
+  fileName    String
+  fileUrl     String
+  fileSize    Int
+  isDefault   Boolean  @default(false)
+  textContent String?  // Added: Stores parsed/extracted text content of the resume
   createdAt   DateTime @default(now())
-  appliedAt   DateTime?
+  updatedAt   DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
-  @@index([userId, createdAt])
-  @@index([entityType, entityId])
+}
+```
+
+### 2. Action Tracking & Timeline (Audit trail)
+
+Instead of a heavy `AIActionLog` table that introduces complex sync overhead, we recommend **enriching the existing `StatusChange` model** with metadata to store the changes.
+
+```prisma
+model StatusChange {
+  id            String   @id @default(uuid())
+  applicationId String
+  fromStatus    String?
+  toStatus      String
+  changedAt     DateTime @default(now())
+  metadata      Json?    // Added: Stores metadata like { initiatedBy: "AI", confidence: "High" }
+
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId])
 }
 ```
 
@@ -1177,35 +1117,32 @@ PATCH /api/applications/[id]
 
 ## Phased Implementation
 
-## Phase 1: Stop The Biggest Friction
+## Phase 1: Asynchronous JD Intake & Parsing
 
 Goal:
 
-Make Dashboard/Today JD intake create real application proposals instead of redirecting to chat.
+Make Dashboard/Today JD intake create applications instantly and enrich them asynchronously without blocking user UI.
 
 Tasks:
 
 - Create `JDIntakePanel`.
 - Create `/api/ai/jobs/extract`.
-- Create `ActionPreviewCard`.
-- Create `/api/ai/jobs/apply-proposal`.
+- Add `textContent` parsing and storage to `Resume` model upload flow.
 - Replace Dashboard `Quick Analyze` redirect with inline JD intake.
-- Save `Application` + `ApplicationAnalysis` together after approval.
+- Save basic `Application` record optimistically and enrich with `ApplicationAnalysis` in the background.
 
 Success criteria:
 
-- User can paste JD from Dashboard.
-- AI extracts job details.
-- User can edit extracted fields.
-- User can save job without visiting `/ai-assistant`.
-- Created job appears in Applications.
+- User can paste JD from Dashboard and save immediately.
+- AI extracts job details asynchronously in the background.
+- Analysis matches against the actual parsed text of the default resume.
 - Analysis appears on application detail.
 
-## Phase 2: Application Workbench
+## Phase 2: Application Workbench & Tiered Emailer
 
 Goal:
 
-Make every application detail view feel like a complete work surface.
+Make every application detail view feel like a complete work surface with secure, zero-friction outreach tools.
 
 Tasks:
 
@@ -1213,50 +1150,31 @@ Tasks:
 - Add `ApplicationAIPanel`.
 - Move `ApplicationAnalysisSection` into workbench.
 - Refactor modal and full page to share the workbench.
-- Add actions:
-  - analyze match
-  - draft follow-up
-  - generate cover letter
-  - create interview prep
-  - update status
+- Add tiered email outreach support: subject/body generator, mailto links, clipboard copy buttons, and manual marking.
 
 Success criteria:
 
 - Opening an application from board/list/table exposes AI actions.
-- Full application page and modal show consistent capabilities.
+- User can trigger a draft outreach and open their native mail client with one click.
 - User does not need to navigate to AI Assistant for application-specific work.
 
-## Phase 3: AI Action Preview System
+## Phase 3: Command Autocomplete & Suggestion Cards
 
 Goal:
 
-Let users update tracker through natural language safely.
+Let users update tracker states safely without fragile NLP processing.
 
 Tasks:
 
-- Create `/api/ai/actions/preview`.
-- Create `/api/ai/actions/apply`.
-- Define Zod schemas for action payloads.
-- Support actions:
-  - create application
-  - update application
-  - update status
-  - create prep question
-  - create prep note
-  - update weekly goal progress
-  - update profile fields
-- Add action preview UI to:
-  - command palette
-  - Today page
-  - application workbench
+- Add autocomplete command support to `CommandPalette` (e.g. `/status`).
+- Support structured AI suggestion cards inside the chat UI (rendering clickable action buttons).
+- Support metadata payload tracking on existing models.
 
 Success criteria:
 
-- User can type "I applied to Google today through LinkedIn."
-- App proposes create/update action.
-- User applies action.
-- DB updates correctly.
-- Action is logged.
+- User can trigger updates via slash commands or suggestions.
+- DB updates are applied deterministically through REST APIs.
+- Action changes are correctly tracked in the status history timeline.
 
 ## Phase 4: Command Palette Upgrade
 
