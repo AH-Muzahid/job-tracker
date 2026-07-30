@@ -1,8 +1,10 @@
 "use client"
 
 import React, { useState } from 'react'
+import Image from 'next/image'
 
 interface NavLink {
+
   label: string
   href: string
   isActive?: boolean
@@ -66,10 +68,12 @@ const ResponsiveHeroBanner: React.FC<ResponsiveHeroBannerProps> = ({
 
   return (
     <section className="w-full isolate min-h-screen overflow-hidden relative">
-      <img
+      <Image
         src={backgroundImageUrl}
         alt=""
-        className="w-full h-full object-cover absolute top-0 right-0 bottom-0 left-0"
+        fill
+        unoptimized
+        className="object-cover"
       />
       <div className="pointer-events-none absolute inset-0 ring-1 ring-black/30" />
 

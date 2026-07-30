@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { DecorIcon } from "@/components/decor-icon";
@@ -86,19 +87,21 @@ export function HeroSection() {
 
 				<FullWidthDivider className="-top-px" />
 				<div className="overflow-hidden *:pointer-events-none *:aspect-video *:select-none">
-					<img
+					<Image
 						alt="light app screen"
 						className="dark:hidden"
-						height="auto"
+						height={720}
 						src="https://storage.efferd.com/screen/dashboard-light.webp"
-						width="auto"
+						width={1280}
+						priority
 					/>
-					<img
+					<Image
 						alt="dark app screen"
 						className="hidden dark:block"
-						height="auto"
+						height={720}
 						src="https://storage.efferd.com/screen/dashboard-dark.webp"
-						width="auto"
+						width={1280}
+						priority
 					/>
 				</div>
 				<FullWidthDivider className="-bottom-px" />

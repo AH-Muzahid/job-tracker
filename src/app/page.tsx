@@ -1,17 +1,20 @@
 import { Metadata } from "next"
 import { auth } from "@clerk/nextjs/server"
 import { redirect } from "next/navigation"
+import dynamic from "next/dynamic"
 import LenisProvider from "@/components/landing/LenisProvider"
 import { Header } from "@/components/header"
 import { HeroSection } from "@/components/hero"
 import { LogosSection } from "@/components/logos-section"
 import Features from "@/components/landing/Features"
-import { Integrations } from "@/components/integrations"
 import Stats from "@/components/landing/Stats"
-import FAQ from "@/components/landing/FAQ"
-import CTABanner from "@/components/landing/CTABanner"
-import { TestimonialsSection } from "@/components/testimonials-section"
 import { Footer } from "@/components/Footer"
+
+const Integrations = dynamic(() => import("@/components/integrations").then((m) => m.Integrations))
+const TestimonialsSection = dynamic(() => import("@/components/testimonials-section").then((m) => m.TestimonialsSection))
+const FAQ = dynamic(() => import("@/components/landing/FAQ"))
+const CTABanner = dynamic(() => import("@/components/landing/CTABanner"))
+
 
 export const metadata: Metadata = {
   title: "CareerTrack — Track Your Job Hunt Effortlessly",
