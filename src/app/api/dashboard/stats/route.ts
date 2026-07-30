@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { prisma } from "@/lib/prisma"
+import { prisma, withDbRetry } from "@/lib/prisma"
 import { getInternalUserId } from "@/lib/auth"
 
 const statuses = ["Saved", "Applied", "Assessment", "Interview", "Rejected", "Offer"] as const
@@ -12,57 +12,71 @@ export async function GET() {
 
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
 
-  const [grouped, groupedSource, recent, total, allByDate, followUpApps] = await Promise.all([
-    prisma.application.groupBy({
-      by: ["status"],
-      where: { userId },
-      _count: true,
-    }),
-    prisma.application.groupBy({
-      by: ["source"],
-      where: { userId },
-      _count: true,
-      orderBy: { _count: { source: "desc" } },
-    }),
-    prisma.application.findMany({
-      where: { userId },
-      orderBy: { createdAt: "desc" },
-      take: 5,
-    }),
-    prisma.application.count({ where: { userId } }),
-    prisma.application.findMany({
-      where: { userId },
-      select: { createdAt: true },
-      orderBy: { createdAt: "asc" },
-    }),
-    prisma.application.findMany({
-      where: {
-        userId,
-        status: { in: ["Applied", "Assessment"] },
-        applicationDate: { lte: sevenDaysAgo },
-      },
-      select: {
-        id: true,
-        companyName: true,
-        jobTitle: true,
-        applicationDate: true,
-        status: true,
-      },
-      orderBy: { applicationDate: "asc" },
-      take: 3,
-    }),
+  const [grouped, groupedSource, recent, total, monthlyTrend, followUpApps] = await Promise.all([
+    withDbRetry(() =>
+      prisma.application.groupBy({
+        by: ["status"],
+        where: { userId },
+        _count: true,
+      })
+    ),
+    withDbRetry(() =>
+      prisma.application.groupBy({
+        by: ["source"],
+        where: { userId },
+        _count: true,
+        orderBy: { _count: { source: "desc" } },
+      })
+    ),
+    withDbRetry(() =>
+      prisma.application.findMany({
+        where: { userId },
+        orderBy: { createdAt: "desc" },
+        take: 5,
+      })
+    ),
+    withDbRetry(() =>
+      prisma.application.count({ where: { userId } })
+    ),
+    // SQL aggregation instead of fetching ALL records — O(distinct months) vs O(N)
+    withDbRetry(() =>
+      prisma.$queryRaw<{ month: string; count: bigint }[]>`
+        SELECT TO_CHAR("createdAt", 'YYYY-MM') as month, COUNT(*)::bigint as count
+        FROM "Application"
+        WHERE "userId" = ${userId}
+        GROUP BY TO_CHAR("createdAt", 'YYYY-MM')
+        ORDER BY month ASC
+      `
+    ),
+    withDbRetry(() =>
+      prisma.application.findMany({
+        where: {
+          userId,
+          status: { in: ["Applied", "Assessment"] },
+          applicationDate: { lte: sevenDaysAgo },
+        },
+        select: {
+          id: true,
+          companyName: true,
+          jobTitle: true,
+          applicationDate: true,
+          status: true,
+        },
+        orderBy: { applicationDate: "asc" },
+        take: 3,
+      })
+    ),
   ])
 
   const countMap = Object.fromEntries(
     grouped.map((g) => [g.status, g._count])
   )
 
-  const monthlyMap: Record<string, number> = {}
-  for (const app of allByDate) {
-    const key = app.createdAt.toISOString().slice(0, 7)
-    monthlyMap[key] = (monthlyMap[key] || 0) + 1
-  }
-  const trend = Object.entries(monthlyMap).map(([month, count]) => ({ month, count }))
+  // Convert bigint from raw SQL to number for JSON serialization
+  const trend = monthlyTrend.map((row) => ({
+    month: row.month,
+    count: Number(row.count),
+  }))
 
   const bySource = groupedSource.map((g) => ({ source: g.source, count: g._count }))
 
