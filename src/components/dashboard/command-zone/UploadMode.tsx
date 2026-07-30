@@ -1,7 +1,7 @@
 "use client"
 
 import { useRef } from "react"
-import { Upload, Loader2, FileText } from "lucide-react"
+import { Loader2, FileText } from "lucide-react"
 
 interface Props {
   uploading: boolean
