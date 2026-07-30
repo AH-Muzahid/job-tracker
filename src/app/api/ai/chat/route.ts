@@ -56,6 +56,14 @@ export async function POST(request: NextRequest) {
     return new Response(JSON.stringify({ error: "Message is required" }), { status: 400 })
   }
 
+  const MAX_MESSAGE_LENGTH = 10_000
+  if (message.length > MAX_MESSAGE_LENGTH) {
+    return new Response(
+      JSON.stringify({ error: `Message too long. Maximum ${MAX_MESSAGE_LENGTH} characters allowed.` }),
+      { status: 400 }
+    )
+  }
+
   const mode: AIMode = (forcedMode || classifyMode(message)) as AIMode
   let sessionId = existingSessionId
 
