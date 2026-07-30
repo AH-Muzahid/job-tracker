@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma"
+import { prisma, withDbRetry } from "@/lib/prisma"
 import type {
   ApplicationQueryFilters,
   CreateApplicationDto,
@@ -51,81 +51,104 @@ export class ApplicationRepository {
         orderBy = { applicationDate: "desc" }
     }
 
-    const [applications, total] = await Promise.all([
-      prisma.application.findMany({
-        where,
-        orderBy,
-        skip,
-        take: pageSize,
-        include: {
-          tags: { include: { tag: { select: { id: true, name: true } } } },
-        },
-      }),
-      prisma.application.count({ where }),
-    ])
+    const [applications, total] = await withDbRetry(() =>
+      Promise.all([
+        prisma.application.findMany({
+          where,
+          orderBy,
+          skip,
+          take: pageSize,
+          include: {
+            tags: { include: { tag: { select: { id: true, name: true } } } },
+          },
+        }),
+        prisma.application.count({ where }),
+      ])
+    )
 
     return { data: applications, total, page, pageSize }
   }
 
   static async findById(id: string) {
-    return prisma.application.findUnique({
-      where: { id },
-      include: {
-        tags: { include: { tag: true } },
-        statusChanges: { orderBy: { changedAt: "desc" } },
-      },
-    })
+    return withDbRetry(() =>
+      prisma.application.findUnique({
+        where: { id },
+        include: {
+          tags: { include: { tag: true } },
+          statusChanges: { orderBy: { changedAt: "desc" } },
+        },
+      })
+    )
+  }
+
+  static async findDuplicate(userId: string, companyName: string, jobTitle: string) {
+    return withDbRetry(() =>
+      prisma.application.findFirst({
+        where: {
+          userId,
+          companyName: { equals: companyName, mode: "insensitive" },
+          jobTitle: { equals: jobTitle, mode: "insensitive" },
+        },
+        select: { id: true, companyName: true, jobTitle: true, status: true },
+      })
+    )
   }
 
   static async create(userId: string, data: CreateApplicationDto) {
-    return prisma.application.create({
-      data: {
-        userId,
-        companyName: data.companyName,
-        jobTitle: data.jobTitle,
-        jobUrl: data.jobUrl || null,
-        source: data.source,
-        applicationDate: new Date(data.applicationDate),
-        status: data.status,
-        notes: data.notes || null,
-        statusChanges: { create: { toStatus: data.status } },
-        ...(data.tagIds?.length
-          ? { tags: { create: data.tagIds.map((id) => ({ tagId: id })) } }
-          : {}),
-      },
-      include: { tags: { include: { tag: true } } },
-    })
+    return withDbRetry(() =>
+      prisma.application.create({
+        data: {
+          userId,
+          companyName: data.companyName,
+          jobTitle: data.jobTitle,
+          jobUrl: data.jobUrl || null,
+          source: data.source,
+          applicationDate: new Date(data.applicationDate),
+          status: data.status,
+          notes: data.notes || null,
+          statusChanges: { create: { toStatus: data.status } },
+          ...(data.tagIds?.length
+            ? { tags: { create: data.tagIds.map((id) => ({ tagId: id })) } }
+            : {}),
+        },
+        include: { tags: { include: { tag: true } } },
+      })
+    )
   }
 
   static async update(id: string, existingStatus: string, data: UpdateApplicationDto) {
     const newStatus = data.status
     const statusChanged = Boolean(newStatus && newStatus !== existingStatus)
 
-    return prisma.application.update({
-      where: { id },
-      data: {
-        ...(data.companyName && { companyName: data.companyName }),
-        ...(data.jobTitle && { jobTitle: data.jobTitle }),
-        ...(data.jobUrl !== undefined && { jobUrl: data.jobUrl }),
-        ...(data.source && { source: data.source }),
-        ...(data.applicationDate && { applicationDate: new Date(data.applicationDate) }),
-        ...(newStatus && { status: newStatus }),
-        ...(data.notes !== undefined && { notes: data.notes }),
-        ...(statusChanged
-          ? { statusChanges: { create: { fromStatus: existingStatus, toStatus: newStatus! } } }
-          : {}),
-        ...(data.tagIds
-          ? { tags: { deleteMany: {}, create: data.tagIds.map((tagId) => ({ tagId })) } }
-          : {}),
-      },
-      include: {
-        tags: { include: { tag: true } },
-        statusChanges: { orderBy: { changedAt: "desc" } },
-      },
-    })
+    return withDbRetry(() =>
+      prisma.application.update({
+        where: { id },
+        data: {
+          ...(data.companyName && { companyName: data.companyName }),
+          ...(data.jobTitle && { jobTitle: data.jobTitle }),
+          ...(data.jobUrl !== undefined && { jobUrl: data.jobUrl }),
+          ...(data.source && { source: data.source }),
+          ...(data.applicationDate && { applicationDate: new Date(data.applicationDate) }),
+          ...(newStatus && { status: newStatus }),
+          ...(data.notes !== undefined && { notes: data.notes }),
+          ...(statusChanged
+            ? { statusChanges: { create: { fromStatus: existingStatus, toStatus: newStatus! } } }
+            : {}),
+          ...(data.tagIds
+            ? { tags: { deleteMany: {}, create: data.tagIds.map((tagId) => ({ tagId })) } }
+            : {}),
+        },
+        include: {
+          tags: { include: { tag: true } },
+          statusChanges: { orderBy: { changedAt: "desc" } },
+        },
+      })
+    )
   }
 
   static async delete(id: string) {
-    return prisma.application.delete({ where: { id } })
+    return withDbRetry(() =>
+      prisma.application.delete({ where: { id } })
+    )
   }
 }
