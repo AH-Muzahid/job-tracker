@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Trash2, ExternalLink, Plus } from "lucide-react"
+import { ExternalLink, Plus } from "lucide-react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -20,7 +20,7 @@ interface Props {
   analysis: WorkbenchAnalysis | null
   analysisLoading: boolean
   onTriggerAnalysis: () => void
-  onDelete: () => void
+  onDelete?: () => void
   onUpdate: (updated: Application) => void
 }
 

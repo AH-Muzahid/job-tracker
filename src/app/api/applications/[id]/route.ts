@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
-import { prisma } from "@/lib/prisma"
 import { getInternalUserId } from "@/lib/auth"
+import { ApplicationService } from "@/features/applications"
 
 export async function GET(
   _req: NextRequest,
@@ -12,21 +12,13 @@ export async function GET(
   }
 
   const { id } = await params
+  const result = await ApplicationService.getApplication(userId, id)
 
-  const application = await prisma.application.findUnique({
-    where: { id },
-    include: { tags: { include: { tag: true } }, statusChanges: { orderBy: { changedAt: "desc" } } },
-  })
-
-  if (!application) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 })
+  if ("error" in result) {
+    return NextResponse.json({ error: result.error }, { status: result.status })
   }
 
-  if (application.userId !== userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 403 })
-  }
-
-  return NextResponse.json(application)
+  return NextResponse.json(result.data)
 }
 
 export async function PATCH(
@@ -40,58 +32,15 @@ export async function PATCH(
 
   const { id } = await params
 
-  const existing = await prisma.application.findUnique({ where: { id } })
-
-  if (!existing) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 })
-  }
-
-  if (existing.userId !== userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 403 })
-  }
-
   try {
     const body = await req.json()
+    const result = await ApplicationService.updateApplication(userId, id, body)
 
-    const validStatuses = ["Saved", "Applied", "Assessment", "Interview", "Rejected", "Offer"]
-    if (body.status && !validStatuses.includes(body.status)) {
-      return NextResponse.json(
-        { error: `Invalid status. Must be one of: ${validStatuses.join(", ")}` },
-        { status: 400 }
-      )
+    if ("error" in result) {
+      return NextResponse.json({ error: result.error }, { status: result.status })
     }
 
-    const validSources = [
-      "LinkedIn", "Bdjobs", "Indeed", "Wellfound",
-      "Facebook", "Referral", "Other",
-    ]
-    if (body.source && !validSources.includes(body.source)) {
-      return NextResponse.json(
-        { error: `Invalid source. Must be one of: ${validSources.join(", ")}` },
-        { status: 400 }
-      )
-    }
-
-    const newStatus = body.status
-    const statusChanged = newStatus && newStatus !== existing.status
-
-    const application = await prisma.application.update({
-      where: { id },
-      data: {
-        ...(body.companyName && { companyName: body.companyName }),
-        ...(body.jobTitle && { jobTitle: body.jobTitle }),
-        ...(body.jobUrl !== undefined && { jobUrl: body.jobUrl }),
-        ...(body.source && { source: body.source }),
-        ...(body.applicationDate && { applicationDate: new Date(body.applicationDate) }),
-        ...(newStatus && { status: newStatus }),
-        ...(body.notes !== undefined && { notes: body.notes }),
-        ...(statusChanged ? { statusChanges: { create: { fromStatus: existing.status, toStatus: newStatus } } } : {}),
-        ...(body.tagIds ? { tags: { deleteMany: {}, create: body.tagIds.map((id: string) => ({ tagId: id })) } } : {}),
-      },
-      include: { tags: { include: { tag: true } }, statusChanges: { orderBy: { changedAt: "desc" } } },
-    })
-
-    return NextResponse.json(application)
+    return NextResponse.json(result.data)
   } catch {
     return NextResponse.json(
       { error: "Invalid request body" },
@@ -110,18 +59,12 @@ export async function DELETE(
   }
 
   const { id } = await params
+  const result = await ApplicationService.deleteApplication(userId, id)
 
-  const existing = await prisma.application.findUnique({ where: { id } })
-
-  if (!existing) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 })
+  if ("error" in result) {
+    return NextResponse.json({ error: result.error }, { status: result.status })
   }
-
-  if (existing.userId !== userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 403 })
-  }
-
-  await prisma.application.delete({ where: { id } })
 
   return NextResponse.json({ success: true })
 }
+
