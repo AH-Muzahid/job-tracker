@@ -15,6 +15,8 @@ import { FitAssessmentCard } from "./FitAssessmentCard"
 import { OutreachAssistantCard } from "./OutreachAssistantCard"
 import { MilestoneTimeline } from "./MilestoneTimeline"
 
+import { useTags, useCreateTag } from "@/lib/api"
+
 interface Props {
   application: Application
   analysis: WorkbenchAnalysis | null
@@ -44,8 +46,10 @@ export function ApplicationWorkbench({
   const [notes, setNotes] = useState(application.notes || "")
   const [isSaving, setIsSaving] = useState(false)
 
-  // Tags System
-  const [allTags, setAllTags] = useState<{ id: string; name: string }[]>([])
+  // Tags System via React Query
+  const { data: fetchedTags } = useTags()
+  const createTagMutation = useCreateTag()
+  const allTags = fetchedTags || []
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>(application.tags.map((t) => t.tag.id))
   const [newTagName, setNewTagName] = useState("")
 
@@ -93,14 +97,6 @@ export function ApplicationWorkbench({
     } catch {}
   }, [application.id, application.jobTitle])
 
-  // Fetch all tags
-  useEffect(() => {
-    fetch("/api/tags")
-      .then((res) => res.json())
-      .then(setAllTags)
-      .catch(console.error)
-  }, [])
-
   const handleUpdateDetails = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSaving(true)
@@ -135,14 +131,7 @@ export function ApplicationWorkbench({
   const handleCreateTag = async () => {
     if (!newTagName.trim()) return
     try {
-      const res = await fetch("/api/tags", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newTagName.trim() }),
-      })
-      if (!res.ok) throw new Error("Failed to create tag")
-      const newTag = await res.json()
-      setAllTags((prev) => [...prev, newTag])
+      const newTag = await createTagMutation.mutateAsync(newTagName.trim())
       setSelectedTagIds((prev) => [...prev, newTag.id])
       setNewTagName("")
       toast.success(`Tag "${newTag.name}" created`)

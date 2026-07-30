@@ -235,3 +235,34 @@ export function useDeleteWeeklyGoal() {
   })
 }
 
+// ==================== Tags ====================
+
+export function useTags() {
+  return useQuery({
+    queryKey: ["tags"],
+    queryFn: async () => {
+      const res = await fetch("/api/tags")
+      if (!res.ok) throw new Error("Failed to load tags")
+      return res.json() as Promise<{ id: string; name: string }[]>
+    },
+    staleTime: 60_000,
+  })
+}
+
+export function useCreateTag() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (name: string) => {
+      const res = await fetch("/api/tags", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      })
+      if (!res.ok) throw new Error("Failed to create tag")
+      return res.json() as Promise<{ id: string; name: string }>
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ["tags"] }),
+  })
+}
+
+

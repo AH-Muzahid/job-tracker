@@ -28,6 +28,19 @@ export class ApplicationService {
       return { error: validation.error, status: 400 }
     }
 
+    // Check for duplicate application (same company + job title)
+    const existing = await ApplicationRepository.findDuplicate(
+      userId,
+      (data as CreateApplicationDto).companyName,
+      (data as CreateApplicationDto).jobTitle
+    )
+    if (existing) {
+      return {
+        error: `You already have an application for "${existing.jobTitle}" at "${existing.companyName}" (status: ${existing.status})`,
+        status: 409,
+      }
+    }
+
     const application = await ApplicationRepository.create(userId, data as CreateApplicationDto)
     return { data: application, status: 201 }
   }
