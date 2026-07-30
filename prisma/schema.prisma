@@ -49,6 +49,8 @@ model Application {
 
   @@index([userId])
   @@index([companyId])
+  @@index([userId, status])
+  @@index([userId, createdAt])
 }
 
 model StatusChange {
