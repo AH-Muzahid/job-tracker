@@ -1,16 +1,17 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useUser } from "@clerk/nextjs"
-import { Plus, Sparkles, Loader2, Upload, Clipboard, CheckCircle, AlertCircle, FileText, ArrowRight } from "lucide-react"
+import { Plus, Sparkles, Upload, Clipboard } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { toast } from "sonner"
+
+import { AnalysisResultModal, AnalysisResultData } from "./command-zone/AnalysisResultModal"
+import { ScanIntakeMode } from "./command-zone/ScanIntakeMode"
+import { UploadMode } from "./command-zone/UploadMode"
+import { ManualEntryMode } from "./command-zone/ManualEntryMode"
 
 interface BentoCommandZoneProps {
   activePipeline: number
@@ -27,14 +28,11 @@ export default function BentoCommandZone({ activePipeline, totalThisWeek = 0 }: 
   // Scan state
   const [jdText, setJdText] = useState("")
   const [aiLoading, setAiLoading] = useState(false)
-
-  // Real-time quick detection heuristic
   const [detectedCompany, setDetectedCompany] = useState<string | null>(null)
   const [detectedRole, setDetectedRole] = useState<string | null>(null)
 
   // Upload state
   const [uploading, setUploading] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Manual state
   const [manualCompany, setManualCompany] = useState("")
@@ -43,8 +41,7 @@ export default function BentoCommandZone({ activePipeline, totalThisWeek = 0 }: 
   const [manualLoading, setManualLoading] = useState(false)
 
   // Result Modal State
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [analysisResult, setAnalysisResult] = useState<any>(null)
+  const [analysisResult, setAnalysisResult] = useState<AnalysisResultData | null>(null)
   const [savingAction, setSavingAction] = useState(false)
 
   const firstName = user?.firstName || "there"
@@ -57,7 +54,6 @@ export default function BentoCommandZone({ activePipeline, totalThisWeek = 0 }: 
       setDetectedRole(null)
       return
     }
-    // Simple heuristic regex checks for immediate visual feedback
     const companyMatch = jdText.match(/(?:at|about|company:?)\s+([A-Z][A-Za-z0-9\s&]{2,20})/i)
     const roleMatch = jdText.match(/(?:looking for a|hiring a|role:?|title:?)\s+([A-Z][A-Za-z0-9\s-]{3,25})/i)
     if (companyMatch) setDetectedCompany(companyMatch[1].trim())
@@ -110,14 +106,6 @@ export default function BentoCommandZone({ activePipeline, totalThisWeek = 0 }: 
     }
   }
 
-  // Drag and drop events
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault()
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      handleFileUpload(e.dataTransfer.files[0])
-    }
-  }
-
   // AI Scan Submission
   const handleAiScan = async (e?: React.FormEvent) => {
     if (e) e.preventDefault()
@@ -129,28 +117,12 @@ export default function BentoCommandZone({ activePipeline, totalThisWeek = 0 }: 
     setAiLoading(true)
     setAnalysisResult(null)
 
-    const steps = [
-      "Extracting role snapshot & tech stack...",
-      "Matching with your profile skills...",
-      "Evaluating strengths & red flags...",
-      "Compiling application strategy...",
-    ]
-
-    let currentStep = 0
-    const stepInterval = setInterval(() => {
-      if (currentStep < steps.length - 1) {
-        currentStep++
-      }
-    }, 1400)
-
     try {
       const response = await fetch("/api/ai/scan-jd", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ jdText }),
       })
-
-      clearInterval(stepInterval)
 
       if (!response.ok) {
         const errorData = await response.json()
@@ -161,7 +133,6 @@ export default function BentoCommandZone({ activePipeline, totalThisWeek = 0 }: 
       setAnalysisResult(data)
       toast.success("AI Compatibility Scan Completed!")
     } catch (error: unknown) {
-      clearInterval(stepInterval)
       const errMsg = error instanceof Error ? error.message : "Something went wrong"
       toast.error(errMsg)
     } finally {
@@ -346,143 +317,33 @@ export default function BentoCommandZone({ activePipeline, totalThisWeek = 0 }: 
 
             {/* MODE 1: Text Area Scan */}
             {mode === "scan" && (
-              <form onSubmit={handleAiScan} className="space-y-2.5">
-                <div className="relative">
-                  <Textarea
-                    placeholder="Paste job description here..."
-                    className="min-h-[100px] max-h-[160px] text-xs leading-relaxed resize-none bg-background/80 border-border/80 focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-0 placeholder:text-muted-foreground/50 rounded-xl"
-                    value={jdText}
-                    onChange={(e) => setJdText(e.target.value)}
-                  />
-                  {(detectedCompany || detectedRole) && (
-                    <div className="absolute bottom-2.5 right-2.5 flex items-center gap-1.5">
-                      {detectedCompany && (
-                        <span className="text-[9px] font-mono bg-muted/80 border border-border/60 text-muted-foreground px-2 py-0.5 rounded-full">
-                          🏢 {detectedCompany}
-                        </span>
-                      )}
-                      {detectedRole && (
-                        <span className="text-[9px] font-mono bg-muted/80 border border-border/60 text-muted-foreground px-2 py-0.5 rounded-full truncate max-w-[120px]">
-                          💼 {detectedRole}
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-mono text-muted-foreground">
-                    {jdText.length > 0 ? `${jdText.length} chars` : "Supports full JD text"}
-                  </span>
-
-                  <Button
-                    type="submit"
-                    size="sm"
-                    disabled={aiLoading || !jdText.trim()}
-                    className="text-xs font-semibold h-8 px-4 cursor-pointer"
-                  >
-                    {aiLoading ? (
-                      <>
-                        <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
-                        Analyzing...
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="h-3.5 w-3.5 mr-1.5 text-primary-foreground" />
-                        Intake & Analyze
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </form>
+              <ScanIntakeMode
+                jdText={jdText}
+                setJdText={setJdText}
+                detectedCompany={detectedCompany}
+                detectedRole={detectedRole}
+                aiLoading={aiLoading}
+                onSubmit={handleAiScan}
+              />
             )}
 
             {/* MODE 2: Drop File */}
             {mode === "upload" && (
-              <div
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={handleDrop}
-                onClick={() => fileInputRef.current?.click()}
-                className="border-2 border-dashed border-border/80 hover:border-primary/50 bg-background/50 hover:bg-muted/30 transition-all rounded-xl p-6 text-center cursor-pointer flex flex-col items-center justify-center space-y-2 min-h-[110px]"
-              >
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".pdf,.txt,.doc,.docx"
-                  className="hidden"
-                  onChange={(e) => {
-                    if (e.target.files?.[0]) handleFileUpload(e.target.files[0])
-                  }}
-                />
-                {uploading ? (
-                  <Loader2 className="h-6 w-6 text-primary animate-spin" />
-                ) : (
-                  <FileText className="h-6 w-6 text-muted-foreground" />
-                )}
-                <div>
-                  <p className="text-xs font-semibold text-foreground">
-                    {uploading ? "Extracting file text..." : "Click or drag & drop JD file (PDF, TXT)"}
-                  </p>
-                  <p className="text-[10px] text-muted-foreground mt-0.5 font-mono">
-                    Text will automatically load into analysis mode
-                  </p>
-                </div>
-              </div>
+              <UploadMode uploading={uploading} onFileUpload={handleFileUpload} />
             )}
 
             {/* MODE 3: Manual Entry */}
             {mode === "manual" && (
-              <form onSubmit={handleManualSubmit} className="space-y-2.5">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  <Input
-                    placeholder="Company name"
-                    className="h-9 text-xs bg-background/80 border-border/80"
-                    value={manualCompany}
-                    onChange={(e) => setManualCompany(e.target.value)}
-                    disabled={manualLoading}
-                  />
-                  <Input
-                    placeholder="Job title"
-                    className="h-9 text-xs bg-background/80 border-border/80"
-                    value={manualTitle}
-                    onChange={(e) => setManualTitle(e.target.value)}
-                    disabled={manualLoading}
-                  />
-                  <Select value={manualSource} onValueChange={setManualSource} disabled={manualLoading}>
-                    <SelectTrigger className="h-9 text-xs bg-background/80 border-border/80">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {["LinkedIn", "Bdjobs", "Indeed", "Wellfound", "Facebook", "Referral", "Other"].map((s) => (
-                        <SelectItem key={s} value={s} className="text-xs">
-                          {s}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="flex justify-end">
-                  <Button
-                    type="submit"
-                    size="sm"
-                    disabled={manualLoading || !manualCompany.trim() || !manualTitle.trim()}
-                    className="text-xs font-semibold h-8 px-4 cursor-pointer"
-                  >
-                    {manualLoading ? (
-                      <>
-                        <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
-                        Saving...
-                      </>
-                    ) : (
-                      <>
-                        <Plus className="h-3.5 w-3.5 mr-1.5" />
-                        Add Application
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </form>
+              <ManualEntryMode
+                manualCompany={manualCompany}
+                setManualCompany={setManualCompany}
+                manualTitle={manualTitle}
+                setManualTitle={setManualTitle}
+                manualSource={manualSource}
+                setManualSource={setManualSource}
+                manualLoading={manualLoading}
+                onSubmit={handleManualSubmit}
+              />
             )}
 
           </div>
@@ -490,114 +351,12 @@ export default function BentoCommandZone({ activePipeline, totalThisWeek = 0 }: 
       </div>
 
       {/* Floating Action Modal for AI Fit Analysis Results */}
-      {analysisResult && (
-        <Dialog open={!!analysisResult} onOpenChange={() => setAnalysisResult(null)}>
-          <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto rounded-2xl border-border bg-card p-6 shadow-2xl">
-            <DialogHeader className="border-b border-border pb-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <span className="text-[10px] font-mono font-semibold text-primary uppercase tracking-wider">
-                    AI Fit Analysis
-                  </span>
-                  <DialogTitle className="text-base font-bold text-foreground mt-0.5">
-                    {analysisResult.roleSnapshot?.role || "Target Role"}
-                  </DialogTitle>
-                  <p className="text-xs text-muted-foreground">
-                    {analysisResult.roleSnapshot?.company || "Unknown Company"}
-                  </p>
-                </div>
-                <div className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-primary/40 bg-muted/40 font-mono font-bold text-sm text-foreground">
-                  {analysisResult.matchScore}%
-                </div>
-              </div>
-            </DialogHeader>
-
-            <div className="space-y-4 pt-2">
-              {/* Verdict Banner */}
-              <div className="flex items-center justify-between p-3 rounded-xl bg-muted/40 border border-border text-xs">
-                <span className="font-semibold text-foreground">Verdict: {analysisResult.verdict}</span>
-                <span className="text-[10px] font-mono text-muted-foreground">Confidence: {analysisResult.confidence}</span>
-              </div>
-
-              {/* Red flags if any */}
-              {analysisResult.redFlags && (
-                <div className="p-3 rounded-xl border border-destructive/20 bg-destructive/5 text-xs space-y-1">
-                  <div className="flex items-center gap-1.5 text-destructive font-semibold">
-                    <AlertCircle className="h-3.5 w-3.5" />
-                    <span>Cautions & Red Flags</span>
-                  </div>
-                  <p className="text-muted-foreground text-[11px] leading-relaxed">{analysisResult.redFlags}</p>
-                </div>
-              )}
-
-              {/* Highlights */}
-              {analysisResult.whyThisScore?.length > 0 && (
-                <div className="space-y-1">
-                  <h4 className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Why this score</h4>
-                  <ul className="space-y-1">
-                    {analysisResult.whyThisScore.map((reason: string, i: number) => (
-                      <li key={i} className="text-xs text-foreground/90 flex items-start gap-2">
-                        <CheckCircle className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
-                        <span>{reason}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {/* Missing keywords */}
-              {analysisResult.missingGaps?.missingKeywords?.length > 0 && (
-                <div>
-                  <h4 className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-1.5">Missing Keywords</h4>
-                  <div className="flex flex-wrap gap-1">
-                    {analysisResult.missingGaps.missingKeywords.map((kw: string, i: number) => (
-                      <Badge key={i} variant="outline" className="text-[10px] font-mono border-border/80">
-                        {kw}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Recommendation */}
-              <div className="pt-2 border-t border-border/60">
-                <h4 className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-1">Recommendation</h4>
-                <p className="text-xs text-muted-foreground leading-relaxed">{analysisResult.finalRecommendation}</p>
-              </div>
-            </div>
-
-            {/* Action buttons */}
-            <div className="pt-4 border-t border-border flex items-center justify-end gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setAnalysisResult(null)}
-                className="text-xs cursor-pointer"
-              >
-                Discard
-              </Button>
-              <Button
-                size="sm"
-                disabled={savingAction}
-                onClick={() => handleSaveFromAI("Saved")}
-                className="text-xs font-semibold cursor-pointer"
-              >
-                {savingAction ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : null}
-                Save as Saved <ArrowRight className="h-3 w-3 ml-1" />
-              </Button>
-              <Button
-                size="sm"
-                disabled={savingAction}
-                onClick={() => handleSaveFromAI("Applied")}
-                className="text-xs font-semibold cursor-pointer"
-              >
-                {savingAction ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : null}
-                Mark Applied
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
+      <AnalysisResultModal
+        analysisResult={analysisResult}
+        onClose={() => setAnalysisResult(null)}
+        onSave={handleSaveFromAI}
+        saving={savingAction}
+      />
     </>
   )
 }
