@@ -1,5 +1,5 @@
 import { clerkMiddleware } from "@clerk/nextjs/server"
-import { NextResponse } from "next/server"
+
 
 const PROTECTED_PATHS = [
   "/dashboard", "/applications",

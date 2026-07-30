@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { ExternalLink, Plus } from "lucide-react"
+import { ExternalLink, Plus, Trash2 } from "lucide-react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -34,7 +34,7 @@ export function ApplicationWorkbench({
 }: Props) {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<"details" | "timeline" | "outreach">("details")
-  
+
   // Edit Form Fields
   const [companyName, setCompanyName] = useState(application.companyName)
   const [jobTitle, setJobTitle] = useState(application.jobTitle)
@@ -282,6 +282,17 @@ export function ApplicationWorkbench({
                 Status History
               </Button>
             </div>
+            {onDelete && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={onDelete}
+                className="text-xs h-8 text-destructive hover:bg-destructive/10 hover:text-destructive font-semibold cursor-pointer"
+              >
+                <Trash2 className="h-3.5 w-3.5 mr-1" /> Delete
+              </Button>
+            )}
           </CardHeader>
           <CardContent className="p-5 pt-4">
             {activeTab === "details" && (

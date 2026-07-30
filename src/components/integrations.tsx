@@ -117,12 +117,14 @@ function GlowParticle({
 /*               CARD 1: TRACKING VISUAL               */
 /* ══════════════════════════════════════════════════════ */
 
+const TARGET_COUNTS = [247, 89, 8];
+
 function TrackingVisual() {
 	const [counts, setCounts] = useState([0, 0, 0]);
-	const targets = [247, 89, 8];
 
 	useEffect(() => {
-		const timeouts = targets.map((target, i) =>
+		const timeouts = TARGET_COUNTS.map((target, i) =>
+
 			setTimeout(() => {
 				let current = 0;
 				const step = Math.ceil(target / 35);
