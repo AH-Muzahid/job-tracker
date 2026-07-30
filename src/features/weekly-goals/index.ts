@@ -1,3 +1,7 @@
+export * from "./weekly-goals.types"
+export * from "./weekly-goals.validation"
+export * from "./weekly-goals.repository"
+export * from "./weekly-goals.service"
 export * from "@/components/weekly-goals/WeeklyGoalForm"
 export * from "@/components/weekly-goals/WeeklyGoalsWidget"
 export * from "@/components/weekly-goals/WeeklyReviewCard"

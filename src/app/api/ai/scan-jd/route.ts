@@ -20,10 +20,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "AI provider not configured" }, { status: 400 })
   }
 
-  let aiConfig: { providerType: string; apiKey: string; baseUrl?: string; model?: string }
+  let aiConfig: { userId?: string; providerType: string; apiKey: string; baseUrl?: string; model?: string }
   try {
     const decrypted = decrypt(encrypted)
     aiConfig = JSON.parse(decrypted)
+    if (aiConfig.userId && aiConfig.userId !== userId) {
+      return NextResponse.json({ error: "AI key belongs to another user" }, { status: 403 })
+    }
   } catch {
     return NextResponse.json({ error: "Invalid AI configuration" }, { status: 400 })
   }
@@ -60,13 +63,18 @@ export async function POST(request: NextRequest) {
     ),
   ])
 
+interface ProjectDetail {
+  name: string
+  stack?: string
+  description?: string
+}
+
   let userContext = `Candidate: ${user?.name || "Candidate"}`
   if (profile) {
     userContext += `\nLevel: ${profile.experienceLevel || "Not specified"}`
     userContext += `\nSkills: ${profile.strengths || "Not specified"}`
     if (profile.bestProjects) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const projects = profile.bestProjects as Array<any>
+      const projects = profile.bestProjects as unknown as ProjectDetail[]
       if (Array.isArray(projects) && projects.length > 0) {
         userContext += "\nProjects: " + projects.map((p) => `${p.name} (${p.stack || ""}): ${p.description || ""}`).join("; ")
       }

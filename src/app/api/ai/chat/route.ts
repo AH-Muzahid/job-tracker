@@ -41,10 +41,13 @@ export async function POST(request: NextRequest) {
     return new Response(JSON.stringify({ error: "AI provider not configured. Go to Settings to set up your API key." }), { status: 400 })
   }
 
-  let aiConfig: { providerType: string; apiKey: string; baseUrl?: string; model?: string }
+  let aiConfig: { userId?: string; providerType: string; apiKey: string; baseUrl?: string; model?: string }
   try {
     const decrypted = decrypt(encrypted)
     aiConfig = JSON.parse(decrypted)
+    if (aiConfig.userId && aiConfig.userId !== userId) {
+      return new Response(JSON.stringify({ error: "AI key belongs to another user. Please reconfigure in Settings." }), { status: 403 })
+    }
   } catch {
     return new Response(JSON.stringify({ error: "Invalid AI configuration. Please reconfigure in Settings." }), { status: 400 })
   }

@@ -1,56 +1,26 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest } from "next/server"
 import { getInternalUserId } from "@/lib/auth"
-import { prisma, withDbRetry } from "@/lib/prisma"
+import { WeeklyGoalsService } from "@/features/weekly-goals"
+import { ResponseUtil } from "@/lib/api-response"
 
 export async function GET() {
   const userId = await getInternalUserId()
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  if (!userId) return ResponseUtil.unauthorized()
 
-  const goals = await withDbRetry(() =>
-    prisma.weeklyGoal.findMany({
-      where: { userId },
-      orderBy: { weekStart: "desc" },
-      take: 12,
-    })
-  )
-
-  return NextResponse.json(goals)
+  const goals = await WeeklyGoalsService.listGoals(userId)
+  return ResponseUtil.success(goals)
 }
 
 export async function POST(request: NextRequest) {
   const userId = await getInternalUserId()
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  if (!userId) return ResponseUtil.unauthorized()
 
   const body = await request.json()
+  const result = await WeeklyGoalsService.saveCurrentWeekGoal(userId, body)
 
-  if (!body.goal1 || typeof body.goal1 !== "string" || !body.goal1.trim()) {
-    return NextResponse.json({ error: "goal1 is required" }, { status: 400 })
+  if ("error" in result) {
+    return ResponseUtil.error(result.error || "Failed to save goal", result.status)
   }
 
-  const now = new Date()
-  const weekStart = new Date(now)
-  weekStart.setDate(now.getDate() - now.getDay() + 1)
-  weekStart.setHours(0, 0, 0, 0)
-
-  const goalData = {
-    goal1: body.goal1,
-    goal1Target: body.goal1Target ?? null,
-    goal2: body.goal2 ?? null,
-    goal2Target: body.goal2Target ?? null,
-    goal3: body.goal3 ?? null,
-    goal3Target: body.goal3Target ?? null,
-    blockers: body.blockers ?? null,
-    notes: body.notes ?? null,
-  }
-
-  // Use upsert instead of find + update/create to avoid 2 queries
-  const goal = await withDbRetry(() =>
-    prisma.weeklyGoal.upsert({
-      where: { userId_weekStart: { userId, weekStart } },
-      update: goalData,
-      create: { userId, weekStart, ...goalData },
-    })
-  )
-
-  return NextResponse.json(goal)
+  return ResponseUtil.success(result.data)
 }

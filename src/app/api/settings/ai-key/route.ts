@@ -19,6 +19,12 @@ export async function GET() {
   try {
     const decrypted = decrypt(encrypted)
     const config = JSON.parse(decrypted)
+    
+    // Per-user cookie isolation check
+    if (config.userId && config.userId !== userId) {
+      return NextResponse.json({ hasKey: false })
+    }
+
     return NextResponse.json({
       hasKey: true,
       providerType: config.providerType,
@@ -54,7 +60,9 @@ export async function PUT(request: NextRequest) {
     try {
       const decrypted = decrypt(existingEncrypted)
       const parsed = JSON.parse(decrypted)
-      finalApiKey = parsed.apiKey
+      if (!parsed.userId || parsed.userId === userId) {
+        finalApiKey = parsed.apiKey
+      }
     } catch {}
   }
 
@@ -62,7 +70,8 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: "apiKey is required" }, { status: 400 })
   }
 
-  const config = { providerType, apiKey: finalApiKey, baseUrl, model }
+  // Bind configuration to the specific user ID for multi-tenant isolation
+  const config = { userId, providerType, apiKey: finalApiKey, baseUrl, model }
   const encrypted = encrypt(JSON.stringify(config))
 
   cookieStore.set(COOKIE_NAME, encrypted, {
@@ -70,7 +79,7 @@ export async function PUT(request: NextRequest) {
     secure: process.env.NODE_ENV === "production",
     sameSite: "strict",
     path: "/",
-    maxAge: 60 * 60 * 24 * 365,
+    maxAge: 60 * 60 * 24 * 30, // 30 days maximum
   })
 
   return NextResponse.json({ success: true })
