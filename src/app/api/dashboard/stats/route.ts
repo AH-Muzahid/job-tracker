@@ -12,43 +12,33 @@ export async function GET() {
 
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
 
-  const [grouped, groupedSource, recent, total, monthlyTrend, followUpApps] = await Promise.all([
-    withDbRetry(() =>
+  // Single retry wrapper around Promise.all to prevent 6 parallel retry loops colliding
+  const [grouped, groupedSource, recent, total, monthlyTrend, followUpApps] = await withDbRetry(() =>
+    Promise.all([
       prisma.application.groupBy({
         by: ["status"],
         where: { userId },
         _count: true,
-      })
-    ),
-    withDbRetry(() =>
+      }),
       prisma.application.groupBy({
         by: ["source"],
         where: { userId },
         _count: true,
         orderBy: { _count: { source: "desc" } },
-      })
-    ),
-    withDbRetry(() =>
+      }),
       prisma.application.findMany({
         where: { userId },
         orderBy: { createdAt: "desc" },
         take: 5,
-      })
-    ),
-    withDbRetry(() =>
-      prisma.application.count({ where: { userId } })
-    ),
-    // SQL aggregation instead of fetching ALL records — O(distinct months) vs O(N)
-    withDbRetry(() =>
+      }),
+      prisma.application.count({ where: { userId } }),
       prisma.$queryRaw<{ month: string; count: bigint }[]>`
         SELECT TO_CHAR("createdAt", 'YYYY-MM') as month, COUNT(*)::bigint as count
         FROM "Application"
         WHERE "userId" = ${userId}
         GROUP BY TO_CHAR("createdAt", 'YYYY-MM')
         ORDER BY month ASC
-      `
-    ),
-    withDbRetry(() =>
+      `,
       prisma.application.findMany({
         where: {
           userId,
@@ -64,15 +54,14 @@ export async function GET() {
         },
         orderBy: { applicationDate: "asc" },
         take: 3,
-      })
-    ),
-  ])
+      }),
+    ])
+  )
 
   const countMap = Object.fromEntries(
     grouped.map((g) => [g.status, g._count])
   )
 
-  // Convert bigint from raw SQL to number for JSON serialization
   const trend = monthlyTrend.map((row) => ({
     month: row.month,
     count: Number(row.count),

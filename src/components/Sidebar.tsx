@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation"
 import { useUser } from "@clerk/nextjs"
 import {
   LayoutDashboard, Briefcase, Building2,
-  Brain, FileText, CalendarDays, Bot, UserCircle2,
+  Brain, FileText, CalendarDays, Bot, UserCircle2, Settings,
   PanelLeftClose, PanelLeft,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -22,6 +22,7 @@ const navItems = [
   { href: "/resumes", label: "Resumes", icon: FileText },
   { href: "/calendar", label: "Calendar", icon: CalendarDays },
   { href: "/profile-setup", label: "Profile", icon: UserCircle2 },
+  { href: "/settings", label: "Settings", icon: Settings },
 ]
 
 export default function Sidebar() {

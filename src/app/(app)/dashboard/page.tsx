@@ -18,7 +18,7 @@ function DashboardContent() {
   const { data: weeklyGoals, isLoading: goalsLoading } = useWeeklyGoals()
 
   useEffect(() => {
-    if (isLoaded && !isSignedIn) router.push("/login")
+    if (isLoaded && !isSignedIn) router.push("/sign-in")
   }, [isLoaded, isSignedIn, router])
 
   if (!isLoaded || isLoading) return <DashboardBentoSkeleton />

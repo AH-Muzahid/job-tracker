@@ -2,6 +2,7 @@
 
 import { CalendarDays, Plus, TrendingUp } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import ReminderBell from "@/components/notifications/ReminderBell"
 
 export default function DashboardHeader({
   dateRange,
@@ -26,6 +27,7 @@ export default function DashboardHeader({
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
+        <ReminderBell />
         <div className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm text-muted-foreground">
           <CalendarDays className="h-4 w-4" />
           <span>{dateRange}</span>

@@ -23,6 +23,8 @@ export function useStats() {
       return res.json()
     },
     staleTime: 30_000,
+    retry: 1,
+    retryDelay: 500,
   })
 }
 

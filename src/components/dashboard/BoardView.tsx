@@ -1,5 +1,6 @@
 "use client"
 
+import { useMemo } from "react"
 import { Plus, MoreHorizontal } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -22,12 +23,16 @@ interface Props {
 }
 
 export default function BoardView({ applications, onSelect, onAddNew, onEdit, onDelete, onMoveTo, onDragEnd }: Props) {
-  const board = boardColumns.map((column) => ({
-    ...column,
-    items: applications.filter((application) =>
-      (column.statuses as readonly string[]).includes(application.status)
-    ),
-  }))
+  const board = useMemo(
+    () =>
+      boardColumns.map((column) => ({
+        ...column,
+        items: applications.filter((application) =>
+          (column.statuses as readonly string[]).includes(application.status)
+        ),
+      })),
+    [applications]
+  )
 
   return (
     <DragDropContext onDragEnd={onDragEnd}>
