@@ -1,47 +1,56 @@
 import { generateText } from "ai"
-import { cookies } from "next/headers"
 import { getInternalUserId } from "@/lib/auth"
 import { getProvider } from "@/lib/ai/client"
-import { decrypt } from "@/lib/encryption"
+import { getUserAIConfig } from "@/lib/ai/config"
 
-export async function POST() {
+export async function POST(request: Request) {
   const userId = await getInternalUserId()
   if (!userId) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 })
   }
 
-  const cookieStore = await cookies()
-  const encrypted = cookieStore.get("ai_config")?.value
-  if (!encrypted) {
-    return new Response(JSON.stringify({ error: "AI provider not configured" }), { status: 400 })
+  let configToTest = await getUserAIConfig(userId)
+
+  try {
+    const body = await request.json().catch(() => ({}))
+    if (body && body.providerType && body.apiKey) {
+      configToTest = {
+        providerType: body.providerType,
+        apiKey: body.apiKey,
+        baseUrl: body.baseUrl,
+        model: body.model,
+      }
+    }
+  } catch {
+    // Ignore body parse error if empty
   }
 
-  let aiConfig: { providerType: string; apiKey: string; baseUrl?: string; model?: string }
-  try {
-    const decrypted = decrypt(encrypted)
-    aiConfig = JSON.parse(decrypted)
-  } catch {
-    return new Response(JSON.stringify({ error: "Invalid AI configuration" }), { status: 400 })
+  if (!configToTest || !configToTest.apiKey) {
+    return new Response(JSON.stringify({ ok: false, error: "AI provider not configured" }), { status: 400 })
   }
 
   try {
     const resolvedProvider = getProvider({
-      providerType: aiConfig.providerType as "openai" | "anthropic" | "google" | "custom-openai",
-      apiKey: aiConfig.apiKey,
-      baseUrl: aiConfig.baseUrl,
-      model: aiConfig.model,
+      providerType: configToTest.providerType,
+      apiKey: configToTest.apiKey,
+      baseUrl: configToTest.baseUrl,
+      model: configToTest.model,
     })
 
-    const modelToUse = resolvedProvider.defaultModel
+    const modelToUse = configToTest.model || resolvedProvider.defaultModel
 
     await generateText({
       model: resolvedProvider.model(modelToUse),
-      prompt: "Say 'connected' and nothing else",
-      maxOutputTokens: 10,
+      prompt: "ping",
+      maxOutputTokens: 5,
+      timeout: 8000,
     })
 
     return new Response(JSON.stringify({ ok: true }), { status: 200 })
-  } catch {
-    return new Response(JSON.stringify({ ok: false }), { status: 500 })
+  } catch (error: unknown) {
+    console.error("[AI Test Connection Error]:", error)
+    const errorMessage = error instanceof Error ? error.message : "Failed to connect to AI provider"
+    return new Response(JSON.stringify({ ok: false, error: errorMessage }), { status: 200 })
   }
 }
+

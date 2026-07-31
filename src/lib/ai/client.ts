@@ -4,7 +4,7 @@ import { createGoogle } from "@ai-sdk/google"
 import type { LanguageModelV4 } from "@ai-sdk/provider"
 
 export interface AIProviderConfig {
-  providerType: "openai" | "anthropic" | "google" | "custom-openai"
+  providerType: "openai" | "anthropic" | "google" | "custom-openai" | "custom-anthropic"
   apiKey: string
   baseUrl?: string
   model?: string
@@ -30,7 +30,7 @@ export function getProvider(config: AIProviderConfig): { model: ModelFn; default
     case "google": {
       return {
         model: createGoogle({ apiKey: config.apiKey }),
-        defaultModel: "gemini-1.5-flash",
+        defaultModel: "gemini-2.0-flash",
       }
     }
     case "custom-openai": {
@@ -38,6 +38,13 @@ export function getProvider(config: AIProviderConfig): { model: ModelFn; default
       return {
         model: (id) => openai.chat(id),
         defaultModel: config.model || "gpt-4o-mini",
+      }
+    }
+    case "custom-anthropic": {
+      const anthropic = createAnthropic({ baseURL: config.baseUrl, apiKey: config.apiKey })
+      return {
+        model: anthropic,
+        defaultModel: config.model || "claude-3-5-sonnet-20241022",
       }
     }
   }
