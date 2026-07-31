@@ -12,7 +12,7 @@ if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma
  * Executes a Prisma query with automatic reconnect retry & exponential backoff
  * if DB connection drops, times out, or pooler fails (P1001, P1002, P1017, ECONNRESET, etc.)
  */
-export async function withDbRetry<T>(fn: () => Promise<T>, retries = 3): Promise<T> {
+export async function withDbRetry<T>(fn: () => Promise<T>, retries = 2): Promise<T> {
   let lastError: unknown
   for (let i = 0; i <= retries; i++) {
     try {
@@ -30,23 +30,16 @@ export async function withDbRetry<T>(fn: () => Promise<T>, retries = 3): Promise
         code === "P1002" ||
         code === "P1017" ||
         name === "PrismaClientInitializationError" ||
+        name === "PrismaClientUnknownRequestError" ||
+        msg.includes("Engine is not yet connected") ||
         msg.includes("Can't reach database") ||
-        msg.includes("Server has closed the connection") ||
         msg.includes("ECONNRESET") ||
-        msg.includes("ETIMEDOUT") ||
-        msg.includes("closed the connection")
+        msg.includes("ETIMEDOUT")
 
       if (isConnectionError && i < retries) {
-        const waitMs = 1000 * (i + 1)
+        const waitMs = 300 * (i + 1)
         console.warn(`[DB Retry] Connection issue detected (${code || name || "network"}). Retrying in ${waitMs}ms (attempt ${i + 1}/${retries})...`)
-        
         await new Promise((r) => setTimeout(r, waitMs))
-        try {
-          await prisma.$disconnect()
-          await prisma.$connect()
-        } catch {
-          // ignore disconnect/connect errors during backoff retry
-        }
         continue
       }
       throw err

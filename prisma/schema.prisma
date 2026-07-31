@@ -13,6 +13,7 @@ model User {
   clerkUserId String        @unique
   name        String?
   email       String?
+  aiConfig    String?
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
   applications Application[]
