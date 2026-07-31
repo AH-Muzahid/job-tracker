@@ -55,12 +55,34 @@ export function JDIntakePanel() {
     }, 1500)
 
     try {
+      let finalJdText = jdText.trim()
+
+      // Auto-detect URL input
+      if (/^https?:\/\/[^\s]+$/i.test(finalJdText)) {
+        toast.info("Scraping job post from URL...")
+        const scrapeRes = await fetch("/api/ai/scrape-url", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: finalJdText }),
+        })
+
+        if (scrapeRes.ok) {
+          const scraped = await scrapeRes.json()
+          if (!jobUrl) setJobUrl(scraped.url)
+          finalJdText = scraped.text
+          setJdText(finalJdText)
+          toast.success("Job description extracted from page!")
+        } else {
+          toast.warning("Could not auto-scrape page content. Analyzing URL text directly.")
+        }
+      }
+
       // Call scan-jd without applicationId to get just a preview analysis
       const response = await fetch("/api/ai/scan-jd", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          jdText,
+          jdText: finalJdText,
         }),
       })
 

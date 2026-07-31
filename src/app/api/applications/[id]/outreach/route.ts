@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 import { generateText } from "ai"
-import { cookies } from "next/headers"
 import { getInternalUserId } from "@/lib/auth"
 import { prisma, withDbRetry } from "@/lib/prisma"
 import { getProvider } from "@/lib/ai/client"
-import { decrypt } from "@/lib/encryption"
+import { getUserAIConfig } from "@/lib/ai/config"
 
 export async function POST(
   request: NextRequest,
@@ -14,18 +13,9 @@ export async function POST(
   const userId = await getInternalUserId()
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const cookieStore = await cookies()
-  const encrypted = cookieStore.get("ai_config")?.value
-  if (!encrypted) {
+  const aiConfig = await getUserAIConfig(userId)
+  if (!aiConfig) {
     return NextResponse.json({ error: "AI provider not configured" }, { status: 400 })
-  }
-
-  let aiConfig: { providerType: string; apiKey: string; baseUrl?: string; model?: string }
-  try {
-    const decrypted = decrypt(encrypted)
-    aiConfig = JSON.parse(decrypted)
-  } catch {
-    return NextResponse.json({ error: "Invalid AI configuration" }, { status: 400 })
   }
 
   // Fast targeted DB queries for application, user identity, and profile

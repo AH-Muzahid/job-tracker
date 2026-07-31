@@ -1,34 +1,27 @@
 import { NextRequest, NextResponse } from "next/server"
 import { generateText } from "ai"
-import { cookies } from "next/headers"
 import { getInternalUserId } from "@/lib/auth"
 import { prisma, withDbRetry } from "@/lib/prisma"
 import { getProvider } from "@/lib/ai/client"
+import { getUserAIConfig } from "@/lib/ai/config"
 import { getSystemBase } from "@/lib/ai/prompts/system-base"
 import { getJdScanPrompt } from "@/lib/ai/prompts/jd-scan"
 import { JDAnalysisSchema } from "@/lib/ai/structured-output"
-import { decrypt } from "@/lib/encryption"
+import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit"
 import { z } from "zod"
 
 export async function POST(request: NextRequest) {
   const userId = await getInternalUserId()
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const cookieStore = await cookies()
-  const encrypted = cookieStore.get("ai_config")?.value
-  if (!encrypted) {
-    return NextResponse.json({ error: "AI provider not configured" }, { status: 400 })
+  const rateCheck = checkRateLimit(`scan-jd:${userId}`, 10, 60 * 1000)
+  if (!rateCheck.success) {
+    return rateLimitResponse(rateCheck)
   }
 
-  let aiConfig: { userId?: string; providerType: string; apiKey: string; baseUrl?: string; model?: string }
-  try {
-    const decrypted = decrypt(encrypted)
-    aiConfig = JSON.parse(decrypted)
-    if (aiConfig.userId && aiConfig.userId !== userId) {
-      return NextResponse.json({ error: "AI key belongs to another user" }, { status: 403 })
-    }
-  } catch {
-    return NextResponse.json({ error: "Invalid AI configuration" }, { status: 400 })
+  const aiConfig = await getUserAIConfig(userId)
+  if (!aiConfig) {
+    return NextResponse.json({ error: "AI provider not configured" }, { status: 400 })
   }
 
   const { jdText, applicationId } = await request.json()
@@ -81,7 +74,7 @@ interface ProjectDetail {
     }
   }
   if (defaultResume?.textContent) {
-    userContext += `\nResume Excerpt: ${defaultResume.textContent.slice(0, 600)}`
+    userContext += `\nResume Excerpt: ${defaultResume.textContent.slice(0, 4000)}`
   }
 
   const systemPrompt = `${getSystemBase()}\n\n${getJdScanPrompt()}\n\n## Candidate Context\n${userContext}\n\nCRITICAL OUTPUT RULE: Respond ONLY with a single raw JSON object matching the schema. Keep text fields concise (1 short sentence max per reason/recommendation). Do not write markdown backticks or text outside JSON.`
@@ -94,7 +87,7 @@ interface ProjectDetail {
   })
 
   const targetModel = resolvedProvider.model(aiConfig.model || resolvedProvider.defaultModel)
-  const truncatedJd = jdText.length > 1800 ? jdText.slice(0, 1800) + "..." : jdText
+  const truncatedJd = jdText.length > 8000 ? jdText.slice(0, 8000) + "..." : jdText
 
   let analysis: z.infer<typeof JDAnalysisSchema>
 
