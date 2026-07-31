@@ -151,8 +151,8 @@ export async function buildFullContext(userId: string, mode: AIMode): Promise<st
   if (defaultResume) {
     parts.push(`Default Resume: ${defaultResume.title} (${defaultResume.fileName})`)
     if (defaultResume.textContent) {
-      const excerpt = defaultResume.textContent.length > 1500
-        ? defaultResume.textContent.slice(0, 1500) + "..."
+      const excerpt = defaultResume.textContent.length > 5000
+        ? defaultResume.textContent.slice(0, 5000) + "..."
         : defaultResume.textContent
       parts.push(`- Resume Excerpt:\n${excerpt}`)
     }

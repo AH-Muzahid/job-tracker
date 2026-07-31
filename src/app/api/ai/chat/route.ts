@@ -1,9 +1,9 @@
 import { NextRequest } from "next/server"
 import { streamText } from "ai"
-import { cookies } from "next/headers"
 import { getInternalUserId } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { getProvider } from "@/lib/ai/client"
+import { getUserAIConfig } from "@/lib/ai/config"
 import { buildFullContext } from "@/lib/ai/context-builder"
 import { classifyMode } from "@/lib/ai/mode-router"
 import { getSystemBase } from "@/lib/ai/prompts/system-base"
@@ -15,7 +15,8 @@ import { getResponsePrompt } from "@/lib/ai/prompts/response"
 import { getInterviewPrompt } from "@/lib/ai/prompts/interview"
 import { getWeeklyPrompt } from "@/lib/ai/prompts/weekly"
 import { getRecoveryPrompt } from "@/lib/ai/prompts/recovery"
-import { decrypt } from "@/lib/encryption"
+import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit"
+import { createAiTools } from "@/lib/ai/tools"
 import type { AIMode } from "@/lib/ai/context-builder"
 
 const MODE_PROMPTS: Record<string, () => string> = {
@@ -35,21 +36,14 @@ export async function POST(request: NextRequest) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 })
   }
 
-  const cookieStore = await cookies()
-  const encrypted = cookieStore.get("ai_config")?.value
-  if (!encrypted) {
-    return new Response(JSON.stringify({ error: "AI provider not configured. Go to Settings to set up your API key." }), { status: 400 })
+  const rateCheck = checkRateLimit(`ai-chat:${userId}`, 15, 60 * 1000)
+  if (!rateCheck.success) {
+    return rateLimitResponse(rateCheck)
   }
 
-  let aiConfig: { userId?: string; providerType: string; apiKey: string; baseUrl?: string; model?: string }
-  try {
-    const decrypted = decrypt(encrypted)
-    aiConfig = JSON.parse(decrypted)
-    if (aiConfig.userId && aiConfig.userId !== userId) {
-      return new Response(JSON.stringify({ error: "AI key belongs to another user. Please reconfigure in Settings." }), { status: 403 })
-    }
-  } catch {
-    return new Response(JSON.stringify({ error: "Invalid AI configuration. Please reconfigure in Settings." }), { status: 400 })
+  const aiConfig = await getUserAIConfig(userId)
+  if (!aiConfig) {
+    return new Response(JSON.stringify({ error: "AI provider not configured. Go to Settings to set up your API key." }), { status: 400 })
   }
 
   const body = await request.json()
@@ -110,11 +104,12 @@ export async function POST(request: NextRequest) {
     model: aiConfig.model,
   })
 
-  const modelToUse = modelOverride || resolvedProvider.defaultModel
+  const modelToUse = modelOverride || aiConfig.model || resolvedProvider.defaultModel
 
   const result = streamText({
     model: resolvedProvider.model(modelToUse),
     system: systemPrompt,
+    tools: createAiTools(userId),
     messages: previousMessages.map((msg) => ({
       role: msg.role as "user" | "assistant",
       content: msg.content,
@@ -124,7 +119,7 @@ export async function POST(request: NextRequest) {
         data: {
           sessionId,
           role: "assistant",
-          content: text,
+          content: text || "Executed action successfully.",
           metadata: { mode, model: modelToUse },
         },
       })
