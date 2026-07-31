@@ -1,39 +1,18 @@
 import { NextRequest, NextResponse } from "next/server"
-import { cookies } from "next/headers"
 import { getInternalUserId } from "@/lib/auth"
-import { encrypt, decrypt } from "@/lib/encryption"
-
-const COOKIE_NAME = "ai_config"
+import {
+  getUserAIProfiles,
+  saveUserAIProfile,
+  setActiveUserAIProfile,
+  deleteUserAIProfile,
+} from "@/lib/ai/config"
 
 export async function GET() {
   const userId = await getInternalUserId()
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const cookieStore = await cookies()
-  const encrypted = cookieStore.get(COOKIE_NAME)?.value
-
-  if (!encrypted) {
-    return NextResponse.json({ hasKey: false })
-  }
-
-  try {
-    const decrypted = decrypt(encrypted)
-    const config = JSON.parse(decrypted)
-    
-    // Per-user cookie isolation check
-    if (config.userId && config.userId !== userId) {
-      return NextResponse.json({ hasKey: false })
-    }
-
-    return NextResponse.json({
-      hasKey: true,
-      providerType: config.providerType,
-      baseUrl: config.baseUrl || undefined,
-      model: config.model || undefined,
-    })
-  } catch {
-    return NextResponse.json({ hasKey: false })
-  }
+  const result = await getUserAIProfiles(userId)
+  return NextResponse.json(result)
 }
 
 export async function PUT(request: NextRequest) {
@@ -41,56 +20,68 @@ export async function PUT(request: NextRequest) {
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const body = await request.json()
-  const { providerType, apiKey, baseUrl, model } = body
+  const { id, name, providerType, apiKey, baseUrl, model, makeActive } = body
 
   if (!providerType) {
     return NextResponse.json({ error: "providerType is required" }, { status: 400 })
   }
 
-  const validTypes = ["openai", "anthropic", "google", "custom-openai"]
+  const validTypes = ["openai", "anthropic", "google", "custom-openai", "custom-anthropic"]
   if (!validTypes.includes(providerType)) {
     return NextResponse.json({ error: "Invalid provider type" }, { status: 400 })
   }
 
-  const cookieStore = await cookies()
-  const existingEncrypted = cookieStore.get(COOKIE_NAME)?.value
-  let finalApiKey = apiKey
+  try {
+    const savedId = await saveUserAIProfile(userId, {
+      id,
+      name: name || `${providerType.toUpperCase()} Profile`,
+      providerType: providerType as any,
+      apiKey,
+      baseUrl,
+      model,
+      makeActive,
+    })
 
-  if (!finalApiKey && existingEncrypted) {
-    try {
-      const decrypted = decrypt(existingEncrypted)
-      const parsed = JSON.parse(decrypted)
-      if (!parsed.userId || parsed.userId === userId) {
-        finalApiKey = parsed.apiKey
-      }
-    } catch {}
+    return NextResponse.json({ success: true, id: savedId })
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message || "Failed to save AI profile" }, { status: 400 })
+  }
+}
+
+export async function PATCH(request: NextRequest) {
+  const userId = await getInternalUserId()
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  const body = await request.json()
+  const { activeId } = body
+
+  if (!activeId) {
+    return NextResponse.json({ error: "activeId is required" }, { status: 400 })
   }
 
-  if (!finalApiKey) {
-    return NextResponse.json({ error: "apiKey is required" }, { status: 400 })
+  const success = await setActiveUserAIProfile(userId, activeId)
+  if (!success) {
+    return NextResponse.json({ error: "Profile not found" }, { status: 404 })
   }
-
-  // Bind configuration to the specific user ID for multi-tenant isolation
-  const config = { userId, providerType, apiKey: finalApiKey, baseUrl, model }
-  const encrypted = encrypt(JSON.stringify(config))
-
-  cookieStore.set(COOKIE_NAME, encrypted, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 30, // 30 days maximum
-  })
 
   return NextResponse.json({ success: true })
 }
 
-export async function DELETE() {
+export async function DELETE(request: NextRequest) {
   const userId = await getInternalUserId()
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const cookieStore = await cookies()
-  cookieStore.delete(COOKIE_NAME)
+  const { searchParams } = new URL(request.url)
+  const profileId = searchParams.get("id")
+
+  if (!profileId) {
+    return NextResponse.json({ error: "Profile ID is required" }, { status: 400 })
+  }
+
+  const success = await deleteUserAIProfile(userId, profileId)
+  if (!success) {
+    return NextResponse.json({ error: "Profile not found" }, { status: 404 })
+  }
 
   return NextResponse.json({ success: true })
 }
