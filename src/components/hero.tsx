@@ -86,13 +86,15 @@ export function HeroSection() {
 				<DecorIcon className="size-4" position="bottom-right" />
 
 				<FullWidthDivider className="-top-px" />
-				<div className="overflow-hidden *:pointer-events-none *:aspect-video *:select-none">
+				<div className="overflow-hidden rounded-xl border bg-background shadow-2xl">
 					<Image
 						alt="app screen"
+						className="w-full h-auto object-cover pointer-events-none select-none"
 						height={720}
-						src="/dashboard.png"
+						src="/dash.png"
 						width={1280}
 						priority
+						quality={100}
 					/>
 				</div>
 				<FullWidthDivider className="-bottom-px" />
