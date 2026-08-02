@@ -60,6 +60,7 @@ export default function AIChat({ sessionId, onSessionCreated }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const abortRef = useRef<AbortController | null>(null)
+  const createdSessionIdRef = useRef<string | null>(null)
 
   const hasMessages = messages.length > 0
   const isNewChat = !sessionId
@@ -67,8 +68,15 @@ export default function AIChat({ sessionId, onSessionCreated }: Props) {
   useEffect(() => {
     if (!sessionId) {
       setLoading(false)
+      setMessages([])
       return
     }
+
+    if (createdSessionIdRef.current === sessionId) {
+      createdSessionIdRef.current = null
+      return
+    }
+
     setLoading(true)
     setMessages([])
     setError(null)
@@ -139,6 +147,7 @@ export default function AIChat({ sessionId, onSessionCreated }: Props) {
         if (!sessionRes.ok) throw new Error("Failed to create session")
         const session = await sessionRes.json()
         activeSessionId = session.id
+        createdSessionIdRef.current = session.id
         onSessionCreated?.(session.id)
       }
 

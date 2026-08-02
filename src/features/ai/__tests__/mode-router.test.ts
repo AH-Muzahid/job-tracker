@@ -35,4 +35,9 @@ describe("AI Mode Router", () => {
   it("classifies rejection/frustration messages as recovery mode", () => {
     expect(classifyMode("I keep getting rejected and feeling stuck")).toBe("recovery")
   })
+
+  it("classifies unrecognized general questions as general mode", () => {
+    expect(classifyMode("What are some tips to improve my resume and career?")).toBe("general")
+    expect(classifyMode("Hello AI, how can you help me today?")).toBe("general")
+  })
 })

@@ -229,5 +229,74 @@ export function createAiTools(userId: string) {
         }
       },
     } as any),
+
+    searchApplications: tool({
+      description: "Search user's job applications by company name, job title, or status.",
+      parameters: z.object({
+        query: z.string().optional().describe("Search term for company or job title"),
+        status: z.enum(["Saved", "Applied", "Assessment", "Interview", "Rejected", "Offer"]).optional().describe("Filter by application status"),
+        limit: z.number().optional().default(10).describe("Maximum number of results to return"),
+      }),
+      execute: async ({ query, status, limit = 10 }: { query?: string; status?: any; limit?: number }) => {
+        try {
+          const whereClause: any = { userId }
+          if (status) whereClause.status = status
+          if (query) {
+            whereClause.OR = [
+              { companyName: { contains: query, mode: "insensitive" } },
+              { jobTitle: { contains: query, mode: "insensitive" } },
+              { notes: { contains: query, mode: "insensitive" } },
+            ]
+          }
+          const apps = await withDbRetry(() =>
+            prisma.application.findMany({
+              where: whereClause,
+              orderBy: { updatedAt: "desc" },
+              take: limit,
+              select: {
+                id: true, companyName: true, jobTitle: true, status: true,
+                source: true, applicationDate: true, notes: true, updatedAt: true,
+              },
+            })
+          )
+          return { success: true, count: apps.length, applications: apps }
+        } catch (error) {
+          console.error("searchApplications tool error:", error)
+          return { success: false, message: "Failed to search applications." }
+        }
+      },
+    } as any),
+
+    getPrepNotes: tool({
+      description: "Search or fetch interview preparation notes.",
+      parameters: z.object({
+        query: z.string().optional().describe("Search keyword for prep notes"),
+        category: z.string().optional().describe("Category of prep notes"),
+      }),
+      execute: async ({ query, category }: { query?: string; category?: string }) => {
+        try {
+          const whereClause: any = { userId }
+          if (category) whereClause.category = { contains: category, mode: "insensitive" }
+          if (query) {
+            whereClause.OR = [
+              { title: { contains: query, mode: "insensitive" } },
+              { content: { contains: query, mode: "insensitive" } },
+            ]
+          }
+          const notes = await withDbRetry(() =>
+            prisma.prepNote.findMany({
+              where: whereClause,
+              orderBy: { createdAt: "desc" },
+              take: 10,
+              select: { id: true, title: true, category: true, content: true, createdAt: true },
+            })
+          )
+          return { success: true, count: notes.length, notes }
+        } catch (error) {
+          console.error("getPrepNotes tool error:", error)
+          return { success: false, message: "Failed to fetch prep notes." }
+        }
+      },
+    } as any),
   }
 }

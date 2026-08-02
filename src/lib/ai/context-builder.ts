@@ -9,18 +9,20 @@ export type AIMode =
   | "interview"
   | "weekly"
   | "recovery"
+  | "general"
 
 export async function buildFullContext(userId: string, mode: AIMode): Promise<string> {
   const parts: string[] = []
 
   // Determine selective flags based on mode
-  const needResume = mode === "jd-scan" || mode === "application" || mode === "profile" || mode === "interview"
-  const needCompanies = mode === "jd-scan" || mode === "application" || mode === "tracker"
-  const needPrepNotes = mode === "interview" || mode === "profile"
-  const needStatusChanges = mode === "tracker" || mode === "recovery"
-  const needAnalyses = mode === "jd-scan" || mode === "application" || mode === "recovery"
-  const needPrepQuestions = mode === "interview"
-  const needWeeklyGoals = mode === "weekly"
+  const isGeneral = mode === "general"
+  const needResume = isGeneral || mode === "jd-scan" || mode === "application" || mode === "profile" || mode === "interview"
+  const needCompanies = isGeneral || mode === "jd-scan" || mode === "application" || mode === "tracker"
+  const needPrepNotes = isGeneral || mode === "interview" || mode === "profile"
+  const needStatusChanges = isGeneral || mode === "tracker" || mode === "recovery"
+  const needAnalyses = isGeneral || mode === "jd-scan" || mode === "application" || mode === "recovery"
+  const needPrepQuestions = isGeneral || mode === "interview"
+  const needWeeklyGoals = isGeneral || mode === "weekly"
 
   // Base queries executed in parallel
   const [user, profile, recentApps, pipelineStats] = await Promise.all([
@@ -32,7 +34,7 @@ export async function buildFullContext(userId: string, mode: AIMode): Promise<st
     prisma.application.findMany({
       where: { userId },
       orderBy: { createdAt: "desc" },
-      take: 5,
+      take: 15,
       select: {
         id: true, companyName: true, jobTitle: true, status: true,
         source: true, applicationDate: true, notes: true,
@@ -151,8 +153,8 @@ export async function buildFullContext(userId: string, mode: AIMode): Promise<st
   if (defaultResume) {
     parts.push(`Default Resume: ${defaultResume.title} (${defaultResume.fileName})`)
     if (defaultResume.textContent) {
-      const excerpt = defaultResume.textContent.length > 5000
-        ? defaultResume.textContent.slice(0, 5000) + "..."
+      const excerpt = defaultResume.textContent.length > 15000
+        ? defaultResume.textContent.slice(0, 15000) + "..."
         : defaultResume.textContent
       parts.push(`- Resume Excerpt:\n${excerpt}`)
     }
@@ -162,7 +164,7 @@ export async function buildFullContext(userId: string, mode: AIMode): Promise<st
   pipelineStats.forEach((s) => { statsMap[s.status] = s._count })
   parts.push(`Pipeline Stats: Saved: ${statsMap.Saved || 0} | Applied: ${statsMap.Applied || 0} | Assessment: ${statsMap.Assessment || 0} | Interview: ${statsMap.Interview || 0} | Rejected: ${statsMap.Rejected || 0} | Offer: ${statsMap.Offer || 0}`)
 
-  if (mode === "tracker" || mode === "recovery") {
+  if (isGeneral || mode === "tracker" || mode === "recovery") {
     const pendingFollowUps = recentApps.filter(
       (a) => a.status === "Applied" || a.status === "Assessment"
     )
@@ -173,7 +175,7 @@ export async function buildFullContext(userId: string, mode: AIMode): Promise<st
     }
   }
 
-  if (mode === "jd-scan" || mode === "application") {
+  if (isGeneral || mode === "jd-scan" || mode === "application" || mode === "tracker") {
     parts.push("Recent Applications:\n" + recentApps.map((a) =>
       `- ${a.companyName} | ${a.jobTitle} | ${a.status}`
     ).join("\n"))

@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic"
+
 import { NextRequest } from "next/server"
 import { streamText } from "ai"
 import { getInternalUserId } from "@/lib/auth"
@@ -15,6 +17,7 @@ import { getResponsePrompt } from "@/lib/ai/prompts/response"
 import { getInterviewPrompt } from "@/lib/ai/prompts/interview"
 import { getWeeklyPrompt } from "@/lib/ai/prompts/weekly"
 import { getRecoveryPrompt } from "@/lib/ai/prompts/recovery"
+import { getGeneralPrompt } from "@/lib/ai/prompts/general"
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit"
 import { createAiTools } from "@/lib/ai/tools"
 import type { AIMode } from "@/lib/ai/context-builder"
@@ -28,6 +31,7 @@ const MODE_PROMPTS: Record<string, () => string> = {
   "interview": getInterviewPrompt,
   "weekly": getWeeklyPrompt,
   "recovery": getRecoveryPrompt,
+  "general": getGeneralPrompt,
 }
 
 export async function POST(request: NextRequest) {
@@ -78,21 +82,30 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  const userMsgPromise = prisma.chatMessage.create({
+  // 1. Fetch previous history BEFORE adding new message to avoid race condition
+  const [historyRaw, context] = await Promise.all([
+    prisma.chatMessage.findMany({
+      where: { sessionId, role: { in: ["user", "assistant"] } },
+      orderBy: { createdAt: "desc" },
+      take: 14,
+    }),
+    buildFullContext(userId, mode),
+  ])
+
+  // Save current user message
+  await prisma.chatMessage.create({
     data: { sessionId, role: "user", content: message, metadata: { mode } },
   })
 
-  const contextPromise = buildFullContext(userId, mode)
+  const history = historyRaw.reverse()
+  const formattedMessages = [
+    ...history.map((msg) => ({
+      role: msg.role as "user" | "assistant",
+      content: msg.content,
+    })),
+    { role: "user" as const, content: message },
+  ]
 
-  const [, previousMessages, context] = await Promise.all([
-    userMsgPromise,
-    prisma.chatMessage.findMany({
-      where: { sessionId, role: { in: ["user", "assistant"] } },
-      orderBy: { createdAt: "asc" },
-      take: 15,
-    }),
-    contextPromise,
-  ])
   const systemBase = getSystemBase()
   const modePrompt = MODE_PROMPTS[mode]?.() || ""
   const systemPrompt = `${systemBase}\n\n${modePrompt}\n\n## User Context\n${context}`
@@ -110,10 +123,7 @@ export async function POST(request: NextRequest) {
     model: resolvedProvider.model(modelToUse),
     system: systemPrompt,
     tools: createAiTools(userId),
-    messages: previousMessages.map((msg) => ({
-      role: msg.role as "user" | "assistant",
-      content: msg.content,
-    })),
+    messages: formattedMessages,
     onFinish: async ({ text }) => {
       await prisma.chatMessage.create({
         data: {

@@ -61,7 +61,7 @@ export function classifyMode(message: string): AIMode {
   if (WEEKLY_PATTERNS.some((p) => p.test(message))) return "weekly"
   if (RECOVERY_PATTERNS.some((p) => p.test(message))) return "recovery"
   if (PROFILE_PATTERNS.some((p) => p.test(message))) return "profile"
-  return "jd-scan"
+  return "general"
 }
 
 function isLikelyJD(text: string): boolean {
