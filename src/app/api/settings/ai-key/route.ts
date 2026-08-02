@@ -35,7 +35,7 @@ export async function PUT(request: NextRequest) {
     const savedId = await saveUserAIProfile(userId, {
       id,
       name: name || `${providerType.toUpperCase()} Profile`,
-      providerType: providerType as any,
+      providerType: providerType as "openai" | "anthropic" | "google" | "custom-openai" | "custom-anthropic",
       apiKey,
       baseUrl,
       model,
@@ -43,8 +43,9 @@ export async function PUT(request: NextRequest) {
     })
 
     return NextResponse.json({ success: true, id: savedId })
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message || "Failed to save AI profile" }, { status: 400 })
+  } catch (err: unknown) {
+    const errorMessage = err instanceof Error ? err.message : "Failed to save AI profile"
+    return NextResponse.json({ error: errorMessage }, { status: 400 })
   }
 }
 

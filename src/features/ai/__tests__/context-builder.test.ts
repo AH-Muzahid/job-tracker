@@ -1,6 +1,5 @@
 import { describe, it, expect, vi } from "vitest"
 import { buildFullContext } from "@/lib/ai/context-builder"
-import { prisma } from "@/lib/prisma"
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
