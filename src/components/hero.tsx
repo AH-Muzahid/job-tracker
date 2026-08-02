@@ -88,18 +88,9 @@ export function HeroSection() {
 				<FullWidthDivider className="-top-px" />
 				<div className="overflow-hidden *:pointer-events-none *:aspect-video *:select-none">
 					<Image
-						alt="light app screen"
-						className="dark:hidden"
+						alt="app screen"
 						height={720}
-						src="https://storage.efferd.com/screen/dashboard-light.webp"
-						width={1280}
-						priority
-					/>
-					<Image
-						alt="dark app screen"
-						className="hidden dark:block"
-						height={720}
-						src="https://storage.efferd.com/screen/dashboard-dark.webp"
+						src="/dashboard.png"
 						width={1280}
 						priority
 					/>
