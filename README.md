@@ -1,438 +1,220 @@
-# CareerTrack — Job Application Tracker
+<div align="center">
+  <h1>🚀 CareerTrack</h1>
+  <p><strong>The Ultimate AI-Powered Job Application Tracker</strong></p>
+  
+  [![Next.js](https://img.shields.io/badge/Next.js-15-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
+  [![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
+  [![Tailwind CSS](https://img.shields.io/badge/Tailwind-v4-06B6D4?style=for-the-badge&logo=tailwindcss)](https://tailwindcss.com/)
+  [![Prisma](https://img.shields.io/badge/Prisma-ORM-2D3748?style=for-the-badge&logo=prisma)](https://www.prisma.io/)
+  [![Clerk](https://img.shields.io/badge/Auth-Clerk-6C47FF?style=for-the-badge&logo=clerk)](https://clerk.com/)
+</div>
 
-A full-stack job search tracker with an integrated AI assistant, built for managing every stage of the application lifecycle — from first save to final offer.
+<br />
 
----
-
-## Table of Contents
-
-- [Features](#features)
-- [Live Links](#live-links)
-- [Tech Stack](#tech-stack)
-- [Getting Started](#getting-started)
-- [Environment Variables](#environment-variables)
-- [Test Login](#test-login)
-- [API Endpoints](#api-endpoints)
-- [Project Structure](#project-structure)
-- [AI Assistant](#ai-assistant)
-- [Screenshots](#screenshots)
-- [AI Tools Used](#ai-tools-used)
-- [Challenges & Limitations](#challenges--limitations)
-- [Future Improvements](#future-improvements)
+A full-stack job search tracker with an **integrated AI assistant**, built for managing every stage of the application lifecycle — from first save to final offer. 
 
 ---
 
-## Features
+## ✨ Comprehensive Feature Set
 
-### Core
-- **Application Tracking** — CRUD operations for job applications with company, title, source, status, notes, and URL
-- **Kanban Board** — Drag-and-drop board view (using `@hello-pangea/dnd`) alongside table and list views
-- **Dashboard Analytics** — Real-time stats, monthly trend charts (AreaChart), status distribution (PieChart), and source breakdown (BarChart)
-- **Search & Filter** — Filter by status, source, tag, and free-text search across company names and titles
-- **CSV Export** — Export filtered applications to CSV with one click
+### 📋 Core Application Tracking
+- **Kanban Board & Lists** — Intuitive drag-and-drop board view (via `@hello-pangea/dnd`) alongside detailed table and list views.
+- **Status Tracking** — Granular history of status changes for every application.
+- **Advanced Filtering** — Filter by status, source, tags, or free-text search across companies and roles.
+- **CSV Export** — Export your filtered applications to CSV with a single click.
+- **Calendar View** — Visual calendar of application dates.
 
-### Organization
-- **Companies** — Track companies with website, industry, notes, and linked applications
-- **Tags** — Assign tags to applications for custom categorization
-- **Resumes** — Manage multiple resume versions, mark a default resume
-- **Calendar** — Visual calendar of application dates
+### 🏢 Organization & Prep
+- **Companies & Tags** — Track companies with notes and industry info, and use custom tags for categorization.
+- **Resume Management** — Manage multiple resume versions and mark a default resume.
+- **Interview Prep** — A built-in question bank with answers, categories, and difficulty levels, plus prep notes linked to specific applications.
 
-### Interview Prep
-- **Prep Questions** — Question bank with answers, categories, and difficulty levels
-- **Prep Notes** — Linked notes tied to specific applications
+### 🤖 AI-Powered Assistant & Analysis
+- **Multi-Provider Support** — Choose between OpenAI, Anthropic, or Google Gemini (with AES-256 encrypted API key storage).
+- **JD Scanner** — Paste a job description to get a match score, gap analysis, resume tailoring advice, and red flags.
+- **Application Analysis** — Per-application AI analysis stored directly in the database.
+- **Contextual Chat Modes** — Streaming AI chat tailored for interview prep, profile review, weekly planning, and rejection recovery.
 
-### AI-Powered
-- **AI Chat Assistant** — Streaming chat with contextual modes (profile, JD scan, tracker, interview, weekly, response)
-- **JD Scanner** — Paste a job description for structured analysis: match score, gap analysis, resume advice, apply strategy, red flags
-- **Application Analysis** — Per-application AI analysis stored in the database
-- **Multi-Provider Support** — OpenAI, Anthropic, Google, or any OpenAI-compatible API (with encrypted API key storage)
+### 📊 Dashboard & Productivity
+- **Real-time Analytics** — Visualize your progress with monthly trend charts, status distributions, and source breakdowns using Recharts.
+- **Weekly Goals** — Set and track up to 3 weekly targets to maintain momentum with progress tracking.
+- **Detailed User Profile** — Store target roles, salary, notice period, and strengths/weaknesses to give the AI context.
+- **Dark Mode** — Full dark mode toggle with system preference detection.
 
-### Productivity
-- **Weekly Goals** — Set up to 3 weekly targets with progress tracking and status
-- **User Profile** — Detailed profile (target roles, salary, notice period, strengths/weaknesses) that the AI uses as context
-- **Dark Mode** — Full dark mode toggle with system preference detection
-
-### Security & Auth
-- **Clerk Authentication** — Sign-in, sign-up, and session management
-- **Webhook Sync** — Clerk webhooks auto-create/update/delete user records in the database
-- **Middleware Protection** — All app routes and API routes are protected by Clerk middleware
-- **Row-Level Security** — Database queries are always scoped to the authenticated user
-- **Encrypted AI Keys** — AES-256-GCM encryption for user-provided AI API keys stored in httpOnly cookies
+### 🔒 Enterprise-Grade Security
+- **Clerk Authentication** — Secure sign-in, sign-up, and session management.
+- **Webhook Sync** — Automated database synchronization via Clerk Webhooks (`svix`).
+- **Row-Level Security** — All database queries are strictly scoped to the authenticated user.
+- **Encrypted Storage** — AES-256-GCM encryption for user-provided AI API keys stored in httpOnly cookies.
 
 ---
 
-## Live Links
+## 💻 Tech Stack
 
-| Service | URL |
-|---|---|
-| **Frontend** | https://career-track-delta.vercel.app |
-| **API** | https://career-track-delta.vercel.app/api/health |
-
----
-
-## Tech Stack
-
-| Layer | Technology |
-|---|---|
-| **Framework** | Next.js 15 (App Router) |
+| Category | Technology |
+| :--- | :--- |
+| **Framework** | Next.js 15 (App Router), React 19 |
 | **Language** | TypeScript 5 |
-| **Auth** | Clerk |
-| **Database** | PostgreSQL via Supabase (Prisma ORM) |
-| **AI SDK** | Vercel AI SDK (`ai`) |
-| **UI Components** | shadcn/ui + Radix UI |
-| **Styling** | Tailwind CSS v4 |
-| **Charts** | Recharts |
-| **Drag & Drop** | @hello-pangea/dnd |
-| **State** | Zustand |
-| **Data Fetching** | TanStack React Query |
-| **Validation** | Zod |
-| **Markdown** | react-markdown + remark-gfm |
-| **Deployment** | Vercel |
-| **CI** | GitHub Actions |
-| **Containerization** | Docker + Docker Compose (local Postgres) |
+| **Database & ORM** | PostgreSQL (Supabase), Prisma 6 |
+| **Authentication** | Clerk |
+| **Styling & UI** | Tailwind CSS v4, shadcn/ui, Radix UI, Framer Motion, Lenis |
+| **State & Data** | Zustand, TanStack React Query |
+| **AI Integration** | Vercel AI SDK (`ai`), pdf-parse |
+| **Charts & DND** | Recharts, `@hello-pangea/dnd` |
 
 ---
 
-## Getting Started
+## 🚀 Getting Started
 
-### Prerequisites
+> [!IMPORTANT]
+> **Prerequisites:** Make sure you have Node.js 20+, npm, a [Clerk](https://clerk.com) account, and a [Supabase](https://supabase.com) project (or Docker for local Postgres) before starting.
 
-- Node.js 20+
-- npm
-- A [Clerk](https://clerk.com) account (free tier works)
-- A [Supabase](https://supabase.com) project (or Docker for local Postgres)
-
-### Option A — Supabase (Recommended)
-
-1. Create a Supabase project and grab your connection strings from Settings → Database.
-
-### Option B — Local Docker Postgres
+### 1️⃣ Clone and Install
 
 ```bash
-docker compose up -d
-```
-
-This starts Postgres 16 on `localhost:5433`. Then set `DATABASE_URL` and `DIRECT_URL` to:
-
-```
-postgresql://postgres:postgres@localhost:5433/career-track
-```
-
-### Install
-
-```bash
-# Clone
 git clone <repo-url>
 cd career-track
-
-# Install dependencies
 npm install
+```
 
-# Set up environment
+### 2️⃣ Environment Setup
+
+Copy the example environment file and configure your keys:
+
+```bash
 cp .env.example .env.local
-# Edit .env.local with your keys
+```
 
-# Generate Prisma client & run migrations
+> [!NOTE]
+> Ensure you have your Clerk API Keys, Supabase Database URLs (`DATABASE_URL` and `DIRECT_URL`), and a random 32+ character string for `AI_KEY_ENCRYPTION_SECRET`.
+
+### 3️⃣ Database Setup
+
+**Option A (Supabase - Recommended):** Use your Supabase connection strings.
+**Option B (Local Docker):** Start Postgres 16 locally using `docker compose up -d`.
+
+Generate the Prisma client and run migrations:
+
+```bash
+npx prisma generate
 npx prisma migrate dev
+```
 
-# Start dev server
+### 4️⃣ Run the Development Server
+
+```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ---
 
-## Environment Variables
+## 📡 Core API Endpoints
 
-Copy `.env.example` to `.env.local` and fill in:
+All API routes require Clerk authentication and are protected by middleware.
 
-| Variable | Source |
-|---|---|
-| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk Dashboard → API Keys |
-| `CLERK_SECRET_KEY` | Clerk Dashboard → API Keys |
-| `CLERK_WEBHOOK_SIGNING_SECRET` | Clerk Dashboard → Webhooks |
-| `DATABASE_URL` | Supabase Settings → Database → Connection string (pooler) |
-| `DIRECT_URL` | Supabase Settings → Database → Connection string (direct) |
-| `NEXT_PUBLIC_SUPABASE_URL` | Supabase Dashboard → Project Settings → API |
-| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Supabase Dashboard → Project Settings → API (anon/public key) |
-| `NEXT_PUBLIC_APP_URL` | `http://localhost:3000` for local, or your deployed URL |
-| `NEXT_PUBLIC_CLERK_SIGN_IN_URL` | `/sign-in` |
-| `NEXT_PUBLIC_CLERK_SIGN_UP_URL` | `/sign-up` |
-| `NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL` | `/` |
-| `NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL` | `/` |
-| `AI_KEY_ENCRYPTION_SECRET` | Any 32+ character random string (used for AES-256-GCM encryption of AI keys) |
+<details>
+<summary><strong>View Detailed API Endpoints</strong></summary>
 
----
-
-## Test Login
-
-This project uses **Clerk** for authentication. There are no hardcoded test credentials.
-
-1. Start the dev server (`npm run dev`)
-2. Navigate to `/sign-up` to create a new account
-3. Verify via Clerk's email or phone flow
-4. You'll be redirected to the dashboard
-
-> **Tip:** Clerk's free tier allows unlimited test users.
-
----
-
-## API Endpoints
-
-All API routes require Clerk authentication. Returns `401 Unauthorized` if not authenticated.
-
-### Applications
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/api/applications` | List applications (query: `search`, `status`, `source`, `tag`, `sort`, `page`, `pageSize`) |
-| `POST` | `/api/applications` | Create application |
-| `GET` | `/api/applications/[id]` | Get application detail |
-| `PUT` | `/api/applications/[id]` | Update application |
-| `DELETE` | `/api/applications/[id]` | Delete application |
-| `GET` | `/api/applications/[id]/analysis` | Get AI analysis for application |
-| `GET` | `/api/applications/export` | Export applications as CSV (query: `status`) |
-
-### Dashboard
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/api/dashboard/stats` | Aggregated stats, trends, recent applications, source breakdown |
-
-### Companies
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/api/companies` | List companies (query: `search`) |
-| `POST` | `/api/companies` | Create company |
-| `PUT` | `/api/companies/[id]` | Update company |
-| `DELETE` | `/api/companies/[id]` | Delete company |
-
-### Tags
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/api/tags` | List all tags |
-| `POST` | `/api/tags` | Create tag |
-| `DELETE` | `/api/tags?id=` | Delete tag |
-
-### Resumes
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/api/resumes` | List resumes |
-| `POST` | `/api/resumes` | Add resume metadata |
-| `PUT` | `/api/resumes/[id]` | Update resume |
-| `DELETE` | `/api/resumes/[id]` | Delete resume |
-
-### Interview Prep
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/api/prep-questions` | List questions (query: `category`, `search`) |
-| `POST` | `/api/prep-questions` | Create question |
-| `PUT` | `/api/prep-questions/[id]` | Update question |
-| `DELETE` | `/api/prep-questions/[id]` | Delete question |
-| `GET` | `/api/prep-notes` | List notes |
-| `POST` | `/api/prep-notes` | Create note |
-| `PUT` | `/api/prep-notes/[id]` | Update note |
-| `DELETE` | `/api/prep-notes/[id]` | Delete note |
-
-### Weekly Goals
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/api/weekly-goals` | List recent weekly goals (last 12 weeks) |
-| `POST` | `/api/weekly-goals` | Create or update current week's goals |
-| `PUT` | `/api/weekly-goals/[id]` | Update a specific week's goals |
-| `DELETE` | `/api/weekly-goals/[id]` | Delete a week's goals |
-
-### User Profile
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/api/user/profile` | Get user profile |
-| `PUT` | `/api/user/profile` | Update user profile |
-| `POST` | `/api/user/profile/onboard` | Complete onboarding |
+### Applications & Dashboard
+- `GET /api/applications` — List applications (with query filters)
+- `POST /api/applications` — Create application
+- `GET /api/applications/[id]/analysis` — Get AI analysis for application
+- `GET /api/dashboard/stats` — Aggregated stats, trends, and recent applications
+- `GET /api/applications/export` — Export as CSV
 
 ### AI Assistant
+- `POST /api/ai/chat` — Streaming chat with specific modes
+- `POST /api/ai/scan-jd` — Analyze a job description
+- `GET /api/ai/sessions` — List chat sessions
 
-| Method | Endpoint | Description |
-|---|---|---|
-| `POST` | `/api/ai/chat` | Streaming chat (body: `message`, `sessionId?`, `mode?`, `model?`) |
-| `POST` | `/api/ai/scan-jd` | Analyze a job description (body: `jdText`, `applicationId?`) |
-| `POST` | `/api/ai/test-connection` | Test AI provider connection |
-| `GET` | `/api/ai/sessions` | List chat sessions |
-| `GET` | `/api/ai/sessions/[id]` | Get session with messages |
+### Organization & Prep
+- `GET/POST /api/companies` — Manage companies
+- `GET/POST /api/resumes` — Manage resumes
+- `GET/POST /api/prep-questions` — Manage interview prep questions
+- `GET/POST /api/weekly-goals` — Manage weekly goals
+- `GET/PUT /api/user/profile` — Manage user profile context
 
-### Settings
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/api/settings/ai-key` | Check if AI key is configured |
-| `PUT` | `/api/settings/ai-key` | Save AI key (body: `providerType`, `apiKey`, `baseUrl?`, `model?`) |
-| `DELETE` | `/api/settings/ai-key` | Remove AI key |
-
-### System
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/api/health` | Health check |
-| `POST` | `/api/webhooks/clerk` | Clerk webhook receiver |
+</details>
 
 ---
 
-## Project Structure
+## 📁 Project Structure
+
+<details>
+<summary><strong>View Directory Structure</strong></summary>
 
 ```
 src/
 ├── app/
-│   ├── (app)/                    # Authenticated routes
-│   │   ├── dashboard/page.tsx    # Main dashboard with charts & stats
-│   │   ├── applications/         # Applications CRUD + detail + edit
-│   │   ├── companies/            # Company management
-│   │   ├── ai-assistant/         # AI chat interface
-│   │   ├── interview-prep/       # Prep questions & notes
-│   │   ├── resumes/              # Resume management
-│   │   ├── calendar/             # Calendar view
-│   │   ├── weekly-goals/         # Weekly goal setting
-│   │   ├── profile-setup/        # User profile onboarding
-│   │   └── settings/             # AI key configuration
-│   ├── api/                      # API routes (see table above)
+│   ├── (app)/                    # Authenticated routes (Dashboard, Kanban, etc.)
+│   ├── api/                      # Protected API routes
 │   ├── sign-in/                  # Clerk sign-in
-│   ├── sign-up/                  # Clerk sign-up
-│   ├── layout.tsx                # Root layout with ClerkProvider
-│   └── page.tsx                  # Landing page
+│   └── sign-up/                  # Clerk sign-up
 ├── components/
-│   ├── dashboard/                # BoardView, TableView, ListView, FilterBar, etc.
-│   ├── weekly-goals/             # WeeklyGoalsWidget, WeeklyGoalForm, WeeklyReviewCard
-│   ├── applications/             # ApplicationDetailsCard, AnalysisSection
-│   ├── ui/                       # shadcn/ui primitives
-│   └── Shell.tsx, Sidebar.tsx, Navbar.tsx, etc.
+│   ├── dashboard/                # Views: Board, Table, List
+│   ├── applications/             # Detail cards, AI analysis sections
+│   ├── weekly-goals/             # Goal widgets
+│   └── ui/                       # shadcn/ui components
 ├── lib/
-│   ├── ai/                       # AI client, prompts, context builder, mode router
-│   ├── hooks/use-ai-chat.ts      # Chat streaming hook
-│   ├── auth.ts                   # getInternalUserId helper
-│   ├── prisma.ts                 # Prisma client singleton
-│   ├── api.ts                    # React Query hooks
+│   ├── ai/                       # AI client, prompts, context builder
+│   ├── prisma.ts                 # Prisma singleton
 │   ├── store.ts                  # Zustand UI store
-│   ├── encryption.ts             # AES-256-GCM encrypt/decrypt
-│   └── utils.ts                  # cn() helper
-└── middleware.ts                  # Clerk auth middleware
+│   └── encryption.ts             # AES-256-GCM logic
+└── middleware.ts                 # Clerk auth protection
+
 prisma/
-├── schema.prisma                 # 12 models
-└── migrations/
+└── schema.prisma                 # Database models (User, Application, PrepQuestion, etc.)
 ```
+
+</details>
 
 ---
 
-## AI Assistant
-
-The AI assistant supports multiple providers and modes:
-
-### Supported Providers
-
-| Provider | Default Model | Package |
-|---|---|---|
-| OpenAI | `gpt-4o-mini` | `@ai-sdk/openai` |
-| Anthropic | `claude-3-haiku-20240307` | `@ai-sdk/anthropic` |
-| Google | `gemini-1.5-flash` | `@ai-sdk/google` |
-| Custom OpenAI-compatible | User-specified | `@ai-sdk/openai` with custom base URL |
-
-### Chat Modes
-
-The AI auto-detects the intent of your message and routes to the appropriate mode:
-
-| Mode | Purpose |
-|---|---|
-| `profile` | Help build or improve your user profile |
-| `jd-scan` | Analyze a pasted job description |
-| `application` | Advice on specific applications |
-| `tracker` | General tracker usage help |
-| `response` | Help draft cover letters or responses |
-| `interview` | Interview preparation guidance |
-| `weekly` | Weekly goal review and planning |
-| `recovery` | Help recovering from rejections |
+## 🧠 AI Assistant Features
 
 ### JD Scanner Output
-
-The JD scanner returns a structured JSON analysis with:
-- Match score (0–100)
-- Confidence level
+The JD scanner returns a structured JSON analysis containing:
+- Match score (0–100) & Confidence level
 - Verdict (Apply / Maybe / Skip)
-- Missing keywords vs. your profile
-- Gap analysis
-- Resume tailoring advice
-- Application strategy
+- Missing keywords & Gap analysis
+- Resume tailoring advice & Apply strategy
 - Red flags
-- Final recommendation
+
+### Chat Modes
+- `profile`: Build your contextual profile
+- `jd-scan`: Analyze job descriptions
+- `application`: Advice on specific applications
+- `tracker`: General app usage help
+- `response`: Draft emails or cover letters
+- `interview`: Mock interview guidance
+- `weekly`: Goal planning
+- `recovery`: Coping with rejections
 
 ---
 
-## Screenshots
+## 🚧 Challenges & Known Limitations
 
-> Add screenshots here by placing images in the `public/` folder and referencing them.
-
-```
-<!-- ![Dashboard](public/screenshots/dashboard.png) -->
-<!-- ![Board View](public/screenshots/board-view.png) -->
-<!-- ![AI Assistant](public/screenshots/ai-assistant.png) -->
-<!-- ![Application Detail](public/screenshots/application-detail.png) -->
-```
+- **Multi-Provider AI Abstraction:** Unifying OpenAI, Anthropic, and Google required handling different API patterns.
+- **Streaming + Persistence:** Saving chat messages required `onFinish` callbacks rather than saving during the stream.
+- **Encrypted Key Storage:** API keys are stored securely (httpOnly cookies with AES-256) without server-side database persistence.
+- **Optimistic UI:** Cross-column drag-and-drop required React Query invalidation and optimistic updates.
+- **Resume Uploads:** Resumes are currently stored as metadata; actual file uploads to Supabase Storage are pending.
 
 ---
 
-## AI Tools Used
+## 🔮 Future Improvements
 
-This project was built with the assistance of the following AI tools:
-
-| Tool | Usage |
-|---|---|
-| **Claude (Anthropic)** | Architecture planning, code generation, debugging, and documentation via opencode CLI |
-| **Vercel AI SDK** | Streaming chat, structured object generation (`streamText`, `generateObject`) |
-| **OpenAI API** | Runtime AI provider (user-configurable) |
-| **Supabase MCP** | Database schema management, migrations, and project configuration |
+- [ ] **Supabase Storage** for resume PDF uploads and parsing.
+- [ ] **Email Integration** to auto-parse forwarded job emails.
+- [ ] **Real-time Updates** via Supabase Realtime or WebSockets.
+- [ ] **E2E Testing** suite implementation using Playwright.
+- [ ] **Job Board API Integrations** for auto-importing (LinkedIn, Indeed).
+- [ ] **Browser Extension** for one-click job saving.
 
 ---
 
-## Challenges & Limitations
-
-### Challenges
-- **Multi-provider AI abstraction** — Unifying OpenAI, Anthropic, and Google behind a single interface required careful handling of different model naming and API patterns
-- **Streaming + persistence** — Saving chat messages after streaming completes required `onFinish` callbacks rather than saving during the stream
-- **Encrypted key storage** — AI API keys needed to be stored securely (httpOnly cookies with AES-256-GCM) without server-side persistence
-- **Clerk ↔ Prisma sync** — Webhook-based user synchronization had to handle create, update, and delete events reliably
-- **Board view drag-and-drop** — Cross-column status updates via drag-and-drop required optimistic UI updates with React Query invalidation
-
-### Known Limitations
-- **No real-time sync** — Changes require page refresh or React Query refetch; no WebSocket/live updates
-- **Resume file upload** — Resumes are stored as metadata only; actual file upload to Supabase Storage is not yet implemented
-- **Calendar is read-only** — Displays application dates but doesn't support drag-to-reschedule
-- **AI key per-session** — AI configuration is stored in cookies, so switching browsers or clearing cookies loses the key
-- **No team/collaboration features** — Single-user only; no shared workspaces
-- **No email integration** — Applications must be added manually; no email parsing or auto-import
-- **Rate limiting** — No API rate limiting beyond Clerk's built-in auth throttling
-
----
-
-## Future Improvements
-
-- [ ] **Supabase Storage** for resume file uploads (PDF parsing, version history)
-- [ ] **Email integration** — Parse forwarded job emails to auto-create applications
-- [ ] **Real-time updates** via Supabase Realtime or WebSockets
-- [ ] **Mobile app** — PWA or React Native companion
-- [ ] **Browser extension** — One-click "Save this job" from any job board
-- [ ] **Team workspaces** — Share applications and notes with a job search buddy
-- [ ] **API rate limiting** — Protect AI endpoints from abuse with upstash/ratelimit
-- [ ] **Accessibility audit** — Full WCAG 2.1 AA compliance
-- [ ] **E2E tests** — Playwright or Cypress test suite
-- [ ] **Job board API integrations** — LinkedIn, Indeed, and others for auto-import
-- [ ] **AI-powered cover letter generation** from profile + JD analysis
-- [ ] **Analytics dashboard** — Response rates, time-to-interview, source ROI
-
----
-
-## License
-
-MIT
+<div align="center">
+  <p>Built with ❤️ for job seekers everywhere.</p>
+</div>
