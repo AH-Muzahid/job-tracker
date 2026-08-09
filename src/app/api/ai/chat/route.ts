@@ -108,7 +108,8 @@ export async function POST(request: NextRequest) {
 
   const systemBase = getSystemBase()
   const modePrompt = MODE_PROMPTS[mode]?.() || ""
-  const systemPrompt = `${systemBase}\n\n${modePrompt}\n\n## User Context\n${context}`
+  // Cache-friendly ordering: static rules first (cacheable), dynamic user context last
+  const systemPrompt = `${systemBase}\n\n## Active Mode Instructions\n${modePrompt}\n\n## User Context (Dynamic)\n${context}`
 
   const resolvedProvider = getProvider({
     providerType: aiConfig.providerType as "openai" | "anthropic" | "google" | "custom-openai",
@@ -124,6 +125,7 @@ export async function POST(request: NextRequest) {
     system: systemPrompt,
     tools: createAiTools(userId),
     messages: formattedMessages,
+    maxSteps: 5,
     onFinish: async ({ text }) => {
       await prisma.chatMessage.create({
         data: {
@@ -136,5 +138,5 @@ export async function POST(request: NextRequest) {
     },
   })
 
-  return result.toTextStreamResponse()
+  return result.toUIMessageStreamResponse()
 }
