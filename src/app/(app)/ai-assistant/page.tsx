@@ -38,7 +38,28 @@ export default function AIAssistantPage() {
   useEffect(() => {
     const saved = localStorage.getItem("ai-sidebar-collapsed")
     if (saved === "true") setSidebarCollapsed(true)
+    
+    // Restore active chat from URL or localStorage
+    const params = new URLSearchParams(window.location.search)
+    const urlId = params.get("id")
+    const storedId = localStorage.getItem("last-active-chat")
+    if (urlId) {
+      setActiveId(urlId)
+    } else if (storedId) {
+      setActiveId(storedId)
+      window.history.replaceState(null, "", `/ai-assistant?id=${storedId}`)
+    }
   }, [])
+
+  useEffect(() => {
+    // Persist active chat to URL and localStorage
+    if (activeId) {
+      window.history.replaceState(null, "", `/ai-assistant?id=${activeId}`)
+      localStorage.setItem("last-active-chat", activeId)
+    } else {
+      window.history.replaceState(null, "", `/ai-assistant`)
+    }
+  }, [activeId])
 
   function toggleSidebar() {
     const next = !sidebarCollapsed

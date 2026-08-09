@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
 
-import { AnalysisResultModal, AnalysisResultData } from "./command-zone/AnalysisResultModal"
+import { useUI } from "@/lib/store"
 import { ScanIntakeMode } from "./command-zone/ScanIntakeMode"
 import { UploadMode } from "./command-zone/UploadMode"
 import { ManualEntryMode } from "./command-zone/ManualEntryMode"
@@ -40,9 +40,7 @@ export default function BentoCommandZone({ activePipeline, totalThisWeek = 0 }: 
   const [manualSource, setManualSource] = useState("LinkedIn")
   const [manualLoading, setManualLoading] = useState(false)
 
-  // Result Modal State
-  const [analysisResult, setAnalysisResult] = useState<AnalysisResultData | null>(null)
-  const [savingAction, setSavingAction] = useState(false)
+  const { setAiSidebarOpen, setPendingPrompt } = useUI()
 
   const firstName = user?.firstName || "there"
   const greeting = getGreeting()
@@ -115,76 +113,22 @@ export default function BentoCommandZone({ activePipeline, totalThisWeek = 0 }: 
     }
 
     setAiLoading(true)
-    setAnalysisResult(null)
-
-    try {
-      const response = await fetch("/api/ai/scan-jd", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ jdText }),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || "Failed to scan JD")
-      }
-
-      const data = await response.json()
-      setAnalysisResult(data)
-      toast.success("AI Compatibility Scan Completed!")
-    } catch (error: unknown) {
-      const errMsg = error instanceof Error ? error.message : "Something went wrong"
-      toast.error(errMsg)
-    } finally {
+    
+    // Set the prompt and open the sidebar
+    setPendingPrompt(`Analyze this job description:\n\n${jdText}`)
+    setAiSidebarOpen(true)
+    
+    toast.success("AI Assistant opened!")
+    
+    // Slight delay to allow UI to transition
+    setTimeout(() => {
       setAiLoading(false)
-    }
-  }
-
-  // Save Application from Analysis
-  const handleSaveFromAI = async (targetStatus: string) => {
-    if (!analysisResult) return
-    setSavingAction(true)
-    const toastId = toast.loading(`Saving to ${targetStatus}...`)
-
-    try {
-      const appRes = await fetch("/api/applications", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          companyName: analysisResult.roleSnapshot?.company || "Unknown Company",
-          jobTitle: analysisResult.roleSnapshot?.role || "Target Role",
-          source: "LinkedIn",
-          status: targetStatus,
-          applicationDate: new Date().toISOString(),
-          notes: jdText,
-        }),
-      })
-
-      if (!appRes.ok) {
-        const errorData = await appRes.json()
-        throw new Error(errorData.error || "Failed to save application")
-      }
-
-      const application = await appRes.json()
-
-      await fetch(`/api/applications/${application.id}/analysis`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ analysis: analysisResult, rawJd: jdText }),
-      })
-
-      toast.success("Application tracked successfully!", { id: toastId })
-      setAnalysisResult(null)
       setJdText("")
-      router.push(`/applications/${application.id}`)
-      router.refresh()
-    } catch (err: unknown) {
-      const errMsg = err instanceof Error ? err.message : "Failed to save"
-      toast.error(errMsg, { id: toastId })
-    } finally {
-      setSavingAction(false)
-    }
+      setMode("scan")
+    }, 500)
   }
+
+
 
   // Manual Creation
   const handleManualSubmit = async (e: React.FormEvent) => {
@@ -350,13 +294,6 @@ export default function BentoCommandZone({ activePipeline, totalThisWeek = 0 }: 
         </div>
       </div>
 
-      {/* Floating Action Modal for AI Fit Analysis Results */}
-      <AnalysisResultModal
-        analysisResult={analysisResult}
-        onClose={() => setAnalysisResult(null)}
-        onSave={handleSaveFromAI}
-        saving={savingAction}
-      />
     </>
   )
 }

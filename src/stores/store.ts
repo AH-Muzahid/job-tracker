@@ -35,6 +35,12 @@ interface UIState {
   searchOpen: boolean
   setSearchOpen: (open: boolean) => void
 
+  // AI Sidebar
+  aiSidebarOpen: boolean
+  setAiSidebarOpen: (open: boolean) => void
+  pendingPrompt: string | null
+  setPendingPrompt: (prompt: string | null) => void
+
   // Modals
   detailModal: { open: boolean; id: string | null }
   formModal: { open: boolean; editId?: string }
@@ -71,6 +77,12 @@ export const useUI = create<UIState>((set) => ({
   // Search
   searchOpen: false,
   setSearchOpen: (open) => set({ searchOpen: open }),
+
+  // AI Sidebar
+  aiSidebarOpen: false,
+  setAiSidebarOpen: (open) => set({ aiSidebarOpen: open }),
+  pendingPrompt: null,
+  setPendingPrompt: (prompt) => set({ pendingPrompt: prompt }),
 
   // Modals
   detailModal: { open: false, id: null },
