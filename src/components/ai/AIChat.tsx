@@ -1,14 +1,22 @@
 "use client"
 
 import { useState, useRef, useEffect, useCallback } from "react"
-import { Send, Square, FileText, Briefcase, Target, MessageSquare, ArrowDown, Paperclip } from "lucide-react"
+import { Send, Square, FileText, Briefcase, Target, MessageSquare, ArrowDown, Plus } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import ChatMessage from "./ChatMessage"
-import type { AIMode } from "@/lib/store"
+import { useUI, type AIMode } from "@/lib/store"
 
 interface Props {
   sessionId: string | null
   onSessionCreated?: (id: string) => void
+}
+
+export interface ToolInvocation {
+  toolCallId: string
+  toolName: string
+  args: Record<string, unknown>
+  state: "call" | "result"
+  result?: unknown
 }
 
 interface Message {
@@ -16,6 +24,7 @@ interface Message {
   role: "user" | "assistant"
   content: string
   metadata?: Record<string, unknown>
+  toolInvocations?: ToolInvocation[]
 }
 
 const QUICK_ACTIONS = [
@@ -61,6 +70,8 @@ export default function AIChat({ sessionId, onSessionCreated }: Props) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const abortRef = useRef<AbortController | null>(null)
   const createdSessionIdRef = useRef<string | null>(null)
+  
+  const { pendingPrompt, setPendingPrompt } = useUI()
 
   const hasMessages = messages.length > 0
   const isNewChat = !sessionId
@@ -109,6 +120,8 @@ export default function AIChat({ sessionId, onSessionCreated }: Props) {
       textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 160) + "px"
     }
   }, [input])
+
+
 
   function handleScroll() {
     if (!containerRef.current) return
@@ -169,13 +182,56 @@ export default function AIChat({ sessionId, onSessionCreated }: Props) {
       const decoder = new TextDecoder()
       let done = false
       let accumulated = ""
-
+      let buffer = ""
       while (!done) {
         const { value, done: doneReading } = await reader.read()
         done = doneReading
         if (value) {
           const chunk = decoder.decode(value, { stream: !done })
-          accumulated += chunk
+          buffer += chunk
+          const lines = buffer.split('\n')
+          buffer = lines.pop() || ""
+          
+          for (const line of lines) {
+            const trimLine = line.trim()
+            if (!trimLine || !trimLine.startsWith('data: ')) continue
+            try {
+              const data = JSON.parse(trimLine.slice(6))
+              
+              if (data.type === 'text-delta') {
+                accumulated += data.textDelta
+              } else if (data.type === 'tool-call') {
+                setMessages((prev) => 
+                  prev.map((m) => {
+                    if (m.id === assistantId) {
+                      const toolInvocations = m.toolInvocations || []
+                      if (!toolInvocations.find(t => t.toolCallId === data.toolCallId)) {
+                         let argsObj = data.args
+                         if (typeof argsObj === 'string') {
+                           try { argsObj = JSON.parse(argsObj) } catch {}
+                         }
+                         return { ...m, toolInvocations: [...toolInvocations, { toolCallId: data.toolCallId, toolName: data.toolName, args: argsObj || {}, state: 'call' }] }
+                      }
+                    }
+                    return m
+                  })
+                )
+              } else if (data.type === 'tool-result') {
+                setMessages((prev) => 
+                  prev.map((m) => {
+                    if (m.id === assistantId) {
+                      const toolInvocations = m.toolInvocations?.map((t: ToolInvocation) => 
+                        t.toolCallId === data.toolCallId ? { ...t, state: 'result', result: data.result } as ToolInvocation : t
+                      ) || []
+                      return { ...m, toolInvocations }
+                    }
+                    return m
+                  })
+                )
+              }
+            } catch {}
+          }
+          
           setMessages((prev) =>
             prev.map((m) => (m.id === assistantId ? { ...m, content: accumulated } : m))
           )
@@ -189,6 +245,16 @@ export default function AIChat({ sessionId, onSessionCreated }: Props) {
       abortRef.current = null
     }
   }, [sessionId, isStreaming, onSessionCreated])
+
+  // Listen for pending prompts from global state (e.g., from BentoCommandZone)
+  useEffect(() => {
+    if (pendingPrompt && !isStreaming) {
+      const promptToSend = pendingPrompt
+      setPendingPrompt(null)
+      // Slight delay ensures state updates correctly before sending
+      setTimeout(() => sendMessage(promptToSend), 100)
+    }
+  }, [pendingPrompt, isStreaming, sendMessage, setPendingPrompt])
 
   const stopStreaming = useCallback(() => {
     abortRef.current?.abort()
@@ -229,9 +295,9 @@ export default function AIChat({ sessionId, onSessionCreated }: Props) {
             </div>
 
             <div className="relative">
-              <div className="flex items-end gap-2 rounded-2xl border bg-card px-4 py-3 shadow-sm focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary focus-within:shadow-md transition-all">
+              <div className="flex items-end gap-2 rounded-[24px] border border-border/40 bg-muted/30 px-5 py-3 shadow-sm focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary focus-within:bg-card transition-all">
                 <button className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
-                  <Paperclip className="h-4 w-4" />
+                  <Plus className="h-5 w-5" />
                 </button>
                 <textarea
                   ref={textareaRef}
@@ -269,12 +335,8 @@ export default function AIChat({ sessionId, onSessionCreated }: Props) {
       ) : (
         /* Messages view */
         <>
-          <div
-            ref={containerRef}
-            className="flex-1 overflow-y-auto scroll-smooth"
-            onScroll={handleScroll}
-          >
-            <div className="max-w-3xl mx-auto px-4 py-6 space-y-8">
+          <div className="flex-1 overflow-y-auto" ref={containerRef} onScroll={handleScroll}>
+            <div className="max-w-3xl mx-auto flex flex-col gap-6 p-4 sm:p-6">
               {messages.map((msg, i) => (
                 <ChatMessage
                   key={msg.id}
@@ -288,24 +350,25 @@ export default function AIChat({ sessionId, onSessionCreated }: Props) {
                   {error}
                 </div>
               )}
-              <div ref={messagesEndRef} />
+              {/* Spacer to ensure messages scroll above the floating input without excessive margin */}
+              <div className="h-28 shrink-0" ref={messagesEndRef} />
             </div>
           </div>
 
           {showScrollBtn && (
             <button
               onClick={scrollToBottom}
-              className="absolute bottom-24 left-1/2 -translate-x-1/2 flex h-8 w-8 items-center justify-center rounded-full border bg-background shadow-md hover:bg-accent transition-colors z-10"
+              className="absolute bottom-32 left-1/2 -translate-x-1/2 flex h-8 w-8 items-center justify-center rounded-full border bg-background shadow-md hover:bg-accent transition-colors z-10"
             >
               <ArrowDown className="h-4 w-4" />
             </button>
           )}
 
-          <div className="border-t border-border/50 bg-background">
-            <div className="max-w-3xl mx-auto px-4 py-3">
-              <div className="relative flex items-end gap-2 rounded-2xl border bg-card px-4 py-3 shadow-sm focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary focus-within:shadow-md transition-all">
+          <div className="absolute bottom-4 left-0 right-0 px-4 pointer-events-none">
+            <div className="max-w-3xl mx-auto pointer-events-auto">
+              <div className="relative flex items-end gap-2 rounded-[24px] bg-card px-5 py-3 shadow-[0_0_15px_rgba(0,0,0,0.1)] focus-within:shadow-[0_0_20px_rgba(0,0,0,0.15)] transition-all">
                 <button className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
-                  <Paperclip className="h-4 w-4" />
+                  <Plus className="h-5 w-5" />
                 </button>
                 <textarea
                   ref={textareaRef}
@@ -334,8 +397,8 @@ export default function AIChat({ sessionId, onSessionCreated }: Props) {
                   </button>
                 )}
               </div>
-              <p className="text-xs text-center text-muted-foreground/40 mt-2">
-                AI responses are generated. Verify important information.
+              <p className="text-[11px] text-center text-muted-foreground mt-3">
+                Gemini-style Assistant. AI can make mistakes. Check important info.
               </p>
             </div>
           </div>
