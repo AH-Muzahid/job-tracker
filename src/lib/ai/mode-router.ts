@@ -4,6 +4,9 @@ const JD_PATTERNS = [
   /requirements?/i, /responsibilities?/i, /qualifications?/i,
   /about the (role|position|job)/i, /what you['’]ll do/i,
   /what we['’]re looking for/i, /key skills/i,
+  /the role/i, /tech stack/i, /experience:/i, /location:/i,
+  /job description/i, /nice to have/i, /bonus points/i,
+  /apply to/i, /salary:/i, /minimum qualifications/i
 ]
 
 const APPLICATION_PATTERNS = [
