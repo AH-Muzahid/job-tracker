@@ -15,14 +15,15 @@ export async function buildFullContext(userId: string, mode: AIMode): Promise<st
   const parts: string[] = []
 
   // Determine selective flags based on mode
-  const isGeneral = mode === "general"
-  const needResume = isGeneral || mode === "jd-scan" || mode === "application" || mode === "profile" || mode === "interview"
-  const needCompanies = isGeneral || mode === "jd-scan" || mode === "application" || mode === "tracker"
-  const needPrepNotes = isGeneral || mode === "interview" || mode === "profile"
-  const needStatusChanges = isGeneral || mode === "tracker" || mode === "recovery"
-  const needAnalyses = isGeneral || mode === "jd-scan" || mode === "application" || mode === "recovery"
-  const needPrepQuestions = isGeneral || mode === "interview"
-  const needWeeklyGoals = isGeneral || mode === "weekly"
+  const needRecentApps = mode === "tracker" || mode === "recovery" || mode === "jd-scan" || mode === "application"
+  const needStats = mode === "tracker" || mode === "recovery"
+  const needResume = mode === "jd-scan" || mode === "application" || mode === "profile" || mode === "interview"
+  const needCompanies = mode === "jd-scan" || mode === "application" || mode === "tracker"
+  const needPrepNotes = mode === "interview" || mode === "profile"
+  const needStatusChanges = mode === "tracker" || mode === "recovery"
+  const needAnalyses = mode === "jd-scan" || mode === "application" || mode === "recovery"
+  const needPrepQuestions = mode === "interview"
+  const needWeeklyGoals = mode === "weekly"
 
   // Base queries executed in parallel
   const [user, profile, recentApps, pipelineStats] = await Promise.all([
@@ -31,7 +32,7 @@ export async function buildFullContext(userId: string, mode: AIMode): Promise<st
       select: { name: true, email: true },
     }),
     prisma.userProfile.findUnique({ where: { userId } }),
-    prisma.application.findMany({
+    needRecentApps ? prisma.application.findMany({
       where: { userId },
       orderBy: { createdAt: "desc" },
       take: 15,
@@ -39,12 +40,12 @@ export async function buildFullContext(userId: string, mode: AIMode): Promise<st
         id: true, companyName: true, jobTitle: true, status: true,
         source: true, applicationDate: true, notes: true,
       },
-    }),
-    prisma.application.groupBy({
+    }) : Promise.resolve([]),
+    needStats ? prisma.application.groupBy({
       by: ["status"],
       where: { userId },
       _count: true,
-    }),
+    }) : Promise.resolve([]),
   ])
 
   // Selective targeted secondary queries
@@ -160,11 +161,13 @@ export async function buildFullContext(userId: string, mode: AIMode): Promise<st
     }
   }
 
-  const statsMap: Record<string, number> = {}
-  pipelineStats.forEach((s) => { statsMap[s.status] = s._count })
-  parts.push(`Pipeline Stats: Saved: ${statsMap.Saved || 0} | Applied: ${statsMap.Applied || 0} | Assessment: ${statsMap.Assessment || 0} | Interview: ${statsMap.Interview || 0} | Rejected: ${statsMap.Rejected || 0} | Offer: ${statsMap.Offer || 0}`)
+  if (pipelineStats && pipelineStats.length > 0) {
+    const statsMap: Record<string, number> = {}
+    pipelineStats.forEach((s) => { statsMap[s.status] = s._count })
+    parts.push(`Pipeline Stats: Saved: ${statsMap.Saved || 0} | Applied: ${statsMap.Applied || 0} | Assessment: ${statsMap.Assessment || 0} | Interview: ${statsMap.Interview || 0} | Rejected: ${statsMap.Rejected || 0} | Offer: ${statsMap.Offer || 0}`)
+  }
 
-  if (isGeneral || mode === "tracker" || mode === "recovery") {
+  if (mode === "tracker" || mode === "recovery") {
     const pendingFollowUps = recentApps.filter(
       (a) => a.status === "Applied" || a.status === "Assessment"
     )
@@ -175,10 +178,12 @@ export async function buildFullContext(userId: string, mode: AIMode): Promise<st
     }
   }
 
-  if (isGeneral || mode === "jd-scan" || mode === "application" || mode === "tracker") {
-    parts.push("Recent Applications:\n" + recentApps.map((a) =>
-      `- ${a.companyName} | ${a.jobTitle} | ${a.status}`
-    ).join("\n"))
+  if (mode === "jd-scan" || mode === "application" || mode === "tracker") {
+    if (recentApps && recentApps.length > 0) {
+      parts.push("Recent Applications:\n" + recentApps.map((a) =>
+        `- ${a.companyName} | ${a.jobTitle} | ${a.status}`
+      ).join("\n"))
+    }
   }
 
   if (recentCompanies && recentCompanies.length > 0) {

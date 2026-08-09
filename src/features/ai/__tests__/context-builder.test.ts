@@ -71,15 +71,28 @@ vi.mock("@/lib/prisma", () => ({
 }))
 
 describe("AI Context Builder", () => {
-  it("builds comprehensive full context for general mode", async () => {
+  it("builds lightweight context for general mode", async () => {
     const context = await buildFullContext("user-123", "general")
 
     expect(context).toContain("User Identity:")
     expect(context).toContain("John Doe")
     expect(context).toContain("User Profile:")
     expect(context).toContain("Fullstack Developer")
+    
+    // General mode should NOT contain bloated context
+    expect(context).not.toContain("Default Resume")
+    expect(context).not.toContain("Pipeline Stats:")
+    expect(context).not.toContain("Recent Applications:")
+  })
+
+  it("builds comprehensive context for application mode", async () => {
+    const context = await buildFullContext("user-123", "application")
+
+    expect(context).toContain("User Identity:")
+    expect(context).toContain("John Doe")
+    expect(context).toContain("User Profile:")
+    expect(context).toContain("Fullstack Developer")
     expect(context).toContain("Default Resume: Fullstack Resume 2026")
-    expect(context).toContain("Pipeline Stats:")
     expect(context).toContain("Recent Applications:")
     expect(context).toContain("Google | Software Engineer | Interview")
   })
