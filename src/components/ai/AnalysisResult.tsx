@@ -14,6 +14,12 @@ interface AnalysisData {
     stretchAreas?: string[]
     fixableGaps?: string[]
   } | null
+  scoreBreakdown?: {
+    dimension: string
+    score: number
+    max: number
+    notes: string
+  }[] | null
   finalRecommendation?: string | null
   redFlags?: string | null
 }
@@ -37,6 +43,28 @@ export default function AnalysisResult({ data }: { data: Record<string, unknown>
             <p className="font-semibold">{analysis.verdict || "No verdict"}</p>
             <p className="text-xs text-muted-foreground">Confidence: {analysis.confidence || "N/A"}</p>
           </div>
+        </div>
+      )}
+
+      {analysis.scoreBreakdown && analysis.scoreBreakdown.length > 0 && (
+        <div className="space-y-3 pt-2">
+          {analysis.scoreBreakdown.map((item, i) => (
+            <div key={i} className="space-y-1.5">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-medium text-foreground">{item.dimension}</span>
+                <span className="font-semibold text-muted-foreground">{item.score} / {item.max}</span>
+              </div>
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-secondary">
+                <div 
+                  className="h-full rounded-full bg-primary transition-all" 
+                  style={{ width: `${Math.max(0, Math.min(100, (item.score / item.max) * 100))}%` }}
+                />
+              </div>
+              {item.notes && (
+                <p className="text-[10px] text-muted-foreground leading-snug">{item.notes}</p>
+              )}
+            </div>
+          ))}
         </div>
       )}
 
