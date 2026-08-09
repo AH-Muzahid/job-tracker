@@ -298,5 +298,92 @@ export function createAiTools(userId: string) {
         }
       },
     } as any),
+
+    scrapeJobLink: tool({
+      description: "Scrape a job posting URL or any webpage to extract its text content in Markdown format. Use this whenever the user provides a link.",
+      parameters: z.object({
+        url: z.string().url().describe("The URL of the job posting or webpage to scrape"),
+      }),
+      execute: async ({ url }: { url: string }) => {
+        try {
+          const response = await fetch(`https://r.jina.ai/${url}`, {
+            headers: {
+              "X-Return-Format": "markdown",
+            },
+          })
+          if (!response.ok) {
+            return { success: false, message: `Failed to scrape URL. Status: ${response.status}` }
+          }
+          const markdown = await response.text()
+          return {
+            success: true,
+            markdown,
+            message: `Successfully scraped ${url}. Read the markdown content provided.`,
+          }
+        } catch (error) {
+          console.error("scrapeJobLink tool error:", error)
+          return { success: false, message: "Failed to scrape URL due to network error." }
+        }
+      },
+    } as any),
+
+    getResumeSummary: tool({
+      description: "Fetch the user's default resume text content for cover letter generation or JD analysis.",
+      parameters: z.object({}),
+      execute: async () => {
+        try {
+          const resume = await withDbRetry(() =>
+            prisma.resume.findFirst({
+              where: { userId, isDefault: true },
+              select: { title: true, fileName: true, textContent: true },
+            })
+          )
+          if (!resume) {
+            return { success: false, message: "No default resume found. Ask the user to upload one." }
+          }
+          return {
+            success: true,
+            title: resume.title,
+            fileName: resume.fileName,
+            textContent: resume.textContent || "No text content extracted from this resume.",
+          }
+        } catch (error) {
+          console.error("getResumeSummary tool error:", error)
+          return { success: false, message: "Failed to fetch resume." }
+        }
+      },
+    } as any),
+
+    getPipelineStats: tool({
+      description: "Get aggregated pipeline stats showing how many applications are in each status (Saved, Applied, Assessment, Interview, Rejected, Offer).",
+      parameters: z.object({}),
+      execute: async () => {
+        try {
+          const stats = await withDbRetry(() =>
+            prisma.application.groupBy({
+              by: ["status"],
+              where: { userId },
+              _count: true,
+            })
+          )
+          const statsMap: Record<string, number> = {}
+          stats.forEach((s) => { statsMap[s.status] = s._count })
+          const total = Object.values(statsMap).reduce((a, b) => a + b, 0)
+          return {
+            success: true,
+            total,
+            saved: statsMap.Saved || 0,
+            applied: statsMap.Applied || 0,
+            assessment: statsMap.Assessment || 0,
+            interview: statsMap.Interview || 0,
+            rejected: statsMap.Rejected || 0,
+            offer: statsMap.Offer || 0,
+          }
+        } catch (error) {
+          console.error("getPipelineStats tool error:", error)
+          return { success: false, message: "Failed to fetch pipeline stats." }
+        }
+      },
+    } as any),
   }
 }
