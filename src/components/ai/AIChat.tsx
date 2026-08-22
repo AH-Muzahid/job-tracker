@@ -199,48 +199,44 @@ export default function AIChat({ sessionId, onSessionCreated }: Props) {
         done = doneReading
         if (value) {
           const chunk = decoder.decode(value, { stream: !done })
-          buffer += chunk
-          const lines = buffer.split('\n')
-          buffer = lines.pop() || ""
           
-          for (const line of lines) {
-            const trimLine = line.trim()
-            if (!trimLine || !trimLine.startsWith('data: ')) continue
-            try {
-              const data = JSON.parse(trimLine.slice(6))
-              
-              if (data.type === 'text-delta') {
-                accumulated += data.textDelta
-              } else if (data.type === 'tool-call') {
-                setMessages((prev) => 
-                  prev.map((m) => {
-                    if (m.id === assistantId) {
-                      const toolInvocations = m.toolInvocations || []
-                      if (!toolInvocations.find(t => t.toolCallId === data.toolCallId)) {
-                         let argsObj = data.args
-                         if (typeof argsObj === 'string') {
-                           try { argsObj = JSON.parse(argsObj) } catch {}
-                         }
-                         return { ...m, toolInvocations: [...toolInvocations, { toolCallId: data.toolCallId, toolName: data.toolName, args: argsObj || {}, state: 'call' }] }
-                      }
-                    }
-                    return m
-                  })
-                )
-              } else if (data.type === 'tool-result') {
-                setMessages((prev) => 
-                  prev.map((m) => {
-                    if (m.id === assistantId) {
-                      const toolInvocations = m.toolInvocations?.map((t: ToolInvocation) => 
-                        t.toolCallId === data.toolCallId ? { ...t, state: 'result', result: data.result } as ToolInvocation : t
-                      ) || []
-                      return { ...m, toolInvocations }
-                    }
-                    return m
-                  })
-                )
+          // Check if stream is SSE formatted
+          if (chunk.startsWith("data: ") || chunk.startsWith("0:") || buffer.startsWith("data: ")) {
+            buffer += chunk
+            const lines = buffer.split('\n')
+            buffer = lines.pop() || ""
+            
+            for (const line of lines) {
+              const trimLine = line.trim()
+              if (!trimLine) continue
+
+              if (trimLine.startsWith('0:')) {
+                try {
+                  accumulated += JSON.parse(trimLine.slice(2))
+                } catch {
+                  accumulated += trimLine.slice(2)
+                }
+                continue
               }
-            } catch {}
+
+              if (trimLine.startsWith('data: ')) {
+                const payload = trimLine.slice(6).trim()
+                if (payload === '[DONE]') continue
+                try {
+                  const data = JSON.parse(payload)
+                  if (data.type === 'text-delta') {
+                    accumulated += data.textDelta || data.delta || data.text || ""
+                  } else if (typeof data === 'string') {
+                    accumulated += data
+                  }
+                } catch {
+                  accumulated += payload
+                }
+              }
+            }
+          } else {
+            // Direct plain text streaming
+            accumulated += chunk
           }
           
           setMessages((prev) =>

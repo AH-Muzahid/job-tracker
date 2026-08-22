@@ -221,10 +221,6 @@ export default function AIAssistantPage() {
               {sessions.find((s) => s.id === activeId)?.title || "New Conversation"}
             </span>
           </div>
-
-          <div className="flex items-center gap-2">
-            <ModelSelector />
-          </div>
         </div>
 
         <div className="flex-1 overflow-hidden relative">

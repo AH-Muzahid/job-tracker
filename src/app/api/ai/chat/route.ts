@@ -124,18 +124,19 @@ export async function POST(request: NextRequest) {
     model: resolvedProvider.model(modelToUse),
     system: systemPrompt,
     tools: createAiTools(userId),
+    maxSteps: 5,
     messages: formattedMessages,
     onFinish: async ({ text }) => {
       await prisma.chatMessage.create({
         data: {
           sessionId,
           role: "assistant",
-          content: text || "Executed action successfully.",
+          content: text || "I have analyzed your request.",
           metadata: { mode, model: modelToUse },
         },
       })
     },
   })
 
-  return result.toUIMessageStreamResponse()
+  return result.toTextStreamResponse()
 }

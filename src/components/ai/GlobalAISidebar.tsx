@@ -58,7 +58,6 @@ export default function GlobalAISidebar() {
           </div>
 
           <div className="flex items-center gap-1.5 min-w-0">
-            <ModelSelector compact className="max-w-[140px]" />
             <button
               onClick={() => setAiSidebarOpen(false)}
               className="flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground transition-colors shrink-0"
