@@ -244,6 +244,13 @@ export default function AIChat({ sessionId, onSessionCreated }: Props) {
           )
         }
       }
+
+      if (!accumulated.trim()) {
+        accumulated = "I received your message. How can I assist you with this?"
+        setMessages((prev) =>
+          prev.map((m) => (m.id === assistantId ? { ...m, content: accumulated } : m))
+        )
+      }
     } catch (err: unknown) {
       if (err instanceof Error && err.name === "AbortError") return
       setError(err instanceof Error ? err.message : "Something went wrong")
@@ -251,7 +258,7 @@ export default function AIChat({ sessionId, onSessionCreated }: Props) {
       setIsStreaming(false)
       abortRef.current = null
     }
-  }, [sessionId, isStreaming, onSessionCreated])
+  }, [sessionId, isStreaming, onSessionCreated, modelOverride])
 
   // Listen for pending prompts from global state (e.g., from BentoCommandZone)
   useEffect(() => {
