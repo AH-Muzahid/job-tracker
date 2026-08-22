@@ -3,6 +3,12 @@ import { tool } from "ai"
 import { z } from "zod"
 import { prisma, withDbRetry } from "@/lib/prisma"
 import { invalidateCache } from "@/lib/redis"
+import {
+  buildCareerGraphFromText,
+  traverseGraphForJD,
+  getCachedKnowledgeGraph,
+  saveKnowledgeGraph,
+} from "@/lib/ai/knowledge-graph"
 
 export function createAiTools(userId: string) {
   return {
@@ -456,7 +462,7 @@ export function createAiTools(userId: string) {
       }) => {
         try {
           // Prevent exact duplicate memories
-          const existing = await withDbRetry(() =>
+          const existing = await withDbRetry<{ id: string; content: string } | null>(() =>
             prisma.userMemory.findFirst({
               where: {
                 userId,
@@ -473,7 +479,7 @@ export function createAiTools(userId: string) {
             }
           }
 
-          const memory = await withDbRetry(() =>
+          const memory = await withDbRetry<{ id: string; category: string; content: string }>(() =>
             prisma.userMemory.create({
               data: {
                 userId,
@@ -508,7 +514,7 @@ export function createAiTools(userId: string) {
       }),
       execute: async ({ searchQuery }: { searchQuery: string }) => {
         try {
-          const matching = await withDbRetry(() =>
+          const matching = await withDbRetry<{ id: string; content: string } | null>(() =>
             prisma.userMemory.findFirst({
               where: {
                 userId,
@@ -558,7 +564,7 @@ export function createAiTools(userId: string) {
           const whereClause: any = { userId }
           if (category) whereClause.category = category
 
-          const memories = await withDbRetry(() =>
+          const memories = await withDbRetry<Array<{ id: string; category: string; content: string; createdAt: Date }>>(() =>
             prisma.userMemory.findMany({
               where: whereClause,
               orderBy: { createdAt: "desc" },
@@ -578,6 +584,73 @@ export function createAiTools(userId: string) {
         } catch (error) {
           console.error("getUserMemories tool error:", error)
           return { success: false, message: "Failed to fetch user memories." }
+        }
+      },
+    } as any),
+
+    queryCareerKnowledgeGraph: tool({
+      description: "Traverse user's Career Knowledge Graph to semantically find projects, skills, and quantifiable metrics matching a target role or technical query without vector embeddings.",
+      parameters: z.object({
+        query: z.string().describe("Target skills, job requirements, or technology to match (e.g. 'Go distributed systems, Kafka, Redis')"),
+        requiredSkills: z.array(z.string()).optional().describe("Optional list of specific required skills to check"),
+      }),
+      execute: async ({ query, requiredSkills }: { query: string; requiredSkills?: string[] }) => {
+        try {
+          let graph = await getCachedKnowledgeGraph(userId)
+
+          if (!graph) {
+            // Auto-build from default resume and profile if not yet generated
+            const [resume, profile] = await Promise.all([
+              withDbRetry(() => prisma.resume.findFirst({ where: { userId, isDefault: true } })),
+              withDbRetry(() => prisma.userProfile.findUnique({ where: { userId } })),
+            ])
+
+            const rawText = (resume?.textContent || "") + "\n" + (profile?.strengths || "")
+            graph = buildCareerGraphFromText(rawText, profile)
+            await saveKnowledgeGraph(userId, graph)
+          }
+
+          const matchResult = traverseGraphForJD(graph, query, requiredSkills)
+
+          return {
+            success: true,
+            matchScore: matchResult.matchScore,
+            matchedSkillsCount: matchResult.matchedSkills.length,
+            matchedSkills: matchResult.matchedSkills,
+            missingSkills: matchResult.missingSkills,
+            evidencePaths: matchResult.evidencePaths,
+          }
+        } catch (error) {
+          console.error("queryCareerKnowledgeGraph error:", error)
+          return { success: false, message: "Failed to query Career Knowledge Graph." }
+        }
+      },
+    } as any),
+
+    syncCareerKnowledgeGraph: tool({
+      description: "Re-extract and synchronize the user's structured Career Knowledge Graph from their latest resume and profile.",
+      parameters: z.object({}),
+      execute: async () => {
+        try {
+          const [resume, profile] = await Promise.all([
+            withDbRetry(() => prisma.resume.findFirst({ where: { userId, isDefault: true } })),
+            withDbRetry(() => prisma.userProfile.findUnique({ where: { userId } })),
+          ])
+
+          const rawText = (resume?.textContent || "") + "\n" + (profile?.strengths || "")
+          const graph = buildCareerGraphFromText(rawText, profile)
+          await saveKnowledgeGraph(userId, graph)
+
+          return {
+            success: true,
+            nodeCount: graph.nodes.length,
+            edgeCount: graph.edges.length,
+            summary: graph.summary,
+            message: `Knowledge Graph synchronized: ${graph.nodes.length} nodes, ${graph.edges.length} relationships.`,
+          }
+        } catch (error) {
+          console.error("syncCareerKnowledgeGraph error:", error)
+          return { success: false, message: "Failed to sync Career Knowledge Graph." }
         }
       },
     } as any),

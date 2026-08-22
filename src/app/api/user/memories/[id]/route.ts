@@ -3,6 +3,16 @@ import { getInternalUserId } from "@/lib/auth"
 import { prisma, withDbRetry } from "@/lib/prisma"
 import { invalidateCache } from "@/lib/redis"
 
+interface UserMemoryRecord {
+  id: string
+  userId: string
+  category: string
+  content: string
+  source?: string | null
+  createdAt: Date
+  updatedAt: Date
+}
+
 export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -12,7 +22,7 @@ export async function DELETE(
 
   try {
     const { id } = await params
-    const memory = await withDbRetry(() =>
+    const memory = await withDbRetry<UserMemoryRecord | null>(() =>
       prisma.userMemory.findUnique({
         where: { id },
       })

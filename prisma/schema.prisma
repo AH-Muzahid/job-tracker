@@ -26,6 +26,7 @@ model User {
   weeklyGoals  WeeklyGoal[]
   chatSessions ChatSession[]
   memories     UserMemory[]
+  knowledgeGraph CareerKnowledgeGraph?
 }
 
 model Application {
@@ -280,4 +281,18 @@ model UserMemory {
 
   @@index([userId])
   @@index([userId, category])
+}
+
+model CareerKnowledgeGraph {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  nodes     Json     // Array of GraphNode
+  edges     Json     // Array of GraphEdge
+  summary   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }

@@ -3,12 +3,22 @@ import { getInternalUserId } from "@/lib/auth"
 import { prisma, withDbRetry } from "@/lib/prisma"
 import { invalidateCache } from "@/lib/redis"
 
+interface UserMemoryRecord {
+  id: string
+  userId: string
+  category: string
+  content: string
+  source?: string | null
+  createdAt: Date
+  updatedAt: Date
+}
+
 export async function GET() {
   const userId = await getInternalUserId()
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   try {
-    const memories = await withDbRetry(() =>
+    const memories = await withDbRetry<UserMemoryRecord[]>(() =>
       prisma.userMemory.findMany({
         where: { userId },
         orderBy: { createdAt: "desc" },
@@ -33,7 +43,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Memory content is required" }, { status: 400 })
     }
 
-    const memory = await withDbRetry(() =>
+    const memory = await withDbRetry<UserMemoryRecord>(() =>
       prisma.userMemory.create({
         data: {
           userId,

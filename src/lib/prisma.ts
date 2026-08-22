@@ -5,8 +5,11 @@ const globalForPrisma = globalThis as unknown as {
 }
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-export const prisma: PrismaClient & { userMemory: any; [key: string]: any } =
-  (globalForPrisma.prisma ?? new PrismaClient()) as any
+export const prisma: PrismaClient & {
+  userMemory: any
+  knowledgeGraph: any
+  [key: string]: any
+} = (globalForPrisma.prisma ?? new PrismaClient()) as any
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma
 

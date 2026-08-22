@@ -9,6 +9,12 @@ import { getJdScanPrompt } from "@/lib/ai/prompts/jd-scan"
 import { JDAnalysisSchema } from "@/lib/ai/structured-output"
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit"
 import { z } from "zod"
+import {
+  buildCareerGraphFromText,
+  traverseGraphForJD,
+  getCachedKnowledgeGraph,
+  saveKnowledgeGraph,
+} from "@/lib/ai/knowledge-graph"
 
 export async function POST(request: NextRequest) {
   const userId = await getInternalUserId()
@@ -75,6 +81,19 @@ interface ProjectDetail {
   }
   if (defaultResume?.textContent) {
     userContext += `\nResume Excerpt: ${defaultResume.textContent.slice(0, 4000)}`
+  }
+
+  // Fast Career Knowledge Graph Traversal
+  let graph = await getCachedKnowledgeGraph(userId)
+  if (!graph) {
+    const rawText = (defaultResume?.textContent || "") + "\n" + (profile?.strengths || "")
+    graph = buildCareerGraphFromText(rawText, profile)
+    void saveKnowledgeGraph(userId, graph)
+  }
+
+  const graphMatch = traverseGraphForJD(graph, jdText)
+  if (graphMatch.evidencePaths.length > 0) {
+    userContext += "\n\nVerified Knowledge Graph Proofs:\n" + graphMatch.evidencePaths.join("\n")
   }
 
   const systemPrompt = `${getSystemBase()}\n\n${getJdScanPrompt()}\n\n## Candidate Context\n${userContext}\n\nCRITICAL OUTPUT RULE: Respond ONLY with a single raw JSON object matching the schema. Keep text fields concise (1 short sentence max per reason/recommendation). Do not write markdown backticks or text outside JSON.`
@@ -171,7 +190,10 @@ interface ProjectDetail {
     })
   }
 
-  return NextResponse.json(analysis)
+  return NextResponse.json({
+    ...analysis,
+    graphMatch,
+  })
 }
 
 /**
