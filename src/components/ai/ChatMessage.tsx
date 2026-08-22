@@ -14,12 +14,104 @@ interface Props {
   message: { id: string; role: string; content: string; toolInvocations?: ToolInvocation[] }
   isLast: boolean
   isStreaming: boolean
+  onSuggestionClick?: (prompt: string) => void
 }
 
-export default function ChatMessage({ message, isStreaming }: Props) {
+interface Suggestion {
+  icon: string
+  label: string
+  prompt: string
+}
+
+function getContextualSuggestions(content: string): Suggestion[] {
+  const lower = content.toLowerCase()
+  const list: Suggestion[] = []
+
+  if (
+    lower.includes("frontend") ||
+    lower.includes("backend") ||
+    lower.includes("engineer") ||
+    lower.includes("developer") ||
+    lower.includes("requirements") ||
+    lower.includes("apply") ||
+    lower.includes("jd") ||
+    lower.includes("next steps") ||
+    lower.includes("score") ||
+    lower.includes("job")
+  ) {
+    list.push({
+      icon: "📝",
+      label: "Draft Cover Letter",
+      prompt: "Please write a tailored, high-impact cover letter for this role highlighting my relevant projects and skills.",
+    })
+    list.push({
+      icon: "✉️",
+      label: "Cold Outreach Email",
+      prompt: "Draft a punchy 75-word cold outreach email to the recruiter/hiring manager for this position.",
+    })
+    list.push({
+      icon: "🎯",
+      label: "5 Interview Questions",
+      prompt: "Generate 5 likely technical and behavioral interview questions tailored specifically for this role.",
+    })
+    list.push({
+      icon: "📌",
+      label: "Save to Tracker",
+      prompt: "Save this job to my application tracker as 'Saved' status.",
+    })
+  } else if (lower.includes("interview") || lower.includes("question") || lower.includes("mock")) {
+    list.push({
+      icon: "💡",
+      label: "Model Answers",
+      prompt: "Provide concise, high-scoring STAR method answers for each of these interview questions.",
+    })
+    list.push({
+      icon: "🎤",
+      label: "Start Mock Interview",
+      prompt: "Let's conduct a live interactive mock interview based on these questions.",
+    })
+    list.push({
+      icon: "📝",
+      label: "Save to Prep Notes",
+      prompt: "Save these questions and key tips into my interview prep notes.",
+    })
+  } else if (lower.includes("resume") || lower.includes("ats") || lower.includes("project")) {
+    list.push({
+      icon: "✨",
+      label: "Optimize Resume Points",
+      prompt: "Rewrite my project bullet points with quantifiable impact metrics for better ATS ranking.",
+    })
+    list.push({
+      icon: "🔍",
+      label: "Identify Skill Gaps",
+      prompt: "What critical technical skills or tools should I learn next to improve my job match rate?",
+    })
+  } else {
+    list.push({
+      icon: "🎯",
+      label: "Analyze a Job Posting",
+      prompt: "I want to analyze a job description. Please guide me on what to provide.",
+    })
+    list.push({
+      icon: "📊",
+      label: "Check My Pipeline",
+      prompt: "Show me a summary of my current job applications and pipeline status.",
+    })
+    list.push({
+      icon: "💡",
+      label: "Interview Prep Tips",
+      prompt: "Give me top practical tips for passing technical and live coding rounds.",
+    })
+  }
+
+  return list.slice(0, 4)
+}
+
+export default function ChatMessage({ message, isLast, isStreaming, onSuggestionClick }: Props) {
   const isUser = message.role === "user"
   const isLongMessage = isUser && message.content && message.content.length > 250
   const [isExpanded, setIsExpanded] = useState(false)
+  const suggestions = !isUser && isLast && !isStreaming && message.content ? getContextualSuggestions(message.content) : []
 
   // Custom renderer overrides for ReactMarkdown to handle interactive AI actions
   const mdComponents = {
@@ -248,6 +340,26 @@ export default function ChatMessage({ message, isStreaming }: Props) {
               >
                 {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
               </button>
+            )}
+
+            {/* Smart Suggested Action Buttons */}
+            {suggestions.length > 0 && onSuggestionClick && (
+              <div className="mt-4 pt-3 border-t border-border/40 flex flex-wrap items-center gap-2">
+                <span className="text-[11px] font-medium text-muted-foreground/80 flex items-center gap-1 w-full mb-0.5">
+                  <Sparkles className="h-3 w-3 text-primary" /> Suggested actions:
+                </span>
+                {suggestions.map((s, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => onSuggestionClick(s.prompt)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-muted/60 hover:bg-primary/10 hover:text-primary hover:border-primary/40 border border-border/70 transition-all duration-150 active:scale-95 shadow-xs cursor-pointer"
+                  >
+                    <span>{s.icon}</span>
+                    <span>{s.label}</span>
+                  </button>
+                ))}
+              </div>
             )}
           </>
         ) : isStreaming && (!message.toolInvocations || message.toolInvocations.length === 0) ? (

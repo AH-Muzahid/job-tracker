@@ -317,7 +317,7 @@ export default function AIChat({ sessionId, onSessionCreated }: Props) {
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={handleKeyDown}
                     placeholder="Ask anything or paste a job description..."
-                    className="w-full bg-transparent border-0 outline-none resize-none text-sm placeholder:text-muted-foreground/50 min-h-[50px] max-h-[180px] px-1 py-1 leading-relaxed"
+                    className="w-full bg-transparent border-0 outline-none resize-none text-sm placeholder:text-muted-foreground/50 min-h-[60px] max-h-[180px] px-1 py-1 leading-relaxed"
                     rows={Math.min(6, Math.max(2, input.split('\n').length))}
                   />
                   <div className="flex items-center justify-between pt-2 mt-1 border-t border-border/40">
@@ -405,6 +405,7 @@ export default function AIChat({ sessionId, onSessionCreated }: Props) {
                   message={msg}
                   isLast={i === messages.length - 1}
                   isStreaming={isStreaming && i === messages.length - 1}
+                  onSuggestionClick={(prompt) => sendMessage(prompt)}
                 />
               ))}
               {error && (
