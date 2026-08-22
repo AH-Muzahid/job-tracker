@@ -19,6 +19,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select"
 import { VoiceMockInterviewModal, type MockQuestion } from "@/components/interview/VoiceMockInterviewModal"
+import { ConversationalVoiceInterviewModal } from "@/components/interview/ConversationalVoiceInterviewModal"
 
 interface PrepQuestion {
   id: string
@@ -65,6 +66,7 @@ export default function InterviewPrepPage() {
   const [aiLoading, setAiLoading] = useState(false)
   const [aiQuestions, setAiQuestions] = useState<string[]>([])
   const [suggestingAnswer, setSuggestingAnswer] = useState<string | null>(null)
+  const [conversationalModalOpen, setConversationalModalOpen] = useState(false)
   const [mockModalOpen, setMockModalOpen] = useState(false)
   const [activeMockQuestion, setActiveMockQuestion] = useState<MockQuestion | null>(null)
 
@@ -246,28 +248,10 @@ export default function InterviewPrepPage() {
         <>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <Button
-              onClick={() => {
-                if (questions.length > 0) {
-                  const randomQ = questions[Math.floor(Math.random() * questions.length)]
-                  setActiveMockQuestion({
-                    id: randomQ.id,
-                    question: randomQ.question,
-                    category: randomQ.category,
-                    difficulty: randomQ.difficulty,
-                    answer: randomQ.answer || undefined,
-                  })
-                } else {
-                  setActiveMockQuestion({
-                    question: "Tell me about a time you resolved a complex technical bottleneck in a distributed system under tight deadlines.",
-                    category: "Behavioral",
-                    difficulty: "Medium",
-                  })
-                }
-                setMockModalOpen(true)
-              }}
+              onClick={() => setConversationalModalOpen(true)}
               className="gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
             >
-              <Mic className="h-4 w-4" /> Start Voice Mock Interview
+              <Mic className="h-4 w-4" /> Start Conversational Voice Mock Interview
             </Button>
             <div className="flex items-center gap-2">
               <Button variant="outline" onClick={() => setAiOpen(true)} className="gap-1.5">
@@ -430,6 +414,11 @@ export default function InterviewPrepPage() {
           question={activeMockQuestion}
         />
       )}
+
+      <ConversationalVoiceInterviewModal
+        isOpen={conversationalModalOpen}
+        onClose={() => setConversationalModalOpen(false)}
+      />
     </div>
   )
 }
