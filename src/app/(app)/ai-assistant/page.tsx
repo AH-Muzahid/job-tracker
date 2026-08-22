@@ -9,6 +9,8 @@ import { cn } from "@/lib/utils"
 import AIChat from "@/components/ai/AIChat"
 import ModelSelector from "@/components/ai/ModelSelector"
 
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+
 interface ChatSession {
   id: string
   title: string
@@ -20,21 +22,27 @@ interface ChatSession {
 export default function AIAssistantPage() {
   const { isLoaded, isSignedIn } = useUser()
   const router = useRouter()
-  const [sessions, setSessions] = useState<ChatSession[]>([])
+  const queryClient = useQueryClient()
   const [activeId, setActiveId] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
   const [mobileSessionOpen, setMobileSessionOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+
+  const { data: sessions = [], isLoading: loading } = useQuery({
+    queryKey: ["ai", "sessions"],
+    queryFn: async () => {
+      const res = await fetch("/api/ai/sessions")
+      if (res.ok) return (await res.json()) as ChatSession[]
+      return []
+    },
+    enabled: isLoaded && isSignedIn,
+    staleTime: 5 * 60 * 1000,
+  })
 
   useEffect(() => {
     if (isLoaded && !isSignedIn) {
       router.push("/sign-in")
-      return
     }
-    if (!isLoaded) return
-    fetchSessions()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoaded, isSignedIn])
+  }, [isLoaded, isSignedIn, router])
 
   useEffect(() => {
     const saved = localStorage.getItem("ai-sidebar-collapsed")
@@ -71,33 +79,27 @@ export default function AIAssistantPage() {
     localStorage.setItem("ai-sidebar-collapsed", String(next))
   }
 
-  async function fetchSessions() {
-    try {
-      const res = await fetch("/api/ai/sessions")
-      if (res.ok) {
-        const data = await res.json()
-        setSessions(data)
-      }
-    } catch {} finally {
-      setLoading(false)
-    }
-  }
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await fetch(`/api/ai/sessions/${id}`, { method: "DELETE" })
+    },
+    onSuccess: (_, id) => {
+      queryClient.setQueryData<ChatSession[]>(["ai", "sessions"], (old = []) =>
+        old.filter((s) => s.id !== id)
+      )
+      if (activeId === id) setActiveId(null)
+    },
+  })
 
-  async function deleteSession(id: string) {
-    try {
-      const res = await fetch(`/api/ai/sessions/${id}`, { method: "DELETE" })
-      if (res.ok) {
-        setSessions((prev) => prev.filter((s) => s.id !== id))
-        if (activeId === id) setActiveId(null)
-      }
-    } catch {}
+  function deleteSession(id: string) {
+    deleteMutation.mutate(id)
   }
 
   const handleSessionCreated = useCallback((id: string) => {
     setActiveId(id)
-    fetchSessions()
+    queryClient.invalidateQueries({ queryKey: ["ai", "sessions"] })
     setMobileSessionOpen(false)
-  }, [])
+  }, [queryClient])
 
   const visibleSessions = sessions.filter(
     (s) => s._count.messages > 0 && s.title !== "New Chat"

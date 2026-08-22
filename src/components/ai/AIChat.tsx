@@ -309,25 +309,60 @@ export default function AIChat({ sessionId, onSessionCreated }: Props) {
             </div>
 
             <div className="relative">
-              <div className="flex flex-col rounded-2xl sm:rounded-3xl border border-border/60 bg-card/95 backdrop-blur-md p-3 shadow-md focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary/60 transition-all">
-                <textarea
-                  ref={textareaRef}
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Ask anything or paste a job description..."
-                  className="w-full bg-transparent border-0 outline-none resize-none text-sm placeholder:text-muted-foreground/50 min-h-[44px] max-h-[180px] px-1 py-1 leading-relaxed"
-                  rows={Math.min(6, Math.max(1, input.split('\n').length))}
-                />
-                <div className="flex items-center justify-between pt-2 mt-1 border-t border-border/40">
+              {input.includes("\n") || input.length > 90 ? (
+                <div className="flex flex-col rounded-2xl sm:rounded-3xl border border-border/60 bg-card/95 backdrop-blur-md p-3 shadow-md focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary/60 transition-all">
+                  <textarea
+                    ref={textareaRef}
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Ask anything or paste a job description..."
+                    className="w-full bg-transparent border-0 outline-none resize-none text-sm placeholder:text-muted-foreground/50 min-h-[50px] max-h-[180px] px-1 py-1 leading-relaxed"
+                    rows={Math.min(6, Math.max(2, input.split('\n').length))}
+                  />
+                  <div className="flex items-center justify-between pt-2 mt-1 border-t border-border/40">
+                    <button 
+                      type="button"
+                      className="flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                      title="Add context"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </button>
+                    <div className="flex items-center gap-2">
+                      <ModelSelector
+                        variant="inline"
+                        selectedModelOverride={modelOverride}
+                        onModelOverrideChange={setModelOverride}
+                      />
+                      <button
+                        onClick={() => sendMessage(input)}
+                        disabled={!input.trim()}
+                        className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-xs"
+                      >
+                        <Send className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 rounded-full border border-border/60 bg-card/95 backdrop-blur-md px-3.5 py-1.5 shadow-sm focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary transition-all">
                   <button 
                     type="button"
-                    className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                     title="Add context"
                   >
                     <Plus className="h-4 w-4" />
                   </button>
-                  <div className="flex items-center gap-2">
+                  <textarea
+                    ref={textareaRef}
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Ask anything or paste a job description..."
+                    className="flex-1 bg-transparent border-0 outline-none resize-none text-sm placeholder:text-muted-foreground/50 h-[22px] py-0.5 leading-normal"
+                    rows={1}
+                  />
+                  <div className="flex items-center gap-1.5 shrink-0">
                     <ModelSelector
                       variant="inline"
                       selectedModelOverride={modelOverride}
@@ -336,13 +371,13 @@ export default function AIChat({ sessionId, onSessionCreated }: Props) {
                     <button
                       onClick={() => sendMessage(input)}
                       disabled={!input.trim()}
-                      className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-xs"
+                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-xs"
                     >
-                      <Send className="h-4 w-4" />
+                      <Send className="h-3.5 w-3.5" />
                     </button>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
 
             <div className="flex flex-wrap justify-center gap-2">
@@ -378,14 +413,14 @@ export default function AIChat({ sessionId, onSessionCreated }: Props) {
                 </div>
               )}
               {/* Spacer to ensure messages scroll above the floating input without excessive margin */}
-              <div className="h-36 shrink-0" ref={messagesEndRef} />
+              <div className="h-28 shrink-0" ref={messagesEndRef} />
             </div>
           </div>
 
           {showScrollBtn && (
             <button
               onClick={scrollToBottom}
-              className="absolute bottom-36 left-1/2 -translate-x-1/2 flex h-8 w-8 items-center justify-center rounded-full border bg-background shadow-md hover:bg-accent transition-colors z-10"
+              className="absolute bottom-28 left-1/2 -translate-x-1/2 flex h-8 w-8 items-center justify-center rounded-full border bg-background shadow-md hover:bg-accent transition-colors z-10"
             >
               <ArrowDown className="h-4 w-4" />
             </button>
@@ -393,26 +428,71 @@ export default function AIChat({ sessionId, onSessionCreated }: Props) {
 
           <div className="absolute bottom-4 left-0 right-0 px-4 pointer-events-none">
             <div className="max-w-3xl mx-auto pointer-events-auto">
-              <div className="relative flex flex-col rounded-2xl sm:rounded-3xl bg-card/95 backdrop-blur-md border border-border/80 p-3 shadow-xl focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/20 transition-all">
-                <textarea
-                  ref={textareaRef}
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Message AI Assistant..."
-                  className="w-full bg-transparent border-0 outline-none resize-none text-sm placeholder:text-muted-foreground/50 min-h-[40px] max-h-[180px] px-1 py-1 leading-relaxed"
-                  rows={Math.min(6, Math.max(1, input.split('\n').length))}
-                  disabled={isStreaming}
-                />
-                <div className="flex items-center justify-between pt-2 mt-1 border-t border-border/40">
+              {input.includes("\n") || input.length > 90 ? (
+                <div className="relative flex flex-col rounded-2xl sm:rounded-3xl bg-card/95 backdrop-blur-md border border-border/80 p-3 shadow-xl focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/20 transition-all">
+                  <textarea
+                    ref={textareaRef}
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Message AI Assistant..."
+                    className="w-full bg-transparent border-0 outline-none resize-none text-sm placeholder:text-muted-foreground/50 min-h-[50px] max-h-[180px] px-1 py-1 leading-relaxed"
+                    rows={Math.min(6, Math.max(2, input.split('\n').length))}
+                    disabled={isStreaming}
+                  />
+                  <div className="flex items-center justify-between pt-2 mt-1 border-t border-border/40">
+                    <button 
+                      type="button"
+                      className="flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                      title="Add context"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </button>
+                    <div className="flex items-center gap-2">
+                      <ModelSelector
+                        variant="inline"
+                        selectedModelOverride={modelOverride}
+                        onModelOverrideChange={setModelOverride}
+                      />
+                      {isStreaming ? (
+                        <button
+                          onClick={stopStreaming}
+                          className="flex h-7 w-7 items-center justify-center rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-colors shadow-xs"
+                        >
+                          <Square className="h-3.5 w-3.5" />
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => sendMessage(input)}
+                          disabled={!input.trim()}
+                          className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-xs"
+                        >
+                          <Send className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="relative flex items-center gap-2 rounded-full bg-card/95 backdrop-blur-md border border-border/80 px-3.5 py-1.5 shadow-lg focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/20 transition-all">
                   <button 
                     type="button"
-                    className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                     title="Add context"
                   >
                     <Plus className="h-4 w-4" />
                   </button>
-                  <div className="flex items-center gap-2">
+                  <textarea
+                    ref={textareaRef}
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Message AI Assistant..."
+                    className="flex-1 bg-transparent border-0 outline-none resize-none text-sm placeholder:text-muted-foreground/50 h-[22px] py-0.5 leading-normal"
+                    rows={1}
+                    disabled={isStreaming}
+                  />
+                  <div className="flex items-center gap-1.5 shrink-0">
                     <ModelSelector
                       variant="inline"
                       selectedModelOverride={modelOverride}
@@ -421,7 +501,7 @@ export default function AIChat({ sessionId, onSessionCreated }: Props) {
                     {isStreaming ? (
                       <button
                         onClick={stopStreaming}
-                        className="flex h-8 w-8 items-center justify-center rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-colors shadow-xs"
+                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-colors shadow-xs"
                       >
                         <Square className="h-3.5 w-3.5" />
                       </button>
@@ -429,14 +509,14 @@ export default function AIChat({ sessionId, onSessionCreated }: Props) {
                       <button
                         onClick={() => sendMessage(input)}
                         disabled={!input.trim()}
-                        className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-xs"
+                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-xs"
                       >
-                        <Send className="h-4 w-4" />
+                        <Send className="h-3.5 w-3.5" />
                       </button>
                     )}
                   </div>
                 </div>
-              </div>
+              )}
               <p className="text-[11px] text-center text-muted-foreground/70 mt-2">
                 Gemini-style Assistant. AI can make mistakes. Check important info.
               </p>

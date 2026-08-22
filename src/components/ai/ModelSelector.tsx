@@ -55,9 +55,11 @@ let inFlightModelsPromise: Promise<any> | null = null
 let cachedProfilesData: { data: any; timestamp: number } | null = null
 let inFlightProfilesPromise: Promise<any> | null = null
 
+const CACHE_TTL_MS = 5 * 60 * 1000 // 5 minutes cache
+
 async function getCachedModels(force = false) {
   const now = Date.now()
-  if (!force && cachedModelsData && now - cachedModelsData.timestamp < 30000) {
+  if (!force && cachedModelsData && now - cachedModelsData.timestamp < CACHE_TTL_MS) {
     return cachedModelsData.data
   }
   if (!force && inFlightModelsPromise) {
@@ -78,7 +80,7 @@ async function getCachedModels(force = false) {
 
 async function getCachedProfiles(force = false) {
   const now = Date.now()
-  if (!force && cachedProfilesData && now - cachedProfilesData.timestamp < 30000) {
+  if (!force && cachedProfilesData && now - cachedProfilesData.timestamp < CACHE_TTL_MS) {
     return cachedProfilesData.data
   }
   if (!force && inFlightProfilesPromise) {

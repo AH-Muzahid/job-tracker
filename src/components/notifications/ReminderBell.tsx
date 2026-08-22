@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { Bell, Calendar, Mail, CheckCircle2, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -8,27 +9,20 @@ import Link from "next/link"
 import type { ReminderAlert } from "@/app/api/notifications/reminders/route"
 
 export default function ReminderBell() {
-  const [reminders, setReminders] = useState<ReminderAlert[]>([])
-  const [loading, setLoading] = useState(true)
   const [isOpen, setIsOpen] = useState(false)
 
-  useEffect(() => {
-    async function fetchReminders() {
-      try {
-        const res = await fetch("/api/notifications/reminders")
-        const json = await res.json()
-        if (res.ok && json.data?.reminders) {
-          setReminders(json.data.reminders)
-        }
-      } catch (err) {
-        console.error("Failed to fetch reminders:", err)
-      } finally {
-        setLoading(false)
+  const { data: reminders = [], isLoading: loading } = useQuery({
+    queryKey: ["notifications", "reminders"],
+    queryFn: async () => {
+      const res = await fetch("/api/notifications/reminders")
+      const json = await res.json()
+      if (res.ok && json.data?.reminders) {
+        return json.data.reminders as ReminderAlert[]
       }
-    }
-
-    fetchReminders()
-  }, [])
+      return []
+    },
+    staleTime: 5 * 60 * 1000,
+  })
 
   const getIcon = (type: ReminderAlert["type"]) => {
     switch (type) {
