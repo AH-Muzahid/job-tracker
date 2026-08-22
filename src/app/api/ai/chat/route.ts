@@ -120,30 +120,69 @@ export async function POST(request: NextRequest) {
 
   const modelToUse = modelOverride || aiConfig.model || resolvedProvider.defaultModel
 
-  const result = streamText({
-    model: resolvedProvider.model(modelToUse),
-    system: systemPrompt,
-    tools: createAiTools(userId),
-    maxSteps: 5,
-    messages: formattedMessages,
-    onFinish: async ({ text }) => {
-      await prisma.chatMessage.create({
-        data: {
-          sessionId,
-          role: "assistant",
-          content: text || "I have analyzed your request.",
-          metadata: { mode, model: modelToUse },
-        },
-      })
-    },
-  })
+  try {
+    const result = streamText({
+      model: resolvedProvider.model(modelToUse),
+      system: systemPrompt,
+      tools: createAiTools(userId),
+      maxSteps: 5,
+      messages: formattedMessages,
+      onError: (err) => {
+        console.error("streamText runtime error:", err)
+      },
+      onFinish: async ({ text }) => {
+        if (text?.trim()) {
+          await prisma.chatMessage.create({
+            data: {
+              sessionId,
+              role: "assistant",
+              content: text,
+              metadata: { mode, model: modelToUse },
+            },
+          })
+        }
+      },
+    })
 
-  return result.toTextStreamResponse({
-    headers: {
-      "Content-Type": "text/plain; charset=utf-8",
-      "Cache-Control": "no-cache, no-transform",
-      "Connection": "keep-alive",
-      "X-Accel-Buffering": "no",
-    },
-  })
+    const encoder = new TextEncoder()
+    const customStream = new ReadableStream({
+      async start(controller) {
+        try {
+          for await (const chunk of result.textStream) {
+            controller.enqueue(encoder.encode(chunk))
+          }
+          controller.close()
+        } catch (streamErr: unknown) {
+          console.error("Stream chunk error:", streamErr)
+          const errObj = streamErr as { data?: { error?: { message?: string } }; message?: string }
+          const errMessage =
+            errObj?.data?.error?.message ||
+            errObj?.message ||
+            "No active credentials or provider connection failed."
+
+          controller.enqueue(
+            encoder.encode(
+              `\n\n⚠️ **Model Error (${modelToUse}):** ${errMessage}\n\n*Please switch to an active model (such as Gemini 2.5 Flash or GPT-4o) using the model selector below.*`
+            )
+          )
+          controller.close()
+        }
+      },
+    })
+
+    return new Response(customStream, {
+      headers: {
+        "Content-Type": "text/plain; charset=utf-8",
+        "Cache-Control": "no-cache, no-transform",
+        "Connection": "keep-alive",
+        "X-Accel-Buffering": "no",
+      },
+    })
+  } catch (initialErr: unknown) {
+    const errMsg = initialErr instanceof Error ? initialErr.message : "Failed to initialize model stream"
+    return new Response(`⚠️ **Model Error (${modelToUse}):** ${errMsg}`, {
+      status: 200,
+      headers: { "Content-Type": "text/plain; charset=utf-8" },
+    })
+  }
 }
