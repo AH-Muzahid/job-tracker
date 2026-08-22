@@ -112,6 +112,7 @@ export function ConversationalVoiceInterviewModal({
   }, [dialogue, currentTranscript])
 
   const startListeningRef = useRef<() => void>(() => {})
+  const audioPlayerRef = useRef<HTMLAudioElement | null>(null)
 
   const stopAllAudioAndMic = useCallback(() => {
     if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current)
@@ -121,6 +122,10 @@ export function ConversationalVoiceInterviewModal({
       } catch {
         // Ignore
       }
+    }
+    if (audioPlayerRef.current) {
+      audioPlayerRef.current.pause()
+      audioPlayerRef.current.currentTime = 0
     }
     if (typeof window !== "undefined" && window.speechSynthesis) {
       window.speechSynthesis.cancel()
@@ -140,28 +145,68 @@ export function ConversationalVoiceInterviewModal({
     }
   }, [isOpen, stopAllAudioAndMic])
 
-  // Text-To-Speech function with natural cadence
+  // Text-To-Speech function with natural human audio playback
   const speakText = useCallback(
     (text: string, onDone?: () => void) => {
+      if (!text || !text.trim()) {
+        if (onDone) onDone()
+        return
+      }
+
+      // Stop any prior ongoing speech
+      if (audioPlayerRef.current) {
+        audioPlayerRef.current.pause()
+        audioPlayerRef.current.currentTime = 0
+      }
+      if (typeof window !== "undefined" && window.speechSynthesis) {
+        window.speechSynthesis.cancel()
+      }
+
+      const hasBengali = /[\u0980-\u09FF]/.test(text)
+
+      // 1. High-fidelity Server-side TTS for Bangla / Mixed script
+      if (hasBengali || language === "bn" || language === "mixed") {
+        try {
+          const ttsUrl = `/api/ai/tts?text=${encodeURIComponent(text)}&lang=bn`
+          const audio = new Audio(ttsUrl)
+          audioPlayerRef.current = audio
+          audio.playbackRate = speechRate
+
+          audio.onplay = () => {
+            setIsAiSpeaking(true)
+            setIsListening(false)
+          }
+          audio.onended = () => {
+            setIsAiSpeaking(false)
+            if (onDone) onDone()
+          }
+          audio.onerror = (e) => {
+            console.warn("Server TTS playback error, falling back to Web Speech:", e)
+            setIsAiSpeaking(false)
+            if (onDone) onDone()
+          }
+
+          audio.play().catch((err) => {
+            console.warn("Audio autoplay blocked or failed:", err)
+            setIsAiSpeaking(false)
+            if (onDone) onDone()
+          })
+          return
+        } catch (e) {
+          console.warn("Failed to initialize Audio TTS:", e)
+        }
+      }
+
+      // 2. Browser SpeechSynthesis for standard English
       if (typeof window === "undefined" || !window.speechSynthesis) {
         if (onDone) onDone()
         return
       }
 
-      window.speechSynthesis.cancel()
       const utterance = new SpeechSynthesisUtterance(text)
-
-      // Set language and voice
-      if (language === "bn" || language === "mixed") {
-        const bnVoice = availableVoices.find((v) => v.lang.startsWith("bn"))
-        if (bnVoice) utterance.voice = bnVoice
-        utterance.lang = bnVoice ? bnVoice.lang : "bn-BD"
-      } else {
-        const preferredVoice = availableVoices.find((v) => v.name === selectedVoice)
-        if (preferredVoice) utterance.voice = preferredVoice
-        utterance.lang = preferredVoice ? preferredVoice.lang : "en-US"
-      }
-
+      const preferredVoice = availableVoices.find((v) => v.name === selectedVoice)
+      if (preferredVoice) utterance.voice = preferredVoice
+      utterance.lang = preferredVoice ? preferredVoice.lang : "en-US"
       utterance.rate = speechRate
       utterance.pitch = 1.0
 

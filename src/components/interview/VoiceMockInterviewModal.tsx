@@ -170,25 +170,51 @@ export function VoiceMockInterviewModal({
     }
   }
 
+  const audioPlayerRef = useRef<HTMLAudioElement | null>(null)
+
   const toggleTextToSpeech = () => {
+    if (audioPlayerRef.current) {
+      audioPlayerRef.current.pause()
+      audioPlayerRef.current.currentTime = 0
+    }
+    if (typeof window !== "undefined" && window.speechSynthesis) {
+      window.speechSynthesis.cancel()
+    }
+
+    if (isSpeaking) {
+      setIsSpeaking(false)
+      return
+    }
+
+    const textToSpeak = question.question
+    const hasBengali = /[\u0980-\u09FF]/.test(textToSpeak)
+
+    if (hasBengali) {
+      try {
+        const audio = new Audio(`/api/ai/tts?text=${encodeURIComponent(textToSpeak)}&lang=bn`)
+        audioPlayerRef.current = audio
+        audio.onplay = () => setIsSpeaking(true)
+        audio.onended = () => setIsSpeaking(false)
+        audio.onerror = () => setIsSpeaking(false)
+        audio.play().catch(() => setIsSpeaking(false))
+        return
+      } catch (e) {
+        console.warn("Audio TTS error:", e)
+      }
+    }
+
     if (typeof window === "undefined" || !window.speechSynthesis) {
       toast.error("Text-to-speech is not supported in this browser.")
       return
     }
 
-    if (isSpeaking) {
-      window.speechSynthesis.cancel()
-      setIsSpeaking(false)
-    } else {
-      window.speechSynthesis.cancel()
-      const utterance = new SpeechSynthesisUtterance(question.question)
-      utterance.rate = 0.95
-      utterance.pitch = 1.0
-      utterance.onend = () => setIsSpeaking(false)
-      utterance.onerror = () => setIsSpeaking(false)
-      setIsSpeaking(true)
-      window.speechSynthesis.speak(utterance)
-    }
+    const utterance = new SpeechSynthesisUtterance(textToSpeak)
+    utterance.rate = 0.95
+    utterance.pitch = 1.0
+    utterance.onend = () => setIsSpeaking(false)
+    utterance.onerror = () => setIsSpeaking(false)
+    setIsSpeaking(true)
+    window.speechSynthesis.speak(utterance)
   }
 
   const handleEvaluate = async () => {
