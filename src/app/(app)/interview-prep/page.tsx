@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { useUser } from "@clerk/nextjs"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { Plus, Trash2, Brain, FileText, Sparkles } from "lucide-react"
+import { Plus, Trash2, Brain, FileText, Sparkles, Mic } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -18,6 +18,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select"
+import { VoiceMockInterviewModal, type MockQuestion } from "@/components/interview/VoiceMockInterviewModal"
 
 interface PrepQuestion {
   id: string
@@ -64,6 +65,8 @@ export default function InterviewPrepPage() {
   const [aiLoading, setAiLoading] = useState(false)
   const [aiQuestions, setAiQuestions] = useState<string[]>([])
   const [suggestingAnswer, setSuggestingAnswer] = useState<string | null>(null)
+  const [mockModalOpen, setMockModalOpen] = useState(false)
+  const [activeMockQuestion, setActiveMockQuestion] = useState<MockQuestion | null>(null)
 
   function fetchAll() {
     Promise.all([
@@ -241,11 +244,37 @@ export default function InterviewPrepPage() {
 
       {tab === "questions" && (
         <>
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setAiOpen(true)} className="gap-1.5">
-              <Sparkles className="h-4 w-4" /> Generate from JD
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <Button
+              onClick={() => {
+                if (questions.length > 0) {
+                  const randomQ = questions[Math.floor(Math.random() * questions.length)]
+                  setActiveMockQuestion({
+                    id: randomQ.id,
+                    question: randomQ.question,
+                    category: randomQ.category,
+                    difficulty: randomQ.difficulty,
+                    answer: randomQ.answer || undefined,
+                  })
+                } else {
+                  setActiveMockQuestion({
+                    question: "Tell me about a time you resolved a complex technical bottleneck in a distributed system under tight deadlines.",
+                    category: "Behavioral",
+                    difficulty: "Medium",
+                  })
+                }
+                setMockModalOpen(true)
+              }}
+              className="gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
+            >
+              <Mic className="h-4 w-4" /> Start Voice Mock Interview
             </Button>
-            <Button onClick={() => setQOpen(true)}><Plus className="h-4 w-4" /> Add Question</Button>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" onClick={() => setAiOpen(true)} className="gap-1.5">
+                <Sparkles className="h-4 w-4" /> Generate from JD
+              </Button>
+              <Button onClick={() => setQOpen(true)}><Plus className="h-4 w-4" /> Add Question</Button>
+            </div>
           </div>
           {questions.length === 0 ? (
             <Card className="p-12 text-center"><Brain className="mx-auto mb-3 h-10 w-10 text-muted-foreground/30" /><p className="text-sm text-muted-foreground">No questions yet</p></Card>
@@ -267,6 +296,22 @@ export default function InterviewPrepPage() {
                       )}
                     </button>
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                      <button
+                        onClick={() => {
+                          setActiveMockQuestion({
+                            id: q.id,
+                            question: q.question,
+                            category: q.category,
+                            difficulty: q.difficulty,
+                            answer: q.answer || undefined,
+                          })
+                          setMockModalOpen(true)
+                        }}
+                        className="text-muted-foreground hover:text-indigo-500 p-1"
+                        title="Practice speaking answer (Voice Mock Interview)"
+                      >
+                        <Mic className="h-3.5 w-3.5" />
+                      </button>
                       <button
                         onClick={() => suggestAnswer(q.id, q.question)}
                         disabled={suggestingAnswer === q.id}
@@ -373,6 +418,17 @@ export default function InterviewPrepPage() {
             </DialogContent>
           </Dialog>
         </>
+      )}
+
+      {activeMockQuestion && (
+        <VoiceMockInterviewModal
+          isOpen={mockModalOpen}
+          onClose={() => {
+            setMockModalOpen(false)
+            setActiveMockQuestion(null)
+          }}
+          question={activeMockQuestion}
+        />
       )}
     </div>
   )

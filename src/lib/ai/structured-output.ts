@@ -77,3 +77,18 @@ export const MessageClassificationSchema = z.object({
   draftResponse: z.string(),
   nextStep: z.string(),
 })
+
+export const MockInterviewEvaluationSchema = z.object({
+  overallScore: z.number().min(0).max(100),
+  technicalScore: z.number().min(0).max(100),
+  clarityScore: z.number().min(0).max(100),
+  starBreakdown: z.object({
+    situation: z.string().describe("Evaluation of context and setup"),
+    task: z.string().describe("Evaluation of candidate's stated objective"),
+    action: z.string().describe("Evaluation of specific technical actions and tools used"),
+    result: z.string().describe("Evaluation of quantifiable outcome and business impact"),
+  }),
+  strengths: z.array(z.string()).min(1),
+  improvementAreas: z.array(z.string()).min(1),
+  idealModelAnswer: z.string().describe("A high-impact STAR model response tailored for this question"),
+})
