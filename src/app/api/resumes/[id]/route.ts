@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getInternalUserId } from "@/lib/auth"
+import { invalidateCache } from "@/lib/redis"
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const userId = await getInternalUserId()
@@ -27,6 +28,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     },
   })
 
+  // Invalidate Redis cached resume
+  void invalidateCache(`user:resume:${userId}`)
+
   return NextResponse.json(resume)
 }
 
@@ -39,5 +43,9 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   if (!existing || existing.userId !== userId) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
   await prisma.resume.delete({ where: { id } })
+
+  // Invalidate Redis cached resume
+  void invalidateCache(`user:resume:${userId}`)
+
   return NextResponse.json({ success: true })
 }

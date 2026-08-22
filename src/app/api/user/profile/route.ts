@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getInternalUserId } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { invalidateCache } from "@/lib/redis"
 
 export async function GET() {
   const userId = await getInternalUserId()
@@ -21,6 +22,9 @@ export async function PUT(request: NextRequest) {
     create: { userId, ...body },
     update: body,
   })
+
+  // Invalidate Redis profile cache
+  void invalidateCache(`user:profile:${userId}`)
 
   return NextResponse.json(profile)
 }

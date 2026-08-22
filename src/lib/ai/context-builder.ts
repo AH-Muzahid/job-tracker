@@ -1,4 +1,6 @@
 import { prisma } from "@/lib/prisma"
+import { getCachedJson, setCachedJson } from "@/lib/redis"
+import type { UserProfile } from "@prisma/client"
 
 export type AIMode =
   | "profile"
@@ -10,6 +12,13 @@ export type AIMode =
   | "weekly"
   | "recovery"
   | "general"
+
+interface CachedResume {
+  title: string
+  fileName: string
+  fileUrl: string
+  textContent: string | null
+}
 
 export async function buildFullContext(userId: string, mode: AIMode): Promise<string> {
   const parts: string[] = []
@@ -25,13 +34,15 @@ export async function buildFullContext(userId: string, mode: AIMode): Promise<st
   const needPrepQuestions = mode === "interview"
   const needWeeklyGoals = mode === "weekly"
 
-  // Base queries executed in parallel
-  const [user, profile, recentApps, pipelineStats] = await Promise.all([
+  // Base queries with Redis LTM caching for Profile
+  const cachedProfilePromise = getCachedJson<UserProfile>(`user:profile:${userId}`)
+
+  const [user, cachedProfile, recentApps, pipelineStats] = await Promise.all([
     prisma.user.findUnique({
       where: { id: userId },
       select: { name: true, email: true },
     }),
-    prisma.userProfile.findUnique({ where: { userId } }),
+    cachedProfilePromise,
     needRecentApps ? prisma.application.findMany({
       where: { userId },
       orderBy: { createdAt: "desc" },
@@ -48,14 +59,31 @@ export async function buildFullContext(userId: string, mode: AIMode): Promise<st
     }) : Promise.resolve([]),
   ])
 
-  // Selective targeted secondary queries
-  const [defaultResume, recentCompanies, recentPrepNotes, recentStatusChanges, recentAnalyses, prepQuestions, currentGoals] = await Promise.all([
-    needResume
-      ? prisma.resume.findFirst({
-          where: { userId, isDefault: true },
-          select: { title: true, fileName: true, fileUrl: true, textContent: true },
-        })
-      : null,
+  let profile = cachedProfile
+  if (!profile) {
+    profile = await prisma.userProfile.findUnique({ where: { userId } })
+    if (profile) {
+      // Asynchronously cache profile in Redis for 1 hour
+      void setCachedJson(`user:profile:${userId}`, profile, 3600)
+    }
+  }
+
+  // Selective targeted secondary queries with Redis caching for Default Resume
+  const cachedResumePromise = needResume ? getCachedJson<CachedResume>(`user:resume:${userId}`) : Promise.resolve(null)
+  const cachedResume = await cachedResumePromise
+
+  let defaultResume = cachedResume
+  if (needResume && !defaultResume) {
+    defaultResume = await prisma.resume.findFirst({
+      where: { userId, isDefault: true },
+      select: { title: true, fileName: true, fileUrl: true, textContent: true },
+    })
+    if (defaultResume) {
+      void setCachedJson(`user:resume:${userId}`, defaultResume, 3600)
+    }
+  }
+
+  const [recentCompanies, recentPrepNotes, recentStatusChanges, recentAnalyses, prepQuestions, currentGoals] = await Promise.all([
     needCompanies
       ? prisma.company.findMany({
           where: { userId },

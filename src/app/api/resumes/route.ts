@@ -4,6 +4,7 @@ import { getInternalUserId } from "@/lib/auth"
 import { writeFile, mkdir } from "fs/promises"
 import path from "path"
 import { PDFParse } from "pdf-parse"
+import { invalidateCache } from "@/lib/redis"
 
 export async function GET() {
   const userId = await getInternalUserId()
@@ -108,9 +109,12 @@ export async function POST(req: Request) {
       },
     })
 
+    // Invalidate cached default resume
+    void invalidateCache(`user:resume:${userId}`)
+
     return NextResponse.json(resume, { status: 201 })
-  } catch (err) {
-    console.error("Resume POST error:", err)
-    return NextResponse.json({ error: "Invalid request" }, { status: 400 })
+  } catch (error) {
+    console.error("Resume upload error:", error)
+    return NextResponse.json({ error: "Failed to create resume" }, { status: 500 })
   }
 }
