@@ -17,8 +17,8 @@ describe("User Memory & Semantic Fact Management", () => {
     const tools = createAiTools(testUserId) as any
 
     // Mock prisma responses
-    vi.spyOn(prisma.userMemory, "findFirst").mockResolvedValueOnce(null)
-    vi.spyOn(prisma.userMemory, "create").mockResolvedValueOnce({
+    vi.spyOn((prisma as any).userMemory, "findFirst").mockResolvedValueOnce(null)
+    vi.spyOn((prisma as any).userMemory, "create").mockResolvedValueOnce({
       id: "mem_1",
       userId: testUserId,
       category: "preference",
