@@ -4,7 +4,9 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }
 
-export const prisma = globalForPrisma.prisma ?? new PrismaClient()
+/* eslint-disable @typescript-eslint/no-explicit-any */
+export const prisma: PrismaClient & { userMemory: any; [key: string]: any } =
+  (globalForPrisma.prisma ?? new PrismaClient()) as any
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma
 
@@ -19,7 +21,6 @@ export async function withDbRetry<T>(fn: () => Promise<T>, retries = 2): Promise
       return await fn()
     } catch (err: unknown) {
       lastError = err
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const errObj = err as any
       const code = errObj?.code
       const name = errObj?.name
