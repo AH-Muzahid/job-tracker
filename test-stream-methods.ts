@@ -15,12 +15,13 @@ async function test() {
         execute: async () => {
           return { success: true }
         }
-      })
+      } as any)
     }
   });
 
   const response = result.toUIMessageStreamResponse();
-  const reader = response.body.getReader();
+  const reader = response.body?.getReader();
+  if (!reader) return;
   const decoder = new TextDecoder();
   let done = false;
   while (!done) {

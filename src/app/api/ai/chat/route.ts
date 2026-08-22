@@ -125,7 +125,6 @@ export async function POST(request: NextRequest) {
     system: systemPrompt,
     tools: createAiTools(userId),
     messages: formattedMessages,
-    maxSteps: 5,
     onFinish: async ({ text }) => {
       await prisma.chatMessage.create({
         data: {

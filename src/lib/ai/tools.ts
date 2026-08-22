@@ -385,5 +385,59 @@ export function createAiTools(userId: string) {
         }
       },
     } as any),
+
+    draftOutreachEmail: tool({
+      description: "Draft an outreach or follow-up email for a job application with recipient, subject, and customized body.",
+      parameters: z.object({
+        companyOrTitle: z.string().describe("Target company name or job title"),
+        recipientEmail: z.string().optional().describe("Recipient email address e.g. recruiter@company.com"),
+        subject: z.string().describe("Email subject line"),
+        body: z.string().describe("Formatted email message body"),
+        type: z.enum(["ColdOutreach", "FollowUp", "Application", "ThankYou"]).optional().default("ColdOutreach"),
+      }),
+      execute: async ({
+        companyOrTitle,
+        recipientEmail,
+        subject,
+        body,
+        type = "ColdOutreach",
+      }: {
+        companyOrTitle: string
+        recipientEmail?: string
+        subject: string
+        body: string
+        type?: "ColdOutreach" | "FollowUp" | "Application" | "ThankYou"
+      }) => {
+        try {
+          const app = await withDbRetry(() =>
+            prisma.application.findFirst({
+              where: {
+                userId,
+                OR: [
+                  { companyName: { contains: companyOrTitle, mode: "insensitive" } },
+                  { jobTitle: { contains: companyOrTitle, mode: "insensitive" } },
+                ],
+              },
+            })
+          )
+
+          return {
+            success: true,
+            isEmailDraft: true,
+            applicationId: app?.id,
+            companyName: app?.companyName || companyOrTitle,
+            jobTitle: app?.jobTitle,
+            recipientEmail: recipientEmail || "recruiter@example.com",
+            subject,
+            body,
+            type,
+            message: `Drafted ${type} email for ${app?.companyName || companyOrTitle}. You can review and approve it.`,
+          }
+        } catch (error) {
+          console.error("draftOutreachEmail tool error:", error)
+          return { success: false, message: "Failed to draft outreach email." }
+        }
+      },
+    } as any),
   }
 }

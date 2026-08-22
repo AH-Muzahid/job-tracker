@@ -186,25 +186,33 @@ export default function ChatMessage({ message, isStreaming }: Props) {
         {message.toolInvocations && message.toolInvocations.length > 0 && (
           <div className="flex flex-col gap-2 mb-3">
             {message.toolInvocations.map((tool: ToolInvocation, idx: number) => (
-              <div key={idx} className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 px-3 py-2 rounded-md border border-border/50 w-fit">
-                {tool.state === 'call' ? (
-                  <span className="animate-spin leading-none inline-block h-3.5 w-3.5 border-2 border-primary/40 border-t-primary rounded-full"></span>
-                ) : (
-                  <span className="leading-none text-emerald-500 font-bold">✓</span>
+              <React.Fragment key={idx}>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 px-3 py-2 rounded-md border border-border/50 w-fit">
+                  {tool.state === 'call' ? (
+                    <span className="animate-spin leading-none inline-block h-3.5 w-3.5 border-2 border-primary/40 border-t-primary rounded-full"></span>
+                  ) : (
+                    <span className="leading-none text-emerald-500 font-bold">✓</span>
+                  )}
+                  <span className="font-medium">
+                    {tool.toolName === 'scrapeJobLink' && "Scanning web page..."}
+                    {tool.toolName === 'createApplication' && "Saving to tracker..."}
+                    {tool.toolName === 'updateApplicationStatus' && "Updating tracker..."}
+                    {tool.toolName === 'searchApplications' && "Searching your database..."}
+                    {tool.toolName === 'setWeeklyGoals' && "Setting weekly goals..."}
+                    {tool.toolName === 'getResumeSummary' && "Analyzing your resume..."}
+                    {tool.toolName === 'getPipelineStats' && "Fetching pipeline stats..."}
+                    {tool.toolName === 'getPrepNotes' && "Fetching interview notes..."}
+                    {tool.toolName === 'addPrepQuestions' && "Saving prep questions..."}
+                    {tool.toolName === 'draftOutreachEmail' && "Drafting email outreach..."}
+                    {!['scrapeJobLink', 'createApplication', 'updateApplicationStatus', 'searchApplications', 'setWeeklyGoals', 'getResumeSummary', 'getPipelineStats', 'getPrepNotes', 'addPrepQuestions', 'draftOutreachEmail'].includes(tool.toolName) && `Running ${tool.toolName}...`}
+                  </span>
+                </div>
+                {tool.state === 'result' && tool.toolName === 'draftOutreachEmail' && Boolean(tool.result) && (
+                  <div className="my-2">
+                    <OutreachResult data={tool.result as Record<string, unknown>} />
+                  </div>
                 )}
-                <span className="font-medium">
-                  {tool.toolName === 'scrapeJobLink' && "Scanning web page..."}
-                  {tool.toolName === 'createApplication' && "Saving to tracker..."}
-                  {tool.toolName === 'updateApplicationStatus' && "Updating tracker..."}
-                  {tool.toolName === 'searchApplications' && "Searching your database..."}
-                  {tool.toolName === 'setWeeklyGoals' && "Setting weekly goals..."}
-                  {tool.toolName === 'getResumeSummary' && "Analyzing your resume..."}
-                  {tool.toolName === 'getPipelineStats' && "Fetching pipeline stats..."}
-                  {tool.toolName === 'getPrepNotes' && "Fetching interview notes..."}
-                  {tool.toolName === 'addPrepQuestions' && "Saving prep questions..."}
-                  {!['scrapeJobLink', 'createApplication', 'updateApplicationStatus', 'searchApplications', 'setWeeklyGoals', 'getResumeSummary', 'getPipelineStats', 'getPrepNotes', 'addPrepQuestions'].includes(tool.toolName) && `Running ${tool.toolName}...`}
-                </span>
-              </div>
+              </React.Fragment>
             ))}
           </div>
         )}
