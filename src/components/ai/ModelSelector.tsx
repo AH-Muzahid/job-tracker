@@ -49,6 +49,59 @@ interface ModelSelectorProps {
   variant?: "pill" | "inline"
 }
 
+let cachedModelsData: { data: any; timestamp: number } | null = null
+let inFlightModelsPromise: Promise<any> | null = null
+
+let cachedProfilesData: { data: any; timestamp: number } | null = null
+let inFlightProfilesPromise: Promise<any> | null = null
+
+async function getCachedModels(force = false) {
+  const now = Date.now()
+  if (!force && cachedModelsData && now - cachedModelsData.timestamp < 30000) {
+    return cachedModelsData.data
+  }
+  if (!force && inFlightModelsPromise) {
+    return inFlightModelsPromise
+  }
+  inFlightModelsPromise = fetch("/api/ai/models")
+    .then((r) => (r.ok ? r.json() : null))
+    .then((data) => {
+      if (data) cachedModelsData = { data, timestamp: Date.now() }
+      return data
+    })
+    .catch(() => null)
+    .finally(() => {
+      inFlightModelsPromise = null
+    })
+  return inFlightModelsPromise
+}
+
+async function getCachedProfiles(force = false) {
+  const now = Date.now()
+  if (!force && cachedProfilesData && now - cachedProfilesData.timestamp < 30000) {
+    return cachedProfilesData.data
+  }
+  if (!force && inFlightProfilesPromise) {
+    return inFlightProfilesPromise
+  }
+  inFlightProfilesPromise = fetch("/api/settings/ai-key")
+    .then((r) => (r.ok ? r.json() : null))
+    .then((data) => {
+      if (data) cachedProfilesData = { data, timestamp: Date.now() }
+      return data
+    })
+    .catch(() => null)
+    .finally(() => {
+      inFlightProfilesPromise = null
+    })
+  return inFlightProfilesPromise
+}
+
+export function invalidateModelSelectorCache() {
+  cachedModelsData = null
+  cachedProfilesData = null
+}
+
 export default function ModelSelector({
   selectedModelOverride,
   onModelOverrideChange,
@@ -70,27 +123,25 @@ export default function ModelSelector({
   const [switching, setSwitching] = useState(false)
   const [open, setOpen] = useState(false)
 
-  // Fetch available live models from the configured baseUrl or provider
+  // Fetch available live models from the configured baseUrl or provider (cached & deduplicated)
   const loadModelsAndProfiles = useCallback(async (isManualRefresh = false) => {
     if (isManualRefresh) setRefreshing(true)
     try {
-      const [modelsRes, profilesRes] = await Promise.all([
-        fetch("/api/ai/models"),
-        fetch("/api/settings/ai-key"),
+      const [modelsData, profilesData] = await Promise.all([
+        getCachedModels(isManualRefresh),
+        getCachedProfiles(isManualRefresh),
       ])
 
-      if (modelsRes.ok) {
-        const data = await modelsRes.json()
-        setModels(data.models || [])
-        setActiveModel(data.activeModel || "")
-        setBaseUrl(data.baseUrl || null)
-        setProviderType(data.providerType || null)
+      if (modelsData) {
+        setModels(modelsData.models || [])
+        setActiveModel(modelsData.activeModel || "")
+        setBaseUrl(modelsData.baseUrl || null)
+        setProviderType(modelsData.providerType || null)
       }
 
-      if (profilesRes.ok) {
-        const pData = await profilesRes.json()
-        setProfiles(pData.profiles || [])
-        setActiveProfileId(pData.activeId || null)
+      if (profilesData) {
+        setProfiles(profilesData.profiles || [])
+        setActiveProfileId(profilesData.activeId || null)
       }
 
       if (isManualRefresh) {
@@ -139,6 +190,7 @@ export default function ModelSelector({
       onModelOverrideChange?.(modelId)
 
       // 2. Persist to active profile in backend
+      invalidateModelSelectorCache()
       await fetch("/api/settings/ai-key", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -161,6 +213,7 @@ export default function ModelSelector({
     if (profileId === activeProfileId) return
     setSwitching(true)
     try {
+      invalidateModelSelectorCache()
       const res = await fetch("/api/settings/ai-key", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },

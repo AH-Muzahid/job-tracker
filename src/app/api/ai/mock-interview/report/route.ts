@@ -96,7 +96,27 @@ ${dialogueTranscript}
 
     const report = JSON.parse(cleaned.substring(jsonStart, jsonEnd + 1))
 
-    return NextResponse.json(report)
+    // Automatically persist the completed interview session to the database
+    try {
+      const { prisma } = await import("@/lib/prisma")
+      const session = await (prisma as any).interviewSession.create({
+        data: {
+          userId,
+          targetRole: targetRole || "Software Engineer",
+          targetCompany: targetCompany || "Tech Company",
+          interviewType: interviewType || "Technical",
+          language: language || "mixed",
+          score: typeof report.overallScore === "number" ? report.overallScore : null,
+          verdict: report.verdict || "Hire",
+          dialogue: history,
+          report,
+        },
+      })
+      return NextResponse.json({ ...report, sessionId: session.id })
+    } catch (saveErr) {
+      console.warn("[Session Save Error (non-fatal)]:", saveErr)
+      return NextResponse.json(report)
+    }
   } catch (error) {
     console.error("Mock interview report error:", error)
     return NextResponse.json({ error: "Failed to generate interview report" }, { status: 500 })

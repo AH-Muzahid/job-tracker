@@ -52,6 +52,7 @@ interface ConversationalVoiceInterviewModalProps {
   initialRole?: string
   initialCompany?: string
   initialType?: string
+  onSessionSaved?: () => void
 }
 
 export function ConversationalVoiceInterviewModal({
@@ -60,6 +61,7 @@ export function ConversationalVoiceInterviewModal({
   initialRole = "Senior Fullstack Engineer",
   initialCompany = "Google / Tech Company",
   initialType = "Technical",
+  onSessionSaved,
 }: ConversationalVoiceInterviewModalProps) {
   // Session Configuration States
   const [step, setStep] = useState<"setup" | "interview" | "report">("setup")
@@ -453,6 +455,7 @@ export function ConversationalVoiceInterviewModal({
       const reportData = await res.json()
       setReport(reportData)
       toast.success("Interview report generated!")
+      onSessionSaved?.()
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to generate report"
       toast.error(msg)
