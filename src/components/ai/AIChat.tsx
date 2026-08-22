@@ -5,6 +5,7 @@ import { Send, Square, FileText, Briefcase, Target, MessageSquare, ArrowDown, Pl
 import { Skeleton } from "@/components/ui/skeleton"
 import ChatMessage from "./ChatMessage"
 import { useUI, type AIMode } from "@/lib/store"
+import ModelSelector from "./ModelSelector"
 
 interface Props {
   sessionId: string | null
@@ -65,6 +66,7 @@ export default function AIChat({ sessionId, onSessionCreated }: Props) {
   const [isStreaming, setIsStreaming] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showScrollBtn, setShowScrollBtn] = useState(false)
+  const [modelOverride, setModelOverride] = useState<string | undefined>(undefined)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -98,21 +100,29 @@ export default function AIChat({ sessionId, onSessionCreated }: Props) {
       try {
         const res = await fetch(`/api/ai/sessions/${sessionId}`)
         if (res.ok) {
-          const data = await res.json()
+          const session = await res.json()
           if (!cancelled) {
-            setMessages(data?.messages || [])
+            setMessages(session?.messages || [])
           }
         }
-      } catch {} finally {
+      } catch {
+        if (!cancelled) setError("Failed to load chat history")
+      } finally {
         if (!cancelled) setLoading(false)
       }
     })()
     return () => { cancelled = true }
   }, [sessionId])
 
-  useEffect(() => {
+  const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [messages])
+  }, [])
+
+  useEffect(() => {
+    if (isStreaming) {
+      scrollToBottom()
+    }
+  }, [messages, isStreaming, scrollToBottom])
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -121,29 +131,26 @@ export default function AIChat({ sessionId, onSessionCreated }: Props) {
     }
   }, [input])
 
-
-
-  function handleScroll() {
+  const handleScroll = () => {
     if (!containerRef.current) return
     const { scrollTop, scrollHeight, clientHeight } = containerRef.current
-    setShowScrollBtn(scrollHeight - scrollTop - clientHeight > 200)
+    const isNearBottom = scrollHeight - scrollTop - clientHeight < 100
+    setShowScrollBtn(!isNearBottom && scrollHeight > clientHeight)
   }
 
-  function scrollToBottom() {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }
-
-  const sendMessage = useCallback(async (content: string) => {
-    if (!content.trim() || isStreaming) return
+  const sendMessage = useCallback(async (text: string) => {
+    const content = text.trim()
+    if (!content || isStreaming) return
+    
+    setInput("")
     setError(null)
 
-    const userMsg: Message = { id: crypto.randomUUID(), role: "user", content }
-    setMessages((prev) => [...prev, userMsg])
-    setInput("")
-    setIsStreaming(true)
-
+    const userMessage: Message = { id: crypto.randomUUID(), role: "user", content }
     const assistantId = crypto.randomUUID()
-    setMessages((prev) => [...prev, { id: assistantId, role: "assistant", content: "" }])
+    const assistantMessage: Message = { id: assistantId, role: "assistant", content: "" }
+    
+    setMessages((prev) => [...prev, userMessage, assistantMessage])
+    setIsStreaming(true)
 
     const abortController = new AbortController()
     abortRef.current = abortController
@@ -167,7 +174,11 @@ export default function AIChat({ sessionId, onSessionCreated }: Props) {
       const res = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: content, sessionId: activeSessionId }),
+        body: JSON.stringify({
+          message: content,
+          sessionId: activeSessionId,
+          model: modelOverride,
+        }),
         signal: abortController.signal,
       })
 
@@ -294,6 +305,13 @@ export default function AIChat({ sessionId, onSessionCreated }: Props) {
               </p>
             </div>
 
+            <div className="flex items-center justify-center">
+              <ModelSelector
+                selectedModelOverride={modelOverride}
+                onModelOverrideChange={setModelOverride}
+              />
+            </div>
+
             <div className="relative">
               <div className="flex items-end gap-2 rounded-[24px] border border-border/40 bg-muted/30 px-5 py-3 shadow-sm focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary focus-within:bg-card transition-all">
                 <button className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
@@ -351,14 +369,14 @@ export default function AIChat({ sessionId, onSessionCreated }: Props) {
                 </div>
               )}
               {/* Spacer to ensure messages scroll above the floating input without excessive margin */}
-              <div className="h-28 shrink-0" ref={messagesEndRef} />
+              <div className="h-32 shrink-0" ref={messagesEndRef} />
             </div>
           </div>
 
           {showScrollBtn && (
             <button
               onClick={scrollToBottom}
-              className="absolute bottom-32 left-1/2 -translate-x-1/2 flex h-8 w-8 items-center justify-center rounded-full border bg-background shadow-md hover:bg-accent transition-colors z-10"
+              className="absolute bottom-36 left-1/2 -translate-x-1/2 flex h-8 w-8 items-center justify-center rounded-full border bg-background shadow-md hover:bg-accent transition-colors z-10"
             >
               <ArrowDown className="h-4 w-4" />
             </button>
@@ -366,6 +384,16 @@ export default function AIChat({ sessionId, onSessionCreated }: Props) {
 
           <div className="absolute bottom-4 left-0 right-0 px-4 pointer-events-none">
             <div className="max-w-3xl mx-auto pointer-events-auto">
+              <div className="flex items-center justify-between mb-1.5 px-2">
+                <ModelSelector
+                  compact
+                  selectedModelOverride={modelOverride}
+                  onModelOverrideChange={setModelOverride}
+                />
+                <span className="text-[10px] font-mono text-muted-foreground/60 hidden sm:inline">
+                  Active AI Model
+                </span>
+              </div>
               <div className="relative flex items-end gap-2 rounded-[24px] bg-card px-5 py-3 shadow-[0_0_15px_rgba(0,0,0,0.1)] focus-within:shadow-[0_0_20px_rgba(0,0,0,0.15)] transition-all">
                 <button className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
                   <Plus className="h-5 w-5" />

@@ -7,6 +7,7 @@ import { MessageSquare, Trash2, Settings, PanelLeftClose, PanelLeft } from "luci
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import AIChat from "@/components/ai/AIChat"
+import ModelSelector from "@/components/ai/ModelSelector"
 
 interface ChatSession {
   id: string
@@ -207,7 +208,28 @@ export default function AIAssistantPage() {
 
       {/* Chat area */}
       <div className="flex-1 flex flex-col min-w-0 relative overflow-hidden">
-        <AIChat sessionId={activeId} onSessionCreated={handleSessionCreated} />
+        {/* Top Header */}
+        <div className="h-11 border-b border-border/50 px-3 flex items-center justify-between bg-card/40 backdrop-blur-xs shrink-0">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setMobileSessionOpen(true)}
+              className="md:hidden flex h-8 w-8 items-center justify-center rounded-lg border border-border text-muted-foreground hover:text-foreground"
+            >
+              <MessageSquare className="h-4 w-4" />
+            </button>
+            <span className="text-xs font-medium text-foreground truncate max-w-[200px] sm:max-w-md">
+              {sessions.find((s) => s.id === activeId)?.title || "New Conversation"}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <ModelSelector />
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-hidden relative">
+          <AIChat sessionId={activeId} onSessionCreated={handleSessionCreated} />
+        </div>
       </div>
 
       {/* Mobile overlay */}
