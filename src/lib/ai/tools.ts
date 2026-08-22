@@ -2,6 +2,7 @@
 import { tool } from "ai"
 import { z } from "zod"
 import { prisma, withDbRetry } from "@/lib/prisma"
+import { invalidateCache } from "@/lib/redis"
 
 export function createAiTools(userId: string) {
   return {
@@ -436,6 +437,147 @@ export function createAiTools(userId: string) {
         } catch (error) {
           console.error("draftOutreachEmail tool error:", error)
           return { success: false, message: "Failed to draft outreach email." }
+        }
+      },
+    } as any),
+
+    saveUserMemory: tool({
+      description: "Persist an explicit user preference, skill, career constraint, or key fact across all future sessions (e.g. 'Prefers remote work in APAC', 'Notice period is 30 days', 'Target salary 120k USD').",
+      parameters: z.object({
+        category: z.enum(["preference", "skill", "experience", "constraint", "general"]).describe("The category of the memory"),
+        content: z.string().describe("The concise factual statement to remember"),
+      }),
+      execute: async ({
+        category,
+        content,
+      }: {
+        category: "preference" | "skill" | "experience" | "constraint" | "general"
+        content: string
+      }) => {
+        try {
+          // Prevent exact duplicate memories
+          const existing = await withDbRetry(() =>
+            prisma.userMemory.findFirst({
+              where: {
+                userId,
+                content: { equals: content, mode: "insensitive" },
+              },
+            })
+          )
+
+          if (existing) {
+            return {
+              success: true,
+              memoryId: existing.id,
+              message: `Memory already retained: "${content}"`,
+            }
+          }
+
+          const memory = await withDbRetry(() =>
+            prisma.userMemory.create({
+              data: {
+                userId,
+                category,
+                content,
+                source: "chat",
+              },
+            })
+          )
+
+          // Invalidate Redis cache
+          void invalidateCache(`user:memories:${userId}`)
+
+          return {
+            success: true,
+            memoryId: memory.id,
+            category: memory.category,
+            content: memory.content,
+            message: `Memory saved: "${content}"`,
+          }
+        } catch (error) {
+          console.error("saveUserMemory tool error:", error)
+          return { success: false, message: "Failed to save user memory." }
+        }
+      },
+    } as any),
+
+    forgetUserMemory: tool({
+      description: "Remove or forget an outdated user memory/preference when instructed by the user.",
+      parameters: z.object({
+        searchQuery: z.string().describe("Keyword or phrase in the memory to delete"),
+      }),
+      execute: async ({ searchQuery }: { searchQuery: string }) => {
+        try {
+          const matching = await withDbRetry(() =>
+            prisma.userMemory.findFirst({
+              where: {
+                userId,
+                OR: [
+                  { content: { contains: searchQuery, mode: "insensitive" } },
+                  { category: { contains: searchQuery, mode: "insensitive" } },
+                ],
+              },
+            })
+          )
+
+          if (!matching) {
+            return {
+              success: false,
+              message: `No memory found matching "${searchQuery}".`,
+            }
+          }
+
+          await withDbRetry(() =>
+            prisma.userMemory.delete({
+              where: { id: matching.id },
+            })
+          )
+
+          // Invalidate Redis cache
+          void invalidateCache(`user:memories:${userId}`)
+
+          return {
+            success: true,
+            deletedContent: matching.content,
+            message: `Successfully forgot memory: "${matching.content}"`,
+          }
+        } catch (error) {
+          console.error("forgetUserMemory tool error:", error)
+          return { success: false, message: "Failed to forget user memory." }
+        }
+      },
+    } as any),
+
+    getUserMemories: tool({
+      description: "Retrieve all persistent facts and preferences the AI has stored about this user.",
+      parameters: z.object({
+        category: z.enum(["preference", "skill", "experience", "constraint", "general"]).optional().describe("Optional filter by category"),
+      }),
+      execute: async ({ category }: { category?: string }) => {
+        try {
+          const whereClause: any = { userId }
+          if (category) whereClause.category = category
+
+          const memories = await withDbRetry(() =>
+            prisma.userMemory.findMany({
+              where: whereClause,
+              orderBy: { createdAt: "desc" },
+            })
+          )
+
+          return {
+            success: true,
+            count: memories.length,
+            memories: memories.map((m) => ({
+              id: m.id,
+              category: m.category,
+              content: m.content,
+              createdAt: m.createdAt,
+            })),
+          }
+        } catch (error) {
+          console.error("getUserMemories tool error:", error)
+          return { success: false, message: "Failed to fetch user memories." }
         }
       },
     } as any),

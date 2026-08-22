@@ -1,0 +1,39 @@
+import { NextRequest, NextResponse } from "next/server"
+import { getInternalUserId } from "@/lib/auth"
+import { prisma, withDbRetry } from "@/lib/prisma"
+import { invalidateCache } from "@/lib/redis"
+
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const userId = await getInternalUserId()
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  try {
+    const { id } = await params
+    const memory = await withDbRetry(() =>
+      prisma.userMemory.findUnique({
+        where: { id },
+      })
+    )
+
+    if (!memory || memory.userId !== userId) {
+      return NextResponse.json({ error: "Memory not found" }, { status: 404 })
+    }
+
+    await withDbRetry(() =>
+      prisma.userMemory.delete({
+        where: { id },
+      })
+    )
+
+    // Invalidate Redis cache
+    void invalidateCache(`user:memories:${userId}`)
+
+    return NextResponse.json({ success: true, message: "Memory deleted" })
+  } catch (error) {
+    console.error("DELETE user memory error:", error)
+    return NextResponse.json({ error: "Failed to delete memory" }, { status: 500 })
+  }
+}

@@ -34,15 +34,17 @@ export async function buildFullContext(userId: string, mode: AIMode): Promise<st
   const needPrepQuestions = mode === "interview"
   const needWeeklyGoals = mode === "weekly"
 
-  // Base queries with Redis LTM caching for Profile
+  // Base queries with Redis LTM caching for Profile and Memories
   const cachedProfilePromise = getCachedJson<UserProfile>(`user:profile:${userId}`)
+  const cachedMemoriesPromise = getCachedJson<Array<{ category: string; content: string }>>(`user:memories:${userId}`)
 
-  const [user, cachedProfile, recentApps, pipelineStats] = await Promise.all([
+  const [user, cachedProfile, cachedMemories, recentApps, pipelineStats] = await Promise.all([
     prisma.user.findUnique({
       where: { id: userId },
       select: { name: true, email: true },
     }),
     cachedProfilePromise,
+    cachedMemoriesPromise,
     needRecentApps ? prisma.application.findMany({
       where: { userId },
       orderBy: { createdAt: "desc" },
@@ -65,6 +67,20 @@ export async function buildFullContext(userId: string, mode: AIMode): Promise<st
     if (profile) {
       // Asynchronously cache profile in Redis for 1 hour
       void setCachedJson(`user:profile:${userId}`, profile, 3600)
+    }
+  }
+
+  let userMemories = cachedMemories
+  if (!userMemories) {
+    const rawMemories = await prisma.userMemory.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+      take: 15,
+      select: { category: true, content: true },
+    })
+    userMemories = rawMemories
+    if (rawMemories && rawMemories.length > 0) {
+      void setCachedJson(`user:memories:${userId}`, rawMemories, 3600)
     }
   }
 
@@ -249,6 +265,12 @@ export async function buildFullContext(userId: string, mode: AIMode): Promise<st
 - Goal 1: ${currentGoals.goal1} (${currentGoals.goal1Status})
 - Goal 2: ${currentGoals.goal2 || "N/A"} (${currentGoals.goal2Status})
 - Goal 3: ${currentGoals.goal3 || "N/A"} (${currentGoals.goal3Status})`)
+  }
+
+  if (userMemories && userMemories.length > 0) {
+    parts.push("Persistent User Knowledge & Explicit Preferences (Cross-Session Memory):\n" + userMemories.map((m) =>
+      `- [${m.category.toUpperCase()}]: ${m.content}`
+    ).join("\n"))
   }
 
   return parts.join("\n\n")

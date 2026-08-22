@@ -12,6 +12,7 @@ import { AccountInfoCard } from "@/components/settings/AccountInfoCard"
 import { PreferencesCard } from "@/components/settings/PreferencesCard"
 import { DataManagementCard } from "@/components/settings/DataManagementCard"
 import { AIConfigCard } from "@/components/settings/AIConfigCard"
+import { AIMemoryManager } from "@/components/settings/AIMemoryManager"
 
 export default function SettingsPage() {
   const { isLoaded, isSignedIn, user } = useUser()
@@ -53,6 +54,9 @@ export default function SettingsPage() {
 
       {/* Multi-Profile AI Keys Management */}
       <AIConfigCard />
+
+      {/* Persistent AI Semantic Memory */}
+      <AIMemoryManager />
 
       {/* Notifications */}
       <Card>

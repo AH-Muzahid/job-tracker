@@ -25,6 +25,7 @@ model User {
   profile      UserProfile?
   weeklyGoals  WeeklyGoal[]
   chatSessions ChatSession[]
+  memories     UserMemory[]
 }
 
 model Application {
@@ -263,4 +264,20 @@ model ChatMessage {
 
   @@index([sessionId])
   @@index([sessionId, createdAt])
+}
+
+model UserMemory {
+  id         String   @id @default(uuid())
+  userId     String
+  category   String   // preference | skill | experience | constraint | general
+  content    String
+  source     String?  @default("chat") // chat | manual | resume
+  confidence Float?   @default(1.0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, category])
 }
