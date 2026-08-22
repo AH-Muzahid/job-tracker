@@ -20,6 +20,8 @@ const TRACKER_PATTERNS = [
   /received (a|an) (task|offer|assignment)/i,
   /(got|had) (an?|the) interview/i, /follow.?up/i,
   /rejected (from|by)/i, /offer (from|by)/i,
+  /pipeline/i, /applications?/i, /tracker/i,
+  /summary.*(application|pipeline|status|job)/i,
 ]
 
 const RESPONSE_PATTERNS = [
