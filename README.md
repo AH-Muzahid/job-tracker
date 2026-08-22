@@ -45,6 +45,29 @@ flowchart TD
 ## 🌟 Comprehensive Feature Set
 
 ### 🌳 1. Vectorless Career Knowledge Graph & Graph-RAG Engine
+
+```mermaid
+graph TD
+    User([User Career Root]) --> Domain1[Frontend Architecture]
+    User --> Domain2[Backend & Distributed Systems]
+    User --> Domain3[DevOps & Cloud]
+
+    Domain2 --> Skill1[Go / Golang]
+    Domain2 --> Skill2[PostgreSQL & Redis]
+    Domain2 --> Skill3[Kafka / Messaging]
+
+    Skill1 --> Proj1[Project: High-Throughput Ingestion Engine]
+    Skill2 --> Proj1
+    Proj1 --> Metric1[Impact: 50k req/s & 40% Latency Drop]
+    Proj1 --> Evidence1[Resume Section: Senior Engineer 2024-2026]
+
+    Skill1 --> PrepQ1[Interview Q: Go Concurrency & Channels]
+    
+    JD([Target JD: Tech Lead]) -.->|Requires| Skill1
+    JD -.->|Requires| Skill2
+    JD -.->|Matches via Graph Traversal| Proj1
+```
+
 - **Hierarchical Career Graph** — Structures your professional background into connected nodes (`Domain`, `Skill`, `Project`, `Metric`, `Role`) and edges (`APPLIED_IN`, `PROVEN_BY`, `BELONGS_TO`, `REQUIRES`).
 - **Canonical Skill Normalization** — Zero-overhead canonical aliasing (`golang` ➔ `go`, `k8s` ➔ `kubernetes`, `ts` ➔ `typescript`, `psql` ➔ `postgresql`) prevents keyword mismatch without expensive float embeddings.
 - **Deterministic Subgraph Traversal** — Traverses `Skill ➔ Project ➔ Metric` paths against any JD to calculate exact **Graph Match Scores (0–100%)** and extract verified proof paths with zero hallucinations.
