@@ -267,6 +267,22 @@ export async function setActiveUserAIProfile(userId: string, profileId: string):
 }
 
 /**
+ * Updates the selected model of the active profile (or a specific profile).
+ */
+export async function updateUserAIProfileModel(userId: string, model: string, profileId?: string): Promise<boolean> {
+  const multi = await getRawMultiConfig(userId)
+  if (!multi || !multi.profiles || multi.profiles.length === 0) return false
+
+  const targetId = profileId || multi.activeId || multi.profiles[0].id
+  const prof = multi.profiles.find((p) => p.id === targetId)
+  if (!prof) return false
+
+  prof.model = model
+  await saveRawMultiConfig(userId, multi)
+  return true
+}
+
+/**
  * Deletes a profile by ID.
  */
 export async function deleteUserAIProfile(userId: string, profileId: string): Promise<boolean> {

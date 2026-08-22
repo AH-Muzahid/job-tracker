@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import Link from "next/link"
 import {
   Sparkles,
@@ -10,21 +10,27 @@ import {
   Check,
   ChevronDown,
   Settings as SettingsIcon,
-  PlusCircle,
+  Search,
+  RefreshCw,
   Layers,
+  Radio,
 } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuGroup,
 } from "@/components/ui/dropdown-menu"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
+
+export interface FetchedModel {
+  id: string
+  name: string
+  provider?: string
+}
 
 export interface AIProfileMeta {
   id: string
@@ -48,34 +54,109 @@ export default function ModelSelector({
   className,
   compact = false,
 }: ModelSelectorProps) {
+  const [models, setModels] = useState<FetchedModel[]>([])
+  const [activeModel, setActiveModel] = useState<string>("")
   const [profiles, setProfiles] = useState<AIProfileMeta[]>([])
-  const [activeId, setActiveId] = useState<string | null>(null)
+  const [activeProfileId, setActiveProfileId] = useState<string | null>(null)
+  const [baseUrl, setBaseUrl] = useState<string | null>(null)
+  const [providerType, setProviderType] = useState<string | null>(null)
+  
+  const [searchQuery, setSearchQuery] = useState("")
+  const [selectedTag, setSelectedTag] = useState<string>("all")
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   const [switching, setSwitching] = useState(false)
+  const [open, setOpen] = useState(false)
 
-  const loadProfiles = useCallback(async () => {
+  // Fetch available live models from the configured baseUrl or provider
+  const loadModelsAndProfiles = useCallback(async (isManualRefresh = false) => {
+    if (isManualRefresh) setRefreshing(true)
     try {
-      const res = await fetch("/api/settings/ai-key")
-      if (res.ok) {
-        const data = await res.json()
-        setProfiles(data.profiles || [])
-        setActiveId(data.activeId || null)
+      const [modelsRes, profilesRes] = await Promise.all([
+        fetch("/api/ai/models"),
+        fetch("/api/settings/ai-key"),
+      ])
+
+      if (modelsRes.ok) {
+        const data = await modelsRes.json()
+        setModels(data.models || [])
+        setActiveModel(data.activeModel || "")
+        setBaseUrl(data.baseUrl || null)
+        setProviderType(data.providerType || null)
+      }
+
+      if (profilesRes.ok) {
+        const pData = await profilesRes.json()
+        setProfiles(pData.profiles || [])
+        setActiveProfileId(pData.activeId || null)
+      }
+
+      if (isManualRefresh) {
+        toast.success("AI models refreshed from endpoint")
       }
     } catch {
-      // Ignore network errors on background poll
+      // Ignore background network errors
     } finally {
       setLoading(false)
+      if (isManualRefresh) setRefreshing(false)
     }
   }, [])
 
   useEffect(() => {
-    loadProfiles()
-  }, [loadProfiles])
+    loadModelsAndProfiles()
+  }, [loadModelsAndProfiles])
 
-  const activeProfile = profiles.find((p) => p.id === activeId) || profiles[0]
+  // Current effective model
+  const effectiveModel = selectedModelOverride || activeModel
 
+  // Filtered models based on search and quick category tags
+  const filteredModels = useMemo(() => {
+    return models.filter((m) => {
+      const matchesSearch =
+        !searchQuery.trim() ||
+        m.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        m.name.toLowerCase().includes(searchQuery.toLowerCase())
+
+      if (!matchesSearch) return false
+
+      if (selectedTag === "all") return true
+      if (selectedTag === "gemini") return m.id.toLowerCase().includes("gemini")
+      if (selectedTag === "claude") return m.id.toLowerCase().includes("claude") || m.id.toLowerCase().includes("sonnet") || m.id.toLowerCase().includes("opus")
+      if (selectedTag === "gpt") return m.id.toLowerCase().includes("gpt") || m.id.toLowerCase().includes("o1") || m.id.toLowerCase().includes("o3") || m.id.toLowerCase().includes("openai")
+      if (selectedTag === "llama") return m.id.toLowerCase().includes("llama") || m.id.toLowerCase().includes("qwen") || m.id.toLowerCase().includes("deepseek")
+      return true
+    })
+  }, [models, searchQuery, selectedTag])
+
+  // Select a specific model
+  async function handleSelectModel(modelId: string) {
+    setSwitching(true)
+    try {
+      // 1. Update in memory for current chat session
+      setActiveModel(modelId)
+      onModelOverrideChange?.(modelId)
+
+      // 2. Persist to active profile in backend
+      await fetch("/api/settings/ai-key", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model: modelId }),
+      })
+
+      const shortName = modelId.split("/").pop() || modelId
+      toast.success(`Selected model: ${shortName}`)
+      setOpen(false)
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to select model"
+      toast.error(msg)
+    } finally {
+      setSwitching(false)
+    }
+  }
+
+  // Switch active profile endpoint
   async function handleSwitchProfile(profileId: string) {
-    if (profileId === activeId) return
+    if (profileId === activeProfileId) return
     setSwitching(true)
     try {
       const res = await fetch("/api/settings/ai-key", {
@@ -83,22 +164,20 @@ export default function ModelSelector({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ activeId: profileId }),
       })
-      if (!res.ok) throw new Error("Failed to switch active AI profile")
+      if (!res.ok) throw new Error("Failed to switch profile")
 
-      setActiveId(profileId)
-      const switchedProfile = profiles.find((p) => p.id === profileId)
-      toast.success(`Switched AI model to ${switchedProfile?.name || "selected profile"}`)
-      // Clear manual model override when switching profile
+      setActiveProfileId(profileId)
       onModelOverrideChange?.(undefined)
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Could not switch AI profile"
-      toast.error(msg)
+      await loadModelsAndProfiles()
+      toast.success("Switched AI provider profile")
+    } catch {
+      toast.error("Failed to switch profile")
     } finally {
       setSwitching(false)
     }
   }
 
-  const getProviderIcon = (type?: string) => {
+  const getProviderIcon = (type?: string | null) => {
     switch (type) {
       case "google":
         return <Zap className="h-3.5 w-3.5 text-amber-500" />
@@ -112,28 +191,25 @@ export default function ModelSelector({
     }
   }
 
-  const getDisplayName = () => {
-    if (selectedModelOverride) {
-      return selectedModelOverride.split("/").pop() || selectedModelOverride
+  const displayModelName = () => {
+    if (effectiveModel) {
+      return effectiveModel.split("/").pop() || effectiveModel
     }
-    if (activeProfile) {
-      const modelName = activeProfile.model?.split("/").pop() || activeProfile.model
-      return modelName ? `${activeProfile.name} (${modelName})` : activeProfile.name
-    }
-    return "Select Model"
+    const activeProf = profiles.find((p) => p.id === activeProfileId)
+    return activeProf?.name || "Select Model"
   }
 
   if (loading) {
     return (
       <div className={cn("inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted/40 text-xs text-muted-foreground animate-pulse", className)}>
         <Sparkles className="h-3 w-3" />
-        <span>Loading AI...</span>
+        <span>Loading Models...</span>
       </div>
     )
   }
 
   return (
-    <DropdownMenu>
+    <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
         <button
           type="button"
@@ -143,91 +219,177 @@ export default function ModelSelector({
             switching && "opacity-60 cursor-wait",
             className
           )}
-          title="Change active AI model or key profile"
+          title="Select model fetched from active endpoint"
         >
           <span className="flex items-center gap-1">
-            {getProviderIcon(activeProfile?.providerType)}
-            <span className={cn("truncate max-w-[130px] sm:max-w-[180px]", compact && "max-w-[100px]")}>
-              {getDisplayName()}
+            {getProviderIcon(providerType)}
+            <span className={cn("truncate max-w-[130px] sm:max-w-[200px]", compact && "max-w-[110px]")}>
+              {displayModelName()}
             </span>
           </span>
           <ChevronDown className="h-3 w-3 text-muted-foreground group-hover:text-foreground transition-transform group-data-[state=open]:rotate-180" />
         </button>
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent align="start" className="w-64 sm:w-72 p-1.5 shadow-xl rounded-xl">
-        <DropdownMenuLabel className="px-2 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
-          <span>AI Model Profiles</span>
-          <Link
-            href="/settings"
-            className="text-[11px] font-normal normal-case text-primary hover:underline flex items-center gap-1"
-          >
-            <SettingsIcon className="h-3 w-3" /> Settings
-          </Link>
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-
-        {profiles.length === 0 ? (
-          <div className="p-3 text-center space-y-2">
-            <p className="text-xs text-muted-foreground">No AI key profiles configured.</p>
+      <DropdownMenuContent align="start" className="w-80 sm:w-96 p-2 shadow-2xl rounded-xl">
+        {/* Header */}
+        <DropdownMenuLabel className="px-2 py-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            <Radio className="h-3 w-3 text-emerald-500 animate-pulse" />
+            <span>Live Models ({models.length})</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                loadModelsAndProfiles(true)
+              }}
+              disabled={refreshing}
+              className="text-[11px] font-normal normal-case text-muted-foreground hover:text-foreground flex items-center gap-1 p-0.5 rounded transition-colors"
+              title="Refresh models from endpoint"
+            >
+              <RefreshCw className={cn("h-3 w-3", refreshing && "animate-spin text-primary")} />
+              <span>Refresh</span>
+            </button>
             <Link
               href="/settings"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors"
+              className="text-[11px] font-normal normal-case text-primary hover:underline flex items-center gap-0.5"
             >
-              <PlusCircle className="h-3.5 w-3.5" /> Add Key in Settings
+              <SettingsIcon className="h-3 w-3" /> Settings
             </Link>
           </div>
-        ) : (
-          <DropdownMenuGroup className="space-y-0.5">
-            {profiles.map((prof) => {
-              const isSelected = activeProfile?.id === prof.id
+        </DropdownMenuLabel>
+
+        {baseUrl && (
+          <div className="px-2 pb-1 text-[10px] text-muted-foreground font-mono truncate">
+            Endpoint: <span className="text-foreground">{baseUrl}</span>
+          </div>
+        )}
+
+        <DropdownMenuSeparator className="my-1" />
+
+        {/* Search & Category Filter */}
+        <div className="p-1 space-y-1.5">
+          <div className="relative flex items-center">
+            <Search className="absolute left-2.5 h-3.5 w-3.5 text-muted-foreground" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search fetched models (e.g. gemini, claude, gpt)..."
+              className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border border-border/80 bg-muted/40 focus:bg-background focus:outline-none focus:ring-1 focus:ring-primary text-foreground placeholder:text-muted-foreground"
+              onClick={(e) => e.stopPropagation()}
+              onKeyDown={(e) => e.stopPropagation()}
+            />
+          </div>
+
+          {/* Quick Filter Chips */}
+          <div className="flex items-center gap-1 overflow-x-auto py-0.5 scrollbar-none">
+            {[
+              { id: "all", label: "All" },
+              { id: "gemini", label: "Gemini" },
+              { id: "claude", label: "Claude" },
+              { id: "gpt", label: "GPT" },
+              { id: "llama", label: "Open/Llama" },
+            ].map((chip) => (
+              <button
+                key={chip.id}
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  setSelectedTag(chip.id)
+                }}
+                className={cn(
+                  "px-2 py-0.5 text-[10px] font-medium rounded-md transition-colors shrink-0",
+                  selectedTag === chip.id
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted"
+                )}
+              >
+                {chip.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <DropdownMenuSeparator className="my-1" />
+
+        {/* Models List */}
+        <div className="max-h-64 overflow-y-auto space-y-0.5 pr-1">
+          {filteredModels.length === 0 ? (
+            <div className="p-4 text-center">
+              <p className="text-xs text-muted-foreground">No matching models found.</p>
+            </div>
+          ) : (
+            filteredModels.map((m) => {
+              const isSelected = effectiveModel === m.id
               return (
-                <DropdownMenuItem
-                  key={prof.id}
-                  onClick={() => handleSwitchProfile(prof.id)}
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => handleSelectModel(m.id)}
                   className={cn(
-                    "flex items-start justify-between p-2 rounded-lg cursor-pointer transition-colors focus:bg-accent/80",
-                    isSelected && "bg-primary/10 border border-primary/20"
+                    "w-full text-left flex items-center justify-between p-2 rounded-lg cursor-pointer transition-all hover:bg-accent text-xs",
+                    isSelected && "bg-primary/10 border border-primary/30 text-primary font-medium"
                   )}
                 >
-                  <div className="flex items-start gap-2 overflow-hidden">
-                    <div className="mt-0.5 shrink-0">{getProviderIcon(prof.providerType)}</div>
+                  <div className="flex items-center gap-2 overflow-hidden">
+                    <Sparkles className={cn("h-3.5 w-3.5 shrink-0", isSelected ? "text-primary" : "text-muted-foreground")} />
                     <div className="overflow-hidden">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs font-semibold truncate text-foreground">
-                          {prof.name}
-                        </span>
-                        <Badge
-                          variant="secondary"
-                          className="text-[9px] uppercase px-1 py-0 h-4 shrink-0"
-                        >
-                          {prof.providerType.replace("custom-", "")}
-                        </Badge>
-                      </div>
-                      <p className="text-[11px] text-muted-foreground truncate max-w-[180px]">
-                        {prof.model || (prof.baseUrl ? `Proxy: ${prof.baseUrl}` : "Default Model")}
+                      <p className="font-mono text-xs truncate text-foreground">
+                        {m.id}
                       </p>
+                      {m.provider && (
+                        <p className="text-[10px] text-muted-foreground capitalize">
+                          Provider: {m.provider}
+                        </p>
+                      )}
                     </div>
                   </div>
                   {isSelected && (
-                    <Check className="h-4 w-4 text-primary shrink-0 mt-1 ml-2" />
+                    <Check className="h-4 w-4 text-primary shrink-0 ml-2" />
                   )}
-                </DropdownMenuItem>
+                </button>
               )
-            })}
-          </DropdownMenuGroup>
-        )}
+            })
+          )}
+        </div>
 
-        <DropdownMenuSeparator className="my-1.5" />
-        <DropdownMenuItem asChild>
-          <Link
-            href="/settings"
-            className="flex items-center gap-2 p-2 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground cursor-pointer"
-          >
-            <PlusCircle className="h-3.5 w-3.5" />
-            <span>Add / Manage AI Key Profiles</span>
-          </Link>
-        </DropdownMenuItem>
+        {/* Profile Switcher Footer */}
+        {profiles.length > 1 && (
+          <>
+            <DropdownMenuSeparator className="my-1" />
+            <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase">
+              Switch AI Key Profile
+            </div>
+            <div className="flex flex-wrap gap-1 px-1">
+              {profiles.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    handleSwitchProfile(p.id)
+                  }}
+                  className={cn(
+                    "px-2 py-1 rounded-md text-[11px] border transition-colors flex items-center gap-1",
+                    p.id === activeProfileId
+                      ? "border-primary/50 bg-primary/15 text-primary font-medium"
+                      : "border-border/60 bg-muted/30 text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <span>{p.name}</span>
+                  <Badge variant="outline" className="text-[8px] px-1 py-0 h-3.5">
+                    {p.providerType.replace("custom-", "")}
+                  </Badge>
+                </button>
+              ))}
+            </div>
+          </>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   )

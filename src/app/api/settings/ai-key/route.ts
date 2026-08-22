@@ -4,6 +4,7 @@ import {
   getUserAIProfiles,
   saveUserAIProfile,
   setActiveUserAIProfile,
+  updateUserAIProfileModel,
   deleteUserAIProfile,
 } from "@/lib/ai/config"
 
@@ -54,15 +55,17 @@ export async function PATCH(request: NextRequest) {
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const body = await request.json()
-  const { activeId } = body
+  const { activeId, model, profileId } = body
 
-  if (!activeId) {
-    return NextResponse.json({ error: "activeId is required" }, { status: 400 })
+  if (activeId) {
+    const success = await setActiveUserAIProfile(userId, activeId)
+    if (!success) {
+      return NextResponse.json({ error: "Profile not found" }, { status: 404 })
+    }
   }
 
-  const success = await setActiveUserAIProfile(userId, activeId)
-  if (!success) {
-    return NextResponse.json({ error: "Profile not found" }, { status: 404 })
+  if (model) {
+    await updateUserAIProfileModel(userId, model, profileId || activeId)
   }
 
   return NextResponse.json({ success: true })
