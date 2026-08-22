@@ -7,6 +7,7 @@ import {
   Volume2,
   VolumeX,
   Play,
+  Pause,
   RotateCcw,
   Award,
   CheckCircle2,
@@ -66,7 +67,9 @@ export function ConversationalVoiceInterviewModal({
   const [targetCompany, setTargetCompany] = useState(initialCompany)
   const [interviewType, setInterviewType] = useState(initialType)
   const [language, setLanguage] = useState<"en" | "bn" | "mixed">("mixed")
-  const [speechRate, setSpeechRate] = useState(0.88) // Calm natural speed
+  const [speechRate, setSpeechRate] = useState(0.92) // Smooth natural speed
+  const [isPaused, setIsPaused] = useState(false)
+  const [speechInputLang, setSpeechInputLang] = useState<"bn-BD" | "en-US">("bn-BD")
 
   // Runtime Conversational States
   const [dialogue, setDialogue] = useState<DialogueMessage[]>([])
@@ -85,6 +88,15 @@ export function ConversationalVoiceInterviewModal({
   const silenceTimerRef = useRef<NodeJS.Timeout | null>(null)
   const lastSpeechTimeRef = useRef<number>(Date.now())
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
+
+  // Sync speech input recognition language with selected interview language
+  useEffect(() => {
+    if (language === "en") {
+      setSpeechInputLang("en-US")
+    } else {
+      setSpeechInputLang("bn-BD")
+    }
+  }, [language])
 
   // Load available browser voices for TTS
   useEffect(() => {
@@ -234,6 +246,8 @@ export function ConversationalVoiceInterviewModal({
   // Trigger next conversational turn
   const sendTurnToAi = useCallback(
     async (answerText?: string, overrideHistory?: DialogueMessage[]) => {
+      if (isPaused) return
+
       setIsAiThinking(true)
       setIsListening(false)
       if (recognitionRef.current) {
@@ -289,9 +303,9 @@ export function ConversationalVoiceInterviewModal({
         ]
         setDialogue(nextDialogue)
 
-        // Read aloud with TTS, then automatically open mic
+        // Read aloud with TTS, then automatically open mic if not paused
         speakText(aiReply, () => {
-          if (autoTurnActive) {
+          if (autoTurnActive && !isPaused) {
             startListeningRef.current()
           }
         })
@@ -302,12 +316,12 @@ export function ConversationalVoiceInterviewModal({
         setIsAiThinking(false)
       }
     },
-    [autoTurnActive, dialogue, interviewType, language, speakText, targetCompany, targetRole]
+    [autoTurnActive, dialogue, interviewType, isPaused, language, speakText, targetCompany, targetRole]
   )
 
   // Start continuous microphone listener with silence auto-submit (VAD)
   const startListening = useCallback(() => {
-    if (typeof window === "undefined") return
+    if (typeof window === "undefined" || isPaused) return
 
     const SpeechRecognition =
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
@@ -327,7 +341,7 @@ export function ConversationalVoiceInterviewModal({
     const recognition = new SpeechRecognition()
     recognition.continuous = true
     recognition.interimResults = true
-    recognition.lang = language === "bn" ? "bn-BD" : "en-US"
+    recognition.lang = speechInputLang
 
     recognition.onstart = () => {
       setIsListening(true)
@@ -344,14 +358,14 @@ export function ConversationalVoiceInterviewModal({
       setCurrentTranscript(trimmed)
       lastSpeechTimeRef.current = Date.now()
 
-      // Reset Silence Timer (2.3 seconds of silence triggers automated turn submission)
+      // Reset Silence Timer (2.2 seconds of silence triggers automated turn submission)
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current)
       if (autoTurnActive && trimmed.length > 5) {
         silenceTimerRef.current = setTimeout(() => {
-          if (Date.now() - lastSpeechTimeRef.current >= 2200) {
+          if (Date.now() - lastSpeechTimeRef.current >= 2100) {
             sendTurnToAi(trimmed)
           }
-        }, 2300)
+        }, 2200)
       }
     }
 
@@ -362,7 +376,7 @@ export function ConversationalVoiceInterviewModal({
     }
 
     recognition.onend = () => {
-      if (isListening && !isAiThinking && !isAiSpeaking) {
+      if (isListening && !isAiThinking && !isAiSpeaking && !isPaused) {
         try {
           recognition.start()
         } catch {
@@ -377,9 +391,24 @@ export function ConversationalVoiceInterviewModal({
     } catch (e) {
       console.warn("Could not start recognition:", e)
     }
-  }, [autoTurnActive, isAiSpeaking, isAiThinking, isListening, language, sendTurnToAi])
+  }, [autoTurnActive, isAiSpeaking, isAiThinking, isPaused, sendTurnToAi, speechInputLang])
 
   startListeningRef.current = startListening
+
+  // Pause / Resume toggle handler
+  const togglePause = useCallback(() => {
+    if (isPaused) {
+      setIsPaused(false)
+      toast.success("Interview resumed")
+      if (autoTurnActive && !isAiSpeaking && !isAiThinking) {
+        setTimeout(() => startListening(), 200)
+      }
+    } else {
+      setIsPaused(true)
+      stopAllAudioAndMic()
+      toast.info("Interview paused")
+    }
+  }, [autoTurnActive, isAiSpeaking, isAiThinking, isPaused, startListening, stopAllAudioAndMic])
 
   // Initialize and start session
   const handleStartInterview = async () => {
@@ -597,6 +626,20 @@ export function ConversationalVoiceInterviewModal({
 
               <div className="flex items-center gap-2">
                 <Button
+                  variant={isPaused ? "default" : "outline"}
+                  size="sm"
+                  onClick={togglePause}
+                  className={cn(
+                    "text-xs h-8 gap-1.5 font-medium transition-colors",
+                    isPaused
+                      ? "bg-amber-500 hover:bg-amber-600 text-white border-amber-600 shadow-xs"
+                      : "hover:bg-accent"
+                  )}
+                >
+                  {isPaused ? <Play className="h-3.5 w-3.5 fill-current" /> : <Pause className="h-3.5 w-3.5" />}
+                  <span>{isPaused ? "Resume Interview" : "Pause"}</span>
+                </Button>
+                <Button
                   variant="outline"
                   size="sm"
                   onClick={() => setShowTranscriptDrawer(!showTranscriptDrawer)}
@@ -620,15 +663,17 @@ export function ConversationalVoiceInterviewModal({
             <div className="rounded-2xl border bg-gradient-to-b from-indigo-950/10 via-background to-muted/20 p-6 flex flex-col items-center justify-center space-y-4 shrink-0">
               {/* Interviewer State Indicator */}
               <div className="relative flex items-center justify-center">
-                {isAiSpeaking && (
+                {!isPaused && isAiSpeaking && (
                   <div className="absolute -inset-4 rounded-full bg-indigo-500/20 animate-pulse" />
                 )}
-                {isListening && (
+                {!isPaused && isListening && (
                   <div className="absolute -inset-4 rounded-full bg-emerald-500/20 animate-ping" />
                 )}
                 <div
                   className={`h-20 w-20 rounded-full flex items-center justify-center shadow-lg transition-all ${
-                    isAiSpeaking
+                    isPaused
+                      ? "bg-amber-500/15 text-amber-500 border-2 border-amber-500/40"
+                      : isAiSpeaking
                       ? "bg-indigo-600 text-white ring-4 ring-indigo-400/30 scale-105"
                       : isListening
                       ? "bg-emerald-600 text-white ring-4 ring-emerald-400/30 scale-105"
@@ -637,7 +682,9 @@ export function ConversationalVoiceInterviewModal({
                       : "bg-muted text-muted-foreground"
                   }`}
                 >
-                  {isAiSpeaking ? (
+                  {isPaused ? (
+                    <Pause className="h-8 w-8 text-amber-500" />
+                  ) : isAiSpeaking ? (
                     <Volume2 className="h-9 w-9 animate-bounce" />
                   ) : isListening ? (
                     <Mic className="h-9 w-9 animate-pulse" />
@@ -652,7 +699,9 @@ export function ConversationalVoiceInterviewModal({
               {/* Status Text & Soundwave */}
               <div className="text-center space-y-1">
                 <p className="text-sm font-semibold text-foreground">
-                  {isAiSpeaking
+                  {isPaused
+                    ? "Interview Paused"
+                    : isAiSpeaking
                     ? "Interviewer is speaking..."
                     : isListening
                     ? "Your Turn — Listening to your answer (Hands-Free)..."
@@ -661,14 +710,16 @@ export function ConversationalVoiceInterviewModal({
                     : "Ready"}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {isListening && autoTurnActive
+                  {isPaused
+                    ? "Audio and microphone are on hold. Click Resume when you are ready to continue."
+                    : isListening && autoTurnActive
                     ? "Speak naturally. Pausing for 2.2s will automatically proceed."
                     : "Continuous duplex interview session."}
                 </p>
               </div>
 
               {/* Dynamic Soundbars */}
-              {(isAiSpeaking || isListening) && (
+              {!isPaused && (isAiSpeaking || isListening) && (
                 <div className="flex items-center gap-1.5 h-6">
                   {[35, 75, 45, 95, 60, 100, 50, 85, 40, 90, 65, 30].map((h, i) => (
                     <div
@@ -690,14 +741,55 @@ export function ConversationalVoiceInterviewModal({
             <div className="space-y-1.5 shrink-0">
               <div className="flex items-center justify-between text-xs">
                 <span className="font-semibold text-foreground flex items-center gap-1.5">
-                  <Mic className={`h-3.5 w-3.5 ${isListening ? "text-emerald-500 animate-pulse" : "text-muted-foreground"}`} />
+                  <Mic className={`h-3.5 w-3.5 ${!isPaused && isListening ? "text-emerald-500 animate-pulse" : "text-muted-foreground"}`} />
                   <span>Live Spoken Answer</span>
                 </span>
                 <div className="flex items-center gap-2">
+                  {/* Speech-to-Text Language Switcher */}
+                  <div className="flex items-center rounded-lg border bg-muted/40 p-0.5 text-[10px]">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSpeechInputLang("bn-BD")
+                        if (isListening) {
+                          stopAllAudioAndMic()
+                          setTimeout(() => startListening(), 150)
+                        }
+                      }}
+                      className={cn(
+                        "px-2 py-0.5 rounded-md font-medium transition-colors",
+                        speechInputLang === "bn-BD"
+                          ? "bg-primary text-primary-foreground shadow-2xs"
+                          : "text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      বাংলা (bn-BD)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSpeechInputLang("en-US")
+                        if (isListening) {
+                          stopAllAudioAndMic()
+                          setTimeout(() => startListening(), 150)
+                        }
+                      }}
+                      className={cn(
+                        "px-2 py-0.5 rounded-md font-medium transition-colors",
+                        speechInputLang === "en-US"
+                          ? "bg-primary text-primary-foreground shadow-2xs"
+                          : "text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      English (en-US)
+                    </button>
+                  </div>
+
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={isListening ? stopAllAudioAndMic : startListening}
+                    disabled={isPaused}
                     className="text-xs h-6 text-muted-foreground hover:text-foreground"
                   >
                     {isListening ? "Mute Mic" : "Unmute Mic"}
@@ -715,7 +807,7 @@ export function ConversationalVoiceInterviewModal({
                 />
                 <Button
                   onClick={() => sendTurnToAi(currentTranscript)}
-                  disabled={!currentTranscript.trim() || isAiThinking}
+                  disabled={!currentTranscript.trim() || isAiThinking || isPaused}
                   className="h-auto px-4 bg-indigo-600 hover:bg-indigo-700 text-white text-xs gap-1.5"
                 >
                   <Send className="h-3.5 w-3.5" />
