@@ -12,6 +12,69 @@ export interface AIProviderConfig {
 
 type ModelFn = (id: string) => LanguageModelV4
 
+/**
+ * Smart fetch adapter for Custom OpenAI gateways (OmniRoute, OneAPI, LiteLLM, Ollama)
+ * that ensures seamless compatibility between streaming and non-streaming responses.
+ */
+const smartOpenAIFetch: typeof fetch = async (url, init) => {
+  let body = init?.body
+  let isStreamRequest = false
+
+  if (body && typeof body === "string") {
+    try {
+      const parsed = JSON.parse(body)
+      if (parsed.stream === true) {
+        isStreamRequest = true
+      } else if (parsed.stream === undefined) {
+        parsed.stream = false
+        body = JSON.stringify(parsed)
+      }
+    } catch {
+      // Ignore
+    }
+  }
+
+  const res = await fetch(url, { ...init, body })
+
+  // If upstream returns SSE stream on a non-streaming request, aggregate into standard JSON response
+  const contentType = res.headers.get("content-type") || ""
+  if (!isStreamRequest && contentType.includes("text/event-stream")) {
+    const raw = await res.text()
+    let accumulatedContent = ""
+    const lines = raw.split("\n")
+    for (const line of lines) {
+      if (line.startsWith("data: ") && !line.includes("[DONE]")) {
+        try {
+          const chunk = JSON.parse(line.slice(6))
+          const delta = chunk.choices?.[0]?.delta?.content || ""
+          accumulatedContent += delta
+        } catch {
+          // Ignore
+        }
+      }
+    }
+    const standardJson = {
+      id: "chatcmpl-proxy-" + Date.now(),
+      object: "chat.completion",
+      created: Math.floor(Date.now() / 1000),
+      model: "custom-openai",
+      choices: [
+        {
+          index: 0,
+          message: { role: "assistant", content: accumulatedContent },
+          finish_reason: "stop",
+        },
+      ],
+    }
+    return new Response(JSON.stringify(standardJson), {
+      status: res.status,
+      headers: { "Content-Type": "application/json" },
+    })
+  }
+
+  return res
+}
+
 export function getProvider(config: AIProviderConfig): { model: ModelFn; defaultModel: string } {
   switch (config.providerType) {
     case "openai": {
@@ -34,7 +97,11 @@ export function getProvider(config: AIProviderConfig): { model: ModelFn; default
       }
     }
     case "custom-openai": {
-      const openai = createOpenAI({ baseURL: config.baseUrl, apiKey: config.apiKey })
+      const openai = createOpenAI({
+        baseURL: config.baseUrl,
+        apiKey: config.apiKey,
+        fetch: smartOpenAIFetch,
+      })
       return {
         model: (id) => openai.chat(id),
         defaultModel: config.model || "gpt-4o-mini",
