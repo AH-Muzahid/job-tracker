@@ -13,7 +13,7 @@
 
 <br />
 
-**CareerTrack** is a production-grade, full-stack career copilot and job application operating system. It features **autonomous agentic workflows**, **ChatGPT-style persistent semantic memory**, **zero-latency Redis caching**, and **durable background automation**.
+**CareerTrack** is a production-grade, full-stack career copilot and job application operating system. It features **autonomous agentic workflows**, **vectorless Career Knowledge Graphs (Graph-RAG)**, **ChatGPT-style persistent semantic memory**, **zero-latency Redis caching**, and **durable background automation**.
 
 ---
 
@@ -25,13 +25,14 @@ flowchart TD
     
     subgraph AgenticLayer [🤖 Autonomous Agentic Core]
         AI[AI Copilot / Multi-Model Stream]
-        Tools[Autonomous Tools: JD Scan / Scrape / Status / Email Draft / Memory]
+        Tools[Autonomous Tools: Knowledge Graph / JD Scan / Scrape / Status / Email Draft / Memory]
         Inngest[Inngest Background Automations]
     end
 
-    subgraph MemoryLayer [🧠 Fast LTM & Semantic Retrieval]
+    subgraph MemoryLayer [🧠 Fast LTM & Knowledge Graph]
         Redis[(Upstash Redis 0-2ms Cache)]
         Prisma[(PostgreSQL Database via Prisma)]
+        Graph[Career Knowledge Graph: Domains -> Skills -> Projects -> Metrics]
         UserMemories[UserMemory Table & Cross-Session Injection]
     end
 
@@ -43,28 +44,35 @@ flowchart TD
 
 ## 🌟 Comprehensive Feature Set
 
-### 🤖 1. Autonomous Agentic AI & Copilot
+### 🌳 1. Vectorless Career Knowledge Graph & Graph-RAG Engine
+- **Hierarchical Career Graph** — Structures your professional background into connected nodes (`Domain`, `Skill`, `Project`, `Metric`, `Role`) and edges (`APPLIED_IN`, `PROVEN_BY`, `BELONGS_TO`, `REQUIRES`).
+- **Canonical Skill Normalization** — Zero-overhead canonical aliasing (`golang` ➔ `go`, `k8s` ➔ `kubernetes`, `ts` ➔ `typescript`, `psql` ➔ `postgresql`) prevents keyword mismatch without expensive float embeddings.
+- **Deterministic Subgraph Traversal** — Traverses `Skill ➔ Project ➔ Metric` paths against any JD to calculate exact **Graph Match Scores (0–100%)** and extract verified proof paths with zero hallucinations.
+- **Autonomous Graph Tools** — AI Copilot utilizes `queryCareerKnowledgeGraph` and `syncCareerKnowledgeGraph` to retrieve project proofs on demand.
+- **Interactive Graph Visualizer** — Embedded `CareerGraphVisualizer` component displays verified competencies, evidence paths, and interview gap alerts.
+
+### 🤖 2. Autonomous Agentic AI & Copilot
 - **Multi-Provider AI Engine** — Connect OpenAI, Anthropic Claude, Google Gemini, Groq, or DeepSeek with client-side encrypted AES-256-GCM keys.
 - **Autonomous Tool Execution** — AI reads job URLs, parses JD/PDF resumes, triggers status updates, and drafts recruiter communications.
 - **Interactive Email Outreach Workflow** — Generates personalized cold emails & follow-up drafts directly in chat with interactive review cards and 1-click dispatching.
 - **8 Contextual Modes** — `profile`, `jd-scan`, `application`, `tracker`, `response`, `interview`, `weekly`, `recovery`.
 
-### 🧠 2. Persistent Semantic Memory & Fact Extraction
+### 🧠 3. Persistent Semantic Memory & Fact Extraction
 - **Continuous Knowledge Retention** — AI automatically extracts and saves user constraints, salary targets, tech stack preferences, and notice periods across sessions.
 - **Memory Tools** — `saveUserMemory`, `forgetUserMemory`, `getUserMemories`.
 - **Interactive Memory Manager UI** — Integrated directly into `/settings` for full user transparency and 1-click memory deletion.
 - **Prompt Prefix Caching** — Optimized token layouts maximize provider-level prompt caching for 50–80% lower inference costs and lightning-fast TTFT.
 
-### ⚡ 3. High-Speed LTM with Upstash Redis
-- **0–2ms Context Fetching** — User profile, default resume, and persistent memories are cached in serverless Redis.
+### ⚡ 4. High-Speed LTM with Upstash Redis
+- **0–2ms Context Fetching** — User profile, default resume, knowledge graph, and persistent memories are cached in serverless Redis.
 - **Automated Cache Invalidation** — Writes to resumes, profiles, or memories instantly purge stale Redis cache keys.
 - **Resilient Fallback** — Automatic graceful degradation to PostgreSQL when Redis keys are not provided.
 
-### ⏱️ 4. Durable Background Automation (Inngest)
+### ⏱️ 5. Durable Background Automation (Inngest)
 - **Daily Job Hunt Briefing (`daily-job-hunt`)** — Automatically scans pipeline for stale applications (>7 days without update) and dispatches action summaries.
 - **Weekly Goal Accountability Digest (`weekly-goal-digest`)** — Reviews weekly targets, logs progress, and provides strategy advice.
 
-### 📋 5. Core Pipeline & Career Tracking
+### 📋 6. Core Pipeline & Career Tracking
 - **Interactive Kanban Board & Table Views** — Drag-and-drop pipeline powered by `@hello-pangea/dnd`.
 - **Application Analytics** — Per-job AI match score (0–100), gap analysis, keyword extraction, and red flags.
 - **Company & Resume Hub** — Organization hub with multi-version resume management and default resume context.
@@ -81,13 +89,14 @@ flowchart TD
 | **Framework** | Next.js 15 (App Router), React 19 |
 | **Language** | TypeScript 5 |
 | **Database & ORM** | PostgreSQL (Supabase), Prisma 6 |
+| **Knowledge Graph** | Custom Vectorless Graph-RAG Engine with Canonical Aliasing |
 | **Caching & LTM** | Upstash Redis (`@upstash/redis`) |
 | **Background Automation** | Inngest (`inngest`) |
 | **Email Dispatch** | Resend (`resend`) with simulation mode |
 | **Authentication** | Clerk (`@clerk/nextjs`) |
 | **Styling & UI** | Tailwind CSS v4, shadcn/ui, Radix UI, Framer Motion, Lucide Icons |
 | **AI Integration** | Vercel AI SDK (`ai`), `@ai-sdk/openai`, `@ai-sdk/anthropic`, `@ai-sdk/google` |
-| **Testing** | Vitest (`vitest`) with 28 passing unit tests |
+| **Testing** | Vitest (`vitest`) with 32 passing unit tests |
 
 ---
 
@@ -171,9 +180,9 @@ npm run build
 <details>
 <summary><strong>Explore Available Endpoints</strong></summary>
 
-### 🤖 AI & Memory
-- `POST /api/ai/chat` — Context-aware streaming copilot
-- `POST /api/ai/scan-jd` — Job description parser & match scoring
+### 🌳 Knowledge Graph & AI
+- `POST /api/ai/chat` — Context-aware streaming copilot with Knowledge Graph traversal tools
+- `POST /api/ai/scan-jd` — Job description parser with Graph-RAG verification & match scoring
 - `POST /api/ai/send-email` — Recruiter email dispatcher
 - `GET/POST /api/user/memories` — List and create persistent facts
 - `DELETE /api/user/memories/[id]` — Delete specific memory fact
