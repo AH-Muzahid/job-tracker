@@ -46,6 +46,7 @@ interface ModelSelectorProps {
   onModelOverrideChange?: (model: string | undefined) => void
   className?: string
   compact?: boolean
+  variant?: "pill" | "inline"
 }
 
 export default function ModelSelector({
@@ -53,6 +54,7 @@ export default function ModelSelector({
   onModelOverrideChange,
   className,
   compact = false,
+  variant = "pill",
 }: ModelSelectorProps) {
   const [models, setModels] = useState<FetchedModel[]>([])
   const [activeModel, setActiveModel] = useState<string>("")
@@ -193,7 +195,21 @@ export default function ModelSelector({
 
   const displayModelName = () => {
     if (effectiveModel) {
-      return effectiveModel.split("/").pop() || effectiveModel
+      const parts = effectiveModel.split("/")
+      const raw = parts[parts.length - 1]
+      // Make clean short readable name e.g. "gemini-3.5-flash-medium" -> "Flash Medium" or "Flash"
+      if (raw.toLowerCase().includes("gemini-3.5-flash-medium")) return "Flash Medium"
+      if (raw.toLowerCase().includes("gemini-3.5-flash")) return "Flash"
+      if (raw.toLowerCase().includes("gemini-3-flash")) return "Flash"
+      if (raw.toLowerCase().includes("gemini-3.1-pro")) return "3.1 Pro"
+      if (raw.toLowerCase().includes("gemini-2.5-pro")) return "2.5 Pro"
+      if (raw.toLowerCase().includes("gemini-2.0-flash")) return "2.0 Flash"
+      if (raw.toLowerCase().includes("claude-sonnet-4-6")) return "Sonnet 4.6"
+      if (raw.toLowerCase().includes("claude-sonnet-5")) return "Sonnet 5"
+      if (raw.toLowerCase().includes("claude-opus")) return "Opus"
+      if (raw.toLowerCase().includes("gpt-4o-mini")) return "4o Mini"
+      if (raw.toLowerCase().includes("gpt-4o")) return "GPT-4o"
+      return raw.length > 18 ? raw.slice(0, 18) + "..." : raw
     }
     const activeProf = profiles.find((p) => p.id === activeProfileId)
     return activeProf?.name || "Select Model"
@@ -201,12 +217,14 @@ export default function ModelSelector({
 
   if (loading) {
     return (
-      <div className={cn("inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted/40 text-xs text-muted-foreground animate-pulse", className)}>
+      <div className={cn("inline-flex items-center gap-1.5 px-2 py-1 text-xs text-muted-foreground animate-pulse", className)}>
         <Sparkles className="h-3 w-3" />
-        <span>Loading Models...</span>
+        <span className="text-[11px]">Loading...</span>
       </div>
     )
   }
+
+  const isInline = variant === "inline"
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
@@ -215,23 +233,30 @@ export default function ModelSelector({
           type="button"
           disabled={switching}
           className={cn(
-            "group inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-background/80 hover:bg-accent hover:border-border px-2.5 py-1 text-xs font-medium transition-all shadow-2xs backdrop-blur-xs focus:outline-none focus:ring-1 focus:ring-primary/40",
+            isInline
+              ? "group inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all focus:outline-none"
+              : "group inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-background/80 hover:bg-accent hover:border-border px-2.5 py-1 text-xs font-medium transition-all shadow-2xs backdrop-blur-xs focus:outline-none focus:ring-1 focus:ring-primary/40",
             switching && "opacity-60 cursor-wait",
             className
           )}
-          title="Select model fetched from active endpoint"
+          title="Select AI Model"
         >
           <span className="flex items-center gap-1">
-            {getProviderIcon(providerType)}
-            <span className={cn("truncate max-w-[130px] sm:max-w-[200px]", compact && "max-w-[110px]")}>
+            {!isInline && getProviderIcon(providerType)}
+            <span className={cn("truncate font-medium", compact ? "max-w-[90px]" : "max-w-[140px]")}>
               {displayModelName()}
             </span>
           </span>
-          <ChevronDown className="h-3 w-3 text-muted-foreground group-hover:text-foreground transition-transform group-data-[state=open]:rotate-180" />
+          <ChevronDown className="h-3 w-3 opacity-60 group-hover:opacity-100 transition-transform group-data-[state=open]:rotate-180" />
         </button>
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent align="start" className="w-80 sm:w-96 p-2 shadow-2xl rounded-xl">
+      <DropdownMenuContent
+        align="end"
+        side={isInline ? "top" : "bottom"}
+        sideOffset={6}
+        className="w-80 sm:w-96 p-2 shadow-2xl rounded-xl z-50"
+      >
         {/* Header */}
         <DropdownMenuLabel className="px-2 py-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
           <div className="flex items-center gap-1.5">

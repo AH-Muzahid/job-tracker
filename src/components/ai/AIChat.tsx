@@ -305,17 +305,10 @@ export default function AIChat({ sessionId, onSessionCreated }: Props) {
               </p>
             </div>
 
-            <div className="flex items-center justify-center">
-              <ModelSelector
-                selectedModelOverride={modelOverride}
-                onModelOverrideChange={setModelOverride}
-              />
-            </div>
-
             <div className="relative">
-              <div className="flex items-end gap-2 rounded-[24px] border border-border/40 bg-muted/30 px-5 py-3 shadow-sm focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary focus-within:bg-card transition-all">
-                <button className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
-                  <Plus className="h-5 w-5" />
+              <div className="flex items-center gap-2 rounded-full border border-border/50 bg-card/90 backdrop-blur-md px-3.5 py-2 shadow-sm focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary transition-all">
+                <button className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+                  <Plus className="h-4 w-4" />
                 </button>
                 <textarea
                   ref={textareaRef}
@@ -323,16 +316,23 @@ export default function AIChat({ sessionId, onSessionCreated }: Props) {
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
                   placeholder="Ask anything..."
-                  className="flex-1 bg-transparent border-0 outline-none resize-none text-sm placeholder:text-muted-foreground/50 min-h-[24px] max-h-[160px]"
+                  className="flex-1 bg-transparent border-0 outline-none resize-none text-sm placeholder:text-muted-foreground/50 min-h-[22px] max-h-[140px] py-1"
                   rows={1}
                 />
-                <button
-                  onClick={() => sendMessage(input)}
-                  disabled={!input.trim()}
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-                >
-                  <Send className="h-4 w-4" />
-                </button>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <ModelSelector
+                    variant="inline"
+                    selectedModelOverride={modelOverride}
+                    onModelOverrideChange={setModelOverride}
+                  />
+                  <button
+                    onClick={() => sendMessage(input)}
+                    disabled={!input.trim()}
+                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-xs"
+                  >
+                    <Send className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -369,14 +369,14 @@ export default function AIChat({ sessionId, onSessionCreated }: Props) {
                 </div>
               )}
               {/* Spacer to ensure messages scroll above the floating input without excessive margin */}
-              <div className="h-32 shrink-0" ref={messagesEndRef} />
+              <div className="h-28 shrink-0" ref={messagesEndRef} />
             </div>
           </div>
 
           {showScrollBtn && (
             <button
               onClick={scrollToBottom}
-              className="absolute bottom-36 left-1/2 -translate-x-1/2 flex h-8 w-8 items-center justify-center rounded-full border bg-background shadow-md hover:bg-accent transition-colors z-10"
+              className="absolute bottom-28 left-1/2 -translate-x-1/2 flex h-8 w-8 items-center justify-center rounded-full border bg-background shadow-md hover:bg-accent transition-colors z-10"
             >
               <ArrowDown className="h-4 w-4" />
             </button>
@@ -384,19 +384,9 @@ export default function AIChat({ sessionId, onSessionCreated }: Props) {
 
           <div className="absolute bottom-4 left-0 right-0 px-4 pointer-events-none">
             <div className="max-w-3xl mx-auto pointer-events-auto">
-              <div className="flex items-center justify-between mb-1.5 px-2">
-                <ModelSelector
-                  compact
-                  selectedModelOverride={modelOverride}
-                  onModelOverrideChange={setModelOverride}
-                />
-                <span className="text-[10px] font-mono text-muted-foreground/60 hidden sm:inline">
-                  Active AI Model
-                </span>
-              </div>
-              <div className="relative flex items-end gap-2 rounded-[24px] bg-card px-5 py-3 shadow-[0_0_15px_rgba(0,0,0,0.1)] focus-within:shadow-[0_0_20px_rgba(0,0,0,0.15)] transition-all">
-                <button className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
-                  <Plus className="h-5 w-5" />
+              <div className="relative flex items-center gap-2 rounded-full bg-card border border-border/70 px-3.5 py-2 shadow-lg focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/20 transition-all">
+                <button className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+                  <Plus className="h-4 w-4" />
                 </button>
                 <textarea
                   ref={textareaRef}
@@ -404,28 +394,35 @@ export default function AIChat({ sessionId, onSessionCreated }: Props) {
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
                   placeholder="Message AI Assistant..."
-                  className="flex-1 bg-transparent border-0 outline-none resize-none text-sm placeholder:text-muted-foreground/50 min-h-[24px] max-h-[160px]"
+                  className="flex-1 bg-transparent border-0 outline-none resize-none text-sm placeholder:text-muted-foreground/50 min-h-[22px] max-h-[140px] py-1"
                   rows={1}
                   disabled={isStreaming}
                 />
-                {isStreaming ? (
-                  <button
-                    onClick={stopStreaming}
-                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-colors"
-                  >
-                    <Square className="h-4 w-4" />
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => sendMessage(input)}
-                    disabled={!input.trim()}
-                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-                  >
-                    <Send className="h-4 w-4" />
-                  </button>
-                )}
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <ModelSelector
+                    variant="inline"
+                    selectedModelOverride={modelOverride}
+                    onModelOverrideChange={setModelOverride}
+                  />
+                  {isStreaming ? (
+                    <button
+                      onClick={stopStreaming}
+                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-colors shadow-xs"
+                    >
+                      <Square className="h-3.5 w-3.5" />
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => sendMessage(input)}
+                      disabled={!input.trim()}
+                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-xs"
+                    >
+                      <Send className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
               </div>
-              <p className="text-[11px] text-center text-muted-foreground mt-3">
+              <p className="text-[11px] text-center text-muted-foreground/70 mt-2.5">
                 Gemini-style Assistant. AI can make mistakes. Check important info.
               </p>
             </div>
