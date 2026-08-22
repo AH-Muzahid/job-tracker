@@ -227,7 +227,8 @@ export function ConversationalVoiceInterviewModal({
         })
 
         if (!res.ok) {
-          throw new Error("Failed to get response from interviewer.")
+          const errData = await res.json().catch(() => ({}))
+          throw new Error(errData.error || "Failed to get response from interviewer.")
         }
 
         const data = await res.json()

@@ -124,17 +124,50 @@ async function saveRawMultiConfig(userId: string, multiConfig: StoredMultiAIConf
  */
 export async function getUserAIConfig(userId: string): Promise<AIProviderConfig | null> {
   const multi = await getRawMultiConfig(userId)
-  if (!multi || !multi.profiles || multi.profiles.length === 0) return null
-
-  const active = multi.profiles.find((p) => p.id === multi.activeId) || multi.profiles[0]
-  if (!active || !active.apiKey) return null
-
-  return {
-    providerType: active.providerType,
-    apiKey: active.apiKey,
-    baseUrl: active.baseUrl || undefined,
-    model: active.model || undefined,
+  if (multi && multi.profiles && multi.profiles.length > 0) {
+    const active = multi.profiles.find((p) => p.id === multi.activeId) || multi.profiles[0]
+    if (active && active.apiKey) {
+      return {
+        providerType: active.providerType,
+        apiKey: active.apiKey,
+        baseUrl: active.baseUrl || undefined,
+        model: active.model || undefined,
+      }
+    }
   }
+
+  // System environment variables fallback
+  if (process.env.OPENAI_API_KEY) {
+    return {
+      providerType: "openai",
+      apiKey: process.env.OPENAI_API_KEY,
+      model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+    }
+  }
+  if (process.env.ANTHROPIC_API_KEY) {
+    return {
+      providerType: "anthropic",
+      apiKey: process.env.ANTHROPIC_API_KEY,
+      model: "claude-3-5-sonnet-20241022",
+    }
+  }
+  if (process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY) {
+    return {
+      providerType: "google",
+      apiKey: (process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY)!,
+      model: "gemini-2.0-flash",
+    }
+  }
+  if (process.env.GROQ_API_KEY) {
+    return {
+      providerType: "custom-openai",
+      apiKey: process.env.GROQ_API_KEY,
+      baseUrl: "https://api.groq.com/openai/v1",
+      model: "llama-3.3-70b-versatile",
+    }
+  }
+
+  return null
 }
 
 /**
