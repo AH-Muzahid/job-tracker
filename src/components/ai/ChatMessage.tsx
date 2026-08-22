@@ -111,7 +111,8 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
   const isUser = message.role === "user"
   const isLongMessage = isUser && message.content && message.content.length > 250
   const [isExpanded, setIsExpanded] = useState(false)
-  const suggestions = !isUser && isLast && !isStreaming && message.content ? getContextualSuggestions(message.content) : []
+  const hasEmbeddedSuggestions = Boolean(message.content && message.content.includes("```suggestions"))
+  const suggestions = !isUser && isLast && !isStreaming && message.content && !hasEmbeddedSuggestions ? getContextualSuggestions(message.content) : []
 
   // Custom renderer overrides for ReactMarkdown to handle interactive AI actions
   const mdComponents = {
@@ -246,6 +247,33 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
           )
         } catch {
           return <code className={cn(className, isInline && "text-primary bg-muted px-1.5 py-0.5 rounded text-xs")} {...props}>{children}</code>
+        }
+      }
+      if (className === "language-suggestions") {
+        try {
+          const data = JSON.parse(String(children))
+          if (Array.isArray(data) && data.length > 0) {
+            return (
+              <div className="mt-4 pt-3 border-t border-border/40 flex flex-wrap items-center gap-2 not-prose">
+                <span className="text-[11px] font-medium text-muted-foreground/80 flex items-center gap-1 w-full mb-0.5">
+                  <Sparkles className="h-3 w-3 text-primary" /> Suggested next steps:
+                </span>
+                {data.map((s: { icon?: string; label: string; prompt: string }, idx: number) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => onSuggestionClick?.(s.prompt)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-muted/60 hover:bg-primary/10 hover:text-primary hover:border-primary/40 border border-border/70 transition-all duration-150 active:scale-95 shadow-xs cursor-pointer text-foreground"
+                  >
+                    <span>{s.icon || "✨"}</span>
+                    <span>{s.label}</span>
+                  </button>
+                ))}
+              </div>
+            )
+          }
+        } catch {
+          return null
         }
       }
       return <code className={cn(className, isInline && "text-primary bg-muted px-1.5 py-0.5 rounded text-xs")} {...props}>{children}</code>
