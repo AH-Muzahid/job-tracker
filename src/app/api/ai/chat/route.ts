@@ -19,7 +19,6 @@ import { getWeeklyPrompt } from "@/lib/ai/prompts/weekly"
 import { getRecoveryPrompt } from "@/lib/ai/prompts/recovery"
 import { getGeneralPrompt } from "@/lib/ai/prompts/general"
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit"
-import { createAiTools } from "@/lib/ai/tools"
 import type { AIMode } from "@/lib/ai/context-builder"
 
 const MODE_PROMPTS: Record<string, () => string> = {
@@ -124,8 +123,6 @@ export async function POST(request: NextRequest) {
     const result = streamText({
       model: resolvedProvider.model(modelToUse),
       system: systemPrompt,
-      tools: createAiTools(userId),
-      maxSteps: 5,
       messages: formattedMessages,
       onError: (err) => {
         console.error("streamText runtime error:", err)
