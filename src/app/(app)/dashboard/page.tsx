@@ -22,36 +22,50 @@ function DashboardContent() {
   }, [isLoaded, isSignedIn, router])
 
   if (!isLoaded || isLoading) return <DashboardBentoSkeleton />
-  if (!stats) return null
+  if (!isSignedIn) return null
 
-  const activePipeline = stats.applied + stats.assessment + stats.interview
-  const followUpApps = stats.followUpApps || []
+  const safeStats = {
+    total: stats?.total ?? 0,
+    saved: stats?.saved ?? 0,
+    applied: stats?.applied ?? 0,
+    assessment: stats?.assessment ?? 0,
+    interview: stats?.interview ?? 0,
+    rejected: stats?.rejected ?? 0,
+    offer: stats?.offer ?? 0,
+    recent: stats?.recent ?? [],
+    trend: stats?.trend ?? [],
+    bySource: stats?.bySource ?? [],
+    followUpApps: stats?.followUpApps ?? [],
+  }
+
+  const activePipeline = safeStats.applied + safeStats.assessment + safeStats.interview
+  const followUpApps = safeStats.followUpApps || []
 
   return (
     <div className="space-y-4 max-w-7xl mx-auto">
       {/* 1. Bento Command Center Hero */}
       <BentoCommandZone
         activePipeline={activePipeline}
-        totalThisWeek={stats.trend[stats.trend.length - 1]?.count || 0}
+        totalThisWeek={safeStats.trend[safeStats.trend.length - 1]?.count || 0}
       />
 
       {/* 2. Step-by-Step Live Pipeline Bento */}
-      <BentoPipelineFunnel stats={stats} />
+      <BentoPipelineFunnel stats={safeStats} />
 
       {/* 3. 4-Card Minimal Metrics Bento */}
-      <BentoStatGrid stats={stats} />
+      <BentoStatGrid stats={safeStats} />
 
       {/* 4. Live Activity Stream Bento (3/5) + Goals & AI Insights (2/5) */}
       <BentoActivityStream
-        recentApps={stats.recent || []}
+        recentApps={safeStats.recent || []}
         followUpApps={followUpApps}
         weeklyGoals={weeklyGoals?.[0] || null}
         goalsLoading={goalsLoading}
-        stats={stats}
+        stats={safeStats}
       />
 
       {/* 5. Volume & Distribution Analytics Bento */}
-      <BentoAnalytics stats={stats} />
+      <BentoAnalytics stats={safeStats} />
     </div>
   )
 }
