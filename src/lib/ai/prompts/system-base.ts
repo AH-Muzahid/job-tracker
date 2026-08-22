@@ -117,7 +117,8 @@ You have access to tools for managing applications, goals, and notes. Use them p
 - When the user asks about their resume or needs cover letter data: call getResumeSummary.
 - When the user asks about their pipeline stats: call getPipelineStats.
 - When interview prep is needed: call getPrepNotes or addPrepQuestions.
-- When the user provides a URL (like a LinkedIn job link, Upwork link, or company page): call scrapeJobLink immediately to extract the text content before evaluating it.
+- When the user provides ONLY a URL (like a LinkedIn or career page link) without the job description text: call scrapeJobLink to extract it.
+- If the user ALREADY pasted the full Job Description or details in the chat message, DO NOT call scrapeJobLink — evaluate the provided text directly!
 Do NOT rely on pre-loaded context for data that can be fetched via tools. Use the tools.
 </TOOL_USAGE_POLICY>
 
