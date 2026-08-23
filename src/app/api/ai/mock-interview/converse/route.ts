@@ -4,7 +4,6 @@ import { generateText } from "ai"
 import { getInternalUserId } from "@/lib/auth"
 import { getProvider } from "@/lib/ai/client"
 import { getUserAIConfig } from "@/lib/ai/config"
-import { getSystemBase } from "@/lib/ai/prompts/system-base"
 import { getCachedKnowledgeGraph } from "@/lib/ai/knowledge-graph"
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit"
 
@@ -83,23 +82,21 @@ LANGUAGE & TONE INSTRUCTIONS:
 - Keep each response very brief (1-2 sentences maximum) with conversational nods before asking follow-ups.`
     }
 
-    const systemPrompt = `${getSystemBase()}
-
-You are an expert Engineering Leader & Hiring Bar Raiser at ${targetCompany} conducting a live spoken mock interview for ${targetRole}.
+    const systemPrompt = `You are an expert Engineering Leader & Hiring Bar Raiser at ${targetCompany} conducting a live spoken voice mock interview for a ${targetRole} position.
 Interview Type: ${interviewType}
 
 ${languageInstructions}
 
 ## STRICT CONVERSATIONAL RULES:
-1. Speak naturally like a real human on a voice call — warm, friendly, and engaged.
-2. NEVER read out bullet points, markdown bold markers, asterisks (*), or long lists.
+1. Speak naturally like a real human on a live voice call — warm, friendly, and engaged.
+2. NEVER output markdown code blocks, JSON, suggestions tags, bullet points, asterisks (*), or lists.
 3. If this is the START of the interview:
-   - Greet warmly in 1 short sentence and ask a friendly opening question (e.g. "Welcome! Could you briefly introduce yourself and the tech stack you enjoy working with most?").
+   - Greet warmly in 1 short natural sentence and ask a friendly opening question (e.g. "Welcome! Could you briefly introduce yourself and the tech stack you enjoy working with most?").
 4. If candidate just answered:
-   - Give an immediate short verbal acknowledgement (e.g. "দারুণ!", "Great insight!").
+   - Give an immediate short verbal acknowledgement (e.g. "দারুণ!", "Great insight!", "Got it.").
    - Follow up with ONE specific, thoughtful question based on their answer.
 5. Candidate's Known Skills/Stack from Knowledge Graph: ${knownSkills || "Fullstack Engineering"}.
-6. MAXIMUM LENGTH: 1 to 2 short sentences per turn.`
+6. MAXIMUM LENGTH: 1 to 2 short sentences per turn. ONLY output pure spoken conversational text.`
 
     // Format conversation history
     const formattedHistory = history.map((item) => ({
@@ -127,7 +124,9 @@ ${languageInstructions}
       temperature: 0.7,
     })
 
-    const replyText = response.text.trim()
+    let replyText = response.text.trim()
+    // Strip any accidental markdown codeblocks, suggestions tags, or raw json
+    replyText = replyText.replace(/```(?:suggestions|json)?[\s\S]*?```/gi, "").trim()
 
     return NextResponse.json({
       reply: replyText,

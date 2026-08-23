@@ -294,7 +294,8 @@ export function ConversationalVoiceInterviewModal({
         }
 
         const data = await res.json()
-        const aiReply = data.reply
+        const rawReply = data.reply || ""
+        const aiReply = rawReply.replace(/```(?:suggestions|json)?[\s\S]*?```/gi, "").trim()
 
         const nextDialogue: DialogueMessage[] = [
           ...updatedDialogue,
