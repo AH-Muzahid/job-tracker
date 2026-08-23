@@ -2,6 +2,8 @@
 "use client"
 
 import React, { useRef, useState } from "react"
+import ReactMarkdown from "react-markdown"
+import remarkGfm from "remark-gfm"
 import {
   Mic,
   Send,
@@ -383,8 +385,18 @@ export function ConceptLabTab({ onSaveAsNote }: ConceptLabTabProps) {
                     )}
                   </div>
                 </CardHeader>
-                <CardContent className="p-4 sm:p-6 text-sm leading-relaxed whitespace-pre-wrap">
-                  {item.content}
+                <CardContent className="p-4 sm:p-6">
+                  {item.role === "user" ? (
+                    <p className="text-sm font-medium text-foreground leading-relaxed whitespace-pre-wrap">
+                      {item.content}
+                    </p>
+                  ) : (
+                    <div className="prose prose-sm dark:prose-invert max-w-none prose-p:leading-relaxed prose-headings:text-foreground prose-headings:font-bold prose-h3:text-base prose-h4:text-sm prose-strong:text-foreground prose-strong:font-semibold prose-code:text-primary prose-code:bg-muted prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-pre:bg-muted/70 prose-pre:border prose-pre:border-border/60 prose-li:my-1 prose-ul:my-2">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {item.content}
+                      </ReactMarkdown>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             ))}

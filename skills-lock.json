@@ -132,6 +132,12 @@
       "sourceType": "github",
       "skillPath": "skills/supabase-postgres-best-practices/SKILL.md",
       "computedHash": "768f9a7532780a72165f79c91d71a4bf82abd9ed31045238c2acb40322fc1d0a"
+    },
+    "reui": {
+      "source": "reui/agent-skill",
+      "sourceType": "local",
+      "skillPath": ".agents/skills/reui/SKILL.md",
+      "computedHash": "local"
     }
   }
 }
