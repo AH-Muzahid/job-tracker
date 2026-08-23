@@ -43,47 +43,17 @@ async function getRawMultiConfig(userId: string): Promise<StoredMultiAIConfig | 
     )
 
     if (user?.aiConfig) {
-      const decrypted = decrypt(user.aiConfig)
-      const parsed = JSON.parse(decrypted)
+      try {
+        const decrypted = decrypt(user.aiConfig)
+        const parsed = JSON.parse(decrypted)
 
-      // Handle new multi-profile schema
-      if (parsed.profiles && Array.isArray(parsed.profiles)) {
-        return parsed as StoredMultiAIConfig
-      }
-
-      // Handle legacy single-key schema (auto migration)
-      if (parsed.apiKey && parsed.providerType) {
-        const defaultProfile: AIKeyProfile = {
-          id: "default",
-          name: parsed.providerType.toUpperCase() + " Key",
-          providerType: parsed.providerType,
-          apiKey: parsed.apiKey,
-          baseUrl: parsed.baseUrl || undefined,
-          model: parsed.model || undefined,
+        // Handle new multi-profile schema
+        if (parsed.profiles && Array.isArray(parsed.profiles)) {
+          return parsed as StoredMultiAIConfig
         }
-        const migratedConfig: StoredMultiAIConfig = {
-          activeId: "default",
-          profiles: [defaultProfile],
-        }
-        // Save migrated format back to DB
-        saveRawMultiConfig(userId, migratedConfig).catch(() => {})
-        return migratedConfig
-      }
-    }
-  } catch {
-    // Database or decryption error
-  }
 
-  // 2. Cookie fallback for backward compatibility
-  try {
-    const cookieStore = await cookies()
-    const encryptedCookie = cookieStore.get("ai_config")?.value
-    if (encryptedCookie) {
-      const decrypted = decrypt(encryptedCookie)
-      const parsed = JSON.parse(decrypted)
-
-      if (parsed.apiKey && parsed.providerType) {
-        if (!parsed.userId || parsed.userId === userId) {
+        // Handle legacy single-key schema (auto migration)
+        if (parsed.apiKey && parsed.providerType) {
           const defaultProfile: AIKeyProfile = {
             id: "default",
             name: parsed.providerType.toUpperCase() + " Key",
@@ -99,9 +69,13 @@ async function getRawMultiConfig(userId: string): Promise<StoredMultiAIConfig | 
           saveRawMultiConfig(userId, migratedConfig).catch(() => {})
           return migratedConfig
         }
+      } catch (decErr) {
+        console.warn("[AI Config Decrypt Warning]:", decErr)
       }
     }
-  } catch {}
+  } catch (dbErr) {
+    console.error("[AI Config DB Error]:", dbErr)
+  }
 
   return null
 }
