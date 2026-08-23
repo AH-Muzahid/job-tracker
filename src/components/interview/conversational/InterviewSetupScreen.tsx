@@ -26,6 +26,8 @@ interface InterviewSetupScreenProps {
   setInterviewType: (val: string) => void
   language: InterviewLanguage
   setLanguage: (val: InterviewLanguage) => void
+  targetTurnCount: number
+  setTargetTurnCount: (val: number) => void
   interviewerTone: InterviewerTone
   setInterviewerTone: (val: InterviewerTone) => void
   voiceGender: VoiceGender
@@ -52,6 +54,8 @@ export function InterviewSetupScreen({
   setInterviewType,
   language,
   setLanguage,
+  targetTurnCount,
+  setTargetTurnCount,
   interviewerTone,
   setInterviewerTone,
   voiceGender,
@@ -157,6 +161,36 @@ export function InterviewSetupScreen({
               <SelectItem value="en">English (International Tech Standard)</SelectItem>
             </SelectContent>
           </Select>
+        </div>
+      </div>
+
+      {/* Round Duration & Question Progression */}
+      <div className="space-y-2">
+        <div className="flex justify-between items-center">
+          <Label className="text-xs font-medium">Interview Round Structure & Length</Label>
+          <span className="text-[10px] text-muted-foreground">{targetTurnCount} structured questions</span>
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          {[
+            { count: 4, label: "⚡ Express", time: "~4 mins" },
+            { count: 5, label: "🎯 Standard", time: "~6 mins (Recommended)" },
+            { count: 7, label: "🏆 In-Depth", time: "~10 mins" },
+          ].map((item) => (
+            <button
+              key={item.count}
+              type="button"
+              onClick={() => setTargetTurnCount(item.count)}
+              className={cn(
+                "flex flex-col items-center justify-center p-2 rounded-xl border text-center transition-all cursor-pointer",
+                targetTurnCount === item.count
+                  ? "border-indigo-600 bg-indigo-500/10 dark:bg-indigo-950/40 text-indigo-900 dark:text-indigo-200 ring-1 ring-indigo-500/50"
+                  : "border-border hover:border-muted-foreground/30 bg-muted/10"
+              )}
+            >
+              <span className="text-xs font-bold text-foreground">{item.label}</span>
+              <span className="text-[10px] text-muted-foreground">{item.count} Questions • {item.time}</span>
+            </button>
+          ))}
         </div>
       </div>
 

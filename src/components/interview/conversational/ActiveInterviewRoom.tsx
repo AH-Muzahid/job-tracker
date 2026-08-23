@@ -11,8 +11,11 @@ import {
   Square,
   Sparkles,
   Loader2,
+  Award,
+  ArrowRight,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Progress } from "@/components/ui/progress"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
 import {
@@ -47,6 +50,10 @@ interface ActiveInterviewRoomProps {
   onSendTurn: (text?: string) => void
   dialogue: DialogueMessage[]
   messagesEndRef: RefObject<HTMLDivElement | null>
+  currentQuestionNumber: number
+  targetTurnCount: number
+  currentPhase: string
+  isInterviewComplete: boolean
 }
 
 export function ActiveInterviewRoom({
@@ -74,6 +81,10 @@ export function ActiveInterviewRoom({
   onSendTurn,
   dialogue,
   messagesEndRef,
+  currentQuestionNumber,
+  targetTurnCount,
+  currentPhase,
+  isInterviewComplete,
 }: ActiveInterviewRoomProps) {
   const getInterviewerToneLabel = (tone: InterviewerTone) => {
     switch (tone) {
@@ -96,59 +107,98 @@ export function ActiveInterviewRoom({
     return voiceGender === "female" ? "তানিয়া" : "তানভীর"
   }
 
+  const progressPercentage = Math.round(
+    (Math.min(currentQuestionNumber, targetTurnCount) / targetTurnCount) * 100
+  )
+
   return (
     <div className="flex flex-col flex-1 h-full min-h-0 space-y-3 sm:space-y-4">
       {/* Header Status Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b pb-2.5 sm:pb-3 shrink-0 gap-2">
-        <div className="flex items-center gap-2">
-          <span className="relative flex h-2.5 w-2.5">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-          </span>
-          <div>
-            <h3 className="text-xs sm:text-sm font-bold text-foreground">
-              {targetCompany} — {targetRole}
-            </h3>
-            <p className="text-[10px] sm:text-[11px] text-muted-foreground">
-              Interviewer: <span className="font-semibold text-foreground">{getInterviewerName()}</span> ({getInterviewerToneLabel(interviewerTone)}) • {interviewType} • {language === "bn" ? "বাংলা" : language === "mixed" ? "Banglish" : "English"}
-            </p>
+      <div className="flex flex-col border-b pb-2.5 sm:pb-3 shrink-0 gap-2">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+            </span>
+            <div>
+              <h3 className="text-xs sm:text-sm font-bold text-foreground">
+                {targetCompany} — {targetRole}
+              </h3>
+              <p className="text-[10px] sm:text-[11px] text-muted-foreground">
+                Interviewer: <span className="font-semibold text-foreground">{getInterviewerName()}</span> ({getInterviewerToneLabel(interviewerTone)}) • {interviewType}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+            <Button
+              variant={isPaused ? "default" : "outline"}
+              size="sm"
+              onClick={togglePause}
+              className={cn(
+                "text-[11px] sm:text-xs h-7 sm:h-8 px-2 sm:px-3 gap-1 font-medium transition-colors",
+                isPaused
+                  ? "bg-amber-500 hover:bg-amber-600 text-white border-amber-600 shadow-xs"
+                  : "hover:bg-accent"
+              )}
+            >
+              {isPaused ? <Play className="h-3 w-3 fill-current" /> : <Pause className="h-3 w-3" />}
+              <span>{isPaused ? "Resume" : "Pause"}</span>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowTranscriptDrawer(!showTranscriptDrawer)}
+              className="text-[11px] sm:text-xs h-7 sm:h-8 px-2 sm:px-3"
+            >
+              {showTranscriptDrawer ? "Hide Transcript" : "Show Transcript"}
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={onEndInterview}
+              className="text-[11px] sm:text-xs h-7 sm:h-8 px-2 sm:px-3 gap-1"
+            >
+              <Square className="h-3 w-3" />
+              <span>End & Report</span>
+            </Button>
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-          <Button
-            variant={isPaused ? "default" : "outline"}
-            size="sm"
-            onClick={togglePause}
-            className={cn(
-              "text-[11px] sm:text-xs h-7 sm:h-8 px-2 sm:px-3 gap-1 font-medium transition-colors",
-              isPaused
-                ? "bg-amber-500 hover:bg-amber-600 text-white border-amber-600 shadow-xs"
-                : "hover:bg-accent"
-            )}
-          >
-            {isPaused ? <Play className="h-3 w-3 fill-current" /> : <Pause className="h-3 w-3" />}
-            <span>{isPaused ? "Resume" : "Pause"}</span>
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowTranscriptDrawer(!showTranscriptDrawer)}
-            className="text-[11px] sm:text-xs h-7 sm:h-8 px-2 sm:px-3"
-          >
-            {showTranscriptDrawer ? "Hide Transcript" : "Show Transcript"}
-          </Button>
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={onEndInterview}
-            className="text-[11px] sm:text-xs h-7 sm:h-8 px-2 sm:px-3 gap-1"
-          >
-            <Square className="h-3 w-3" />
-            <span>End & Report</span>
-          </Button>
+        {/* Phase & Turn Progress Bar */}
+        <div className="pt-1 space-y-1">
+          <div className="flex justify-between items-center text-[10px] sm:text-[11px]">
+            <span className="font-semibold text-indigo-600 dark:text-indigo-400 flex items-center gap-1">
+              <span>{isInterviewComplete ? "🏁 Interview Concluded" : `Question ${currentQuestionNumber} of ${targetTurnCount}`}</span>
+              <span className="text-muted-foreground font-normal">• [{currentPhase}]</span>
+            </span>
+            <span className="text-muted-foreground font-medium">{progressPercentage}% Completed</span>
+          </div>
+          <Progress value={progressPercentage} className="h-1.5 bg-muted" />
         </div>
       </div>
+
+      {/* Completion Banner (if finished) */}
+      {isInterviewComplete && (
+        <div className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-3 flex flex-col sm:flex-row items-center justify-between gap-2 shrink-0 animate-in fade-in zoom-in duration-300">
+          <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300">
+            <Award className="h-5 w-5 shrink-0" />
+            <div>
+              <p className="text-xs font-bold">Interview Completed!</p>
+              <p className="text-[10.5px] text-muted-foreground">The interviewer has wrapped up. Click below to view your full performance report.</p>
+            </div>
+          </div>
+          <Button
+            size="sm"
+            onClick={onEndInterview}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-8 gap-1.5 px-4 font-bold shadow-xs cursor-pointer w-full sm:w-auto"
+          >
+            <span>View STAR Report</span>
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      )}
 
       {/* Central Animated Audio Waveform & Status */}
       <div className="rounded-2xl border bg-gradient-to-b from-indigo-950/10 via-background to-muted/20 p-3 sm:p-5 flex flex-col items-center justify-center space-y-2 sm:space-y-3 shrink-0">
@@ -166,10 +216,13 @@ export function ActiveInterviewRoom({
           <button
             type="button"
             onClick={onMicClick}
+            disabled={isInterviewComplete}
             title="Click to start or restart microphone"
             className={cn(
               "h-14 w-14 sm:h-18 sm:w-18 rounded-full flex items-center justify-center shadow-lg transition-all duration-300 cursor-pointer",
-              isPaused
+              isInterviewComplete
+                ? "bg-emerald-600 text-white shadow-emerald-500/30"
+                : isPaused
                 ? "bg-amber-500/15 text-amber-500 border-2 border-amber-500/40 cursor-not-allowed"
                 : isAiSpeaking
                 ? "bg-indigo-600 text-white ring-4 ring-indigo-400/40 shadow-indigo-500/30 scale-105"
@@ -180,7 +233,9 @@ export function ActiveInterviewRoom({
                 : "bg-muted text-muted-foreground hover:bg-muted/80"
             )}
           >
-            {isPaused ? (
+            {isInterviewComplete ? (
+              <Award className="h-6 w-6 sm:h-7 sm:w-7 text-white" />
+            ) : isPaused ? (
               <Pause className="h-6 w-6 sm:h-7 sm:w-7 text-amber-500" />
             ) : isAiSpeaking ? (
               <Volume2 className="h-6 w-6 sm:h-7 sm:w-7 animate-pulse" />
@@ -197,29 +252,33 @@ export function ActiveInterviewRoom({
         {/* Status Text & Soundwave */}
         <div className="text-center space-y-0.5">
           <p className="text-xs sm:text-sm font-semibold text-foreground">
-            {isPaused
+            {isInterviewComplete
+              ? "Interview Completed"
+              : isPaused
               ? "Interview Paused"
               : isAiSpeaking
               ? "Interviewer is speaking..."
               : isListening
               ? "Your Turn — Listening to your answer..."
               : isAiThinking
-              ? "Analyzing your answer & preparing follow-up..."
+              ? "Analyzing your answer & preparing response..."
               : "Ready"}
           </p>
           <p className="text-[10.5px] sm:text-xs text-muted-foreground max-w-sm">
-            {isPaused
+            {isInterviewComplete
+              ? "Great job! All structured interview rounds are finished."
+              : isPaused
               ? "Audio on hold. Click Resume when ready."
               : isListening && autoTurnActive
               ? "Speak naturally. Pausing for 2.2s automatically submits."
               : isAiThinking
               ? "Evaluating depth, structure & STAR metrics..."
-              : "Continuous duplex interview session."}
+              : "Continuous structured duplex interview session."}
           </p>
         </div>
 
         {/* Sleek Dynamic Soundwave & Analysis Waveform */}
-        {!isPaused && (
+        {!isPaused && !isInterviewComplete && (
           <div className="flex items-center justify-center gap-1 h-6">
             {isAiThinking ? (
               <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20">
@@ -251,78 +310,80 @@ export function ActiveInterviewRoom({
         )}
       </div>
 
-      {/* Live Candidate Speech Box */}
-      <div className="space-y-1 shrink-0">
-        <div className="flex items-center justify-between text-xs flex-wrap gap-1">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="font-semibold text-foreground flex items-center gap-1 text-[11px] sm:text-xs">
-              <Mic className={cn("h-3 w-3 sm:h-3.5 sm:w-3.5", !isPaused && isListening ? "text-emerald-500 animate-pulse" : "text-muted-foreground")} />
-              <span>Live Spoken Answer</span>
-            </span>
-            <span className="text-[9.5px] text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 px-1.5 py-0.5 rounded font-medium flex items-center gap-1">
-              <Sparkles className="h-2.5 w-2.5" />
-              <span>AI Auto-Refined</span>
-            </span>
-          </div>
-          <div className="flex items-center gap-1.5 flex-wrap">
-            {/* Speech-to-Text Language Switcher */}
-            <div className="flex items-center rounded-lg border bg-muted/40 p-0.5 text-[9.5px] sm:text-[10px]">
-              <button
-                type="button"
-                onClick={() => setSpeechInputLang("bn-BD")}
-                className={cn(
-                  "px-1.5 sm:px-2 py-0.5 rounded-md font-medium transition-colors cursor-pointer",
-                  speechInputLang === "bn-BD"
-                    ? "bg-primary text-primary-foreground shadow-2xs"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                বাংলা
-              </button>
-              <button
-                type="button"
-                onClick={() => setSpeechInputLang("en-US")}
-                className={cn(
-                  "px-1.5 sm:px-2 py-0.5 rounded-md font-medium transition-colors cursor-pointer",
-                  speechInputLang === "en-US"
-                    ? "bg-primary text-primary-foreground shadow-2xs"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                English
-              </button>
+      {/* Live Candidate Speech Box (if not completed) */}
+      {!isInterviewComplete && (
+        <div className="space-y-1 shrink-0">
+          <div className="flex items-center justify-between text-xs flex-wrap gap-1">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="font-semibold text-foreground flex items-center gap-1 text-[11px] sm:text-xs">
+                <Mic className={cn("h-3 w-3 sm:h-3.5 sm:w-3.5", !isPaused && isListening ? "text-emerald-500 animate-pulse" : "text-muted-foreground")} />
+                <span>Live Spoken Answer</span>
+              </span>
+              <span className="text-[9.5px] text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 px-1.5 py-0.5 rounded font-medium flex items-center gap-1">
+                <Sparkles className="h-2.5 w-2.5" />
+                <span>AI Auto-Refined</span>
+              </span>
             </div>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {/* Speech-to-Text Language Switcher */}
+              <div className="flex items-center rounded-lg border bg-muted/40 p-0.5 text-[9.5px] sm:text-[10px]">
+                <button
+                  type="button"
+                  onClick={() => setSpeechInputLang("bn-BD")}
+                  className={cn(
+                    "px-1.5 sm:px-2 py-0.5 rounded-md font-medium transition-colors cursor-pointer",
+                    speechInputLang === "bn-BD"
+                      ? "bg-primary text-primary-foreground shadow-2xs"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  বাংলা
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSpeechInputLang("en-US")}
+                  className={cn(
+                    "px-1.5 sm:px-2 py-0.5 rounded-md font-medium transition-colors cursor-pointer",
+                    speechInputLang === "en-US"
+                      ? "bg-primary text-primary-foreground shadow-2xs"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  English
+                </button>
+              </div>
 
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onToggleMute}
+                disabled={isPaused}
+                className="text-[10px] sm:text-xs h-6 px-1.5 text-muted-foreground hover:text-foreground"
+              >
+                {isListening ? "Mute" : "Unmute"}
+              </Button>
+            </div>
+          </div>
+
+          <div className="flex gap-1.5 sm:gap-2">
+            <Textarea
+              value={currentTranscript}
+              onChange={(e) => setCurrentTranscript(e.target.value)}
+              placeholder="Your live speech transcribes here automatically..."
+              rows={2}
+              className="text-xs leading-relaxed min-h-[44px] sm:min-h-[56px]"
+            />
             <Button
-              variant="ghost"
-              size="sm"
-              onClick={onToggleMute}
-              disabled={isPaused}
-              className="text-[10px] sm:text-xs h-6 px-1.5 text-muted-foreground hover:text-foreground"
+              onClick={() => onSendTurn(currentTranscript)}
+              disabled={!currentTranscript.trim() || isAiThinking || isPaused}
+              className="h-auto px-3 sm:px-4 bg-indigo-600 hover:bg-indigo-700 text-white text-xs gap-1"
             >
-              {isListening ? "Mute" : "Unmute"}
+              <Send className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Send</span>
             </Button>
           </div>
         </div>
-
-        <div className="flex gap-1.5 sm:gap-2">
-          <Textarea
-            value={currentTranscript}
-            onChange={(e) => setCurrentTranscript(e.target.value)}
-            placeholder="Your live speech transcribes here automatically..."
-            rows={2}
-            className="text-xs leading-relaxed min-h-[44px] sm:min-h-[56px]"
-          />
-          <Button
-            onClick={() => onSendTurn(currentTranscript)}
-            disabled={!currentTranscript.trim() || isAiThinking || isPaused}
-            className="h-auto px-3 sm:px-4 bg-indigo-600 hover:bg-indigo-700 text-white text-xs gap-1"
-          >
-            <Send className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Send</span>
-          </Button>
-        </div>
-      </div>
+      )}
 
       {/* Conversation History Drawer */}
       {showTranscriptDrawer && (

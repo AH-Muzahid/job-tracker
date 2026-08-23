@@ -30,6 +30,13 @@ export interface InterviewReportData {
   improvementAreas?: string[]
 }
 
+export interface InterviewPhaseInfo {
+  phaseNumber: number
+  totalPhases: number
+  phaseTitle: string
+  isFinalWrapUp: boolean
+}
+
 export interface ConversationalVoiceInterviewModalProps {
   isOpen: boolean
   onClose: () => void

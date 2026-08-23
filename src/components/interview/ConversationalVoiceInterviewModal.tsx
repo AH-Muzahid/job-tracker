@@ -35,6 +35,10 @@ export function ConversationalVoiceInterviewModal({
   const [interviewerTone, setInterviewerTone] = useState<InterviewerTone>("friendly")
   const [voiceGender, setVoiceGender] = useState<VoiceGender>("female")
   const [language, setLanguage] = useState<InterviewLanguage>("mixed")
+  const [targetTurnCount, setTargetTurnCount] = useState<number>(5)
+  const [currentQuestionNumber, setCurrentQuestionNumber] = useState<number>(1)
+  const [currentPhase, setCurrentPhase] = useState<string>("Warm-up & Introduction")
+  const [isInterviewComplete, setIsInterviewComplete] = useState<boolean>(false)
   const [speechRate, setSpeechRate] = useState(0.92)
   const [isPaused, setIsPaused] = useState(false)
   const [speechInputLang, setSpeechInputLang] = useState<"bn-BD" | "en-US">("bn-BD")
@@ -538,6 +542,7 @@ export function ConversationalVoiceInterviewModal({
             interviewerTone,
             voiceGender,
             language,
+            targetTurnCount,
             history: updatedDialogue.map((d) => ({ role: d.role, text: d.text })),
             userAnswer: processedAnswer || undefined,
           }),
@@ -552,6 +557,10 @@ export function ConversationalVoiceInterviewModal({
         const rawReply = data.reply || ""
         const aiReply = rawReply.replace(/```(?:suggestions|json)?[\s\S]*?```/gi, "").trim()
 
+        if (data.currentQuestionNumber) setCurrentQuestionNumber(data.currentQuestionNumber)
+        if (data.currentPhase) setCurrentPhase(data.currentPhase)
+        if (data.isComplete) setIsInterviewComplete(true)
+
         const nextDialogue: DialogueMessage[] = [
           ...updatedDialogue,
           {
@@ -563,7 +572,10 @@ export function ConversationalVoiceInterviewModal({
         setDialogue(nextDialogue)
 
         speakText(aiReply, () => {
-          if (autoTurnActive && !isPaused) {
+          if (data.isComplete) {
+            stopAllAudioAndMic()
+            toast.success("Interview completed! You can now view your full evaluation report.")
+          } else if (autoTurnActive && !isPaused) {
             startListeningRef.current()
           }
         })
@@ -582,8 +594,10 @@ export function ConversationalVoiceInterviewModal({
       isPaused,
       language,
       speakText,
+      stopAllAudioAndMic,
       targetCompany,
       targetRole,
+      targetTurnCount,
       voiceGender,
     ]
   )
@@ -702,6 +716,9 @@ export function ConversationalVoiceInterviewModal({
     setDialogue([])
     setCurrentTranscript("")
     setReport(null)
+    setIsInterviewComplete(false)
+    setCurrentQuestionNumber(1)
+    setCurrentPhase("Warm-up & Introduction")
     await sendTurnToAi(undefined, [])
   }
 
@@ -762,6 +779,8 @@ export function ConversationalVoiceInterviewModal({
             setInterviewType={setInterviewType}
             language={language}
             setLanguage={setLanguage}
+            targetTurnCount={targetTurnCount}
+            setTargetTurnCount={setTargetTurnCount}
             interviewerTone={interviewerTone}
             setInterviewerTone={setInterviewerTone}
             voiceGender={voiceGender}
@@ -805,7 +824,7 @@ export function ConversationalVoiceInterviewModal({
             isAiThinking={isAiThinking}
             autoTurnActive={autoTurnActive}
             onMicClick={() => {
-              if (!isAiSpeaking && !isAiThinking && !isPaused) {
+              if (!isAiSpeaking && !isAiThinking && !isPaused && !isInterviewComplete) {
                 startListening()
               }
             }}
@@ -823,6 +842,10 @@ export function ConversationalVoiceInterviewModal({
             onSendTurn={sendTurnToAi}
             dialogue={dialogue}
             messagesEndRef={messagesEndRef}
+            currentQuestionNumber={currentQuestionNumber}
+            targetTurnCount={targetTurnCount}
+            currentPhase={currentPhase}
+            isInterviewComplete={isInterviewComplete}
           />
         )}
 
@@ -838,6 +861,7 @@ export function ConversationalVoiceInterviewModal({
               setStep("setup")
               setDialogue([])
               setReport(null)
+              setIsInterviewComplete(false)
             }}
             onClose={onClose}
           />
