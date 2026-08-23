@@ -1,5 +1,7 @@
 "use client"
 
+import { Briefcase, TrendingUp, Activity, Award } from "lucide-react"
+
 interface BentoStatGridProps {
   stats: {
     total: number
@@ -13,7 +15,7 @@ interface BentoStatGridProps {
   }
 }
 
-function MiniArc({ value }: { value: number }) {
+function MiniArc({ value, color = "hsl(var(--primary))" }: { value: number; color?: string }) {
   const size = 36
   const strokeWidth = 3
   const radius = (size - strokeWidth) / 2
@@ -35,7 +37,7 @@ function MiniArc({ value }: { value: number }) {
         cy={size / 2}
         r={radius}
         fill="none"
-        stroke="hsl(var(--primary))"
+        stroke={color}
         strokeWidth={strokeWidth}
         strokeLinecap="round"
         strokeDasharray={circumference}
@@ -61,50 +63,70 @@ export default function BentoStatGrid({ stats }: BentoStatGridProps) {
       label: "Total Applications",
       value: stats.total,
       badge: `${thisMonthCount} this month`,
+      icon: Briefcase,
+      iconBg: "bg-blue-500/10 text-blue-500 border-blue-500/20",
     },
     {
       label: "Interview Rate",
       value: `${interviewRate}%`,
       badge: `${stats.interview + stats.assessment} interviewing`,
+      icon: TrendingUp,
+      iconBg: "bg-purple-500/10 text-purple-500 border-purple-500/20",
       arc: interviewRate,
+      arcColor: "#a855f7",
     },
     {
       label: "Active Pipeline",
       value: activePipeline,
       badge: `${stats.applied} active`,
+      icon: Activity,
+      iconBg: "bg-indigo-500/10 text-indigo-500 border-indigo-500/20",
     },
     {
       label: "Success Rate",
       value: `${successRate}%`,
       badge: `${stats.offer} offers`,
+      icon: Award,
+      iconBg: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
       arc: successRate,
+      arcColor: "#10b981",
     },
   ]
 
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-      {items.map((item) => (
-        <div
-          key={item.label}
-          className="rounded-2xl border border-border/80 bg-card/60 backdrop-blur-xl p-4 shadow-sm hover:border-border transition-all duration-300 flex flex-col justify-between"
-        >
-          <div className="flex items-start justify-between">
-            <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider">
-              {item.label}
-            </span>
-            {item.arc !== undefined && <MiniArc value={item.arc} />}
-          </div>
+      {items.map((item) => {
+        const IconComponent = item.icon
+        return (
+          <div
+            key={item.label}
+            className="group relative rounded-2xl border border-border/80 bg-card/60 backdrop-blur-xl p-4 shadow-sm hover:border-border/100 hover:shadow-md transition-all duration-300 flex flex-col justify-between"
+          >
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-2">
+                <div className={`p-2 rounded-xl border ${item.iconBg} transition-transform group-hover:scale-105`}>
+                  <IconComponent className="h-4 w-4" />
+                </div>
+                <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider">
+                  {item.label}
+                </span>
+              </div>
+              {item.arc !== undefined && <MiniArc value={item.arc} color={item.arcColor} />}
+            </div>
 
-          <div className="mt-3">
-            <p className="text-2xl font-bold tracking-tight text-foreground font-sans">
-              {item.value}
-            </p>
-            <p className="text-[10px] font-mono text-muted-foreground mt-1">
-              {item.badge}
-            </p>
+            <div className="mt-3">
+              <p className="text-2xl font-bold tracking-tight text-foreground font-sans">
+                {item.value}
+              </p>
+              <p className="text-[10px] font-mono text-muted-foreground mt-1 flex items-center gap-1">
+                <span className="inline-block h-1.5 w-1.5 rounded-full bg-primary/60" />
+                {item.badge}
+              </p>
+            </div>
           </div>
-        </div>
-      ))}
+        )
+      })}
     </div>
   )
 }
+
