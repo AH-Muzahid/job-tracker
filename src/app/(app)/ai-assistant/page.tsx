@@ -7,7 +7,6 @@ import { MessageSquare, Trash2, Settings, PanelLeftClose, PanelLeft } from "luci
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import AIChat from "@/components/ai/AIChat"
-import ModelSelector from "@/components/ai/ModelSelector"
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 

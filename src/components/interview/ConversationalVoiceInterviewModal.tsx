@@ -39,6 +39,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { toast } from "sonner"
+import { cn } from "@/lib/utils"
 
 interface DialogueMessage {
   role: "interviewer" | "candidate"
@@ -393,7 +394,7 @@ export function ConversationalVoiceInterviewModal({
     } catch (e) {
       console.warn("Could not start recognition:", e)
     }
-  }, [autoTurnActive, isAiSpeaking, isAiThinking, isPaused, sendTurnToAi, speechInputLang])
+  }, [autoTurnActive, isAiSpeaking, isAiThinking, isListening, isPaused, sendTurnToAi, speechInputLang])
 
   startListeningRef.current = startListening
 

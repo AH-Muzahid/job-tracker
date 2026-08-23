@@ -49,15 +49,27 @@ interface ModelSelectorProps {
   variant?: "pill" | "inline"
 }
 
-let cachedModelsData: { data: any; timestamp: number } | null = null
-let inFlightModelsPromise: Promise<any> | null = null
+interface ModelsApiResponse {
+  models?: FetchedModel[]
+  activeModel?: string
+  baseUrl?: string
+  providerType?: string
+}
 
-let cachedProfilesData: { data: any; timestamp: number } | null = null
-let inFlightProfilesPromise: Promise<any> | null = null
+interface ProfilesApiResponse {
+  profiles?: AIProfileMeta[]
+  activeId?: string
+}
+
+let cachedModelsData: { data: ModelsApiResponse; timestamp: number } | null = null
+let inFlightModelsPromise: Promise<ModelsApiResponse | null> | null = null
+
+let cachedProfilesData: { data: ProfilesApiResponse; timestamp: number } | null = null
+let inFlightProfilesPromise: Promise<ProfilesApiResponse | null> | null = null
 
 const CACHE_TTL_MS = 5 * 60 * 1000 // 5 minutes cache
 
-async function getCachedModels(force = false) {
+async function getCachedModels(force = false): Promise<ModelsApiResponse | null> {
   const now = Date.now()
   if (!force && cachedModelsData && now - cachedModelsData.timestamp < CACHE_TTL_MS) {
     return cachedModelsData.data
@@ -66,7 +78,7 @@ async function getCachedModels(force = false) {
     return inFlightModelsPromise
   }
   inFlightModelsPromise = fetch("/api/ai/models")
-    .then((r) => (r.ok ? r.json() : null))
+    .then((r) => (r.ok ? (r.json() as Promise<ModelsApiResponse>) : null))
     .then((data) => {
       if (data) cachedModelsData = { data, timestamp: Date.now() }
       return data
@@ -78,7 +90,7 @@ async function getCachedModels(force = false) {
   return inFlightModelsPromise
 }
 
-async function getCachedProfiles(force = false) {
+async function getCachedProfiles(force = false): Promise<ProfilesApiResponse | null> {
   const now = Date.now()
   if (!force && cachedProfilesData && now - cachedProfilesData.timestamp < CACHE_TTL_MS) {
     return cachedProfilesData.data
@@ -87,7 +99,7 @@ async function getCachedProfiles(force = false) {
     return inFlightProfilesPromise
   }
   inFlightProfilesPromise = fetch("/api/settings/ai-key")
-    .then((r) => (r.ok ? r.json() : null))
+    .then((r) => (r.ok ? (r.json() as Promise<ProfilesApiResponse>) : null))
     .then((data) => {
       if (data) cachedProfilesData = { data, timestamp: Date.now() }
       return data

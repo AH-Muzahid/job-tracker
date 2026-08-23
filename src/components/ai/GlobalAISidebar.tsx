@@ -4,7 +4,6 @@ import { useEffect, useState } from "react"
 import { X, ExternalLink } from "lucide-react"
 import { useUI } from "@/lib/store"
 import AIChat from "./AIChat"
-import ModelSelector from "./ModelSelector"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
 
