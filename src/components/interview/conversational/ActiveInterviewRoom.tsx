@@ -200,112 +200,131 @@ export function ActiveInterviewRoom({
         </div>
       )}
 
-      {/* Central Animated Audio Waveform & Status */}
-      <div className="rounded-2xl border bg-gradient-to-b from-indigo-950/10 via-background to-muted/20 p-3 sm:p-5 flex flex-col items-center justify-center space-y-2 sm:space-y-3 shrink-0">
-        {/* Interviewer State Indicator */}
-        <div className="relative flex items-center justify-center">
-          {!isPaused && isAiSpeaking && (
-            <div className="absolute -inset-3 rounded-full bg-indigo-500/25 animate-ping opacity-75" />
-          )}
-          {!isPaused && isListening && (
-            <div className="absolute -inset-3 rounded-full bg-emerald-500/25 animate-ping opacity-75" />
-          )}
-          {!isPaused && isAiThinking && (
-            <div className="absolute -inset-3 rounded-full bg-purple-500/25 animate-pulse" />
-          )}
-          <button
-            type="button"
-            onClick={onMicClick}
-            disabled={isInterviewComplete}
-            title="Click to start or restart microphone"
-            className={cn(
-              "h-14 w-14 sm:h-18 sm:w-18 rounded-full flex items-center justify-center shadow-lg transition-all duration-300 cursor-pointer",
-              isInterviewComplete
-                ? "bg-emerald-600 text-white shadow-emerald-500/30"
-                : isPaused
-                ? "bg-amber-500/15 text-amber-500 border-2 border-amber-500/40 cursor-not-allowed"
-                : isAiSpeaking
-                ? "bg-indigo-600 text-white ring-4 ring-indigo-400/40 shadow-indigo-500/30 scale-105"
-                : isListening
-                ? "bg-emerald-600 text-white ring-4 ring-emerald-400/40 shadow-emerald-500/30 scale-105"
-                : isAiThinking
-                ? "bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-600 text-white ring-4 ring-purple-400/40 shadow-purple-500/30 scale-105"
-                : "bg-muted text-muted-foreground hover:bg-muted/80"
+      {/* Central Modern Audio Waveform & Status Hub */}
+      <div className="rounded-2xl border bg-gradient-to-b from-indigo-950/20 via-background/80 to-muted/20 backdrop-blur-xs p-2.5 sm:p-3.5 flex items-center justify-between gap-3 shrink-0 shadow-xs">
+        {/* Left: Interactive Mic & Speaker Orb */}
+        <div className="flex items-center gap-3">
+          <div className="relative flex items-center justify-center shrink-0">
+            {!isPaused && isAiSpeaking && (
+              <div className="absolute -inset-1.5 rounded-full bg-indigo-500/30 animate-ping opacity-60" />
             )}
-          >
-            {isInterviewComplete ? (
-              <Award className="h-6 w-6 sm:h-7 sm:w-7 text-white" />
-            ) : isPaused ? (
-              <Pause className="h-6 w-6 sm:h-7 sm:w-7 text-amber-500" />
-            ) : isAiSpeaking ? (
-              <Volume2 className="h-6 w-6 sm:h-7 sm:w-7 animate-pulse" />
-            ) : isListening ? (
-              <Mic className="h-6 w-6 sm:h-7 sm:w-7 animate-pulse" />
-            ) : isAiThinking ? (
-              <Loader2 className="h-6 w-6 sm:h-7 sm:w-7 animate-spin" />
-            ) : (
-              <VolumeX className="h-6 w-6 sm:h-7 sm:w-7" />
+            {!isPaused && isListening && (
+              <div className="absolute -inset-1.5 rounded-full bg-emerald-500/30 animate-ping opacity-60" />
             )}
-          </button>
-        </div>
+            {!isPaused && isAiThinking && (
+              <div className="absolute -inset-1.5 rounded-full bg-purple-500/30 animate-pulse" />
+            )}
+            <button
+              type="button"
+              onClick={onMicClick}
+              disabled={isInterviewComplete}
+              title="Microphone Status"
+              className={cn(
+                "h-10 w-10 sm:h-12 sm:w-12 rounded-full flex items-center justify-center shadow-md transition-all duration-300 cursor-pointer shrink-0",
+                isInterviewComplete
+                  ? "bg-emerald-600 text-white shadow-emerald-500/30"
+                  : isPaused
+                  ? "bg-amber-500/15 text-amber-500 border border-amber-500/40 cursor-not-allowed"
+                  : isAiSpeaking
+                  ? "bg-indigo-600 text-white ring-2 ring-indigo-400/40 shadow-indigo-500/30"
+                  : isListening
+                  ? "bg-emerald-600 text-white ring-2 ring-emerald-400/40 shadow-emerald-500/30"
+                  : isAiThinking
+                  ? "bg-gradient-to-tr from-indigo-600 to-purple-600 text-white ring-2 ring-purple-400/40 shadow-purple-500/30"
+                  : "bg-muted text-muted-foreground"
+              )}
+            >
+              {isInterviewComplete ? (
+                <Award className="h-5 w-5 text-white" />
+              ) : isPaused ? (
+                <Pause className="h-5 w-5 text-amber-500" />
+              ) : isAiSpeaking ? (
+                <Volume2 className="h-5 w-5 animate-pulse" />
+              ) : isListening ? (
+                <Mic className="h-5 w-5 animate-pulse" />
+              ) : isAiThinking ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <VolumeX className="h-5 w-5" />
+              )}
+            </button>
+          </div>
 
-        {/* Status Text & Soundwave */}
-        <div className="text-center space-y-0.5">
-          <p className="text-xs sm:text-sm font-semibold text-foreground">
-            {isInterviewComplete
-              ? "Interview Completed"
-              : isPaused
-              ? "Interview Paused"
-              : isAiSpeaking
-              ? "Interviewer is speaking..."
-              : isListening
-              ? "Your Turn — Listening to your answer..."
-              : isAiThinking
-              ? "Analyzing your answer & preparing response..."
-              : "Ready"}
-          </p>
-          <p className="text-[10.5px] sm:text-xs text-muted-foreground max-w-sm">
-            {isInterviewComplete
-              ? "Great job! All structured interview rounds are finished."
-              : isPaused
-              ? "Audio on hold. Click Resume when ready."
-              : isListening && autoTurnActive
-              ? "Speak naturally. Pausing for 2.2s automatically submits."
-              : isAiThinking
-              ? "Evaluating depth, structure & STAR metrics..."
-              : "Continuous structured duplex interview session."}
-          </p>
-        </div>
-
-        {/* Sleek Dynamic Soundwave & Analysis Waveform */}
-        {!isPaused && !isInterviewComplete && (
-          <div className="flex items-center justify-center gap-1 h-6">
-            {isAiThinking ? (
-              <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20">
-                <Sparkles className="h-3.5 w-3.5 text-purple-500 animate-spin" />
-                <span className="text-[11px] font-medium text-purple-600 dark:text-purple-300">
-                  Analyzing response...
+          {/* Status Label */}
+          <div className="space-y-0.5 min-w-0">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <p className="text-xs sm:text-sm font-bold text-foreground truncate">
+                {isInterviewComplete
+                  ? "Interview Completed"
+                  : isPaused
+                  ? "Interview Paused"
+                  : isAiSpeaking
+                  ? `${getInterviewerName()} is speaking...`
+                  : isListening
+                  ? "Listening to you..."
+                  : isAiThinking
+                  ? "Evaluating & thinking..."
+                  : "Ready"}
+              </p>
+              {isAiThinking && (
+                <span className="text-[10px] text-purple-600 dark:text-purple-400 bg-purple-500/10 px-1.5 py-0.2 rounded font-medium flex items-center gap-1">
+                  <Sparkles className="h-2.5 w-2.5 animate-spin" />
+                  <span>Analyzing</span>
                 </span>
-                <div className="flex items-center gap-1 ml-1">
-                  <div className="h-1.5 w-1.5 rounded-full bg-purple-500 animate-bounce" style={{ animationDelay: "0ms" }} />
-                  <div className="h-1.5 w-1.5 rounded-full bg-purple-500 animate-bounce" style={{ animationDelay: "150ms" }} />
-                  <div className="h-1.5 w-1.5 rounded-full bg-purple-500 animate-bounce" style={{ animationDelay: "300ms" }} />
-                </div>
+              )}
+            </div>
+            <p className="text-[10.5px] text-muted-foreground truncate max-w-[200px] sm:max-w-xs">
+              {isInterviewComplete
+                ? "All rounds completed. Review your report below."
+                : isPaused
+                ? "Click Resume to continue."
+                : isListening && autoTurnActive
+                ? "Pause for 2s to submit automatically."
+                : isAiThinking
+                ? "Processing your answer..."
+                : "Duplex live voice session."}
+            </p>
+          </div>
+        </div>
+
+        {/* Right: Sleek Dynamic Visualizer Bars */}
+        {!isPaused && !isInterviewComplete && (
+          <div className="flex items-center gap-1 h-7 px-2 shrink-0">
+            {isAiThinking ? (
+              <div className="flex items-center gap-1">
+                {[40, 80, 50, 90, 60].map((h, i) => (
+                  <div
+                    key={i}
+                    className="w-1 rounded-full bg-purple-500 animate-pulse"
+                    style={{
+                      height: `${h}%`,
+                      animationDelay: `${i * 150}ms`,
+                    }}
+                  />
+                ))}
               </div>
             ) : isAiSpeaking || isListening ? (
-              [35, 75, 45, 95, 60, 100, 50, 85, 40, 90, 65, 30, 80, 55, 70].map((h, i) => (
+              [30, 65, 45, 90, 55, 100, 50, 80, 40, 70].map((h, i) => (
                 <div
                   key={i}
                   className={`w-0.5 sm:w-1 rounded-full transition-all duration-150 animate-pulse ${
-                    isAiSpeaking ? "bg-indigo-500 shadow-xs shadow-indigo-500/50" : "bg-emerald-500 shadow-xs shadow-emerald-500/50"
+                    isAiSpeaking
+                      ? "bg-indigo-500 shadow-xs shadow-indigo-500/50"
+                      : "bg-emerald-500 shadow-xs shadow-emerald-500/50"
                   }`}
                   style={{
                     height: `${h}%`,
-                    animationDelay: `${(i % 5) * 120}ms`,
+                    animationDelay: `${(i % 4) * 120}ms`,
                   }}
                 />
               ))
-            ) : null}
+            ) : (
+              <div className="flex items-center gap-1 opacity-30">
+                {[30, 30, 30, 30].map((h, i) => (
+                  <div key={i} className="w-1 h-2 rounded-full bg-muted-foreground" />
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
