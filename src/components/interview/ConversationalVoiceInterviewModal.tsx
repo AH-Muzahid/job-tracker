@@ -69,6 +69,8 @@ export function ConversationalVoiceInterviewModal({
   const [targetRole, setTargetRole] = useState(initialRole)
   const [targetCompany, setTargetCompany] = useState(initialCompany)
   const [interviewType, setInterviewType] = useState(initialType)
+  const [interviewerTone, setInterviewerTone] = useState<"friendly" | "strict" | "startup-cto" | "architect">("friendly")
+  const [voiceGender, setVoiceGender] = useState<"female" | "male">("female")
   const [language, setLanguage] = useState<"en" | "bn" | "mixed">("mixed")
   const [speechRate, setSpeechRate] = useState(0.92) // Smooth natural speed
   const [isPaused, setIsPaused] = useState(false)
@@ -101,25 +103,52 @@ export function ConversationalVoiceInterviewModal({
     }
   }, [language])
 
-  // Load available browser voices for TTS
+  // Load available browser voices for TTS matched to selected gender
   useEffect(() => {
     if (typeof window !== "undefined" && window.speechSynthesis) {
       const updateVoices = () => {
         const voices = window.speechSynthesis.getVoices()
         setAvailableVoices(voices)
-        // Select best natural voice
-        if (!selectedVoice && voices.length > 0) {
-          const naturalVoice =
-            voices.find((v) => v.name.includes("Natural") || v.name.includes("Google") || v.name.includes("Premium")) ||
-            voices[0]
-          setSelectedVoice(naturalVoice?.name || "")
+        if (voices.length > 0) {
+          let matchedVoice: SpeechSynthesisVoice | undefined
+          if (voiceGender === "female") {
+            matchedVoice = voices.find((v) =>
+              (v.name.includes("Jenny") ||
+                v.name.includes("Aria") ||
+                v.name.includes("Google US English") ||
+                v.name.includes("Samantha") ||
+                v.name.includes("Victoria") ||
+                v.name.includes("Zira") ||
+                v.name.includes("Karen") ||
+                v.name.toLowerCase().includes("female"))
+            )
+          } else {
+            matchedVoice = voices.find((v) =>
+              (v.name.includes("Guy") ||
+                v.name.includes("Christopher") ||
+                v.name.includes("Google UK English Male") ||
+                v.name.includes("David") ||
+                v.name.includes("Daniel") ||
+                v.name.includes("Alex") ||
+                v.name.includes("Tom") ||
+                v.name.toLowerCase().includes("male"))
+            )
+          }
+          if (!matchedVoice) {
+            matchedVoice =
+              voices.find((v) => v.name.includes("Natural") || v.name.includes("Google")) ||
+              voices[0]
+          }
+          if (matchedVoice) {
+            setSelectedVoice(matchedVoice.name)
+          }
         }
       }
 
       updateVoices()
       window.speechSynthesis.onvoiceschanged = updateVoices
     }
-  }, [selectedVoice])
+  }, [voiceGender])
 
   // Scroll transcript to bottom
   useEffect(() => {
@@ -182,7 +211,7 @@ export function ConversationalVoiceInterviewModal({
       // 1. High-fidelity Server-side TTS for Bangla / Mixed script
       if (hasBengali || language === "bn" || language === "mixed") {
         try {
-          const ttsUrl = `/api/ai/tts?text=${encodeURIComponent(text)}&lang=bn`
+          const ttsUrl = `/api/ai/tts?text=${encodeURIComponent(text)}&lang=bn&gender=${voiceGender}`
           const audio = new Audio(ttsUrl)
           audioPlayerRef.current = audio
           audio.playbackRate = speechRate
@@ -223,7 +252,7 @@ export function ConversationalVoiceInterviewModal({
       if (preferredVoice) utterance.voice = preferredVoice
       utterance.lang = preferredVoice ? preferredVoice.lang : "en-US"
       utterance.rate = speechRate
-      utterance.pitch = 1.0
+      utterance.pitch = voiceGender === "female" ? 1.05 : 0.92
 
       utterance.onstart = () => {
         setIsAiSpeaking(true)
@@ -243,7 +272,7 @@ export function ConversationalVoiceInterviewModal({
 
       window.speechSynthesis.speak(utterance)
     },
-    [availableVoices, language, selectedVoice, speechRate]
+    [availableVoices, language, selectedVoice, speechRate, voiceGender]
   )
 
   // Trigger next conversational turn
@@ -282,6 +311,8 @@ export function ConversationalVoiceInterviewModal({
             targetRole,
             targetCompany,
             interviewType,
+            interviewerTone,
+            voiceGender,
             language,
             history: updatedDialogue.map((d) => ({ role: d.role, text: d.text })),
             userAnswer: answerText,
@@ -320,7 +351,18 @@ export function ConversationalVoiceInterviewModal({
         setIsAiThinking(false)
       }
     },
-    [autoTurnActive, dialogue, interviewType, isPaused, language, speakText, targetCompany, targetRole]
+    [
+      autoTurnActive,
+      dialogue,
+      interviewType,
+      interviewerTone,
+      isPaused,
+      language,
+      speakText,
+      targetCompany,
+      targetRole,
+      voiceGender,
+    ]
   )
 
   // Start continuous microphone listener with silence auto-submit (VAD)
@@ -554,17 +596,100 @@ export function ConversationalVoiceInterviewModal({
               </div>
             </div>
 
-            {/* Audio Cadence Settings */}
+            {/* Interviewer Persona & Tone Selection */}
+            <div className="space-y-2">
+              <Label className="text-xs font-medium flex items-center justify-between">
+                <span>Interviewer Persona & Tone</span>
+                <span className="text-[10px] text-muted-foreground">Select how the interviewer behaves</span>
+              </Label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {[
+                  {
+                    id: "friendly" as const,
+                    title: "😊 Friendly & Encouraging",
+                    desc: "Warm & supportive mentor. Gives positive feedback and builds confidence.",
+                  },
+                  {
+                    id: "strict" as const,
+                    title: "🧐 Strict FAANG Bar Raiser",
+                    desc: "Uncompromising standards. Deeply probes edge cases, complexity & trade-offs.",
+                  },
+                  {
+                    id: "startup-cto" as const,
+                    title: "⚡ Fast-Paced Startup CTO",
+                    desc: "Pragmatic, crisp, & direct. Focuses on real-world shipping & production reality.",
+                  },
+                  {
+                    id: "architect" as const,
+                    title: "🏛️ Principal System Architect",
+                    desc: "High scalability, distributed failure modes, consistency & deep internals.",
+                  },
+                ].map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => setInterviewerTone(t.id)}
+                    className={cn(
+                      "flex flex-col text-left p-2.5 rounded-xl border transition-all cursor-pointer",
+                      interviewerTone === t.id
+                        ? "border-indigo-600 bg-indigo-500/10 dark:bg-indigo-950/40 text-indigo-900 dark:text-indigo-200 ring-1 ring-indigo-500/50"
+                        : "border-border hover:border-muted-foreground/30 bg-muted/10"
+                    )}
+                  >
+                    <span className="text-xs font-semibold text-foreground">{t.title}</span>
+                    <span className="text-[10.5px] text-muted-foreground leading-tight mt-0.5">{t.desc}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Voice Profile & Cadence Tuning */}
             <div className="rounded-xl border bg-muted/20 p-4 space-y-3">
-              <h4 className="text-xs font-semibold flex items-center gap-1.5 text-foreground">
-                <Settings2 className="h-3.5 w-3.5 text-indigo-500" />
-                <span>Interviewer Voice & Cadence Tuning</span>
+              <h4 className="text-xs font-semibold flex items-center justify-between text-foreground">
+                <span className="flex items-center gap-1.5">
+                  <Settings2 className="h-3.5 w-3.5 text-indigo-500" />
+                  <span>Interviewer Voice & Speech Tuning</span>
+                </span>
+                <span className="text-[10px] font-normal text-muted-foreground">Lifelike Non-Robotic Speech</span>
               </h4>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Male / Female Voice Selector */}
+                <div className="space-y-1.5">
+                  <span className="text-xs text-muted-foreground">Interviewer Voice Gender</span>
+                  <div className="grid grid-cols-2 gap-2 pt-0.5">
+                    <Button
+                      type="button"
+                      variant={voiceGender === "female" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setVoiceGender("female")}
+                      className={cn(
+                        "text-xs h-8 gap-1.5 justify-center",
+                        voiceGender === "female" && "bg-indigo-600 hover:bg-indigo-700 text-white"
+                      )}
+                    >
+                      <span>👩 Female ({language === "en" ? "Sarah" : "তানিয়া"})</span>
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={voiceGender === "male" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setVoiceGender("male")}
+                      className={cn(
+                        "text-xs h-8 gap-1.5 justify-center",
+                        voiceGender === "male" && "bg-indigo-600 hover:bg-indigo-700 text-white"
+                      )}
+                    >
+                      <span>👨 Male ({language === "en" ? "David" : "তানভীর"})</span>
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Cadence */}
                 <div className="space-y-1.5">
                   <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>Speaking Speed (Cadence)</span>
-                    <span className="font-semibold text-foreground">{speechRate}x (Calm & Clear)</span>
+                    <span>Speaking Cadence</span>
+                    <span className="font-semibold text-foreground">{speechRate}x (Natural Pace)</span>
                   </div>
                   <input
                     type="range"
@@ -573,24 +698,26 @@ export function ConversationalVoiceInterviewModal({
                     step="0.05"
                     value={speechRate}
                     onChange={(e) => setSpeechRate(parseFloat(e.target.value))}
-                    className="w-full h-1.5 bg-muted rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                    className="w-full h-1.5 bg-muted rounded-lg appearance-none cursor-pointer accent-indigo-600 mt-2"
                   />
                 </div>
+              </div>
 
-                <div className="space-y-1.5">
-                  <span className="text-xs text-muted-foreground">Automated Hands-Free Mode</span>
-                  <div className="flex items-center gap-2 pt-1">
-                    <Button
-                      type="button"
-                      variant={autoTurnActive ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setAutoTurnActive(!autoTurnActive)}
-                      className="text-xs h-7 gap-1"
-                    >
-                      <span>{autoTurnActive ? "✓ Hands-Free VAD (2.2s Silence Auto-Submit)" : "Manual Click Submit"}</span>
-                    </Button>
-                  </div>
+              {/* Hands-Free VAD Toggle */}
+              <div className="pt-2 border-t flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium">Automated Hands-Free Turn Taking (VAD)</p>
+                  <p className="text-[10px] text-muted-foreground">Automatically sends your answer after 2.2s of silence</p>
                 </div>
+                <Button
+                  type="button"
+                  variant={autoTurnActive ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setAutoTurnActive(!autoTurnActive)}
+                  className="text-xs h-7 px-3"
+                >
+                  <span>{autoTurnActive ? "✓ Enabled" : "Manual Click"}</span>
+                </Button>
               </div>
             </div>
 
@@ -624,7 +751,7 @@ export function ConversationalVoiceInterviewModal({
                     {targetCompany} — {targetRole}
                   </h3>
                   <p className="text-[11px] text-muted-foreground">
-                    {interviewType} Round • {language === "bn" ? "বাংলা" : language === "mixed" ? "Banglish" : "English"}
+                    Interviewer: <span className="font-semibold text-foreground">{voiceGender === "female" ? (language === "en" ? "Sarah" : "তানিয়া") : (language === "en" ? "David" : "তানভীর")}</span> ({interviewerTone === "friendly" ? "Friendly" : interviewerTone === "strict" ? "FAANG Bar Raiser" : interviewerTone === "startup-cto" ? "Startup CTO" : "System Architect"}) • {interviewType} • {language === "bn" ? "বাংলা" : language === "mixed" ? "Banglish" : "English"}
                   </p>
                 </div>
               </div>
