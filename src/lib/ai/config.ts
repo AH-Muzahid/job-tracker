@@ -122,16 +122,19 @@ async function saveRawMultiConfig(userId: string, multiConfig: StoredMultiAIConf
 /**
  * Returns the currently active AIProviderConfig for making LLM calls.
  */
-export async function getUserAIConfig(userId: string): Promise<AIProviderConfig | null> {
+export async function getUserAIConfig(userId: string, profileId?: string): Promise<AIProviderConfig | null> {
   const multi = await getRawMultiConfig(userId)
   if (multi && multi.profiles && multi.profiles.length > 0) {
-    const active = multi.profiles.find((p) => p.id === multi.activeId) || multi.profiles[0]
-    if (active && active.apiKey) {
+    const target = profileId
+      ? multi.profiles.find((p) => p.id === profileId)
+      : multi.profiles.find((p) => p.id === multi.activeId) || multi.profiles[0]
+
+    if (target && target.apiKey) {
       return {
-        providerType: active.providerType,
-        apiKey: active.apiKey,
-        baseUrl: active.baseUrl || undefined,
-        model: active.model || undefined,
+        providerType: target.providerType,
+        apiKey: target.apiKey,
+        baseUrl: target.baseUrl || undefined,
+        model: target.model || undefined,
       }
     }
   }

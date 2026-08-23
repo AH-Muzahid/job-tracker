@@ -166,21 +166,21 @@ export function AIConfigCard() {
   }
 
   async function testConnection(id: string) {
-    if (id !== activeId) {
-      await switchActiveProfile(id)
-    }
-
     setTestingId(id)
     setTestResults((prev) => ({ ...prev, [id]: null }))
 
     try {
-      const res = await fetch("/api/ai/test-connection", { method: "POST" })
+      const res = await fetch("/api/ai/test-connection", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ profileId: id }),
+      })
       const data = await res.json()
       setTestResults((prev) => ({ ...prev, [id]: data.ok === true }))
       if (data.ok) {
         toast.success("Connection test successful!")
       } else {
-        toast.error("Connection failed. Check API key & parameters.")
+        toast.error(data.error || "Connection failed. Check API key & parameters.")
       }
     } catch {
       setTestResults((prev) => ({ ...prev, [id]: false }))
@@ -386,16 +386,19 @@ export function AIConfigCard() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Model</Label>
+                  <Label>Model Name</Label>
                   <Input
                     value={aiModel}
                     onChange={(e) => setAiModel(e.target.value)}
                     placeholder={
                       aiProvider === "custom-anthropic"
                         ? "claude-3-5-sonnet-20241022"
-                        : "deepseek/deepseek-chat"
+                        : "google/gemini-2.0-flash-exp:free or openrouter/auto"
                     }
                   />
+                  <p className="text-[11px] text-muted-foreground">
+                    Examples for OpenRouter: <code className="bg-muted px-1 py-0.5 rounded">openrouter/auto</code>, <code className="bg-muted px-1 py-0.5 rounded">google/gemini-2.0-flash-exp:free</code>, <code className="bg-muted px-1 py-0.5 rounded">meta-llama/llama-3.3-70b-instruct:free</code>
+                  </p>
                 </div>
               </div>
             )}

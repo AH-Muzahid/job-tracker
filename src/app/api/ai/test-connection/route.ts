@@ -9,11 +9,13 @@ export async function POST(request: Request) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 })
   }
 
-  let configToTest = await getUserAIConfig(userId)
+  let configToTest: AIProviderConfig | null = null
 
   try {
     const body = await request.json().catch(() => ({}))
-    if (body && body.providerType && body.apiKey) {
+    if (body?.profileId) {
+      configToTest = await getUserAIConfig(userId, body.profileId)
+    } else if (body?.providerType && body?.apiKey) {
       configToTest = {
         providerType: body.providerType,
         apiKey: body.apiKey,
@@ -23,6 +25,10 @@ export async function POST(request: Request) {
     }
   } catch {
     // Ignore body parse error if empty
+  }
+
+  if (!configToTest) {
+    configToTest = await getUserAIConfig(userId)
   }
 
   if (!configToTest || !configToTest.apiKey) {
@@ -43,7 +49,7 @@ export async function POST(request: Request) {
       model: resolvedProvider.model(modelToUse),
       prompt: "ping",
       maxOutputTokens: 5,
-      timeout: 8000,
+      timeout: 10000,
     })
 
     return new Response(JSON.stringify({ ok: true }), { status: 200 })
