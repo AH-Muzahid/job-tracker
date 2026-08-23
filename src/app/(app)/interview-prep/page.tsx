@@ -5,12 +5,11 @@ import { useEffect, useState } from "react"
 import { useUser } from "@clerk/nextjs"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { Brain, History, BookOpen } from "lucide-react"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { ConversationalVoiceInterviewModal } from "@/components/interview/ConversationalVoiceInterviewModal"
-import { cn } from "@/lib/utils"
 
-import { PrepNote, InterviewSessionItem, PrepTabType } from "@/components/interview/prep/types"
-import { InterviewPrepBentoHero } from "@/components/interview/prep/InterviewPrepBentoHero"
+import { PrepNote, InterviewSessionItem } from "@/components/interview/prep/types"
+import { InterviewPrepHeader } from "@/components/interview/prep/InterviewPrepBentoHero"
 import { ConceptLabTab } from "@/components/interview/prep/ConceptLabTab"
 import { MockTranscriptsTab } from "@/components/interview/prep/MockTranscriptsTab"
 import { RevisionNotesTab } from "@/components/interview/prep/RevisionNotesTab"
@@ -20,7 +19,7 @@ export default function InterviewPrepPage() {
   const router = useRouter()
 
   // Navigation Tab
-  const [activeTab, setActiveTab] = useState<PrepTabType>("study")
+  const [activeTab, setActiveTab] = useState("study")
 
   // Persistent Data States
   const [notes, setNotes] = useState<PrepNote[]>([])
@@ -96,97 +95,54 @@ export default function InterviewPrepPage() {
 
   return (
     <div className="max-w-7xl mx-auto space-y-6 pb-12">
-      {/* 1. BENTO HERO COMMAND ZONE */}
-      <InterviewPrepBentoHero
+      {/* 1. Standard CareerTrack Page Header */}
+      <InterviewPrepHeader
         onStartMockInterview={() => setConversationalModalOpen(true)}
-        totalDiscussions={0}
-        totalSessions={sessions.length}
-        totalNotes={notes.length}
       />
 
-      {/* 2. TAB NAVIGATION */}
-      <div className="flex items-center justify-between border-b pb-2 flex-wrap gap-2">
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setActiveTab("study")}
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer",
-              activeTab === "study"
-                ? "bg-muted text-foreground font-bold"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
-            )}
-          >
-            <Brain className="h-3.5 w-3.5 text-indigo-500" />
-            <span>AI Concept Tutor & Q&A</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab("sessions")}
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer",
-              activeTab === "sessions"
-                ? "bg-muted text-foreground font-bold"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
-            )}
-          >
-            <History className="h-3.5 w-3.5 text-purple-500" />
-            <span>Mock Transcripts</span>
-            {sessions.length > 0 && (
-              <span className="text-[10px] bg-background px-1.5 py-0.2 rounded-md font-bold text-muted-foreground border">
-                {sessions.length}
-              </span>
-            )}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab("notes")}
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer",
-              activeTab === "notes"
-                ? "bg-muted text-foreground font-bold"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
-            )}
-          >
-            <BookOpen className="h-3.5 w-3.5 text-emerald-500" />
-            <span>Revision Notes</span>
-            {notes.length > 0 && (
-              <span className="text-[10px] bg-background px-1.5 py-0.2 rounded-md font-bold text-muted-foreground border">
-                {notes.length}
-              </span>
-            )}
-          </button>
+      {/* 2. Standard shadcn Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <div className="flex items-center justify-between border-b pb-3">
+          <TabsList className="bg-muted/60 p-1">
+            <TabsTrigger value="study" className="text-xs sm:text-sm">
+              AI Concept Tutor & Q&A
+            </TabsTrigger>
+            <TabsTrigger value="sessions" className="text-xs sm:text-sm">
+              Mock Transcripts ({sessions.length})
+            </TabsTrigger>
+            <TabsTrigger value="notes" className="text-xs sm:text-sm">
+              Revision Notes ({notes.length})
+            </TabsTrigger>
+          </TabsList>
         </div>
-      </div>
 
-      {/* 3. TAB 1: AI CONCEPT LAB & Q&A */}
-      {activeTab === "study" && (
-        <ConceptLabTab onSaveAsNote={handleSaveAsNote} />
-      )}
+        {/* Tab 1: AI Concept Tutor & Q&A */}
+        <TabsContent value="study" className="pt-2">
+          <ConceptLabTab onSaveAsNote={handleSaveAsNote} />
+        </TabsContent>
 
-      {/* 4. TAB 2: RECORDED MOCK SESSIONS & TRANSCRIPTS */}
-      {activeTab === "sessions" && (
-        <MockTranscriptsTab
-          sessions={sessions}
-          loading={loading}
-          onDeleteSession={handleDeleteSession}
-          onStartMockInterview={() => setConversationalModalOpen(true)}
-        />
-      )}
+        {/* Tab 2: Recorded Mock Sessions & Transcripts */}
+        <TabsContent value="sessions" className="pt-2">
+          <MockTranscriptsTab
+            sessions={sessions}
+            loading={loading}
+            onDeleteSession={handleDeleteSession}
+            onStartMockInterview={() => setConversationalModalOpen(true)}
+          />
+        </TabsContent>
 
-      {/* 5. TAB 3: REVISION NOTES & SAVED CONCEPTS */}
-      {activeTab === "notes" && (
-        <RevisionNotesTab
-          notes={notes}
-          loading={loading}
-          onDeleteNote={handleDeleteNote}
-          onNoteCreated={fetchAll}
-        />
-      )}
+        {/* Tab 3: Revision Notes & Saved Concepts */}
+        <TabsContent value="notes" className="pt-2">
+          <RevisionNotesTab
+            notes={notes}
+            loading={loading}
+            onDeleteNote={handleDeleteNote}
+            onNoteCreated={fetchAll}
+          />
+        </TabsContent>
+      </Tabs>
 
-      {/* 6. CONVERSATIONAL VOICE MOCK INTERVIEW MODAL */}
+      {/* Spoken Voice Mock Interview Modal */}
       <ConversationalVoiceInterviewModal
         isOpen={conversationalModalOpen}
         onClose={() => {

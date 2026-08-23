@@ -3,26 +3,18 @@
 
 import React, { useRef, useState } from "react"
 import {
-  Sparkles,
   Mic,
   Send,
   Volume2,
   VolumeX,
   BookmarkPlus,
   ArrowRight,
-  MessageSquare,
-  Globe,
-  Code2,
-  Cpu,
-  Database,
-  Zap,
-  UserCheck,
   RotateCcw,
-  Lightbulb,
+  Sparkles,
 } from "lucide-react"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Textarea } from "@/components/ui/textarea"
+import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import {
   Select,
@@ -35,50 +27,44 @@ import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import { StudyDiscussionMessage } from "./types"
 
-const TOPIC_OPTIONS = [
-  { id: "General Tech", label: "General Tech", icon: Globe, color: "text-indigo-500" },
-  { id: "React & Next.js", label: "React & Next.js", icon: Code2, color: "text-cyan-500" },
-  { id: "System Design", label: "System Design", icon: Cpu, color: "text-amber-500" },
-  { id: "Database & SQL", label: "Database & SQL", icon: Database, color: "text-emerald-500" },
-  { id: "Node.js & Backend", label: "Node.js & Backend", icon: Zap, color: "text-purple-500" },
-  { id: "STAR Behavioral", label: "STAR Behavioral", icon: UserCheck, color: "text-rose-500" },
+const TOPIC_CATEGORIES = [
+  "All Topics",
+  "React & Next.js",
+  "System Design",
+  "Database & SQL",
+  "Node.js & Backend",
+  "STAR Behavioral",
 ]
 
 const CURATED_QUESTIONS = [
   {
     topic: "React & Next.js",
-    category: "Frontend Internals",
-    tag: "React 19 & Next.js",
+    tag: "React 19",
     question: "How do React 19 Actions and useOptimistic handle optimistic UI updates and race conditions?",
   },
   {
     topic: "System Design",
-    category: "Distributed Architecture",
     tag: "Rate Limiting",
-    question: "Design a distributed rate limiter using Redis Token Bucket & sliding window counter for 100k RPS.",
+    question: "How do you design a distributed rate limiter using Redis Token Bucket & sliding window counter?",
   },
   {
     topic: "Database & SQL",
-    category: "Database Engine",
-    tag: "Postgres MVCC",
-    question: "How does PostgreSQL MVCC work, and when should you pick a GIN index over a standard B-Tree index?",
+    tag: "PostgreSQL",
+    question: "How does PostgreSQL MVCC work, and when should you choose a GIN index over a standard B-Tree index?",
   },
   {
     topic: "Node.js & Backend",
-    category: "Runtime & Concurrency",
-    tag: "Event Loop & Libuv",
-    question: "How does the Node.js Event Loop microtask queue (Promises) interact with the libuv thread pool?",
+    tag: "Event Loop",
+    question: "Explain how the Node.js Event Loop microtask queue (Promises) interacts with the libuv thread pool.",
   },
   {
     topic: "System Design",
-    category: "Caching & Resilience",
-    tag: "High Concurrency",
+    tag: "Caching",
     question: "What architectural patterns prevent Cache Stampede (Dog-piling effect) in high-throughput services?",
   },
   {
     topic: "STAR Behavioral",
-    category: "Leadership & STAR",
-    tag: "Incident Resolution",
+    tag: "STAR Method",
     question: "How to structure a STAR response for: 'Tell me about a time you resolved a major production outage under pressure'?",
   },
 ]
@@ -88,7 +74,7 @@ interface ConceptLabTabProps {
 }
 
 export function ConceptLabTab({ onSaveAsNote }: ConceptLabTabProps) {
-  const [selectedTopic, setSelectedTopic] = useState<string>("General Tech")
+  const [selectedTopic, setSelectedTopic] = useState<string>("All Topics")
   const [studyQuestion, setStudyQuestion] = useState("")
   const [isAskingStudy, setIsAskingStudy] = useState(false)
   const [studyHistory, setStudyHistory] = useState<StudyDiscussionMessage[]>([])
@@ -106,7 +92,7 @@ export function ConceptLabTab({ onSaveAsNote }: ConceptLabTabProps) {
     const userMsg: StudyDiscussionMessage = {
       role: "user",
       content: query,
-      topic: selectedTopic,
+      topic: selectedTopic === "All Topics" ? "General Tech" : selectedTopic,
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     }
 
@@ -119,7 +105,7 @@ export function ConceptLabTab({ onSaveAsNote }: ConceptLabTabProps) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          topic: selectedTopic,
+          topic: selectedTopic === "All Topics" ? "General Software Engineering" : selectedTopic,
           question: query,
           language: studyLang,
           conversationHistory: updatedHistory.map((h) => ({ role: h.role, content: h.content })),
@@ -207,192 +193,173 @@ export function ConceptLabTab({ onSaveAsNote }: ConceptLabTabProps) {
     window.speechSynthesis.speak(utterance)
   }
 
+  const filteredQuestions =
+    selectedTopic === "All Topics"
+      ? CURATED_QUESTIONS
+      : CURATED_QUESTIONS.filter((s) => s.topic === selectedTopic)
+
   return (
-    <div className="space-y-6 max-w-5xl mx-auto">
-      {/* 1. Unified Prompt Studio Box */}
-      <div className="rounded-2xl border bg-card shadow-xs transition-all focus-within:border-indigo-500/50 focus-within:ring-2 focus-within:ring-indigo-500/10 overflow-hidden">
-        <Textarea
-          value={studyQuestion}
-          onChange={(e) => setStudyQuestion(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault()
-              handleAskStudy()
-            }
-          }}
-          placeholder="Ask any technical concept, trade-off, or interview question... (e.g. How does Redis clustering work? / বাংলায় বা বাংলিশেও লিখুন)"
-          rows={2}
-          className="border-0 shadow-none focus-visible:ring-0 text-xs sm:text-sm p-3.5 sm:p-4 resize-none bg-transparent leading-relaxed"
-        />
+    <div className="space-y-6">
+      {/* 1. Category Filter Pills */}
+      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+        {TOPIC_CATEGORIES.map((topic) => (
+          <Button
+            key={topic}
+            variant={selectedTopic === topic ? "default" : "outline"}
+            size="sm"
+            onClick={() => setSelectedTopic(topic)}
+            className="rounded-full text-xs h-8 px-3.5 font-medium"
+          >
+            {topic}
+          </Button>
+        ))}
+      </div>
 
-        {/* Toolbar Footer inside Card */}
-        <div className="flex flex-wrap items-center justify-between gap-2 px-3.5 py-2.5 bg-muted/20 border-t">
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* Topic Selector */}
-            <Select value={selectedTopic} onValueChange={setSelectedTopic}>
-              <SelectTrigger className="h-7 text-[11px] font-medium bg-background border-border/80 rounded-lg px-2 gap-1.5 w-auto">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {TOPIC_OPTIONS.map((t) => (
-                  <SelectItem key={t.id} value={t.id} className="text-xs">
-                    {t.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+      {/* 2. Standard shadcn Card for Asking Questions */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <CardTitle className="text-base">Ask Technical Concepts & Interview Questions</CardTitle>
+              <CardDescription className="text-xs">
+                Get hiring-grade architectural explanations, trade-offs, and mental models.
+              </CardDescription>
+            </div>
 
-            {/* Language Selector */}
-            <div className="flex items-center rounded-lg border bg-background p-0.5 text-[10px]">
-              {(["mixed", "bn", "en"] as const).map((lang) => (
-                <button
-                  key={lang}
-                  type="button"
-                  onClick={() => setStudyLang(lang)}
-                  className={cn(
-                    "px-2 py-0.5 rounded-md font-medium transition-colors cursor-pointer",
-                    studyLang === lang
-                      ? "bg-indigo-600 text-white shadow-2xs"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  {lang === "mixed" ? "Banglish" : lang === "bn" ? "বাংলা" : "English"}
-                </button>
-              ))}
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">Language:</span>
+              <Select value={studyLang} onValueChange={(v: any) => setStudyLang(v)}>
+                <SelectTrigger className="w-28 h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="mixed">Banglish</SelectItem>
+                  <SelectItem value="bn">বাংলা</SelectItem>
+                  <SelectItem value="en">English</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
-
-          <div className="flex items-center gap-1.5">
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-2">
+            <Input
+              value={studyQuestion}
+              onChange={(e) => setStudyQuestion(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault()
+                  handleAskStudy()
+                }
+              }}
+              placeholder="e.g. How does Redis cluster handle failover? / বাংলায় লিখুন..."
+              className="h-10 text-sm"
+            />
             <Button
               type="button"
-              variant={isListeningMic ? "default" : "ghost"}
-              size="sm"
+              variant={isListeningMic ? "default" : "outline"}
+              size="icon"
               onClick={toggleVoiceInput}
               title={isListeningMic ? "Listening... Click to stop" : "Speak question"}
-              className={cn(
-                "h-7 px-2 text-xs rounded-lg gap-1",
-                isListeningMic && "bg-emerald-600 hover:bg-emerald-700 text-white animate-pulse"
-              )}
+              className={cn("h-10 w-10 shrink-0", isListeningMic && "bg-destructive text-destructive-foreground animate-pulse")}
             >
-              <Mic className="h-3.5 w-3.5" />
-              <span className="text-[11px] hidden sm:inline">{isListeningMic ? "Listening..." : "Voice"}</span>
+              <Mic className="h-4 w-4" />
             </Button>
-
             <Button
               type="button"
               onClick={() => handleAskStudy()}
               disabled={!studyQuestion.trim() || isAskingStudy}
-              size="sm"
-              className="h-7 px-3 text-xs rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-medium gap-1 shadow-2xs cursor-pointer"
+              className="h-10 px-4 shrink-0 gap-2"
             >
-              <Send className="h-3 w-3" />
-              <span>Ask Coach</span>
+              <Send className="h-4 w-4" />
+              <span>Ask</span>
             </Button>
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
-      {/* 2. Curated Discussion Starters (when chat is clean) */}
+      {/* 3. Curated Question Cards (when thread is empty) */}
       {studyHistory.length === 0 && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
-              <Lightbulb className="h-3.5 w-3.5 text-amber-500" />
-              <span>High-Yield Interview Concept Starters</span>
-            </span>
+            <h3 className="text-sm font-semibold text-muted-foreground">Recommended Topics & Starters</h3>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {CURATED_QUESTIONS.map((item, idx) => (
-              <button
+            {filteredQuestions.map((item, idx) => (
+              <Card
                 key={idx}
-                type="button"
                 onClick={() => {
-                  setSelectedTopic(item.topic)
                   setStudyQuestion(item.question)
                   handleAskStudy(item.question)
                 }}
-                className="flex flex-col justify-between text-left p-3.5 rounded-2xl border bg-card hover:border-indigo-500/50 hover:bg-indigo-500/5 transition-all group cursor-pointer shadow-2xs gap-2 min-h-[105px]"
+                className="cursor-pointer hover:border-primary/50 transition-colors"
               >
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-md">
-                    {item.tag}
-                  </span>
-                  <ArrowRight className="h-3.5 w-3.5 text-muted-foreground group-hover:text-indigo-500 group-hover:translate-x-0.5 transition-all" />
-                </div>
-                <p className="text-xs font-medium text-foreground leading-relaxed">
-                  {item.question}
-                </p>
-                <span className="text-[10px] text-muted-foreground font-normal">
-                  {item.category}
-                </span>
-              </button>
+                <CardHeader className="p-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Badge variant="secondary" className="text-[10px] font-semibold">
+                      {item.tag}
+                    </Badge>
+                    <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
+                  </div>
+                  <CardTitle className="text-xs font-medium leading-relaxed">
+                    {item.question}
+                  </CardTitle>
+                </CardHeader>
+              </Card>
             ))}
           </div>
         </div>
       )}
 
-      {/* 3. Active Q&A Discussion Thread */}
+      {/* 4. Active Q&A Discussion Thread */}
       {studyHistory.length > 0 && (
         <div className="space-y-4">
           <div className="flex items-center justify-between border-b pb-2">
-            <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
-              <MessageSquare className="h-3.5 w-3.5 text-indigo-500" />
-              <span>Concept Discussion Thread ({studyHistory.length} turns)</span>
-            </span>
+            <h3 className="text-sm font-semibold">Discussion History ({studyHistory.length})</h3>
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setStudyHistory([])}
-              className="text-[11px] h-6 px-2 gap-1 text-muted-foreground hover:text-foreground cursor-pointer"
+              className="text-xs h-7 gap-1"
             >
               <RotateCcw className="h-3 w-3" />
-              <span>New Topic</span>
+              <span>Clear History</span>
             </Button>
           </div>
 
-          <div className="space-y-3.5">
+          <div className="space-y-4">
             {studyHistory.map((item, idx) => (
-              <div
+              <Card
                 key={idx}
                 className={cn(
-                  "rounded-2xl p-4 sm:p-5 transition-all border",
-                  item.role === "user"
-                    ? "bg-muted/30 border-border/70 ml-4 sm:ml-12"
-                    : "bg-card border-indigo-500/20 shadow-xs mr-4 sm:mr-12"
+                  item.role === "user" ? "bg-muted/40 border-muted" : "border-border"
                 )}
               >
-                {/* Header info */}
-                <div className="flex items-center justify-between pb-2 mb-2 border-b border-border/40">
+                <CardHeader className="py-3 px-4 sm:px-6 border-b flex flex-row items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <span className={cn(
-                      "text-[10.5px] font-bold px-2 py-0.5 rounded-md",
-                      item.role === "user"
-                        ? "bg-muted text-foreground"
-                        : "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400"
-                    )}>
-                      {item.role === "user" ? "You Asked" : "AI Tech Coach"}
-                    </span>
+                    <Badge variant={item.role === "user" ? "outline" : "default"}>
+                      {item.role === "user" ? "You" : "AI Coach"}
+                    </Badge>
                     {item.topic && (
-                      <span className="text-[10px] text-muted-foreground font-medium">
+                      <span className="text-xs text-muted-foreground">
                         • {item.topic}
                       </span>
                     )}
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] text-muted-foreground">{item.timestamp}</span>
+                    <span className="text-xs text-muted-foreground">{item.timestamp}</span>
                     {item.role === "assistant" && (
                       <div className="flex items-center gap-1">
                         <Button
                           variant="ghost"
                           size="icon"
                           onClick={() => toggleReadAloud(item.content)}
-                          title="Listen to answer"
-                          className="h-6 w-6 text-muted-foreground hover:text-foreground cursor-pointer"
+                          className="h-7 w-7 text-muted-foreground hover:text-foreground"
                         >
                           {activeSpeakingText === item.content ? (
-                            <VolumeX className="h-3.5 w-3.5 text-amber-500" />
+                            <VolumeX className="h-3.5 w-3.5 text-destructive" />
                           ) : (
                             <Volume2 className="h-3.5 w-3.5" />
                           )}
@@ -407,30 +374,26 @@ export function ConceptLabTab({ onSaveAsNote }: ConceptLabTabProps) {
                               item.topic || "General"
                             )
                           }
-                          className="h-6 px-2 text-[10.5px] gap-1 rounded-md font-medium cursor-pointer"
+                          className="h-7 text-xs gap-1"
                         >
-                          <BookmarkPlus className="h-3 w-3" />
+                          <BookmarkPlus className="h-3.5 w-3.5" />
                           <span>Save Note</span>
                         </Button>
                       </div>
                     )}
                   </div>
-                </div>
-
-                {/* Content */}
-                <div className="text-xs sm:text-sm leading-relaxed whitespace-pre-wrap font-sans text-foreground">
+                </CardHeader>
+                <CardContent className="p-4 sm:p-6 text-sm leading-relaxed whitespace-pre-wrap">
                   {item.content}
-                </div>
-              </div>
+                </CardContent>
+              </Card>
             ))}
 
             {isAskingStudy && (
-              <div className="rounded-2xl border border-indigo-500/30 bg-indigo-500/5 p-4 flex items-center gap-3 animate-pulse">
-                <Sparkles className="h-4 w-4 text-indigo-500 animate-spin" />
-                <p className="text-xs font-semibold text-foreground">
-                  AI Coach is preparing a structured mental model & interview delivery tips...
-                </p>
-              </div>
+              <Card className="p-4 flex items-center gap-3">
+                <Sparkles className="h-4 w-4 text-primary animate-spin" />
+                <p className="text-xs text-muted-foreground">Generating structured explanation...</p>
+              </Card>
             )}
           </div>
         </div>
