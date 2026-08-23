@@ -496,11 +496,31 @@ export function ConversationalVoiceInterviewModal({
 
       const activeHistory = overrideHistory || dialogue
       const updatedDialogue: DialogueMessage[] = [...activeHistory]
+      let processedAnswer = answerText ? answerText.trim() : ""
 
-      if (answerText && answerText.trim()) {
+      if (processedAnswer) {
+        // Smart phonetic refinement for Bengali & Banglish to fix browser STT distortion
+        if (language === "bn" || language === "mixed" || /[\u0980-\u09FF]/.test(processedAnswer)) {
+          try {
+            const refineRes = await fetch("/api/ai/transcribe", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ rawText: processedAnswer, language }),
+            })
+            if (refineRes.ok) {
+              const refineData = await refineRes.json()
+              if (refineData.transcript && refineData.transcript.trim()) {
+                processedAnswer = refineData.transcript.trim()
+              }
+            }
+          } catch {
+            // Keep original processedAnswer if refinement request fails
+          }
+        }
+
         updatedDialogue.push({
           role: "candidate",
-          text: answerText.trim(),
+          text: processedAnswer,
           timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         })
         setDialogue(updatedDialogue)
@@ -519,7 +539,7 @@ export function ConversationalVoiceInterviewModal({
             voiceGender,
             language,
             history: updatedDialogue.map((d) => ({ role: d.role, text: d.text })),
-            userAnswer: answerText,
+            userAnswer: processedAnswer || undefined,
           }),
         })
 

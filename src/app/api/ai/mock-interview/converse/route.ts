@@ -138,7 +138,8 @@ ${languageInstructions}
 3. Use natural conversational nods at the start of your turn ("Got it.", "Makes sense!", "Alright.", "দারুণ!") before asking the next question.
 4. If this is the start: Greet warmly in 1 short sentence and ask a friendly opening question.
 5. Candidate's Known Skills/Stack: ${knownSkills || "Fullstack Engineering"}.
-6. Keep every turn concise so the voice back-and-forth feels instantaneous and real.`
+6. Speech-to-Text (STT) Tolerance: Candidate's speech is captured via live voice recognition which may have phonetic Bengali spellings for English tech words (e.g. 'রিড্যাক্স' = Redux, 'এপিআই' = API, 'নেক্সট জেএস' = Next.js, 'পোস্টগ্রেস' = PostgreSQL, 'স্টেট ম্যানেজমেন্ট' = State Management). Intelligently interpret their true technical intent and never comment on transcription typos.
+7. Keep every turn concise so the voice back-and-forth feels instantaneous and real.`
 
     // Format conversation history
     const formattedHistory = history.map((item) => ({

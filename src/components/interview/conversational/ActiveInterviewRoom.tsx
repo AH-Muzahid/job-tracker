@@ -254,10 +254,16 @@ export function ActiveInterviewRoom({
       {/* Live Candidate Speech Box */}
       <div className="space-y-1 shrink-0">
         <div className="flex items-center justify-between text-xs flex-wrap gap-1">
-          <span className="font-semibold text-foreground flex items-center gap-1 text-[11px] sm:text-xs">
-            <Mic className={cn("h-3 w-3 sm:h-3.5 sm:w-3.5", !isPaused && isListening ? "text-emerald-500 animate-pulse" : "text-muted-foreground")} />
-            <span>Live Spoken Answer</span>
-          </span>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="font-semibold text-foreground flex items-center gap-1 text-[11px] sm:text-xs">
+              <Mic className={cn("h-3 w-3 sm:h-3.5 sm:w-3.5", !isPaused && isListening ? "text-emerald-500 animate-pulse" : "text-muted-foreground")} />
+              <span>Live Spoken Answer</span>
+            </span>
+            <span className="text-[9.5px] text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 px-1.5 py-0.5 rounded font-medium flex items-center gap-1">
+              <Sparkles className="h-2.5 w-2.5" />
+              <span>AI Auto-Refined</span>
+            </span>
+          </div>
           <div className="flex items-center gap-1.5 flex-wrap">
             {/* Speech-to-Text Language Switcher */}
             <div className="flex items-center rounded-lg border bg-muted/40 p-0.5 text-[9.5px] sm:text-[10px]">
