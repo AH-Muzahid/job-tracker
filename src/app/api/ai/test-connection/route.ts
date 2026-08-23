@@ -1,6 +1,6 @@
 import { generateText } from "ai"
 import { getInternalUserId } from "@/lib/auth"
-import { getProvider } from "@/lib/ai/client"
+import { getProvider, type AIProviderConfig } from "@/lib/ai/client"
 import { getUserAIConfig } from "@/lib/ai/config"
 
 export async function POST(request: Request) {

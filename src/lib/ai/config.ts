@@ -1,4 +1,3 @@
-import { cookies } from "next/headers"
 import { prisma, withDbRetry } from "@/lib/prisma"
 import { encrypt, decrypt } from "@/lib/encryption"
 import type { AIProviderConfig } from "@/lib/ai/client"
