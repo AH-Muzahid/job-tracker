@@ -62,10 +62,6 @@ export async function POST(request: NextRequest) {
 
     const targetModel = resolvedProvider.model(aiConfig.model || resolvedProvider.defaultModel)
 
-    const interviewerName = language === "en"
-      ? (voiceGender === "female" ? "Sarah" : "David")
-      : (voiceGender === "female" ? "তানিয়া" : "তানভীর")
-
     let toneInstructions = ""
     switch (interviewerTone) {
       case "strict":
@@ -119,6 +115,15 @@ LANGUAGE INSTRUCTIONS (Natural Modern English):
 - Speak with natural human cadence, conversational fillers, and genuine curiosity.
 - Avoid formal academic phrasing or robotic interview templates.`
     }
+
+    const interviewerName =
+      language === "en"
+        ? voiceGender === "female"
+          ? "Sarah"
+          : "David"
+        : voiceGender === "female"
+        ? "তানিয়া"
+        : "তানভীর"
 
     const systemPrompt = `You are ${interviewerName}, an Engineering Leader at ${targetCompany} conducting a live spoken voice mock interview for a ${targetRole} position.
 Round: ${interviewType}

@@ -39,12 +39,20 @@ function splitIntoChunks(text: string, maxLen = 180): string[] {
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
-  const text = searchParams.get("text") || ""
+  const rawText = searchParams.get("text") || ""
   let lang = searchParams.get("lang") || "en"
 
-  if (!text.trim()) {
+  if (!rawText.trim()) {
     return new NextResponse("Text is required", { status: 400 })
   }
+
+  // Strip code blocks and markdown symbols for clean speech output
+  const text = rawText
+    .replace(/```[\s\S]*?```/g, "")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/\[([^\]]+)\]\([^\)]+\)/g, "$1")
+    .replace(/[*_#~>]/g, "")
+    .trim()
 
   // Auto-detect Bengali script
   const hasBengali = /[\u0980-\u09FF]/.test(text)

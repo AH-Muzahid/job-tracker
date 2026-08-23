@@ -174,11 +174,23 @@ export function VoiceMockInterviewModal({
 
   const toggleTextToSpeech = () => {
     if (audioPlayerRef.current) {
-      audioPlayerRef.current.pause()
-      audioPlayerRef.current.currentTime = 0
+      try {
+        audioPlayerRef.current.pause()
+        audioPlayerRef.current.onplay = null
+        audioPlayerRef.current.onended = null
+        audioPlayerRef.current.onerror = null
+        audioPlayerRef.current.src = ""
+      } catch {
+        // Ignore
+      }
+      audioPlayerRef.current = null
     }
     if (typeof window !== "undefined" && window.speechSynthesis) {
-      window.speechSynthesis.cancel()
+      try {
+        window.speechSynthesis.cancel()
+      } catch {
+        // Ignore
+      }
     }
 
     if (isSpeaking) {
@@ -187,6 +199,11 @@ export function VoiceMockInterviewModal({
     }
 
     const textToSpeak = question.question
+      .replace(/```[\s\S]*?```/g, "")
+      .replace(/`([^`]+)`/g, "$1")
+      .replace(/\[([^\]]+)\]\([^\)]+\)/g, "$1")
+      .replace(/[*_#~>]/g, "")
+      .trim()
     const hasBengali = /[\u0980-\u09FF]/.test(textToSpeak)
 
     if (hasBengali) {
@@ -262,7 +279,7 @@ export function VoiceMockInterviewModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto p-6 space-y-6">
+      <DialogContent className="w-[95vw] max-w-3xl max-h-[90vh] overflow-y-auto no-scrollbar p-3 sm:p-6 space-y-4 sm:space-y-6 rounded-2xl sm:rounded-3xl">
         <DialogHeader className="space-y-2 border-b pb-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
