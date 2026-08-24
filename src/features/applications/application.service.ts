@@ -1,5 +1,6 @@
 import { ApplicationRepository } from "./application.repository"
 import { validateCreateApplication, validateUpdateApplication } from "./application.validation"
+import { invalidateCache } from "@/lib/redis"
 import type {
   ApplicationQueryFilters,
   CreateApplicationDto,
@@ -42,6 +43,7 @@ export class ApplicationService {
     }
 
     const application = await ApplicationRepository.create(userId, data as CreateApplicationDto)
+    void invalidateCache(`user:stats:${userId}`)
     return { data: application, status: 201 }
   }
 
@@ -60,6 +62,7 @@ export class ApplicationService {
     }
 
     const updated = await ApplicationRepository.update(id, existing.status, data)
+    void invalidateCache(`user:stats:${userId}`)
     return { data: updated, status: 200 }
   }
 
@@ -73,6 +76,7 @@ export class ApplicationService {
     }
 
     await ApplicationRepository.delete(id)
+    void invalidateCache(`user:stats:${userId}`)
     return { success: true, status: 200 }
   }
 }

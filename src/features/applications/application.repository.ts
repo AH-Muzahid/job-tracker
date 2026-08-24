@@ -1,4 +1,5 @@
 import { prisma, withDbRetry } from "@/lib/prisma"
+import { syncApplicationsToGoogleSheets } from "@/lib/google-sheets"
 import type {
   ApplicationQueryFilters,
   CreateApplicationDto,
@@ -95,7 +96,7 @@ export class ApplicationRepository {
   }
 
   static async create(userId: string, data: CreateApplicationDto) {
-    return withDbRetry(() =>
+    const createdApp = await withDbRetry(() =>
       prisma.application.create({
         data: {
           userId,
@@ -114,6 +115,22 @@ export class ApplicationRepository {
         include: { tags: { include: { tag: true } } },
       })
     )
+
+    // Fire non-blocking auto-sync to Google Sheets in background
+    void syncApplicationsToGoogleSheets(userId, [
+      {
+        id: createdApp.id,
+        companyName: createdApp.companyName,
+        jobTitle: createdApp.jobTitle,
+        status: createdApp.status,
+        source: createdApp.source,
+        applicationDate: createdApp.applicationDate,
+        jobUrl: createdApp.jobUrl,
+        notes: createdApp.notes,
+      },
+    ])
+
+    return createdApp
   }
 
   static async update(id: string, existingStatus: string, data: UpdateApplicationDto) {
