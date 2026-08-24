@@ -7,12 +7,10 @@ import {
   VolumeX,
   Play,
   Pause,
-  Send,
   Square,
   Sparkles,
   Loader2,
   Award,
-  ArrowRight,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"

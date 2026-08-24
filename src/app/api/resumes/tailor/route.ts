@@ -206,10 +206,11 @@ Generate the tailored resume JSON in this exact structure:
       data: parsedData,
       matchScore,
     })
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Tailored resume generation error:", err)
+    const message = err instanceof Error ? err.message : "Failed to generate tailored resume"
     return NextResponse.json(
-      { error: err.message || "Failed to generate tailored resume" },
+      { error: message },
       { status: 500 }
     )
   }

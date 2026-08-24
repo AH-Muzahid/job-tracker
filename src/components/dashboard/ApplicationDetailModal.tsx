@@ -5,7 +5,6 @@ import {
   Calendar,
   ExternalLink,
   Globe,
-  Mic,
   Pencil,
   StickyNote,
   Tag,

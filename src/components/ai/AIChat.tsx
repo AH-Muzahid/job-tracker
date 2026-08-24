@@ -287,16 +287,6 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
     }
   }
 
-  function handleQuickAction(actionTitle: string, actionCategory?: AIMode) {
-    const starter = STARTER_PROMPTS.find((s) => s.title === actionTitle)
-    const promptText = starter?.prompt || actionTitle
-    setInput(promptText)
-    if (actionCategory) {
-      setActiveMode(actionCategory)
-    }
-    textareaRef.current?.focus()
-  }
-
   const showEmptyState = isNewChat && !hasMessages
 
   return (

@@ -1,7 +1,7 @@
 "use client"
 
 import React from "react"
-import { Mic, ArrowRight, Sparkles, CheckCircle2, Shield, Brain, Layers } from "lucide-react"
+import { Mic, CheckCircle2, Brain } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"

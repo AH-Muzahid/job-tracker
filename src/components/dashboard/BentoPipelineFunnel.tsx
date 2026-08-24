@@ -22,8 +22,6 @@ const STAGES = [
   { key: "offer", step: "05", label: "Offer", color: "#10b981" },
 ] as const
 
-type StageKey = (typeof STAGES)[number]["key"]
-
 export default function BentoPipelineFunnel({ stats }: BentoPipelineFunnelProps) {
   const totalPipeline = stats.saved + stats.applied + stats.assessment + stats.interview + stats.offer
 

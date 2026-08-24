@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json()
-    const { targetRole, targetCompany, interviewType, language = "en", history = [], applicationId } = body
+    const { targetRole, targetCompany, interviewType, language = "en", history = [] } = body
 
     if (!Array.isArray(history) || history.length < 2) {
       return NextResponse.json({

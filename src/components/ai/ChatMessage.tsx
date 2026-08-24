@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState } from "react"
+import Link from "next/link"
 import { cn } from "@/lib/utils"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
@@ -309,12 +310,12 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
                     </span>
                   </div>
                   {tool.state === 'result' && (tool.toolName === 'createApplication' || tool.toolName === 'updateApplicationStatus') && (
-                    <a 
+                    <Link 
                       href="/applications" 
                       className="inline-flex items-center gap-0.5 text-[11px] font-semibold text-primary hover:underline shrink-0 ml-2"
                     >
                       View Board <ArrowUpRight className="h-3 w-3" />
-                    </a>
+                    </Link>
                   )}
                 </div>
                 {tool.state === 'result' && tool.toolName === 'draftOutreachEmail' && Boolean(tool.result) && (

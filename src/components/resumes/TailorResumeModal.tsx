@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Sparkles, Loader2, FileText, ArrowRight } from "lucide-react"
+import { Sparkles, Loader2, FileText } from "lucide-react"
 import { 
   Dialog, 
   DialogContent, 
@@ -70,10 +70,6 @@ export default function TailorResumeModal({
     } finally {
       setGenerating(false)
     }
-  }
-
-  function handleReset() {
-    setTailoredData(null)
   }
 
   return (

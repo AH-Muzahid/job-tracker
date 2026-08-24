@@ -6,13 +6,11 @@ import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import {
   Mic,
-  Send,
   Volume2,
   VolumeX,
   BookmarkPlus,
   ArrowRight,
   RotateCcw,
-  Sparkles,
 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"

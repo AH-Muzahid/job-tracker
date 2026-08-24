@@ -10,9 +10,6 @@ import {
   Globe, 
   Mail, 
   Link,
-  ExternalLink,
-  Plus,
-  Trash2
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -24,7 +21,7 @@ interface ATSResumePreviewProps {
   onClose?: () => void
 }
 
-export default function ATSResumePreview({ data: initialData, onClose }: ATSResumePreviewProps) {
+export default function ATSResumePreview({ data: initialData }: ATSResumePreviewProps) {
   const [data, setData] = useState<TailoredResumeData>(initialData)
   const [isEditing, setIsEditing] = useState(false)
   const [copied, setCopied] = useState(false)

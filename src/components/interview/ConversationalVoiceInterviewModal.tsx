@@ -595,6 +595,7 @@ export function ConversationalVoiceInterviewModal({
       }
     },
     [
+      applicationId,
       autoTurnActive,
       dialogue,
       interviewType,
