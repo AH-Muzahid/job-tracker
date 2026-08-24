@@ -6,6 +6,7 @@ import { Toaster } from "sonner"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { ThemeProvider } from "@/components/theme-provider"
 import Providers from "@/components/Providers"
+import { Analytics } from "@vercel/analytics/next"
 import "./globals.css"
 
 const geistSans = Geist({
@@ -38,6 +39,7 @@ export default function RootLayout({
             <Providers>
               <TooltipProvider>
                 {children}
+                <Analytics />
                 <Toaster richColors />
               </TooltipProvider>
             </Providers>
