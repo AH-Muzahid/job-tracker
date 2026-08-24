@@ -9,6 +9,8 @@ import {
   getCachedKnowledgeGraph,
   saveKnowledgeGraph,
 } from "@/lib/ai/knowledge-graph"
+import { sendEmail, formatOutreachEmailHtml } from "@/lib/email"
+import { syncApplicationsToGoogleSheets, getGoogleSheetsConfig } from "@/lib/google-sheets"
 
 export function createAiTools(userId: string) {
   return {
@@ -126,6 +128,20 @@ export function createAiTools(userId: string) {
             })
           )
 
+          // Fire non-blocking auto-sync to Google Sheets
+          void syncApplicationsToGoogleSheets(userId, [
+            {
+              id: newApp.id,
+              companyName: newApp.companyName,
+              jobTitle: newApp.jobTitle,
+              status: newApp.status,
+              source: newApp.source,
+              applicationDate: newApp.applicationDate,
+              jobUrl: newApp.jobUrl,
+              notes: newApp.notes,
+            },
+          ])
+
           return {
             success: true,
             applicationId: newApp.id,
@@ -137,6 +153,55 @@ export function createAiTools(userId: string) {
         } catch (error) {
           console.error("createApplication tool error:", error)
           return { success: false, message: "Failed to create application." }
+        }
+      },
+    } as any),
+
+    deleteApplication: tool({
+      description: "Delete or remove an application from the user's tracker by company name or job title.",
+      parameters: z.object({
+        companyOrTitle: z.string().describe("Company name or job title of the application to remove"),
+      }),
+      execute: async ({ companyOrTitle }: { companyOrTitle: string }) => {
+        try {
+          const app = await withDbRetry(() =>
+            prisma.application.findFirst({
+              where: {
+                userId,
+                OR: [
+                  { companyName: { contains: companyOrTitle, mode: "insensitive" } },
+                  { jobTitle: { contains: companyOrTitle, mode: "insensitive" } },
+                ],
+              },
+              orderBy: { updatedAt: "desc" },
+            })
+          )
+
+          if (!app) {
+            return {
+              success: false,
+              message: `Could not find an application matching "${companyOrTitle}".`,
+            }
+          }
+
+          await withDbRetry(() =>
+            prisma.application.delete({
+              where: { id: app.id },
+            })
+          )
+
+          void invalidateCache(`user:pipeline-stats:${userId}`)
+          void invalidateCache(`user:applications:${userId}`)
+
+          return {
+            success: true,
+            deletedCompany: app.companyName,
+            deletedTitle: app.jobTitle,
+            message: `Successfully deleted application for ${app.companyName} (${app.jobTitle}).`,
+          }
+        } catch (error) {
+          console.error("deleteApplication tool error:", error)
+          return { success: false, message: "Failed to delete application." }
         }
       },
     } as any),
@@ -651,6 +716,413 @@ export function createAiTools(userId: string) {
         } catch (error) {
           console.error("syncCareerKnowledgeGraph error:", error)
           return { success: false, message: "Failed to sync Career Knowledge Graph." }
+        }
+      },
+    } as any),
+
+    savePrepNote: tool({
+      description: "Save interview preparation notes, company research, or talking points to the user's prep workspace.",
+      parameters: z.object({
+        title: z.string().describe("Title of the note e.g. 'Stripe System Design' or 'Amazon Behavioral STAR Stories'"),
+        category: z.string().describe("Category e.g. Technical, Behavioral, Company Research, System Design"),
+        content: z.string().describe("Detailed content of the note"),
+        companyName: z.string().optional().describe("Optional company name to link this note to an existing application"),
+      }),
+      execute: async ({ title, category, content, companyName }: { title: string; category: string; content: string; companyName?: string }) => {
+        try {
+          let applicationId: string | null = null
+          if (companyName) {
+            const app = await withDbRetry(() =>
+              prisma.application.findFirst({
+                where: {
+                  userId,
+                  companyName: { contains: companyName, mode: "insensitive" },
+                },
+              })
+            )
+            if (app) applicationId = app.id
+          }
+
+          const note = await withDbRetry(() =>
+            prisma.prepNote.create({
+              data: {
+                userId,
+                title,
+                category,
+                content,
+                applicationId,
+              },
+            })
+          )
+
+          return {
+            success: true,
+            noteId: note.id,
+            title: note.title,
+            category: note.category,
+            message: `Saved prep note "${title}" under ${category}.`,
+          }
+        } catch (error) {
+          console.error("savePrepNote tool error:", error)
+          return { success: false, message: "Failed to save prep note." }
+        }
+      },
+    } as any),
+
+    recordMockInterviewScore: tool({
+      description: "Record and persist a live mock interview evaluation, STAR rating, feedback, and score for career tracking.",
+      parameters: z.object({
+        roleOrTopic: z.string().describe("Role or topic tested e.g. 'Frontend Engineer - React Performance' or 'Backend - Distributed Systems'"),
+        scoreOutOfTen: z.number().min(1).max(10).describe("Overall STAR score out of 10"),
+        strengths: z.array(z.string()).describe("Key strengths observed in the response"),
+        improvements: z.array(z.string()).describe("Specific areas to improve"),
+        sampleHighScoringAnswer: z.string().optional().describe("Exemplary model answer"),
+      }),
+      execute: async ({ roleOrTopic, scoreOutOfTen, strengths, improvements, sampleHighScoringAnswer }: {
+        roleOrTopic: string
+        scoreOutOfTen: number
+        strengths: string[]
+        improvements: string[]
+        sampleHighScoringAnswer?: string
+      }) => {
+        try {
+          const content = `### Mock Interview Evaluation: ${roleOrTopic}\n\n**Score:** ${scoreOutOfTen}/10\n\n**Strengths:**\n${strengths.map((s) => `- ${s}`).join("\n")}\n\n**Areas for Improvement:**\n${improvements.map((i) => `- ${i}`).join("\n")}${sampleHighScoringAnswer ? `\n\n**Model Answer:**\n${sampleHighScoringAnswer}` : ""}`
+          
+          const note = await withDbRetry(() =>
+            prisma.prepNote.create({
+              data: {
+                userId,
+                title: `Mock Evaluation: ${roleOrTopic} (${scoreOutOfTen}/10)`,
+                category: "Mock Evaluation",
+                content,
+              },
+            })
+          )
+
+          return {
+            success: true,
+            score: scoreOutOfTen,
+            noteId: note.id,
+            message: `Saved mock interview evaluation (${scoreOutOfTen}/10) to prep notes.`,
+          }
+        } catch (error) {
+          console.error("recordMockInterviewScore tool error:", error)
+          return { success: false, message: "Failed to save mock interview score." }
+        }
+      },
+    } as any),
+
+    tailorResumeForJob: tool({
+      description: "Generate a targeted, high-impact ATS single-column resume tailored to a specific job description using the user's Career Knowledge Graph.",
+      parameters: z.object({
+        companyName: z.string().describe("Target company name"),
+        jobTitle: z.string().describe("Target job title"),
+        jobDescription: z.string().describe("Job description or requirements text"),
+      }),
+      execute: async ({ companyName, jobTitle, jobDescription }: { companyName: string; jobTitle: string; jobDescription: string }) => {
+        try {
+          let graph = await getCachedKnowledgeGraph(userId)
+          if (!graph) {
+            const [resume, profile] = await Promise.all([
+              withDbRetry(() => prisma.resume.findFirst({ where: { userId, isDefault: true } })),
+              withDbRetry(() => prisma.userProfile.findUnique({ where: { userId } })),
+            ])
+            const rawText = (resume?.textContent || "") + "\n" + (profile?.strengths || "")
+            graph = buildCareerGraphFromText(rawText, profile)
+            await saveKnowledgeGraph(userId, graph)
+          }
+
+          const matchResult = traverseGraphForJD(graph, jobDescription)
+
+          return {
+            success: true,
+            companyName,
+            jobTitle,
+            matchScore: matchResult.matchScore,
+            tailoredHighlights: matchResult.evidencePaths.slice(0, 5),
+            matchedSkills: matchResult.matchedSkills,
+            missingSkills: matchResult.missingSkills,
+            message: `Analyzed graph for ${companyName} (${jobTitle}) with ${matchResult.matchScore}% ATS match score.`,
+          }
+        } catch (error) {
+          console.error("tailorResumeForJob tool error:", error)
+          return { success: false, message: "Failed to generate tailored resume payload." }
+        }
+      },
+    } as any),
+
+    researchCompanyIntel: tool({
+      description: "Perform autonomous deep company intelligence research: store industry, tech stack, company background notes, and interview insights.",
+      parameters: z.object({
+        companyName: z.string().describe("Target company name"),
+        industry: z.string().optional().describe("Industry or sector (e.g. Fintech, Cloud Infrastructure, AI)"),
+        techStack: z.array(z.string()).optional().describe("Known engineering technologies used by the company"),
+        interviewStyleNotes: z.string().optional().describe("Interview style notes e.g. 'Values system design and clean code'"),
+        websiteUrl: z.string().optional().describe("Company website URL"),
+      }),
+      execute: async ({
+        companyName,
+        industry,
+        techStack,
+        interviewStyleNotes,
+        websiteUrl,
+      }: {
+        companyName: string
+        industry?: string
+        techStack?: string[]
+        interviewStyleNotes?: string
+        websiteUrl?: string
+      }) => {
+        try {
+          const company = await withDbRetry(() =>
+            prisma.company.upsert({
+              where: { userId_name: { userId, name: companyName } },
+              update: {
+                industry: industry || undefined,
+                website: websiteUrl || undefined,
+                notes: interviewStyleNotes || undefined,
+              },
+              create: {
+                userId,
+                name: companyName,
+                industry: industry || null,
+                website: websiteUrl || null,
+                notes: interviewStyleNotes || null,
+              },
+            })
+          )
+
+          const content = `### Company Intel: ${companyName}\n\n**Industry:** ${industry || "Technology"}\n${techStack && techStack.length > 0 ? `**Tech Stack:** ${techStack.join(", ")}\n` : ""}${interviewStyleNotes ? `\n**Interview & Culture Insights:**\n${interviewStyleNotes}` : ""}`
+          
+          await withDbRetry(() =>
+            prisma.prepNote.create({
+              data: {
+                userId,
+                title: `Intel: ${companyName}`,
+                category: "Company Research",
+                content,
+              },
+            })
+          )
+
+          return {
+            success: true,
+            companyId: company.id,
+            companyName: company.name,
+            industry: company.industry,
+            message: `Successfully researched and stored intelligence for ${companyName}.`,
+          }
+        } catch (error) {
+          console.error("researchCompanyIntel error:", error)
+          return { success: false, message: "Failed to store company intel." }
+        }
+      },
+    } as any),
+
+    sendOutreachEmailViaResend: tool({
+      description: "Dispatch a drafted outreach or follow-up email to a recruiter/hiring manager via Resend (with safe development simulation).",
+      parameters: z.object({
+        recipientEmail: z.string().email().describe("Recruiter or hiring manager's email address"),
+        candidateName: z.string().describe("Candidate's full name"),
+        companyName: z.string().describe("Target company name"),
+        jobTitle: z.string().describe("Target role title"),
+        subject: z.string().describe("Email subject line"),
+        bodyText: z.string().describe("Body text of the cold email or follow-up note"),
+      }),
+      execute: async ({
+        recipientEmail,
+        candidateName,
+        companyName,
+        jobTitle,
+        subject,
+        bodyText,
+      }: {
+        recipientEmail: string
+        candidateName: string
+        companyName: string
+        jobTitle: string
+        subject: string
+        bodyText: string
+      }) => {
+        try {
+          const html = formatOutreachEmailHtml({
+            candidateName,
+            companyName,
+            jobTitle,
+            bodyText,
+          })
+
+          const sendResult = await sendEmail({
+            to: recipientEmail,
+            subject,
+            html,
+            text: bodyText,
+          })
+
+          if (!sendResult.success) {
+            return {
+              success: false,
+              message: sendResult.error || "Failed to deliver email.",
+            }
+          }
+
+          return {
+            success: true,
+            emailId: sendResult.id,
+            recipient: recipientEmail,
+            simulated: Boolean(sendResult.simulated),
+            message: sendResult.simulated
+              ? `[Development Mode] Simulated email delivery to ${recipientEmail} (${subject}).`
+              : `Successfully sent email to ${recipientEmail}.`,
+          }
+        } catch (error) {
+          console.error("sendOutreachEmailViaResend error:", error)
+          return { success: false, message: "Failed to dispatch outreach email." }
+        }
+      },
+    } as any),
+
+    batchImportApplications: tool({
+      description: "Batch import multiple job applications at once from a table, list, or spreadsheet into the user's tracker.",
+      parameters: z.object({
+        applications: z.array(
+          z.object({
+            companyName: z.string().describe("Company name"),
+            jobTitle: z.string().describe("Job title"),
+            status: z.enum(["Saved", "Applied", "Assessment", "Interview", "Rejected", "Offer"]).optional().default("Saved"),
+            source: z.string().optional().default("Bulk Import"),
+            notes: z.string().optional(),
+          })
+        ).describe("List of applications to import"),
+      }),
+      execute: async ({
+        applications,
+      }: {
+        applications: Array<{
+          companyName: string
+          jobTitle: string
+          status?: "Saved" | "Applied" | "Assessment" | "Interview" | "Rejected" | "Offer"
+          source?: string
+          notes?: string
+        }>
+      }) => {
+        try {
+          if (!applications || applications.length === 0) {
+            return { success: false, message: "No applications provided for batch import." }
+          }
+
+          const created = await withDbRetry(async () => {
+            const results = []
+            for (const app of applications) {
+              const newApp = await prisma.application.create({
+                data: {
+                  userId,
+                  companyName: app.companyName,
+                  jobTitle: app.jobTitle,
+                  status: app.status || "Saved",
+                  source: app.source || "Bulk Import",
+                  notes: app.notes || null,
+                  applicationDate: new Date(),
+                },
+              })
+              results.push(newApp)
+            }
+            return results
+          })
+
+          void invalidateCache(`user:pipeline-stats:${userId}`)
+          void invalidateCache(`user:applications:${userId}`)
+
+          // Fire non-blocking auto-sync to Google Sheets
+          void syncApplicationsToGoogleSheets(
+            userId,
+            created.map((a) => ({
+              id: a.id,
+              companyName: a.companyName,
+              jobTitle: a.jobTitle,
+              status: a.status,
+              source: a.source,
+              applicationDate: a.applicationDate,
+              jobUrl: a.jobUrl,
+              notes: a.notes,
+            }))
+          )
+
+          return {
+            success: true,
+            importedCount: created.length,
+            applications: created.map((a) => ({
+              id: a.id,
+              companyName: a.companyName,
+              jobTitle: a.jobTitle,
+              status: a.status,
+            })),
+            message: `Successfully imported ${created.length} applications into your tracker.`,
+          }
+        } catch (error) {
+          console.error("batchImportApplications error:", error)
+          return { success: false, message: "Failed to batch import applications." }
+        }
+      },
+    } as any),
+
+    syncToGoogleSheets: tool({
+      description: "Synchronize all or recent job applications from the user's tracker to their connected Google Sheet spreadsheet.",
+      parameters: z.object({}),
+      execute: async () => {
+        try {
+          const config = await getGoogleSheetsConfig(userId)
+          if (!config || !config.webhookUrl) {
+            return {
+              success: false,
+              message: "Google Sheets is not configured yet. Please add your Google Sheet Webhook URL in Settings.",
+            }
+          }
+
+          const applications = await withDbRetry(() =>
+            prisma.application.findMany({
+              where: { userId },
+              orderBy: { applicationDate: "desc" },
+            })
+          )
+
+          if (applications.length === 0) {
+            return {
+              success: true,
+              count: 0,
+              message: "No applications to sync in tracker.",
+            }
+          }
+
+          const syncResult = await syncApplicationsToGoogleSheets(
+            userId,
+            applications.map((app) => ({
+              id: app.id,
+              companyName: app.companyName,
+              jobTitle: app.jobTitle,
+              status: app.status,
+              source: app.source,
+              applicationDate: app.applicationDate,
+              jobUrl: app.jobUrl,
+              notes: app.notes,
+            }))
+          )
+
+          if (!syncResult.success) {
+            return {
+              success: false,
+              message: syncResult.error || "Failed to sync to Google Sheet.",
+            }
+          }
+
+          return {
+            success: true,
+            count: syncResult.count,
+            message: `Successfully synced ${syncResult.count} applications to your Google Sheet!`,
+          }
+        } catch (error) {
+          console.error("syncToGoogleSheets tool error:", error)
+          return { success: false, message: "Failed to execute Google Sheet synchronization." }
         }
       },
     } as any),
