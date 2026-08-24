@@ -1,12 +1,11 @@
 "use client"
 
-import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { UserButton, useUser } from "@clerk/nextjs"
 import {
   Moon, Sun, Menu, X, Search, Bell,
   LayoutDashboard, Briefcase, Building2, Brain,
-  FileText, CalendarDays, Settings, ChevronRight, Bot,
+  FileText, CalendarDays, Settings, Bot,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -50,23 +49,11 @@ export default function Navbar() {
           {mobileOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
         </Button>
 
-        <div className="flex items-center gap-1.5 min-w-0">
-          <Link
-            href="/dashboard"
-            className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors shrink-0"
-          >
-            <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary text-primary-foreground font-bold text-[10px]">
-              C
-            </div>
-            <span className="text-xs font-medium hidden sm:inline">CareerTrack</span>
-          </Link>
-          <ChevronRight className="h-3 w-3 text-muted-foreground/50 shrink-0" />
-          <div className="flex items-center gap-1.5 min-w-0">
-            <div className="flex h-5 w-5 items-center justify-center rounded-md bg-primary/10">
-              <Bot className="h-3 w-3 text-primary" />
-            </div>
-            <span className="text-xs sm:text-sm font-semibold truncate text-foreground">AI Assistant</span>
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary/10">
+            <Bot className="h-3.5 w-3.5 text-primary" />
           </div>
+          <span className="text-sm font-semibold truncate text-foreground">AI Assistant</span>
         </div>
 
         <div className="flex-1" />
@@ -109,16 +96,9 @@ export default function Navbar() {
         {mobileOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
       </Button>
 
-      <div className="flex items-center gap-1.5 min-w-0">
-        <Link href="/dashboard" className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors shrink-0">
-          <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary text-primary-foreground font-bold text-[10px]">C</div>
-          <span className="text-xs font-medium hidden sm:inline">CareerTrack</span>
-        </Link>
-        <ChevronRight className="h-3 w-3 text-muted-foreground/50 shrink-0" />
-        <div className="flex items-center gap-1.5 min-w-0">
-          {currentPage.icon}
-          <span className="text-sm font-semibold truncate">{currentPage.title}</span>
-        </div>
+      <div className="flex items-center gap-2 min-w-0">
+        {currentPage.icon}
+        <span className="text-sm font-semibold truncate text-foreground">{currentPage.title}</span>
       </div>
 
       <div className="flex-1" />
