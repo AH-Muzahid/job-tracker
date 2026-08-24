@@ -1,6 +1,6 @@
 "use client"
 
-import { Sparkles, Loader2 } from "lucide-react"
+import { Bot, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 
@@ -64,7 +64,7 @@ export function ScanIntakeMode({
             </>
           ) : (
             <>
-              <Sparkles className="h-3.5 w-3.5 mr-1.5 text-primary-foreground" />
+              <Bot className="h-3.5 w-3.5 mr-1.5 text-primary-foreground" />
               Intake & Analyze
             </>
           )}

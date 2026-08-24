@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
-import { Bot, Plus, Upload, Clipboard, Loader2, Sparkles } from "lucide-react";
+import { Bot, Plus, Upload, Clipboard, Loader2, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
@@ -209,7 +209,7 @@ export function DashboardCommandZone({ activePipeline = 0 }: { activePipeline?: 
 									: "text-muted-foreground hover:text-foreground"
 							}`}
 						>
-							<Sparkles className="size-3" />
+							<Bot className="size-3" />
 							AI Intake (Paste / URL)
 						</button>
 
@@ -289,7 +289,7 @@ export function DashboardCommandZone({ activePipeline = 0 }: { activePipeline?: 
 									</>
 								) : (
 									<>
-										<Sparkles className="size-3.5 mr-1.5" />
+										<Bot className="size-3.5 mr-1.5" />
 										Intake & Match with AI
 									</>
 								)}
