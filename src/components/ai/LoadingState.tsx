@@ -46,13 +46,13 @@ function LoaderGrid({
   round: boolean;
 }) {
   return (
-    <span aria-hidden className="grid shrink-0 grid-cols-[repeat(3,4px)] gap-[1.5px]">
+    <span aria-hidden className="grid shrink-0 grid-cols-[repeat(3,4.5px)] gap-[2px]">
       {delays.map((delay, index) => (
         <span
           key={index}
-          className={`size-[4px] bg-ink ${round ? "rounded-full" : "rounded-[1px]"}`}
+          className={`size-[4.5px] bg-foreground/80 dark:bg-foreground ${round ? "rounded-full" : "rounded-[1px]"}`}
           style={{
-            opacity: delay === null ? 0.07 : 0.15,
+            opacity: delay === null ? 0.1 : 0.25,
             animation: delay === null ? "none" : `pixel-on ${dur}ms ease-in-out ${delay}ms infinite`,
           }}
         />

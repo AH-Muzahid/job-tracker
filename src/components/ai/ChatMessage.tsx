@@ -65,6 +65,22 @@ function getContextualSuggestions(content: string): Suggestion[] {
       label: "Optimize Resume Points",
       prompt: "Rewrite my project bullet points with quantifiable impact metrics for better ATS ranking.",
     })
+    list.push({
+      icon: "🔍",
+      label: "Identify Missing High-Priority Keywords",
+      prompt: "Analyze this response and identify any key technical skills or keywords I should emphasize.",
+    })
+  } else {
+    list.push({
+      icon: "💡",
+      label: "Elaborate with detailed examples & metrics",
+      prompt: "Can you elaborate further with concrete examples and quantifiable impact?",
+    })
+    list.push({
+      icon: "🚀",
+      label: "What are the recommended action items?",
+      prompt: "What are the recommended action items and next steps from here?",
+    })
   }
 
   return list.slice(0, 3)
@@ -362,6 +378,9 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
                   return text
                 })()}
               </ReactMarkdown>
+              {isStreaming && !isUser && (
+                <span className="inline-block w-1.5 h-3.5 ml-1 bg-primary/70 rounded-xs animate-pulse align-middle" />
+              )}
               {isLongMessage && !isExpanded && (
                 <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-muted/60 to-transparent pointer-events-none" />
               )}
@@ -377,60 +396,106 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
               </button>
             )}
 
-            {/* Smart Suggested Action Buttons */}
-            {suggestions.length > 0 && onSuggestionClick && (
-              <div className="mt-3.5 pt-2.5 border-t border-border/40 flex flex-wrap items-center gap-1.5 not-prose">
-                <span className="text-[10px] font-semibold text-muted-foreground/75 flex items-center gap-1 w-full mb-0.5 uppercase tracking-wider">
-                  <Sparkles className="h-3 w-3 text-primary" /> Suggested next actions:
-                </span>
-                {suggestions.map((s, idx) => (
-                  <button
-                    key={idx}
-                    type="button"
-                    onClick={() => onSuggestionClick(s.prompt)}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-secondary/40 hover:bg-primary/10 hover:text-primary hover:border-primary/40 border border-border/80 transition-all duration-150 active:scale-95 shadow-xs cursor-pointer text-foreground"
-                  >
-                    <span>{s.icon}</span>
-                    <span>{s.label}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {/* Perplexity-style Assistant Bottom Bar */}
+            {/* Smart Action Bar & Follow-ups */}
             {!isUser && !isStreaming && message.content && (
-              <div className="flex items-center gap-2 mt-3 pt-2 text-[11px] text-muted-foreground/80 not-prose opacity-80 group-hover:opacity-100 transition-opacity">
-                <button
-                  type="button"
-                  onClick={() => {
-                    navigator.clipboard.writeText(message.content)
-                    setCopied(true)
-                    toast.success("Answer copied to clipboard")
-                    setTimeout(() => setCopied(false), 2000)
-                  }}
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md hover:bg-muted/80 hover:text-foreground transition-colors cursor-pointer text-xs"
-                  title="Copy answer"
-                >
-                  {copied ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
-                  <span>{copied ? "Copied" : "Copy"}</span>
-                </button>
-                {isLast && onRetry && (
+              <div className="mt-3 not-prose">
+                {/* Action Icons Row */}
+                <div className="flex items-center gap-1 text-muted-foreground">
                   <button
                     type="button"
-                    onClick={onRetry}
-                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md hover:bg-muted/80 hover:text-foreground transition-colors cursor-pointer text-xs"
-                    title="Retry this prompt"
+                    onClick={() => {
+                      navigator.clipboard.writeText(message.content)
+                      setCopied(true)
+                      toast.success("Copied to clipboard")
+                      setTimeout(() => setCopied(false), 2000)
+                    }}
+                    className="flex size-7 items-center justify-center rounded-md hover:bg-muted/80 hover:text-foreground transition-colors cursor-pointer"
+                    title="Copy message"
                   >
-                    <RotateCcw className="h-3 w-3" />
-                    <span>Retry</span>
+                    {copied ? (
+                      <Check className="h-3.5 w-3.5 text-emerald-500" />
+                    ) : (
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="9" y="9" width="12" height="12" rx="2.5" />
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                      </svg>
+                    )}
                   </button>
+
+                  {onRetry && (
+                    <button
+                      type="button"
+                      onClick={onRetry}
+                      className="flex size-7 items-center justify-center rounded-md hover:bg-muted/80 hover:text-foreground transition-colors cursor-pointer"
+                      title="Retry response"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6" />
+                      </svg>
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => toast.success("Thank you for the feedback!")}
+                    className="flex size-7 items-center justify-center rounded-md hover:bg-muted/80 hover:text-foreground transition-colors cursor-pointer"
+                    title="Helpful response"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M7 10v12M15 5.88L14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88z" />
+                    </svg>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => toast.info("Feedback recorded")}
+                    className="flex size-7 items-center justify-center rounded-md hover:bg-muted/80 hover:text-foreground transition-colors cursor-pointer"
+                    title="Unhelpful response"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M17 14V2M9 18.12L10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22a3.13 3.13 0 0 1-3-3.88z" />
+                    </svg>
+                  </button>
+                </div>
+
+                {/* Follow-ups Section */}
+                {suggestions.length > 0 && onSuggestionClick && (
+                  <div className="mt-3 pt-1">
+                    <p className="text-[12px] font-medium text-muted-foreground/90 mb-1">Follow-ups</p>
+                    <div className="flex flex-col">
+                      {suggestions.map((s, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => onSuggestionClick(s.prompt)}
+                          className="flex items-center gap-2 py-2 text-left text-[12.5px] text-foreground/90 border-b border-border/40 hover:bg-muted/40 rounded-md px-1.5 transition-colors cursor-pointer"
+                        >
+                          <svg
+                            width="11"
+                            height="11"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="shrink-0 text-muted-foreground"
+                          >
+                            <path d="M9 10l-5 5 5 5" />
+                            <path d="M20 4v7a4 4 0 0 1-4 4H4" />
+                          </svg>
+                          <span>{s.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 )}
               </div>
             )}
           </>
         ) : isStreaming && (!message.toolInvocations || message.toolInvocations.length === 0) ? (
-          <div className="py-1">
-            <LoadingState label="Thinking" variant="Drive" />
+          <div className="py-2">
+            <LoadingState label="Thinking" variant="Dots" />
           </div>
         ) : null}
       </div>

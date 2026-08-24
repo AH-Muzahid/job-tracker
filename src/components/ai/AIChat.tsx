@@ -97,6 +97,7 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
   const containerRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const abortRef = useRef<AbortController | null>(null)
+  const animFrameRef = useRef<number | null>(null)
   const createdSessionIdRef = useRef<string | null>(null)
   
   const { pendingPrompt, setPendingPrompt, aiSidebarOpen } = useUI()
@@ -149,15 +150,27 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
     }
   }, [pendingPrompt, setPendingPrompt, isSidebar, aiSidebarOpen])
 
-  const scrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+  const scrollToBottom = useCallback((smooth = true) => {
+    const el = containerRef.current
+    if (!el) return
+    if (smooth) {
+      el.scrollTo({ top: el.scrollHeight, behavior: "smooth" })
+    } else {
+      el.scrollTop = el.scrollHeight
+    }
   }, [])
 
   useEffect(() => {
     if (hasMessages && !loading) {
-      scrollToBottom()
+      const el = containerRef.current
+      if (el) {
+        const isNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 180
+        if (isNearBottom) {
+          el.scrollTop = el.scrollHeight
+        }
+      }
     }
-  }, [messages, hasMessages, loading, scrollToBottom])
+  }, [messages, hasMessages, loading])
 
   function handleScroll() {
     const el = containerRef.current
@@ -235,8 +248,9 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
 
       const reader = res.body?.getReader()
       const decoder = new TextDecoder()
+      const assistantMsgId = "temp-asst-" + Date.now()
       let assistantMsg: Message = {
-        id: "temp-asst-" + Date.now(),
+        id: assistantMsgId,
         role: "assistant",
         content: "",
       }
@@ -244,20 +258,81 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
       setMessages((prev) => [...prev, assistantMsg])
 
       if (reader) {
-        let done = false
-        while (!done) {
-          const { value, done: doneReading } = await reader.read()
-          done = doneReading
-          if (value) {
-            const chunk = decoder.decode(value, { stream: true })
-            assistantMsg = { ...assistantMsg, content: assistantMsg.content + chunk }
+        let rawBuffer = ""
+        let displayedLength = 0
+        let isDoneReading = false
+
+        // Smooth word-by-word stream ticker
+        const updateDisplayedText = () => {
+          if (displayedLength < rawBuffer.length) {
+            const diff = rawBuffer.length - displayedLength
+            // Adaptive speed: smooth 1-3 chars/word pacing when close, accelerates smoothly if network buffered a large chunk
+            let step = 1
+            if (diff > 200) {
+              step = Math.ceil(diff / 8)
+            } else if (diff > 80) {
+              step = Math.ceil(diff / 6)
+            } else if (diff > 30) {
+              step = 3
+            } else if (diff > 10) {
+              step = 2
+            } else {
+              step = 1
+            }
+
+            displayedLength = Math.min(rawBuffer.length, displayedLength + step)
+            const currentText = rawBuffer.slice(0, displayedLength)
+
             setMessages((prev) => {
               const updated = [...prev]
-              updated[updated.length - 1] = assistantMsg
+              const lastIdx = updated.findIndex((m) => m.id === assistantMsgId)
+              if (lastIdx !== -1) {
+                updated[lastIdx] = { ...updated[lastIdx], content: currentText }
+              }
               return updated
             })
           }
+
+          if (!isDoneReading || displayedLength < rawBuffer.length) {
+            animFrameRef.current = requestAnimationFrame(updateDisplayedText)
+          } else {
+            setIsStreaming(false)
+          }
         }
+
+        animFrameRef.current = requestAnimationFrame(updateDisplayedText)
+
+        while (!isDoneReading) {
+          const { value, done: doneReading } = await reader.read()
+          if (value) {
+            const chunk = decoder.decode(value, { stream: true })
+            rawBuffer += chunk
+          }
+          if (doneReading) {
+            isDoneReading = true
+            break
+          }
+        }
+
+        // Smoothly drain the remaining buffer
+        while (displayedLength < rawBuffer.length) {
+          await new Promise((r) => setTimeout(r, 16))
+        }
+
+        if (animFrameRef.current) {
+          cancelAnimationFrame(animFrameRef.current)
+          animFrameRef.current = null
+        }
+
+        // Finalize exact full response text
+        setMessages((prev) => {
+          const updated = [...prev]
+          const lastIdx = updated.findIndex((m) => m.id === assistantMsgId)
+          if (lastIdx !== -1) {
+            updated[lastIdx] = { ...updated[lastIdx], content: rawBuffer }
+          }
+          return updated
+        })
       }
     } catch (e: unknown) {
       if (e instanceof Error && e.name !== "AbortError") {
@@ -268,6 +343,10 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
     } finally {
       setIsStreaming(false)
       abortRef.current = null
+      if (animFrameRef.current) {
+        cancelAnimationFrame(animFrameRef.current)
+        animFrameRef.current = null
+      }
     }
   }
 
@@ -275,8 +354,12 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
     if (abortRef.current) {
       abortRef.current.abort()
       abortRef.current = null
-      setIsStreaming(false)
     }
+    if (animFrameRef.current) {
+      cancelAnimationFrame(animFrameRef.current)
+      animFrameRef.current = null
+    }
+    setIsStreaming(false)
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -430,7 +513,7 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
             <Button
               variant="outline"
               size="icon"
-              onClick={scrollToBottom}
+              onClick={() => scrollToBottom(true)}
               className="absolute bottom-24 left-1/2 -translate-x-1/2 h-7 w-7 rounded-md border bg-card shadow-xs hover:bg-muted transition-colors z-10"
             >
               <ArrowDown className="h-3.5 w-3.5" />
