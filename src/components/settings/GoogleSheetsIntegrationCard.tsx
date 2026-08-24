@@ -263,23 +263,23 @@ export function GoogleSheetsIntegrationCard() {
             )}
 
             {/* Action Bar */}
-            <div className="flex items-center justify-between pt-2 border-t border-border/60">
+            <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2 pt-2 border-t border-border/60">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handleManualSync}
                 disabled={syncing || !webhookUrl}
-                className="text-xs h-8 gap-1.5"
+                className="text-xs h-8 gap-1.5 w-full sm:w-auto cursor-pointer"
               >
                 <RefreshCw className={`h-3.5 w-3.5 ${syncing ? "animate-spin" : ""}`} />
-                {syncing ? "Syncing..." : "Sync All Applications Now"}
+                {syncing ? "Syncing..." : "Sync All Applications"}
               </Button>
 
               <Button
                 size="sm"
                 onClick={handleSave}
                 disabled={saving}
-                className="text-xs h-8 gap-1.5"
+                className="text-xs h-8 gap-1.5 w-full sm:w-auto cursor-pointer"
               >
                 <Save className="h-3.5 w-3.5" />
                 {saving ? "Saving..." : "Save Configuration"}

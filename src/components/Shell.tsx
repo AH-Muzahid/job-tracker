@@ -20,7 +20,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       <Sidebar />
       <div className="flex flex-1 flex-col overflow-hidden">
         <Navbar />
-        <main className={isFullscreen ? "flex-1 overflow-hidden" : "flex-1 overflow-y-auto px-4 py-6 sm:px-6"}>
+        <main className={isFullscreen ? "flex-1 overflow-hidden" : "flex-1 overflow-y-auto px-3 py-4 sm:px-6 sm:py-6"}>
           {children}
         </main>
       </div>

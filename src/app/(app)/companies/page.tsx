@@ -79,7 +79,7 @@ export default function CompaniesPage() {
 
   if (!isLoaded || loading) {
     return (
-      <div className="space-y-6 max-w-7xl mx-auto p-4 sm:p-6">
+      <div className="space-y-6 max-w-7xl mx-auto pb-10">
         <div className="space-y-2">
           <Skeleton className="h-8 w-48 rounded-lg" />
           <Skeleton className="h-4 w-64 rounded-md" />
@@ -105,7 +105,7 @@ export default function CompaniesPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto p-4 sm:p-6">
+    <div className="space-y-6 max-w-7xl mx-auto pb-10">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">Target Companies</h1>

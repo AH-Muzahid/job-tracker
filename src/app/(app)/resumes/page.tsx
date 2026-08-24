@@ -159,7 +159,7 @@ export default function ResumesPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto p-4 sm:p-6">
+    <div className="space-y-6 max-w-7xl mx-auto pb-10">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">Resume Hub</h1>

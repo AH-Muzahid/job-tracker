@@ -27,7 +27,7 @@ export default function SettingsPage() {
 
   if (!isLoaded) {
     return (
-      <div className="p-6 space-y-4 max-w-4xl mx-auto">
+      <div className="space-y-4 max-w-4xl mx-auto pb-10">
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-40 w-full" />
       </div>
@@ -35,7 +35,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="p-6 space-y-6 max-w-4xl mx-auto">
+    <div className="space-y-5 sm:space-y-6 max-w-4xl mx-auto pb-12">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
         <p className="text-sm text-muted-foreground">Manage your account preferences and AI Provider Keys.</p>
