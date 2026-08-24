@@ -1,6 +1,9 @@
 "use client"
-import React, { useState } from "react"
+import React, { useState, useEffect, useRef } from "react"
 import { Check, Copy, Send, Mail, Loader2 } from "lucide-react"
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
 
 interface OutreachData {
@@ -22,6 +25,16 @@ export default function OutreachResult({ data }: { data: Record<string, unknown>
   const [recipient, setRecipient] = useState(outreach.recipientEmail || "")
   const [subject, setSubject] = useState(outreach.subject || "")
   const [bodyText, setBodyText] = useState(outreach.body || "")
+  const userHasEditedRef = useRef(false)
+
+  // Sync props progressively during streaming if user hasn't typed manually
+  useEffect(() => {
+    if (!userHasEditedRef.current) {
+      if (outreach.recipientEmail) setRecipient(outreach.recipientEmail)
+      if (outreach.subject) setSubject(outreach.subject)
+      if (outreach.body) setBodyText(outreach.body)
+    }
+  }, [outreach.recipientEmail, outreach.subject, outreach.body])
 
   const handleCopy = () => {
     if (!bodyText) return
@@ -52,11 +65,16 @@ export default function OutreachResult({ data }: { data: Record<string, unknown>
           subject,
           body: bodyText,
           applicationId: outreach.applicationId,
-          candidateName: "Candidate",
         }),
       })
 
-      const resData = await res.json()
+      let resData: { error?: string; message?: string } = {}
+      try {
+        resData = await res.json()
+      } catch {
+        throw new Error(`Server returned error (${res.status})`)
+      }
+
       if (!res.ok) {
         throw new Error(resData.error || "Failed to send email")
       }
@@ -74,127 +92,139 @@ export default function OutreachResult({ data }: { data: Record<string, unknown>
   if (!outreach.body && !outreach.subject) return null
 
   return (
-    <div className="flex flex-col overflow-hidden rounded-xl border bg-card shadow-sm transition-all">
-      <div className="flex items-center justify-between border-b bg-muted/50 px-4 py-2.5">
-        <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+    <Card className="rounded-xl border border-border/80 bg-card/70 backdrop-blur-2xl shadow-xs overflow-hidden">
+      <CardHeader className="flex flex-row items-center justify-between border-b border-border/50 bg-muted/30 px-4 py-2.5 space-y-0">
+        <div className="flex items-center gap-2 text-xs font-bold text-foreground">
           <Mail className="h-4 w-4 text-indigo-500" />
-          <span>{outreach.format || (outreach.isEmailDraft ? "AI Email Outreach Draft" : "Outreach Template")}</span>
+          <CardTitle className="text-xs font-bold">
+            {outreach.format || (outreach.isEmailDraft ? "AI Email Outreach Draft" : "Outreach Template")}
+          </CardTitle>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleCopy}
-            className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground hover:bg-secondary hover:text-secondary-foreground transition-colors cursor-pointer"
-          >
-            {copied ? (
-              <>
-                <Check className="h-3.5 w-3.5 text-green-500" />
-                <span className="text-green-500">Copied</span>
-              </>
-            ) : (
-              <>
-                <Copy className="h-3.5 w-3.5" />
-                <span>Copy</span>
-              </>
-            )}
-          </button>
-        </div>
-      </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleCopy}
+          className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+        >
+          {copied ? (
+            <>
+              <Check className="h-3.5 w-3.5 text-emerald-500 mr-1" />
+              <span className="text-emerald-500">Copied</span>
+            </>
+          ) : (
+            <>
+              <Copy className="h-3.5 w-3.5 mr-1" />
+              <span>Copy</span>
+            </>
+          )}
+        </Button>
+      </CardHeader>
       
-      <div className="p-4 space-y-4">
+      <CardContent className="p-4 space-y-4">
         {/* Recipient Field */}
         <div className="space-y-1">
-          <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+          <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
             Recipient Email (To)
           </label>
           <input
             type="email"
             placeholder="e.g. recruiter@company.com"
             value={recipient}
-            onChange={(e) => setRecipient(e.target.value)}
+            onChange={(e) => {
+              userHasEditedRef.current = true
+              setRecipient(e.target.value)
+            }}
             disabled={isSent || isSending}
-            className="w-full rounded-lg border bg-background px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary disabled:opacity-60"
+            className="w-full rounded-lg border border-border/80 bg-background px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary disabled:opacity-60"
           />
         </div>
 
         {/* Subject Field */}
         <div className="space-y-1">
-          <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+          <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
             Subject
           </label>
           <input
             type="text"
             value={subject}
-            onChange={(e) => setSubject(e.target.value)}
+            onChange={(e) => {
+              userHasEditedRef.current = true
+              setSubject(e.target.value)
+            }}
             disabled={isSent || isSending}
-            className="w-full rounded-lg border bg-background px-3 py-1.5 text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary disabled:opacity-60"
+            className="w-full rounded-lg border border-border/80 bg-background px-3 py-1.5 text-xs font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary disabled:opacity-60"
           />
         </div>
         
         {/* Body Field */}
         <div className="space-y-1">
-          <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+          <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
             Message Body
           </label>
           <textarea
             rows={6}
             value={bodyText}
-            onChange={(e) => setBodyText(e.target.value)}
+            onChange={(e) => {
+              userHasEditedRef.current = true
+              setBodyText(e.target.value)
+            }}
             disabled={isSent || isSending}
-            className="w-full rounded-lg border bg-background p-3 text-sm text-foreground/90 leading-relaxed focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary disabled:opacity-60 resize-y"
+            className="w-full rounded-lg border border-border/80 bg-background p-3 text-xs text-foreground/90 leading-relaxed focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary disabled:opacity-60 resize-y"
           />
         </div>
 
         {/* Action Button */}
         <div className="pt-2 flex items-center justify-between">
           {outreach.companyName && (
-            <span className="text-xs text-muted-foreground">
-              Linked to: <strong>{outreach.companyName}</strong>
-            </span>
+            <Badge variant="outline" className="text-[10px] font-mono border-border/60">
+              Linked to: {outreach.companyName}
+            </Badge>
           )}
           <div className="ml-auto flex items-center gap-2">
-            <button
+            <Button
               onClick={handleSendEmail}
               disabled={isSending || isSent}
-              className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-lg font-medium text-xs shadow-sm transition-all active:scale-95 cursor-pointer ${
+              size="sm"
+              className={`h-8 rounded-lg text-xs font-semibold shadow-xs transition-all ${
                 isSent
-                  ? "bg-green-600 text-white cursor-default"
+                  ? "bg-emerald-600 hover:bg-emerald-600 text-white cursor-default"
                   : "bg-indigo-600 hover:bg-indigo-500 text-white"
-              } disabled:opacity-60`}
+              }`}
             >
               {isSending ? (
                 <>
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
                   <span>Sending...</span>
                 </>
               ) : isSent ? (
                 <>
-                  <Check className="h-3.5 w-3.5" />
+                  <Check className="h-3.5 w-3.5 mr-1.5" />
                   <span>Dispatched</span>
                 </>
               ) : (
                 <>
-                  <Send className="h-3.5 w-3.5" />
+                  <Send className="h-3.5 w-3.5 mr-1.5" />
                   <span>Approve & Send Email</span>
                 </>
               )}
-            </button>
+            </Button>
           </div>
         </div>
 
         {outreach.checklist && outreach.checklist.length > 0 && (
-          <div className="pt-3 border-t">
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 block">Outreach Checklist</span>
+          <div className="pt-3 border-t border-border/50">
+            <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-2 block">Outreach Checklist</span>
             <ul className="space-y-1">
               {outreach.checklist.map((item, i) => (
                 <li key={i} className="text-xs text-muted-foreground flex items-start gap-1.5">
-                  <div className="mt-0.5 h-1.5 w-1.5 shrink-0 rounded-full bg-indigo-500/60" />
+                  <div className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-indigo-500" />
                   <span>{item}</span>
                 </li>
               ))}
             </ul>
           </div>
         )}
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   )
 }

@@ -197,6 +197,7 @@ export default function ModelSelector({
 
   // Select a specific model
   async function handleSelectModel(modelId: string) {
+    const previousModel = activeModel
     setSwitching(true)
     try {
       // 1. Update in memory for current chat session
@@ -205,16 +206,19 @@ export default function ModelSelector({
 
       // 2. Persist to active profile in backend
       invalidateModelSelectorCache()
-      await fetch("/api/settings/ai-key", {
+      const res = await fetch("/api/settings/ai-key", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ model: modelId }),
       })
+      if (!res.ok) throw new Error("Failed to persist model selection to server")
 
       const shortName = modelId.split("/").pop() || modelId
       toast.success(`Selected model: ${shortName}`)
       setOpen(false)
     } catch (err: unknown) {
+      setActiveModel(previousModel)
+      onModelOverrideChange?.(previousModel)
       const msg = err instanceof Error ? err.message : "Failed to select model"
       toast.error(msg)
     } finally {

@@ -67,7 +67,7 @@ export default function GlobalAISidebar() {
         </div>
 
         <div className="flex-1 overflow-hidden relative">
-          <AIChat sessionId={sessionId} onSessionCreated={setSessionId} />
+          <AIChat sessionId={sessionId} onSessionCreated={setSessionId} isSidebar={true} />
         </div>
       </div>
     </>

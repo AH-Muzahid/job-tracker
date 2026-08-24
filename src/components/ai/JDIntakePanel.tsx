@@ -134,18 +134,24 @@ export function JDIntakePanel() {
 
       const application = await appRes.json()
 
-      // 2. Save pre-computed analysis
-      const analysisRes = await fetch(`/api/applications/${application.id}/analysis`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          analysis: analysisResult,
-          rawJd: jdText
-        })
-      })
+      // 2. Save pre-computed analysis if available
+      if (analysisResult) {
+        try {
+          const analysisRes = await fetch(`/api/applications/${application.id}/analysis`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              analysis: analysisResult,
+              rawJd: jdText
+            })
+          })
 
-      if (!analysisRes.ok) {
-        console.error("Failed to save analysis")
+          if (!analysisRes.ok) {
+            console.warn("Application was created, but AI analysis failed to save.")
+          }
+        } catch (analysisErr) {
+          console.error("Network error while saving AI analysis:", analysisErr)
+        }
       }
 
       toast.success("Application saved successfully!", { id: toastId })

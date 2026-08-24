@@ -1,8 +1,10 @@
 "use client"
 
 import { useState, useRef, useEffect, useCallback } from "react"
-import { Send, Square, FileText, Briefcase, Target, MessageSquare, ArrowDown, Plus } from "lucide-react"
+import { Send, Square, FileText, Briefcase, Target, MessageSquare, ArrowDown, Plus, Sparkles } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Button } from "@/components/ui/button"
+import { Card } from "@/components/ui/card"
 import ChatMessage from "./ChatMessage"
 import { useUI, type AIMode } from "@/lib/store"
 import ModelSelector from "./ModelSelector"
@@ -28,26 +30,43 @@ interface Message {
   toolInvocations?: ToolInvocation[]
 }
 
-const QUICK_ACTIONS = [
-  { label: "Paste a JD", icon: FileText, mode: "jd-scan" as AIMode },
-  { label: "Cover Letter", icon: Briefcase, mode: "application" as AIMode },
-  { label: "I applied to...", icon: Target, mode: "tracker" as AIMode },
-  { label: "Analyze message", icon: MessageSquare, mode: "response" as AIMode },
+const STARTER_PROMPTS = [
+  {
+    title: "Scan Job Description",
+    description: "Extract requirements, calculate match score & detect red flags",
+    icon: FileText,
+    mode: "jd-scan" as AIMode,
+    prompt: "I found a job description I'd like you to analyze. Here it is:\n\n[Paste Job Description Here]",
+  },
+  {
+    title: "Tailored Cover Letter",
+    description: "Draft a high-impact, anti-AI letter tailored specifically to the role",
+    icon: Briefcase,
+    mode: "application" as AIMode,
+    prompt: "Please write a tailored, high-impact cover letter for this position highlighting my relevant projects and skills.",
+  },
+  {
+    title: "Mock Interview Prep",
+    description: "Practice role-specific technical & behavioral interview questions",
+    icon: Target,
+    mode: "interview" as AIMode,
+    prompt: "Let's conduct an interactive mock interview for my target software engineering role.",
+  },
+  {
+    title: "Track Application",
+    description: "Log a new application or update interview & offer status",
+    icon: MessageSquare,
+    mode: "tracker" as AIMode,
+    prompt: "I want to log a new application to my tracker. The company is: ",
+  },
 ]
-
-const PROMPTS: Record<string, string> = {
-  "Paste a JD": "I found a job description I'd like you to analyze. Here it is:",
-  "Cover Letter": "I need help writing a cover letter for a position I'm applying to.",
-  "I applied to...": "I just submitted an application and want to update my tracker.",
-  "Analyze message": "I received a message from a recruiter and need help responding.",
-}
 
 function MessagesSkeleton() {
   return (
     <div className="max-w-3xl mx-auto px-4 py-8 space-y-8">
       {Array.from({ length: 3 }).map((_, i) => (
         <div key={i} className="flex gap-4">
-          <Skeleton className="h-8 w-8 rounded-full shrink-0" />
+          <Skeleton className="h-8 w-8 rounded-lg shrink-0" />
           <div className="flex-1 space-y-3">
             <Skeleton className="h-3 w-16" />
             <Skeleton className="h-4 w-full" />
@@ -59,13 +78,20 @@ function MessagesSkeleton() {
   )
 }
 
-export default function AIChat({ sessionId, onSessionCreated }: Props) {
+interface Props {
+  sessionId: string | null
+  onSessionCreated?: (id: string) => void
+  isSidebar?: boolean
+}
+
+export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props) {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState("")
   const [loading, setLoading] = useState(!!sessionId)
   const [isStreaming, setIsStreaming] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showScrollBtn, setShowScrollBtn] = useState(false)
+  const [activeMode, setActiveMode] = useState<AIMode | undefined>(undefined)
   const [modelOverride, setModelOverride] = useState<string | undefined>(undefined)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -73,7 +99,7 @@ export default function AIChat({ sessionId, onSessionCreated }: Props) {
   const abortRef = useRef<AbortController | null>(null)
   const createdSessionIdRef = useRef<string | null>(null)
   
-  const { pendingPrompt, setPendingPrompt } = useUI()
+  const { pendingPrompt, setPendingPrompt, aiSidebarOpen } = useUI()
 
   const hasMessages = messages.length > 0
   const isNewChat = !sessionId
@@ -99,306 +125,282 @@ export default function AIChat({ sessionId, onSessionCreated }: Props) {
     ;(async () => {
       try {
         const res = await fetch(`/api/ai/sessions/${sessionId}`)
-        if (res.ok) {
-          const session = await res.json()
-          if (!cancelled) {
-            setMessages(session?.messages || [])
-          }
-        }
-      } catch {
-        if (!cancelled) setError("Failed to load chat history")
+        if (!res.ok) throw new Error("Failed to load chat history")
+        const session = await res.json()
+        if (!cancelled) setMessages(session?.messages || [])
+      } catch (e: unknown) {
+        if (!cancelled) setError(e instanceof Error ? e.message : "Error loading chat")
       } finally {
         if (!cancelled) setLoading(false)
       }
     })()
-    return () => { cancelled = true }
+
+    return () => {
+      cancelled = true
+    }
   }, [sessionId])
+
+  useEffect(() => {
+    // Only consume pendingPrompt if we are the visible instance
+    const isVisibleInstance = isSidebar ? aiSidebarOpen : true
+    if (pendingPrompt && isVisibleInstance) {
+      setInput(pendingPrompt)
+      setPendingPrompt(null)
+      textareaRef.current?.focus()
+    }
+  }, [pendingPrompt, setPendingPrompt, isSidebar, aiSidebarOpen])
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [])
 
   useEffect(() => {
-    if (isStreaming) {
+    if (hasMessages && !loading) {
       scrollToBottom()
     }
-  }, [messages, isStreaming, scrollToBottom])
+  }, [messages, hasMessages, loading, scrollToBottom])
 
-  useEffect(() => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = "auto"
-      textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 160) + "px"
-    }
-  }, [input])
-
-  const handleScroll = () => {
-    if (!containerRef.current) return
-    const { scrollTop, scrollHeight, clientHeight } = containerRef.current
-    const isNearBottom = scrollHeight - scrollTop - clientHeight < 100
-    setShowScrollBtn(!isNearBottom && scrollHeight > clientHeight)
+  function handleScroll() {
+    const el = containerRef.current
+    if (!el) return
+    const isAtBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120
+    setShowScrollBtn(!isAtBottom)
   }
 
-  const sendMessage = useCallback(async (text: string) => {
-    const content = text.trim()
-    if (!content || isStreaming) return
-    
+  async function createNewSession(firstMsgText: string, modeToUse?: AIMode) {
+    const res = await fetch("/api/ai/sessions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: firstMsgText.slice(0, 40),
+        mode: modeToUse || activeMode,
+      }),
+    })
+    if (!res.ok) throw new Error("Failed to create session")
+    const newSession = await res.json()
+    createdSessionIdRef.current = newSession.id
+    onSessionCreated?.(newSession.id)
+    return newSession.id as string
+  }
+
+  async function sendMessage(textToSend: string, modeOverride?: AIMode) {
+    const trimmed = textToSend.trim()
+    if (!trimmed || isStreaming) return
+
+    const selectedMode = modeOverride || activeMode
+    const userMsg: Message = {
+      id: "temp-" + Date.now(),
+      role: "user",
+      content: trimmed,
+    }
+
+    setMessages((prev) => [...prev, userMsg])
     setInput("")
     setError(null)
-
-    const userMessage: Message = { id: crypto.randomUUID(), role: "user", content }
-    const assistantId = crypto.randomUUID()
-    const assistantMessage: Message = { id: assistantId, role: "assistant", content: "" }
-    
-    setMessages((prev) => [...prev, userMessage, assistantMessage])
     setIsStreaming(true)
 
-    const abortController = new AbortController()
-    abortRef.current = abortController
-
+    let currentSessionId = sessionId
     try {
-      let activeSessionId = sessionId
-
-      if (!activeSessionId) {
-        const sessionRes = await fetch("/api/ai/sessions", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ title: content.slice(0, 80) }),
-        })
-        if (!sessionRes.ok) throw new Error("Failed to create session")
-        const session = await sessionRes.json()
-        activeSessionId = session.id
-        createdSessionIdRef.current = session.id
-        onSessionCreated?.(session.id)
+      if (!currentSessionId) {
+        currentSessionId = await createNewSession(trimmed, selectedMode)
       }
+
+      const controller = new AbortController()
+      abortRef.current = controller
 
       const res = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          message: content,
-          sessionId: activeSessionId,
-          model: modelOverride,
+          sessionId: currentSessionId,
+          message: trimmed,
+          mode: selectedMode,
+          modelOverride,
         }),
-        signal: abortController.signal,
+        signal: controller.signal,
       })
+
+      // Reset active mode once dispatched
+      setActiveMode(undefined)
+
+      const returnedSessionId = res.headers.get("X-Session-Id")
+      if (returnedSessionId && returnedSessionId !== currentSessionId) {
+        createdSessionIdRef.current = returnedSessionId
+        onSessionCreated?.(returnedSessionId)
+      }
 
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}))
-        throw new Error(errData.error || "Failed to get response")
+        throw new Error(errData.error || "Failed to send message")
       }
 
       const reader = res.body?.getReader()
-      if (!reader) throw new Error("No response stream")
-
       const decoder = new TextDecoder()
-      let done = false
-      let accumulated = ""
-      let buffer = ""
-      while (!done) {
-        const { value, done: doneReading } = await reader.read()
-        done = doneReading
-        if (value) {
-          const chunk = decoder.decode(value, { stream: !done })
-          
-          // Check if stream is SSE formatted
-          if (chunk.startsWith("data: ") || chunk.startsWith("0:") || buffer.startsWith("data: ")) {
-            buffer += chunk
-            const lines = buffer.split('\n')
-            buffer = lines.pop() || ""
-            
-            for (const line of lines) {
-              const trimLine = line.trim()
-              if (!trimLine) continue
+      let assistantMsg: Message = {
+        id: "temp-asst-" + Date.now(),
+        role: "assistant",
+        content: "",
+      }
 
-              if (trimLine.startsWith('0:')) {
-                try {
-                  accumulated += JSON.parse(trimLine.slice(2))
-                } catch {
-                  accumulated += trimLine.slice(2)
-                }
-                continue
-              }
+      setMessages((prev) => [...prev, assistantMsg])
 
-              if (trimLine.startsWith('data: ')) {
-                const payload = trimLine.slice(6).trim()
-                if (payload === '[DONE]') continue
-                try {
-                  const data = JSON.parse(payload)
-                  if (data.type === 'text-delta') {
-                    accumulated += data.textDelta || data.delta || data.text || ""
-                  } else if (typeof data === 'string') {
-                    accumulated += data
-                  }
-                } catch {
-                  accumulated += payload
-                }
-              }
-            }
-          } else {
-            // Direct plain text streaming
-            accumulated += chunk
+      if (reader) {
+        let done = false
+        while (!done) {
+          const { value, done: doneReading } = await reader.read()
+          done = doneReading
+          if (value) {
+            const chunk = decoder.decode(value, { stream: true })
+            assistantMsg = { ...assistantMsg, content: assistantMsg.content + chunk }
+            setMessages((prev) => {
+              const updated = [...prev]
+              updated[updated.length - 1] = assistantMsg
+              return updated
+            })
           }
-          
-          setMessages((prev) =>
-            prev.map((m) => (m.id === assistantId ? { ...m, content: accumulated } : m))
-          )
         }
       }
-
-      if (!accumulated.trim()) {
-        accumulated = "⚠️ The selected AI model did not return a response (or timed out). Please switch to an active model (such as Gemini 2.5 Flash) using the model selector below."
-        setMessages((prev) =>
-          prev.map((m) => (m.id === assistantId ? { ...m, content: accumulated } : m))
-        )
+    } catch (e: unknown) {
+      if (e instanceof Error && e.name !== "AbortError") {
+        setError(e.message || "Failed to get response")
+        // Remove optimistic user message on failure so state doesn't stay out of sync
+        setMessages((prev) => prev.filter((m) => m.id !== userMsg.id))
       }
-    } catch (err: unknown) {
-      if (err instanceof Error && err.name === "AbortError") return
-      setError(err instanceof Error ? err.message : "Something went wrong")
     } finally {
       setIsStreaming(false)
       abortRef.current = null
     }
-  }, [sessionId, isStreaming, onSessionCreated, modelOverride])
+  }
 
-  // Listen for pending prompts from global state (e.g., from BentoCommandZone)
-  useEffect(() => {
-    if (pendingPrompt && !isStreaming) {
-      const promptToSend = pendingPrompt
-      setPendingPrompt(null)
-      // Slight delay ensures state updates correctly before sending
-      setTimeout(() => sendMessage(promptToSend), 100)
+  function stopStreaming() {
+    if (abortRef.current) {
+      abortRef.current.abort()
+      abortRef.current = null
+      setIsStreaming(false)
     }
-  }, [pendingPrompt, isStreaming, sendMessage, setPendingPrompt])
+  }
 
-  const stopStreaming = useCallback(() => {
-    abortRef.current?.abort()
-    setIsStreaming(false)
-  }, [])
-
-  function handleKeyDown(e: React.KeyboardEvent) {
+  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault()
       sendMessage(input)
     }
   }
 
-  function handleQuickAction(label: string) {
-    const prompt = PROMPTS[label] || label
-    setInput(prompt + "\n\n")
+  function handleQuickAction(actionTitle: string, actionCategory?: AIMode) {
+    const starter = STARTER_PROMPTS.find((s) => s.title === actionTitle)
+    const promptText = starter?.prompt || actionTitle
+    setInput(promptText)
+    if (actionCategory) {
+      setActiveMode(actionCategory)
+    }
     textareaRef.current?.focus()
   }
 
   const showEmptyState = isNewChat && !hasMessages
 
   return (
-    <div className="flex flex-col h-full bg-background">
-      {/* Main content */}
+    <div className="flex flex-col h-full bg-background relative overflow-hidden">
       {loading ? (
-        <div className="flex-1 overflow-hidden">
-          <MessagesSkeleton />
-        </div>
+        <MessagesSkeleton />
       ) : showEmptyState ? (
-        /* Empty state - centered */
-        <div className="flex-1 flex flex-col items-center justify-center px-4 overflow-y-auto">
+        <div className="flex-1 flex flex-col items-center justify-center px-4 overflow-y-auto z-10 py-8">
           <div className="w-full max-w-2xl space-y-6">
+            {/* Clean Minimal Header */}
             <div className="text-center space-y-2">
-              <h1 className="text-2xl font-semibold">How can I help you today?</h1>
-              <p className="text-muted-foreground">
-                Paste a job description, write cover letters, track applications, and more.
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-muted text-[11px] font-medium text-muted-foreground border border-border">
+                <Sparkles className="h-3 w-3 text-primary" />
+                <span>Career AI Assistant</span>
+              </div>
+              <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground">
+                How can I assist your career search today?
+              </h1>
+              <p className="text-xs text-muted-foreground max-w-md mx-auto leading-relaxed">
+                Scan job descriptions, draft tailored cover letters, practice mock interviews, or automatically update your pipeline.
               </p>
             </div>
 
+            {/* Clean Minimal Input Dock */}
             <div className="relative">
-              {input.includes("\n") || input.length > 90 ? (
-                <div className="flex flex-col rounded-2xl sm:rounded-3xl border border-border/60 bg-card/95 backdrop-blur-md p-3 shadow-md focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary/60 transition-all">
-                  <textarea
-                    ref={textareaRef}
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    placeholder="Ask anything or paste a job description..."
-                    className="w-full bg-transparent border-0 outline-none resize-none text-sm placeholder:text-muted-foreground/50 min-h-[60px] max-h-[180px] px-1 py-1 leading-relaxed"
-                    rows={Math.min(6, Math.max(2, input.split('\n').length))}
-                  />
-                  <div className="flex items-center justify-between pt-2 mt-1 border-t border-border/40">
-                    <button 
+              <Card className="flex flex-col rounded-xl border border-border bg-card p-3 shadow-xs focus-within:border-foreground/40 transition-colors">
+                <textarea
+                  ref={textareaRef}
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Ask a question, paste a job description, or type an update..."
+                  className="w-full bg-transparent border-0 outline-none resize-none text-xs placeholder:text-muted-foreground/50 min-h-[64px] max-h-[180px] px-1 py-1 leading-relaxed"
+                  rows={Math.min(6, Math.max(2, input.split('\n').length))}
+                />
+                <div className="flex items-center justify-between pt-2 mt-1 border-t border-border/40">
+                  <div className="flex items-center gap-1.5">
+                    <Button 
                       type="button"
-                      className="flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors cursor-pointer"
                       title="Add context"
                     >
                       <Plus className="h-4 w-4" />
-                    </button>
-                    <div className="flex items-center gap-2">
-                      <ModelSelector
-                        variant="inline"
-                        selectedModelOverride={modelOverride}
-                        onModelOverrideChange={setModelOverride}
-                      />
-                      <button
-                        onClick={() => sendMessage(input)}
-                        disabled={!input.trim()}
-                        className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-xs"
-                      >
-                        <Send className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
+                    </Button>
+                    {activeMode && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-muted text-foreground text-[10px] font-medium border border-border">
+                        {activeMode}
+                      </span>
+                    )}
                   </div>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2 rounded-full border border-border/60 bg-card/95 backdrop-blur-md px-3.5 py-1.5 shadow-sm focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary transition-all">
-                  <button 
-                    type="button"
-                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                    title="Add context"
-                  >
-                    <Plus className="h-4 w-4" />
-                  </button>
-                  <textarea
-                    ref={textareaRef}
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    placeholder="Ask anything or paste a job description..."
-                    className="flex-1 bg-transparent border-0 outline-none resize-none text-sm placeholder:text-muted-foreground/50 h-[22px] py-0.5 leading-normal"
-                    rows={1}
-                  />
-                  <div className="flex items-center gap-1.5 shrink-0">
+                  <div className="flex items-center gap-2">
                     <ModelSelector
                       variant="inline"
                       selectedModelOverride={modelOverride}
                       onModelOverrideChange={setModelOverride}
                     />
-                    <button
+                    <Button
                       onClick={() => sendMessage(input)}
                       disabled={!input.trim()}
-                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-xs"
+                      size="icon"
+                      className="h-7 w-7 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-xs cursor-pointer"
                     >
                       <Send className="h-3.5 w-3.5" />
-                    </button>
+                    </Button>
                   </div>
                 </div>
-              )}
+              </Card>
             </div>
 
-            <div className="flex flex-wrap justify-center gap-2">
-              {QUICK_ACTIONS.map((action) => (
+            {/* Clean Minimal 2x2 Starter Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full pt-1">
+              {STARTER_PROMPTS.map((item) => (
                 <button
-                  key={action.label}
-                  onClick={() => handleQuickAction(action.label)}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                  key={item.title}
+                  type="button"
+                  onClick={() => {
+                    setInput(item.prompt)
+                    setActiveMode(item.mode)
+                    textareaRef.current?.focus()
+                  }}
+                  className="flex items-start gap-3 p-3 rounded-xl border border-border/80 bg-card/50 hover:bg-muted/50 hover:border-border transition-colors text-left group cursor-pointer"
                 >
-                  <action.icon className="h-4 w-4" />
-                  {action.label}
+                  <div className="p-1.5 rounded-md bg-muted text-muted-foreground group-hover:text-foreground transition-colors shrink-0 mt-0.5">
+                    <item.icon className="h-4 w-4" />
+                  </div>
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-xs font-medium text-foreground truncate">
+                      {item.title}
+                    </span>
+                    <span className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed mt-0.5">
+                      {item.description}
+                    </span>
+                  </div>
                 </button>
               ))}
             </div>
           </div>
         </div>
       ) : (
-        /* Messages view */
         <>
           <div className="flex-1 overflow-y-auto" ref={containerRef} onScroll={handleScroll}>
-            <div className="max-w-3xl mx-auto flex flex-col gap-6 p-4 sm:p-6">
+            <div className="max-w-3xl mx-auto flex flex-col gap-5 p-4 sm:p-6">
               {messages.map((msg, i) => (
                 <ChatMessage
                   key={msg.id}
@@ -409,118 +411,84 @@ export default function AIChat({ sessionId, onSessionCreated }: Props) {
                 />
               ))}
               {error && (
-                <div className="text-sm text-destructive text-center p-3 rounded-lg bg-destructive/10">
+                <div className="text-xs font-medium text-destructive text-center p-3 rounded-lg bg-destructive/10 border border-destructive/20">
                   {error}
                 </div>
               )}
-              {/* Spacer to ensure messages scroll above the floating input without excessive margin */}
               <div className="h-28 shrink-0" ref={messagesEndRef} />
             </div>
           </div>
 
           {showScrollBtn && (
-            <button
+            <Button
+              variant="outline"
+              size="icon"
               onClick={scrollToBottom}
-              className="absolute bottom-28 left-1/2 -translate-x-1/2 flex h-8 w-8 items-center justify-center rounded-full border bg-background shadow-md hover:bg-accent transition-colors z-10"
+              className="absolute bottom-24 left-1/2 -translate-x-1/2 h-7 w-7 rounded-md border bg-card shadow-xs hover:bg-muted transition-colors z-10"
             >
-              <ArrowDown className="h-4 w-4" />
-            </button>
+              <ArrowDown className="h-3.5 w-3.5" />
+            </Button>
           )}
 
-          <div className="absolute bottom-4 left-0 right-0 px-4 pointer-events-none">
+          {/* Floating Clean Bottom Dock */}
+          <div className="absolute bottom-3 left-0 right-0 px-4 pointer-events-none">
             <div className="max-w-3xl mx-auto pointer-events-auto">
-              {input.includes("\n") || input.length > 90 ? (
-                <div className="relative flex flex-col rounded-2xl sm:rounded-3xl bg-card/95 backdrop-blur-md border border-border/80 p-3 shadow-xl focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/20 transition-all">
-                  <textarea
-                    ref={textareaRef}
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    placeholder="Message AI Assistant..."
-                    className="w-full bg-transparent border-0 outline-none resize-none text-sm placeholder:text-muted-foreground/50 min-h-[50px] max-h-[180px] px-1 py-1 leading-relaxed"
-                    rows={Math.min(6, Math.max(2, input.split('\n').length))}
-                    disabled={isStreaming}
-                  />
-                  <div className="flex items-center justify-between pt-2 mt-1 border-t border-border/40">
-                    <button 
+              <Card className="relative flex flex-col rounded-xl bg-background/95 backdrop-blur-md border border-border p-2.5 shadow-sm focus-within:border-foreground/40 transition-colors">
+                <textarea
+                  ref={textareaRef}
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Ask a question, paste a role, or type an action..."
+                  className="w-full bg-transparent border-0 outline-none resize-none text-xs placeholder:text-muted-foreground/50 min-h-[38px] max-h-[160px] px-1 py-0.5 leading-relaxed"
+                  rows={Math.min(6, Math.max(1, input.split('\n').length))}
+                  disabled={isStreaming}
+                />
+                <div className="flex items-center justify-between pt-1.5 mt-0.5 border-t border-border/40">
+                  <div className="flex items-center gap-1.5">
+                    <Button 
                       type="button"
-                      className="flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors cursor-pointer"
                       title="Add context"
                     >
-                      <Plus className="h-4 w-4" />
-                    </button>
-                    <div className="flex items-center gap-2">
-                      <ModelSelector
-                        variant="inline"
-                        selectedModelOverride={modelOverride}
-                        onModelOverrideChange={setModelOverride}
-                      />
-                      {isStreaming ? (
-                        <button
-                          onClick={stopStreaming}
-                          className="flex h-7 w-7 items-center justify-center rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-colors shadow-xs"
-                        >
-                          <Square className="h-3.5 w-3.5" />
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => sendMessage(input)}
-                          disabled={!input.trim()}
-                          className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-xs"
-                        >
-                          <Send className="h-3.5 w-3.5" />
-                        </button>
-                      )}
-                    </div>
+                      <Plus className="h-3.5 w-3.5" />
+                    </Button>
+                    {activeMode && (
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded bg-muted text-foreground text-[10px] font-medium border border-border">
+                        {activeMode}
+                      </span>
+                    )}
                   </div>
-                </div>
-              ) : (
-                <div className="relative flex items-center gap-2 rounded-full bg-card/95 backdrop-blur-md border border-border/80 px-3.5 py-1.5 shadow-lg focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/20 transition-all">
-                  <button 
-                    type="button"
-                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                    title="Add context"
-                  >
-                    <Plus className="h-4 w-4" />
-                  </button>
-                  <textarea
-                    ref={textareaRef}
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    placeholder="Message AI Assistant..."
-                    className="flex-1 bg-transparent border-0 outline-none resize-none text-sm placeholder:text-muted-foreground/50 h-[22px] py-0.5 leading-normal"
-                    rows={1}
-                    disabled={isStreaming}
-                  />
-                  <div className="flex items-center gap-1.5 shrink-0">
+                  <div className="flex items-center gap-2">
                     <ModelSelector
                       variant="inline"
                       selectedModelOverride={modelOverride}
                       onModelOverrideChange={setModelOverride}
                     />
                     {isStreaming ? (
-                      <button
+                      <Button
+                        size="icon"
+                        variant="destructive"
                         onClick={stopStreaming}
-                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-colors shadow-xs"
+                        className="h-6 w-6 rounded-md transition-colors shadow-2xs cursor-pointer"
                       >
-                        <Square className="h-3.5 w-3.5" />
-                      </button>
+                        <Square className="h-3 w-3" />
+                      </Button>
                     ) : (
-                      <button
+                      <Button
+                        size="icon"
                         onClick={() => sendMessage(input)}
                         disabled={!input.trim()}
-                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-xs"
+                        className="h-6 w-6 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-2xs cursor-pointer"
                       >
-                        <Send className="h-3.5 w-3.5" />
-                      </button>
+                        <Send className="h-3 w-3" />
+                      </Button>
                     )}
                   </div>
                 </div>
-              )}
-              <p className="text-[11px] text-center text-muted-foreground/70 mt-2">
-                Gemini-style Assistant. AI can make mistakes. Check important info.
-              </p>
+              </Card>
             </div>
           </div>
         </>
