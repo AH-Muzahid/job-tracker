@@ -52,7 +52,7 @@ export default function CalendarPage() {
     for (let i = 1; i <= daysInMonth; i++) {
       const d = new Date(year, month, i)
       const dateStr = d.toISOString().split("T")[0]
-      const apps = applications.filter((a) => a.applicationDate.split("T")[0] === dateStr)
+      const apps = applications.filter((a) => a.applicationDate ? a.applicationDate.split("T")[0] === dateStr : false)
       days.push({ date: d, isCurrentMonth: true, apps })
     }
 
@@ -72,31 +72,41 @@ export default function CalendarPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 max-w-7xl mx-auto p-4 sm:p-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Calendar</h1>
-          <p className="text-sm text-muted-foreground">Track your application timeline</p>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">Application Calendar</h1>
+          <p className="text-sm text-muted-foreground">Timeline view of your job applications and key milestones</p>
         </div>
       </div>
 
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between mb-4">
-            <Button variant="ghost" size="icon" onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1))}>
+      <Card className="rounded-xl border border-border/80 bg-card shadow-xs">
+        <CardContent className="p-4 sm:p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <Button 
+              variant="outline" 
+              size="icon" 
+              onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1))}
+              className="h-8 w-8 rounded-lg cursor-pointer hover:bg-accent"
+            >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <h2 className="text-lg font-semibold">
+            <h2 className="text-base font-bold text-foreground">
               {MONTH_NAMES[currentDate.getMonth()]} {currentDate.getFullYear()}
             </h2>
-            <Button variant="ghost" size="icon" onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1))}>
+            <Button 
+              variant="outline" 
+              size="icon" 
+              onClick={() => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1))}
+              className="h-8 w-8 rounded-lg cursor-pointer hover:bg-accent"
+            >
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
 
-          <div className="grid grid-cols-7 gap-px bg-border rounded-lg overflow-hidden">
+          <div className="grid grid-cols-7 gap-px bg-border/60 rounded-xl overflow-hidden border border-border/80">
             {DAY_NAMES.map((day) => (
-              <div key={day} className="bg-muted/50 p-2 text-center text-xs font-medium text-muted-foreground">
+              <div key={day} className="bg-secondary/40 py-2.5 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                 {day}
               </div>
             ))}
@@ -106,21 +116,34 @@ export default function CalendarPage() {
               return (
                 <div
                   key={i}
-                  className={`bg-background p-1.5 min-h-[80px] sm:min-h-[100px] ${
-                    !day.isCurrentMonth ? "opacity-40" : ""
-                  } ${isToday ? "ring-2 ring-primary ring-inset" : ""}`}
+                  className={`bg-card p-2 min-h-[90px] sm:min-h-[110px] transition-colors flex flex-col justify-between ${
+                    !day.isCurrentMonth ? "opacity-35 bg-muted/20" : "hover:bg-accent/20"
+                  } ${isToday ? "ring-2 ring-primary/80 ring-inset bg-primary/5" : ""}`}
                 >
-                  <p className={`text-xs font-medium mb-1 ${isToday ? "text-primary" : "text-muted-foreground"}`}>
-                    {day.date.getDate()}
-                  </p>
-                  <div className="space-y-0.5">
+                  <div className="flex items-center justify-between">
+                    <span className={`text-xs font-bold ${isToday ? "text-primary flex h-5 w-5 items-center justify-center rounded-full bg-primary/10" : "text-muted-foreground"}`}>
+                      {day.date.getDate()}
+                    </span>
+                    {day.apps.length > 0 && (
+                      <span className="text-[10px] font-medium text-muted-foreground/70">
+                        {day.apps.length}
+                      </span>
+                    )}
+                  </div>
+                  <div className="space-y-1 mt-1">
                     {day.apps.slice(0, 2).map((app) => (
-                      <div key={app.id} className="rounded px-1 py-0.5 bg-primary/10 text-[9px] font-medium truncate text-primary">
+                      <div 
+                        key={app.id} 
+                        className="rounded-md px-1.5 py-0.5 bg-primary/10 text-[10px] font-medium truncate text-primary border border-primary/20 hover:bg-primary/20 transition-colors"
+                        title={`${app.companyName} — ${app.jobTitle}`}
+                      >
                         {app.companyName}
                       </div>
                     ))}
                     {day.apps.length > 2 && (
-                      <p className="text-[9px] text-muted-foreground text-center">+{day.apps.length - 2}</p>
+                      <p className="text-[10px] font-medium text-muted-foreground text-center">
+                        +{day.apps.length - 2} more
+                      </p>
                     )}
                   </div>
                 </div>
@@ -128,30 +151,39 @@ export default function CalendarPage() {
             })}
           </div>
 
-          <div className="mt-4 flex flex-wrap gap-4 text-xs text-muted-foreground">
-            <div className="flex items-center gap-1.5"><div className="h-2.5 w-2.5 rounded-sm bg-primary/10 ring-1 ring-primary" /> Today</div>
-            <div className="flex items-center gap-1.5"><div className="h-2.5 w-2.5 rounded-sm bg-primary/10" /> Application</div>
+          <div className="flex flex-wrap items-center gap-4 pt-2 text-xs text-muted-foreground border-t border-border/40">
+            <div className="flex items-center gap-1.5">
+              <div className="h-3 w-3 rounded-md bg-primary/20 border border-primary" /> 
+              <span>Today</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="h-3 w-3 rounded-md bg-primary/10 border border-primary/30" /> 
+              <span>Application Submitted</span>
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Upcoming */}
-      <Card>
-        <CardContent className="p-4">
-          <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-            <CalendarDays className="h-4 w-4 text-muted-foreground" />
+      {/* Recent Applications Feed */}
+      <Card className="rounded-xl border border-border/80 bg-card shadow-xs">
+        <CardContent className="p-4 sm:p-6 space-y-4">
+          <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+            <CalendarDays className="h-4 w-4 text-primary" />
             Recent Applications
           </h3>
           <div className="space-y-2">
             {applications.slice(0, 5).map((app) => (
-              <div key={app.id} className="flex items-center justify-between rounded-lg border px-3 py-2 hover:bg-muted/50 transition-colors">
-                <div>
-                  <p className="text-sm font-medium">{app.companyName}</p>
-                  <p className="text-xs text-muted-foreground">{app.jobTitle}</p>
+              <div 
+                key={app.id} 
+                className="flex items-center justify-between rounded-lg border border-border/60 bg-secondary/20 px-3.5 py-2.5 hover:bg-secondary/40 transition-colors"
+              >
+                <div className="min-w-0 pr-2">
+                  <p className="text-sm font-semibold text-foreground truncate">{app.companyName}</p>
+                  <p className="text-xs text-muted-foreground truncate">{app.jobTitle}</p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3 shrink-0">
                   <StatusBadge status={app.status} />
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-xs text-muted-foreground hidden sm:inline">
                     {new Date(app.applicationDate).toLocaleDateString()}
                   </span>
                 </div>

@@ -5,7 +5,9 @@ import { useUser } from "@clerk/nextjs"
 import { useRouter } from "next/navigation"
 import { Target, Plus, CheckCircle, Clock, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "sonner"
 
@@ -26,9 +28,9 @@ interface WeeklyGoal {
 
 const STATUS_CONFIG: Record<string, { color: string; icon: React.ReactNode }> = {
   NotStarted: { color: "text-muted-foreground", icon: <Clock className="h-3.5 w-3.5" /> },
-  InProgress: { color: "text-blue-600", icon: <AlertCircle className="h-3.5 w-3.5" /> },
-  Achieved: { color: "text-emerald-600", icon: <CheckCircle className="h-3.5 w-3.5" /> },
-  Missed: { color: "text-rose-600", icon: <AlertCircle className="h-3.5 w-3.5" /> },
+  InProgress: { color: "text-blue-500", icon: <AlertCircle className="h-3.5 w-3.5" /> },
+  Achieved: { color: "text-emerald-500", icon: <CheckCircle className="h-3.5 w-3.5" /> },
+  Missed: { color: "text-rose-500", icon: <AlertCircle className="h-3.5 w-3.5" /> },
 }
 
 export default function WeeklyGoalsPage() {
@@ -71,62 +73,80 @@ export default function WeeklyGoalsPage() {
     } catch { toast.error("Failed to create goals") }
   }
 
-  if (!isLoaded || loading) return <div className="space-y-4"><Skeleton className="h-8 w-48" /><Skeleton className="h-40 w-full" /></div>
+  if (!isLoaded || loading) return <div className="space-y-4 max-w-3xl"><Skeleton className="h-8 w-48 rounded-lg" /><Skeleton className="h-44 w-full rounded-xl" /></div>
 
   return (
-    <div className="space-y-6 max-w-3xl">
+    <div className="space-y-5 max-w-3xl pb-10">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Weekly Goals</h1>
-          <p className="text-sm text-muted-foreground">Track your weekly job search goals</p>
+          <h1 className="text-xl font-bold tracking-tight text-foreground font-sans">Weekly Goals</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">Track and manage your weekly job search milestones</p>
         </div>
-        <Button size="sm" onClick={createGoals}><Plus className="h-4 w-4 mr-1" /> Set Goals</Button>
+        <Button size="sm" onClick={createGoals} className="h-8 rounded-lg text-xs font-semibold">
+          <Plus className="h-3.5 w-3.5 mr-1" /> Set Goals
+        </Button>
       </div>
 
       {goals.length === 0 && (
-        <Card>
+        <Card className="rounded-xl border border-border/80 bg-card/60 backdrop-blur-xl">
           <CardContent className="p-12 text-center">
             <Target className="h-8 w-8 mx-auto mb-3 text-muted-foreground" />
-             <p className="text-sm text-muted-foreground">No weekly goals set. Click &ldquo;Set Goals&rdquo; to start.</p>
+            <p className="text-xs font-medium text-muted-foreground">No weekly targets configured. Click &ldquo;Set Goals&rdquo; to start tracking.</p>
           </CardContent>
         </Card>
       )}
 
       {goals.map((goal) => (
-        <Card key={goal.id}>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm flex items-center justify-between">
+        <Card key={goal.id} className="rounded-xl border border-border/80 bg-card/70 backdrop-blur-2xl shadow-xs hover:shadow-md transition-all">
+          <CardHeader className="pb-3 border-b border-border/50">
+            <CardTitle className="text-xs font-bold flex items-center justify-between">
               <span>Week of {new Date(goal.weekStart).toLocaleDateString()}</span>
+              <Badge variant="outline" className="text-[10px] font-mono border-border/60 bg-muted/30">
+                Weekly Target
+              </Badge>
             </CardTitle>
+            <CardDescription className="text-[11px] text-muted-foreground">
+              Key performance indicators for this week
+            </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex items-center gap-3">
-              <span className={STATUS_CONFIG[goal.goal1Status]?.color}>{STATUS_CONFIG[goal.goal1Status]?.icon}</span>
-              <div className="flex-1">
-                <p className="text-sm font-medium">{goal.goal1}</p>
+          <CardContent className="pt-4 space-y-3.5">
+            <div className="flex items-start gap-3">
+              <span className={`mt-0.5 ${STATUS_CONFIG[goal.goal1Status]?.color}`}>{STATUS_CONFIG[goal.goal1Status]?.icon}</span>
+              <div className="flex-1 space-y-1">
+                <p className="text-xs font-bold text-foreground">{goal.goal1}</p>
                 {goal.goal1Target && (
-                  <div className="flex items-center gap-2 mt-1">
-                    <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
-                      <div className="h-full rounded-full bg-primary" style={{ width: `${Math.min(100, ((goal.goal1Progress || 0) / goal.goal1Target) * 100)}%` }} />
-                    </div>
-                    <span className="text-xs text-muted-foreground">{goal.goal1Progress || 0}/{goal.goal1Target}</span>
+                  <div className="flex items-center gap-3 mt-1.5">
+                    <Progress
+                      value={Math.min(100, ((goal.goal1Progress || 0) / goal.goal1Target) * 100)}
+                      className="h-2 flex-1 bg-muted rounded-full"
+                    />
+                    <span className="text-[10px] font-mono font-bold text-muted-foreground shrink-0">
+                      {goal.goal1Progress || 0}/{goal.goal1Target}
+                    </span>
                   </div>
                 )}
               </div>
             </div>
+
             {goal.goal2 && (
-              <div className="flex items-center gap-3 pl-6">
+              <div className="flex items-center gap-3 pt-2 border-t border-border/40">
                 <span className={STATUS_CONFIG[goal.goal2Status]?.color}>{STATUS_CONFIG[goal.goal2Status]?.icon}</span>
-                <p className="text-sm text-muted-foreground">{goal.goal2}</p>
+                <p className="text-xs font-medium text-muted-foreground">{goal.goal2}</p>
               </div>
             )}
+
             {goal.goal3 && (
-              <div className="flex items-center gap-3 pl-6">
+              <div className="flex items-center gap-3 pt-2 border-t border-border/40">
                 <span className={STATUS_CONFIG[goal.goal3Status]?.color}>{STATUS_CONFIG[goal.goal3Status]?.icon}</span>
-                <p className="text-sm text-muted-foreground">{goal.goal3}</p>
+                <p className="text-xs font-medium text-muted-foreground">{goal.goal3}</p>
               </div>
             )}
-            {goal.blockers && <p className="text-xs text-muted-foreground">Blockers: {goal.blockers}</p>}
+
+            {goal.blockers && (
+              <div className="mt-2 p-2 rounded-lg bg-amber-500/5 border border-amber-500/20 text-[11px] text-amber-600 dark:text-amber-400">
+                <strong>Blockers:</strong> {goal.blockers}
+              </div>
+            )}
           </CardContent>
         </Card>
       ))}

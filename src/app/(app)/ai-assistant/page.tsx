@@ -3,8 +3,11 @@
 import { useState, useEffect, useCallback } from "react"
 import { useUser } from "@clerk/nextjs"
 import { useRouter } from "next/navigation"
-import { MessageSquare, Trash2, Settings, PanelLeftClose, PanelLeft } from "lucide-react"
+import { MessageSquare, Trash2, Settings, PanelLeftClose, PanelLeft, Plus, Bot } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 import AIChat from "@/components/ai/AIChat"
 
@@ -118,52 +121,71 @@ export default function AIAssistantPage() {
   return (
     <div className="flex h-[calc(100vh-3rem)] overflow-hidden">
       {/* Mobile session toggle */}
-      <button
-        className="md:hidden fixed bottom-4 right-4 z-50 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg"
+      <Button
+        size="icon"
+        className="md:hidden fixed bottom-4 right-4 z-50 h-12 w-12 rounded-full bg-primary text-primary-foreground shadow-lg cursor-pointer"
         onClick={() => setMobileSessionOpen(!mobileSessionOpen)}
       >
         <MessageSquare className="h-5 w-5" />
-      </button>
+      </Button>
 
       {/* Sessions sidebar */}
-      <div className={cn(
-        "flex flex-col shrink-0 border-r border-border/50 bg-background transition-all duration-300",
-        sidebarCollapsed ? "w-12" : "w-64",
-        "max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-40 max-md:bg-background max-md:shadow-xl max-md:transition-transform max-md:duration-200",
-        mobileSessionOpen ? "max-md:translate-x-0" : "max-md:-translate-x-full"
-      )}>
+      <aside
+        role="complementary"
+        aria-label="Chat History Sidebar"
+        className={cn(
+          "flex flex-col shrink-0 border-r border-border/50 bg-card/40 backdrop-blur-xl transition-all duration-300",
+          sidebarCollapsed ? "w-14" : "w-64",
+          "max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-40 max-md:bg-background max-md:shadow-xl max-md:transition-transform max-md:duration-200",
+          mobileSessionOpen ? "max-md:translate-x-0" : "max-md:-translate-x-full"
+        )}
+      >
         {/* Header */}
         <div className={cn(
           "flex items-center border-b border-border/50",
           sidebarCollapsed ? "flex-col gap-2 py-3 px-1" : "justify-between px-3 h-11"
         )}>
           {!sidebarCollapsed && (
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">History</span>
+            <span className="text-xs font-mono font-bold text-muted-foreground uppercase tracking-wider">History</span>
           )}
-          <div className={cn("flex", sidebarCollapsed ? "flex-col gap-1" : "items-center gap-0.5")}>
-            <button
-              onClick={() => { setActiveId(null); setMobileSessionOpen(false) }}
-              className={cn(
-                "flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors",
-                sidebarCollapsed ? "h-8 w-8" : "h-6 w-6"
-              )}
-              title="New chat"
-            >
-              <svg className={cn(sidebarCollapsed ? "h-4 w-4" : "h-3.5 w-3.5")} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>
-            </button>
-            <button
-              onClick={toggleSidebar}
-              className={cn(
-                "hidden md:flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors",
-                sidebarCollapsed ? "h-8 w-8" : "h-6 w-6"
-              )}
-              title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-            >
-              {sidebarCollapsed ? <PanelLeft className="h-4 w-4" /> : <PanelLeftClose className="h-3.5 w-3.5" />}
-            </button>
+          <div className={cn("flex", sidebarCollapsed ? "flex-col gap-1" : "items-center gap-1")}>
+            <Tooltip delayDuration={0}>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => { setActiveId(null); setMobileSessionOpen(false) }}
+                  className={cn(
+                    "rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors",
+                    sidebarCollapsed ? "h-8 w-8" : "h-7 w-7"
+                  )}
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="right">New chat</TooltipContent>
+            </Tooltip>
+
+            <Tooltip delayDuration={0}>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={toggleSidebar}
+                  className={cn(
+                    "hidden md:flex rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors",
+                    sidebarCollapsed ? "h-8 w-8" : "h-7 w-7"
+                  )}
+                >
+                  {sidebarCollapsed ? <PanelLeft className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="right">{sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}</TooltipContent>
+            </Tooltip>
           </div>
         </div>
-        <div className="flex-1 overflow-y-auto px-2 py-1 space-y-0.5">
+
+        <div className="flex-1 overflow-y-auto px-2 py-2 space-y-1">
           {visibleSessions.length === 0 && !sidebarCollapsed && (
             <p className="text-xs text-muted-foreground text-center py-8">No chats yet</p>
           )}
@@ -171,11 +193,11 @@ export default function AIAssistantPage() {
             <div
               key={session.id}
               className={cn(
-                "group flex items-center rounded-lg cursor-pointer transition-colors",
+                "group flex items-center rounded-lg cursor-pointer transition-all",
                 sidebarCollapsed ? "justify-center p-2" : "gap-2 px-2.5 py-2",
                 activeId === session.id
-                  ? "bg-primary/10 text-primary font-medium"
-                  : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                  ? "bg-primary/10 text-primary font-bold border border-primary/20"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
               )}
               onClick={() => { setActiveId(session.id); setMobileSessionOpen(false) }}
               title={sidebarCollapsed ? session.title : undefined}
@@ -183,54 +205,68 @@ export default function AIAssistantPage() {
               <MessageSquare className="h-3.5 w-3.5 shrink-0 opacity-70" />
               {!sidebarCollapsed && (
                 <>
-                  <span className="truncate flex-1 text-sm">{session.title}</span>
-                  <button
-                    className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity shrink-0"
+                  <span className="truncate flex-1 text-xs">{session.title}</span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive hover:bg-transparent transition-opacity shrink-0"
                     onClick={(e) => { e.stopPropagation(); deleteSession(session.id) }}
                   >
                     <Trash2 className="h-3 w-3" />
-                  </button>
+                  </Button>
                 </>
               )}
             </div>
           ))}
         </div>
-        <div className={cn("border-t border-border/50", sidebarCollapsed ? "p-2" : "p-2")}>
-          <button
+
+        <div className="border-t border-border/50 p-2">
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => router.push("/settings")}
             className={cn(
-              "flex items-center gap-2 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors",
-              sidebarCollapsed ? "justify-center w-full p-2" : "w-full px-2.5 py-1.5"
+              "flex items-center gap-2 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors cursor-pointer",
+              sidebarCollapsed ? "justify-center w-full p-2 h-8" : "w-full justify-start px-2.5 py-1.5 h-8"
             )}
-            title={sidebarCollapsed ? "Configure AI" : undefined}
           >
-            <Settings className="h-3.5 w-3.5" />
-            {!sidebarCollapsed && "Configure AI"}
-          </button>
+            <Settings className="h-3.5 w-3.5 shrink-0" />
+            {!sidebarCollapsed && <span>Configure AI</span>}
+          </Button>
         </div>
-      </div>
+      </aside>
 
       {/* Chat area */}
-      <div className="flex-1 flex flex-col min-w-0 relative overflow-hidden">
+      <main role="main" aria-label="AI Conversation Workspace" className="flex-1 flex flex-col min-w-0 relative overflow-hidden bg-background">
         {/* Top Header */}
-        <div className="h-11 border-b border-border/50 px-3 flex items-center justify-between bg-card/40 backdrop-blur-xs shrink-0">
+        <div className="h-11 border-b border-border/50 px-3 flex items-center justify-between bg-card/40 backdrop-blur-md shrink-0">
           <div className="flex items-center gap-2">
-            <button
+            <Button
+              variant="outline"
+              size="icon"
               onClick={() => setMobileSessionOpen(true)}
-              className="md:hidden flex h-8 w-8 items-center justify-center rounded-lg border border-border text-muted-foreground hover:text-foreground"
+              className="md:hidden h-7 w-7 rounded-lg border-border text-muted-foreground hover:text-foreground"
             >
               <MessageSquare className="h-4 w-4" />
-            </button>
-            <span className="text-xs font-medium text-foreground truncate max-w-[200px] sm:max-w-md">
-              {sessions.find((s) => s.id === activeId)?.title || "New Conversation"}
-            </span>
+            </Button>
+            <div className="flex items-center gap-2">
+              <div className="p-1 rounded-md bg-purple-500/10 text-purple-500 border border-purple-500/20">
+                <Bot className="h-3.5 w-3.5" />
+              </div>
+              <span className="text-xs font-bold text-foreground truncate max-w-[200px] sm:max-w-md">
+                {sessions.find((s) => s.id === activeId)?.title || "New Conversation"}
+              </span>
+            </div>
           </div>
+          <Badge variant="outline" className="text-[10px] font-mono border-border/60 bg-muted/40 px-2 py-0.5">
+            Active Chat
+          </Badge>
         </div>
 
         <div className="flex-1 overflow-hidden relative">
           <AIChat sessionId={activeId} onSessionCreated={handleSessionCreated} />
         </div>
-      </div>
+      </main>
 
       {/* Mobile overlay */}
       {mobileSessionOpen && (

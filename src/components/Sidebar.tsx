@@ -9,6 +9,7 @@ import {
   PanelLeftClose, PanelLeft,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { useUI } from "@/lib/store"
 import { useEffect } from "react"
@@ -43,25 +44,27 @@ export default function Sidebar() {
       <>
         <div className={cn("flex h-14 items-center border-b border-border/50 px-3 group/header", isCollapsed ? "justify-center" : "justify-between")}>
           <Link href="/dashboard" className="flex items-center gap-2.5" onClick={() => setMobileOpen(false)}>
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-sm transition-transform hover:scale-105">C</div>
-            {!isCollapsed && <span className="text-base font-bold tracking-tight">CareerTrack</span>}
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-sm transition-transform hover:scale-105 shadow-xs">C</div>
+            {!isCollapsed && <span className="text-sm font-bold tracking-tight text-foreground font-sans">CareerTrack</span>}
           </Link>
           <div className="hidden lg:block opacity-0 group-hover/header:opacity-100 transition-opacity">
             <Tooltip delayDuration={0}>
               <TooltipTrigger asChild>
-                <button
+                <Button
+                  variant="ghost"
+                  size="icon"
                   onClick={toggleCollapsed}
-                  className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all"
+                  className="h-7 w-7 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all"
                 >
                   {isCollapsed ? <PanelLeft className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
-                </button>
+                </Button>
               </TooltipTrigger>
-              {isCollapsed && <TooltipContent side="right" sideOffset={8}>Expand</TooltipContent>}
+              {isCollapsed && <TooltipContent side="right" sideOffset={8}>Expand Sidebar</TooltipContent>}
             </Tooltip>
           </div>
         </div>
 
-        <nav className="flex-1 space-y-1 px-2 py-3">
+        <nav aria-label="Main Navigation" className="flex-1 space-y-1 px-2 py-3">
           {navItems.map((item) => {
             const isActive = pathname.startsWith(item.href)
             const link = (
@@ -70,13 +73,15 @@ export default function Sidebar() {
                 href={item.href}
                 onClick={() => setMobileOpen(false)}
                 className={cn(
-                  "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium transition-all",
-                  isActive ? "text-foreground bg-muted" : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
+                  "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-semibold transition-all relative group",
+                  isActive
+                    ? "text-primary bg-primary/10 font-bold border border-primary/20"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
                   isCollapsed && "justify-center px-2"
                 )}
               >
-                <item.icon className="h-4 w-4 shrink-0" />
-                {!isCollapsed && item.label}
+                <item.icon className={cn("h-4 w-4 shrink-0 transition-colors", isActive ? "text-primary" : "text-muted-foreground group-hover:text-foreground")} />
+                {!isCollapsed && <span>{item.label}</span>}
               </Link>
             )
 
@@ -98,10 +103,14 @@ export default function Sidebar() {
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className={cn(
-        "hidden lg:flex flex-col border-r border-border/50 bg-background transition-all duration-300 shrink-0",
-        collapsed ? "w-16" : "w-56"
-      )}>
+      <aside
+        role="navigation"
+        aria-label="Desktop Main Sidebar"
+        className={cn(
+          "hidden lg:flex flex-col border-r border-border/50 bg-card/40 backdrop-blur-xl transition-all duration-300 shrink-0",
+          collapsed ? "w-16" : "w-56"
+        )}
+      >
         <div className="flex h-full flex-col">{renderNav(false)}</div>
       </aside>
 
@@ -113,7 +122,11 @@ export default function Sidebar() {
             style={{ backgroundColor: "rgba(0, 0, 0, 0.4)", backdropFilter: "blur(4px)" }}
             onClick={() => setMobileOpen(false)}
           />
-          <aside className="fixed inset-y-0 left-0 z-50 flex w-56 flex-col border-r border-border/50 bg-background shadow-xl lg:hidden animate-in slide-in-from-left duration-200">
+          <aside
+            role="navigation"
+            aria-label="Mobile Main Sidebar"
+            className="fixed inset-y-0 left-0 z-50 flex w-56 flex-col border-r border-border/50 bg-background shadow-xl lg:hidden animate-in slide-in-from-left duration-200"
+          >
             {renderNav(true)}
           </aside>
         </>

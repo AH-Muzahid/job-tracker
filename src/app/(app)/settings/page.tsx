@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { AccountInfoCard } from "@/components/settings/AccountInfoCard"
 import { PreferencesCard } from "@/components/settings/PreferencesCard"
 import { DataManagementCard } from "@/components/settings/DataManagementCard"
+import { GoogleSheetsIntegrationCard } from "@/components/settings/GoogleSheetsIntegrationCard"
 import { AIConfigCard } from "@/components/settings/AIConfigCard"
 import { AIMemoryManager } from "@/components/settings/AIMemoryManager"
 
@@ -51,6 +52,9 @@ export default function SettingsPage() {
 
       {/* CSV Data Export */}
       <DataManagementCard />
+
+      {/* Google Sheets Real-time Auto-Sync */}
+      <GoogleSheetsIntegrationCard />
 
       {/* Multi-Profile AI Keys Management */}
       <AIConfigCard />
