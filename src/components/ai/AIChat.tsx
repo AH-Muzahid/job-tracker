@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect, useCallback } from "react"
-import { Send, Square, FileText, Briefcase, Target, MessageSquare, ArrowDown, Plus, Sparkles, RotateCcw } from "lucide-react"
+import { Send, Square, FileText, Briefcase, Target, MessageSquare, ArrowDown, Plus, Bot, RotateCcw } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -63,17 +63,33 @@ const STARTER_PROMPTS = [
 
 function MessagesSkeleton() {
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8 space-y-8">
-      {Array.from({ length: 3 }).map((_, i) => (
-        <div key={i} className="flex gap-4">
-          <Skeleton className="h-8 w-8 rounded-lg shrink-0" />
-          <div className="flex-1 space-y-3">
-            <Skeleton className="h-3 w-16" />
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-3/4" />
-          </div>
+    <div className="w-full space-y-6 py-2">
+      {/* Assistant message skeleton */}
+      <div className="flex gap-3 w-full justify-start items-start">
+        <Skeleton className="h-6 w-6 rounded-md shrink-0 mt-0.5" />
+        <div className="flex-1 max-w-[85%] space-y-2.5">
+          <Skeleton className="h-3.5 w-1/4 rounded" />
+          <Skeleton className="h-3.5 w-full rounded" />
+          <Skeleton className="h-3.5 w-4/5 rounded" />
         </div>
-      ))}
+      </div>
+      {/* User message skeleton */}
+      <div className="flex gap-3 w-full justify-end">
+        <div className="w-full max-w-[65%] rounded-xl bg-muted/40 border border-border/40 p-3 space-y-2">
+          <Skeleton className="h-3 w-3/4 rounded bg-muted-foreground/15 ml-auto" />
+          <Skeleton className="h-3 w-1/2 rounded bg-muted-foreground/15 ml-auto" />
+        </div>
+      </div>
+      {/* Assistant response skeleton */}
+      <div className="flex gap-3 w-full justify-start items-start">
+        <Skeleton className="h-6 w-6 rounded-md shrink-0 mt-0.5" />
+        <div className="flex-1 max-w-[90%] space-y-2.5">
+          <Skeleton className="h-3.5 w-full rounded" />
+          <Skeleton className="h-3.5 w-5/6 rounded" />
+          <Skeleton className="h-3.5 w-3/4 rounded" />
+          <Skeleton className="h-3.5 w-2/5 rounded" />
+        </div>
+      </div>
     </div>
   )
 }
@@ -264,18 +280,16 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
         const updateDisplayedText = () => {
           if (displayedLength < rawBuffer.length) {
             const diff = rawBuffer.length - displayedLength
-            // Adaptive speed: smooth 1-3 chars/word pacing when close, accelerates smoothly if network buffered a large chunk
-            let step = 1
+            // Fast first token rendering + smooth adaptive ticker
+            let step = displayedLength === 0 ? Math.min(diff, 6) : 1
             if (diff > 200) {
-              step = Math.ceil(diff / 8)
-            } else if (diff > 80) {
               step = Math.ceil(diff / 6)
+            } else if (diff > 80) {
+              step = Math.ceil(diff / 4)
             } else if (diff > 30) {
-              step = 3
+              step = 4
             } else if (diff > 10) {
               step = 2
-            } else {
-              step = 1
             }
 
             displayedLength = Math.min(rawBuffer.length, displayedLength + step)
@@ -382,7 +396,7 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
             {/* Clean Minimal Header */}
             <div className="text-center space-y-2">
               <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-muted text-[11px] font-medium text-muted-foreground border border-border">
-                <Sparkles className="h-3 w-3 text-primary" />
+                <Bot className="h-3 w-3 text-purple-500" />
                 <span>Career AI Assistant</span>
               </div>
               <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground">
@@ -473,7 +487,7 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
       ) : (
         <>
           <div className="flex-1 overflow-y-auto" ref={containerRef} onScroll={handleScroll}>
-            <div className="max-w-3xl mx-auto flex flex-col gap-5 p-4 sm:p-6">
+            <div className="w-full max-w-3xl mx-auto flex flex-col gap-5 p-4 sm:p-6">
               {loading ? (
                 <MessagesSkeleton />
               ) : (

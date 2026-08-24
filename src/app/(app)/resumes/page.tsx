@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react"
 import { useUser } from "@clerk/nextjs"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { FileText, Star, Trash2, Upload, Eye, Sparkles } from "lucide-react"
+import { FileText, Star, Trash2, Upload, Eye, Bot } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -75,7 +75,10 @@ export default function ResumesPage() {
   }, [blobUrl])
 
   function fetchResumes() {
-    fetch("/api/resumes").then((r) => r.json()).then(setResumes).finally(() => setLoading(false))
+    fetch("/api/resumes")
+      .then((r) => r.json())
+      .then((data) => setResumes(Array.isArray(data) ? data : (data && Array.isArray(data.data) ? data.data : [])))
+      .finally(() => setLoading(false))
   }
 
   useEffect(() => {
@@ -159,62 +162,62 @@ export default function ResumesPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-10">
+    <div className="space-y-6 max-w-7xl mx-auto pb-10 w-full min-w-0 max-w-full overflow-x-hidden">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">Resume Hub</h1>
-          <p className="text-sm text-muted-foreground">{resumes.length} resumes uploaded & indexed in Career Knowledge Graph</p>
+          <p className="text-sm font-medium text-muted-foreground mt-0.5">{resumes.length} resumes uploaded & indexed in Career Knowledge Graph</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button 
             onClick={() => setTailorOpen(true)} 
-            className="rounded-lg text-xs shadow-xs cursor-pointer bg-primary text-primary-foreground hover:bg-primary/90"
+            className="h-9 px-4 rounded-md text-sm font-semibold shadow-xs cursor-pointer gap-2"
           >
-            <Sparkles className="h-4 w-4 mr-1.5" /> Tailor for a Job
+            <Bot className="h-4 w-4" /> Tailor for a Job
           </Button>
           <Button 
             variant="outline" 
             onClick={() => setAddOpen(true)} 
-            className="rounded-lg text-xs cursor-pointer"
+            className="h-9 px-4 rounded-md text-sm font-medium cursor-pointer gap-2"
           >
-            <Upload className="h-4 w-4 mr-1.5" /> Upload Resume
+            <Upload className="h-4 w-4" /> Upload Resume
           </Button>
         </div>
       </div>
 
       {resumes.length === 0 ? (
-        <Card className="p-12 text-center border-dashed">
-          <FileText className="mx-auto mb-3 h-10 w-10 text-muted-foreground/30" />
-          <p className="text-sm text-muted-foreground">No resumes yet</p>
-          <p className="text-xs text-muted-foreground/70 mt-1">Add your resume to track versions</p>
-        </Card>
+        <div className="rounded-md border border-dashed border-border bg-card p-12 text-center space-y-2">
+          <FileText className="mx-auto h-10 w-10 text-muted-foreground/40" />
+          <p className="text-sm font-semibold text-foreground">No resumes uploaded yet</p>
+          <p className="text-xs text-muted-foreground max-w-sm mx-auto">Upload your master resume to track tailored versions and match job applications.</p>
+        </div>
       ) : (
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2">
           {resumes.map((resume) => (
-            <Card 
+            <div 
               key={resume.id} 
-              className="group p-4 hover:shadow-sm transition-shadow cursor-pointer" 
+              className="group p-4 rounded-md border border-border bg-card/60 hover:bg-card hover:border-foreground/30 transition-all duration-150 cursor-pointer shadow-none space-y-3" 
               onClick={() => openPreview(resume.id, resume.title)}
             >
-              <div className="flex items-start justify-between">
+              <div className="flex items-start justify-between gap-3">
                 <div className="flex items-start gap-3 min-w-0">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                    <FileText className="h-5 w-5" />
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-muted/60 text-foreground border border-border">
+                    <FileText className="h-4.5 w-4.5" />
                   </div>
                   <div className="min-w-0">
-                    <p className="font-medium truncate hover:underline">{resume.title}</p>
-                    <p className="text-xs text-muted-foreground truncate">{resume.fileName}</p>
-                    <div className="flex items-center gap-2 mt-1.5">
-                      <span className="text-[10px] text-muted-foreground">{formatSize(resume.fileSize)}</span>
+                    <p className="font-semibold text-sm text-foreground truncate hover:underline">{resume.title}</p>
+                    <p className="text-xs text-muted-foreground truncate mt-0.5">{resume.fileName}</p>
+                    <div className="flex items-center gap-2 mt-1.5 font-mono">
+                      <span className="text-xs text-muted-foreground">{formatSize(resume.fileSize)}</span>
                       {resume.isDefault && (
-                        <Badge className="text-[10px] px-1.5 py-0">
-                          <Star className="h-2.5 w-2.5 mr-0.5" /> Default
+                        <Badge variant="outline" className="text-xs px-2 py-0 rounded-md border-border bg-muted/30">
+                          <Star className="h-3 w-3 mr-1 text-amber-400 fill-amber-400" /> Default
                         </Badge>
                       )}
                     </div>
                   </div>
                 </div>
-                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all" onClick={(e) => e.stopPropagation()}>
+                <div className="flex gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-all" onClick={(e) => e.stopPropagation()}>
                   <Button 
                     variant="ghost" 
                     size="sm" 
@@ -233,7 +236,7 @@ export default function ResumesPage() {
                   </Button>
                 </div>
               </div>
-            </Card>
+            </div>
           ))}
         </div>
       )}

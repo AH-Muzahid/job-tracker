@@ -40,20 +40,20 @@ export default function FilterBar({
   const hasFilters = search || status || source || sort !== "newest"
 
   return (
-    <div className="flex flex-wrap items-center gap-3 text-sm">
-      <div className="relative">
+    <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 text-sm w-full md:w-auto">
+      <div className="relative w-full sm:w-52 md:w-64">
         <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
         <input
           type="text"
-          placeholder="Search company, position, tag..."
+          placeholder="Search company, title, tag..."
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
-          className="h-9 rounded-xl border border-border/80 bg-card/60 backdrop-blur-md pl-8 pr-8 text-xs outline-none focus:border-primary/80 focus:ring-1 focus:ring-primary/30 w-56 transition-all"
+          className="h-8 rounded-md border border-border bg-background pl-8 pr-8 text-xs outline-none focus:border-foreground/30 w-full transition-all"
         />
         {search && (
           <button
             onClick={() => onSearchChange("")}
-            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5 rounded-md hover:bg-muted transition-colors"
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5 rounded-md hover:bg-muted transition-colors cursor-pointer"
           >
             <X className="h-3 w-3" />
           </button>
@@ -84,15 +84,15 @@ export default function FilterBar({
       {hasFilters && (
         <button
           onClick={onClearAll}
-          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+          className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors cursor-pointer"
         >
           <X className="h-3 w-3" />
-          Clear filters
+          Clear
         </button>
       )}
 
-      <div className="ml-auto text-xs font-mono text-muted-foreground bg-card/40 border border-border/60 px-2.5 py-1 rounded-lg">
-        {hasFilters ? `${filteredCount} of ${total} jobs` : `${total} jobs`}
+      <div className="ml-auto text-xs font-mono text-muted-foreground border border-border bg-card/60 px-2.5 py-1 rounded-md">
+        {hasFilters ? `${filteredCount} of ${total}` : `${total} total`}
       </div>
     </div>
   )
@@ -129,27 +129,27 @@ function Dropdown({
       <button
         onClick={() => setOpen(!open)}
         className={cn(
-          "inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition-colors",
+          "inline-flex h-8 items-center gap-1.5 rounded-md border border-border px-2.5 text-xs font-medium transition-colors cursor-pointer",
           value
-            ? "border-primary/30 bg-primary/5 text-foreground"
-            : "bg-muted/50 text-muted-foreground hover:text-foreground"
+            ? "border-foreground/20 bg-muted/60 text-foreground"
+            : "bg-background text-muted-foreground hover:text-foreground hover:bg-muted/40"
         )}
       >
-        <Filter className="h-3 w-3" />
+        <Filter className="h-3 w-3 text-muted-foreground" />
         {selectedLabel || label}
-        <ChevronDown className="h-3 w-3" />
+        <ChevronDown className="h-3 w-3 opacity-60" />
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full z-50 mt-1 w-40 rounded-lg border bg-popover p-1 shadow-md">
+        <div className="absolute left-0 top-full z-50 mt-1 w-44 rounded-md border border-border bg-popover p-1 shadow-lg backdrop-blur-xl">
           <button
             onClick={() => {
               onChange("")
               setOpen(false)
             }}
             className={cn(
-              "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs hover:bg-accent",
-              !value && "bg-accent"
+              "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-xs hover:bg-accent cursor-pointer",
+              !value && "bg-accent font-medium text-foreground"
             )}
           >
             <span className="w-3.5" />
@@ -163,13 +163,13 @@ function Dropdown({
                 setOpen(false)
               }}
               className={cn(
-                "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs hover:bg-accent",
-                value === option.value && "bg-accent"
+                "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-xs hover:bg-accent cursor-pointer",
+                value === option.value && "bg-accent font-medium text-foreground"
               )}
             >
               <Check
                 className={cn(
-                  "h-3.5 w-3.5",
+                  "h-3.5 w-3.5 text-primary",
                   value === option.value ? "opacity-100" : "opacity-0"
                 )}
               />

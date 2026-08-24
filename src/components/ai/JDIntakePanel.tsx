@@ -2,9 +2,10 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Bot, Sparkles, ChevronDown, ChevronUp, AlertCircle } from "lucide-react"
+import { Bot, ChevronDown, ChevronUp, AlertCircle, Zap } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
@@ -222,9 +223,9 @@ export function JDIntakePanel() {
         <CardHeader className="pb-3 border-b border-border bg-secondary/15">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
-              <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary mb-1">
-                <Sparkles className="h-2.5 w-2.5" /> AI Analysis Ready
-              </span>
+              <Badge variant="outline" className="text-[10px] gap-1 px-1.5 py-0 border-primary/30 text-primary bg-primary/5">
+                <Bot className="h-2.5 w-2.5" /> AI Analysis Ready
+              </Badge>
               <h3 className="text-sm font-bold text-foreground truncate">{roleSnapshot.role || "Target Role"}</h3>
               <p className="text-xs text-muted-foreground truncate">{roleSnapshot.company || "Unknown Company"}</p>
             </div>
@@ -371,7 +372,7 @@ export function JDIntakePanel() {
             <CardTitle className="text-sm font-semibold tracking-wide flex items-center gap-1.5 text-foreground">
               Smart Intake & Fit Analysis
               <span className="inline-flex items-center gap-0.5 rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
-                <Sparkles className="h-2.5 w-2.5" /> AI
+                <Bot className="h-2.5 w-2.5" /> AI
               </span>
             </CardTitle>
             <CardDescription className="text-xs text-muted-foreground">
@@ -487,7 +488,7 @@ export function JDIntakePanel() {
               disabled={loading}
               className="flex-1 text-xs h-9 bg-primary text-primary-foreground hover:bg-primary/95 font-semibold transition-all duration-200 flex items-center justify-center gap-1.5 shadow-md cursor-pointer"
             >
-              <Sparkles className="h-3.5 w-3.5" />
+              <Zap className="h-3.5 w-3.5" />
               {loading ? "Intaking & Analyzing..." : "Intake & Analyze Job"}
             </Button>
           </div>

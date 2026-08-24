@@ -1,7 +1,7 @@
 "use client"
 
 import { Card, CardContent } from "@/components/ui/card"
-import { Sparkles, TrendingUp } from "lucide-react"
+import { Bot, TrendingUp } from "lucide-react"
 
 interface WeeklyGoal {
   id: string
@@ -78,7 +78,7 @@ export default function WeeklyReviewCard({ goal }: Props) {
         {goal.weekReview && (
           <div className="rounded-lg bg-muted p-3">
             <div className="flex items-center gap-1.5 mb-1">
-              <Sparkles className="h-3 w-3 text-primary" />
+              <Bot className="h-3.5 w-3.5 text-primary" />
               <span className="text-xs font-medium">AI Review</span>
             </div>
             <p className="text-xs text-muted-foreground">

@@ -17,7 +17,7 @@ import {
   Trash2,
   Briefcase,
   Brain,
-  Sparkles,
+  Bot,
 } from "lucide-react";
 import GlideMenu from "@/components/primitives/GlideMenu";
 import { useClerk } from "@clerk/nextjs";
@@ -52,7 +52,7 @@ export function IconPlusMedium({ size = 16, className = "" }: { size?: number; c
   return <Plus size={size} className={className} />;
 }
 export function IconPopsicle2({ size = 18, className = "" }: { size?: number; className?: string }) {
-  return <Sparkles size={size} className={className} />;
+  return <Bot size={size} className={className} />;
 }
 export function IconSettingsGear1({ size = 16, className = "" }: { size?: number; className?: string }) {
   return <Settings size={size} className={className} />;
@@ -538,7 +538,7 @@ export default function SidebarNav({
 
           <GlideGroup>
             {visibleRecents.map((item) => {
-              const active = (activeId && item.id === activeId) || item.label === selectedTitle;
+              const active = activeId ? item.id === activeId : selectedTitle ? item.label === selectedTitle : false;
               return (
                 <div
                   key={item.id}
@@ -594,7 +594,7 @@ export default function SidebarNav({
             type="button"
             title={footerLabel}
             onClick={onFooterClick ?? onNewChat}
-            className="flex h-8 w-full items-center rounded-control bg-hover-2 text-[12.5px] font-medium text-ink transition-[background-color,transform] duration-150 hover:bg-line-strong active:scale-[0.98] cursor-pointer px-2"
+            className="sidebar-footer-btn flex h-8 w-full items-center rounded-control bg-hover-2 text-[12.5px] font-medium text-ink transition-[background-color,transform] duration-150 hover:bg-line-strong active:scale-[0.98] cursor-pointer px-2"
           >
             <span className="flex size-5 shrink-0 items-center justify-center text-ink-2">
               {footerIcon}

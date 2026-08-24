@@ -1,5 +1,5 @@
 import type { Metadata } from "next"
-import { Geist, Geist_Mono } from "next/font/google"
+import { Plus_Jakarta_Sans, Geist_Mono } from "next/font/google"
 import { ClerkProvider } from "@clerk/nextjs"
 import { shadcn } from "@clerk/ui/themes"
 import { Toaster } from "sonner"
@@ -9,14 +9,17 @@ import Providers from "@/components/Providers"
 import { Analytics } from "@vercel/analytics/next"
 import "./globals.css"
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const plusJakartaSans = Plus_Jakarta_Sans({
+  variable: "--font-sans",
   subsets: ["latin"],
+  display: "swap",
+  weight: ["400", "500", "600", "700", "800"],
 })
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+  display: "swap",
 })
 
 export const metadata: Metadata = {
@@ -33,7 +36,7 @@ export default function RootLayout({
     <ClerkProvider appearance={{ theme: shadcn }}>
       <html lang="en" suppressHydrationWarning className="dark overflow-x-hidden">
         <body
-          className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+          className={`${plusJakartaSans.variable} ${geistMono.variable} font-sans antialiased`}
         >
           <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
             <Providers>

@@ -50,14 +50,15 @@ export async function POST(request: NextRequest) {
     return new Response(JSON.stringify({ error: "AI provider not configured. Go to Settings to set up your API key." }), { status: 400 })
   }
 
-  let body: { message?: string; sessionId?: string; mode?: string; model?: string }
+  let body: { message?: string; sessionId?: string; mode?: string; model?: string; modelOverride?: string }
   try {
     body = await request.json()
   } catch {
     return new Response(JSON.stringify({ error: "Invalid JSON body" }), { status: 400 })
   }
 
-  const { message, sessionId: existingSessionId, mode: forcedMode, model: modelOverride } = body
+  const { message, sessionId: existingSessionId, mode: forcedMode, model: modelParam, modelOverride: modelOverrideParam } = body
+  const modelOverride = modelOverrideParam || modelParam
 
   if (!message || typeof message !== "string") {
     return new Response(JSON.stringify({ error: "Message is required" }), { status: 400 })

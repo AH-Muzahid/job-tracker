@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback, useMemo } from "react"
 import Link from "next/link"
 import {
-  Sparkles,
   Cpu,
   Bot,
   Zap,
@@ -289,7 +288,7 @@ export default function ModelSelector({
   if (loading) {
     return (
       <div className={cn("inline-flex items-center gap-1.5 px-2 py-1 text-xs text-muted-foreground animate-pulse", className)}>
-        <Sparkles className="h-3 w-3" />
+        <Bot className="h-3 w-3" />
         <span className="text-[11px]">Loading...</span>
       </div>
     )
@@ -432,7 +431,7 @@ export default function ModelSelector({
                   )}
                 >
                   <div className="flex items-center gap-2 overflow-hidden">
-                    <Sparkles className={cn("h-3.5 w-3.5 shrink-0", isSelected ? "text-primary" : "text-muted-foreground")} />
+                    <Cpu className={cn("h-3.5 w-3.5 shrink-0", isSelected ? "text-primary" : "text-muted-foreground")} />
                     <div className="overflow-hidden">
                       <p className="font-mono text-xs truncate text-foreground">
                         {m.id}

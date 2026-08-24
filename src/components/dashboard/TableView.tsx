@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { ExternalLink, CheckSquare, Trash2, ArrowRightLeft } from "lucide-react"
+import { ExternalLink, CheckSquare, Trash2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import StatusBadge from "@/components/StatusBadge"
@@ -101,25 +101,26 @@ export default function TableView({ applications, onSelect, onBulkSuccess }: Pro
   }
 
   return (
-    <div className="relative space-y-4">
+    <div className="relative space-y-4">      {/* Bulk Action Bar (if items selected) */}
       {selectedIds.length > 0 && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-primary/5 p-3 text-xs font-medium animate-in fade-in-50">
+        <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 bg-muted/40 border border-border rounded-md">
           <div className="flex items-center gap-2">
-            <CheckSquare className="h-4 w-4 text-primary" />
-            <span>{selectedIds.length} item(s) selected</span>
+            <CheckSquare className="h-4 w-4 text-foreground" />
+            <span className="text-sm font-semibold text-foreground">
+              {selectedIds.length} item(s) selected
+            </span>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <div className="flex items-center gap-1.5">
-              <ArrowRightLeft className="h-3.5 w-3.5 text-muted-foreground" />
               <select
                 value={targetStatus}
                 onChange={(e) => setTargetStatus(e.target.value)}
-                className="h-8 rounded-md border bg-background px-2 text-xs font-normal"
+                className="h-8 rounded-md border border-border bg-background px-2.5 text-xs text-foreground outline-none"
               >
-                {ALL_STATUSES.map((st) => (
-                  <option key={st} value={st}>
-                    Move to {st}
+                {ALL_STATUSES.map((status) => (
+                  <option key={status} value={status}>
+                    {status}
                   </option>
                 ))}
               </select>
@@ -128,7 +129,7 @@ export default function TableView({ applications, onSelect, onBulkSuccess }: Pro
                 variant="outline"
                 onClick={handleBulkStatusChange}
                 disabled={isSubmitting}
-                className="h-8 text-xs"
+                className="h-8 text-xs font-medium rounded-md cursor-pointer"
               >
                 Apply Status
               </Button>
@@ -139,7 +140,7 @@ export default function TableView({ applications, onSelect, onBulkSuccess }: Pro
               variant="destructive"
               onClick={handleBulkDelete}
               disabled={isSubmitting}
-              className="h-8 text-xs gap-1"
+              className="h-8 text-xs gap-1.5 rounded-md font-medium cursor-pointer"
             >
               <Trash2 className="h-3.5 w-3.5" />
               Delete Selected
@@ -148,39 +149,40 @@ export default function TableView({ applications, onSelect, onBulkSuccess }: Pro
         </div>
       )}
 
-      <div className="rounded-xl border overflow-hidden">
-        <div className="overflow-x-auto">
+      {/* Table Container */}
+      <div className="relative border border-border bg-background overflow-hidden">
+        <div className="overflow-x-auto min-w-full">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b bg-muted/50">
+              <tr className="border-b border-border bg-muted/20">
                 <th className="px-4 py-3 w-10 text-center">
                   <input
                     type="checkbox"
                     checked={allSelected}
                     onChange={toggleSelectAll}
-                    className="h-4 w-4 rounded border-gray-300 accent-primary cursor-pointer"
+                    className="h-3.5 w-3.5 rounded-sm border-border bg-background accent-primary cursor-pointer"
                   />
                 </th>
-                <th className="px-4 py-3 text-left font-medium text-xs uppercase tracking-wider text-muted-foreground">Company</th>
-                <th className="px-4 py-3 text-left font-medium text-xs uppercase tracking-wider text-muted-foreground">Job Title</th>
-                <th className="px-4 py-3 text-left font-medium text-xs uppercase tracking-wider text-muted-foreground hidden md:table-cell">Tags</th>
-                <th className="px-4 py-3 text-left font-medium text-xs uppercase tracking-wider text-muted-foreground hidden lg:table-cell">Source</th>
-                <th className="px-4 py-3 text-left font-medium text-xs uppercase tracking-wider text-muted-foreground">Date</th>
-                <th className="px-4 py-3 text-left font-medium text-xs uppercase tracking-wider text-muted-foreground">Status</th>
-                <th className="px-4 py-3 text-left font-medium text-xs uppercase tracking-wider text-muted-foreground"></th>
+                <th className="px-4 py-3 text-left font-semibold text-xs uppercase tracking-wider text-muted-foreground">Company</th>
+                <th className="px-4 py-3 text-left font-semibold text-xs uppercase tracking-wider text-muted-foreground">Job Title</th>
+                <th className="px-4 py-3 text-left font-semibold text-xs uppercase tracking-wider text-muted-foreground hidden md:table-cell">Tags</th>
+                <th className="px-4 py-3 text-left font-semibold text-xs uppercase tracking-wider text-muted-foreground hidden lg:table-cell">Source</th>
+                <th className="px-4 py-3 text-left font-semibold text-xs uppercase tracking-wider text-muted-foreground">Date</th>
+                <th className="px-4 py-3 text-left font-semibold text-xs uppercase tracking-wider text-muted-foreground">Status</th>
+                <th className="px-4 py-3 text-left font-semibold text-xs uppercase tracking-wider text-muted-foreground"></th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-border">
               {applications.map((application) => {
                 const initials = getInitials(application.companyName)
-                const colorClass = getCompanyColor(application.companyName)
+                const colorClass = getCompanyColor()
                 const isSelected = selectedIds.includes(application.id)
 
                 return (
                   <tr
                     key={application.id}
-                    className={`cursor-pointer border-b last:border-0 transition-colors hover:bg-muted/50 ${
-                      isSelected ? "bg-primary/5" : ""
+                    className={`cursor-pointer transition-colors hover:bg-muted/30 ${
+                      isSelected ? "bg-muted/40" : ""
                     }`}
                     onClick={() => onSelect(application.id)}
                   >
@@ -189,32 +191,32 @@ export default function TableView({ applications, onSelect, onBulkSuccess }: Pro
                         type="checkbox"
                         checked={isSelected}
                         onChange={() => {}}
-                        className="h-4 w-4 rounded border-gray-300 accent-primary cursor-pointer"
+                        className="h-3.5 w-3.5 rounded-sm border-border bg-background accent-primary cursor-pointer"
                       />
                     </td>
                     <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold text-white ${colorClass}`}>
+                      <div className="flex items-center gap-2.5">
+                        <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[11px] font-mono font-bold border ${colorClass}`}>
                           {initials}
                         </div>
-                        <span className="font-medium">{application.companyName}</span>
+                        <span className="font-semibold text-sm text-foreground">{application.companyName}</span>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-muted-foreground">{application.jobTitle}</td>
+                    <td className="px-4 py-3 text-foreground/90 font-medium text-sm">{application.jobTitle}</td>
                     <td className="px-4 py-3 hidden md:table-cell">
                       <div className="flex flex-wrap gap-1">
                         {application.tags.slice(0, 2).map(({ tag }) => (
-                          <Badge key={tag.id} variant="outline" className="text-[10px] px-1.5 py-0">
+                          <Badge key={tag.id} variant="outline" className="text-[11px] font-mono px-2 py-0.5 border-border">
                             {tag.name}
                           </Badge>
                         ))}
                       </div>
                     </td>
                     <td className="px-4 py-3 hidden lg:table-cell">
-                      <Badge variant="secondary">{application.source}</Badge>
+                      <Badge variant="secondary" className="text-xs font-mono">{application.source}</Badge>
                     </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {new Date(application.applicationDate).toLocaleDateString()}
+                    <td className="px-4 py-3 text-muted-foreground font-mono text-xs whitespace-nowrap">
+                      {new Date(application.applicationDate).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
                     </td>
                     <td className="px-4 py-3">
                       <StatusBadge status={application.status} />
@@ -222,7 +224,7 @@ export default function TableView({ applications, onSelect, onBulkSuccess }: Pro
                     <td className="px-4 py-3">
                       {application.jobUrl && (
                         <span
-                          className="text-muted-foreground hover:text-foreground"
+                          className="text-muted-foreground hover:text-foreground p-1.5 rounded-md hover:bg-muted transition-colors cursor-pointer inline-flex items-center justify-center"
                           onClick={(e) => {
                             e.stopPropagation()
                             window.open(application.jobUrl!, "_blank")

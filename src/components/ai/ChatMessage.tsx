@@ -5,7 +5,7 @@ import Link from "next/link"
 import { cn } from "@/lib/utils"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
-import { Sparkles, ChevronDown, ChevronUp, Copy, Check, ArrowUpRight } from "lucide-react"
+import { Bot, ChevronDown, ChevronUp, Copy, Check, ArrowUpRight } from "lucide-react"
 import { toast } from "sonner"
 import AnalysisResult from "./AnalysisResult"
 import OutreachResult from "./OutreachResult"
@@ -61,7 +61,7 @@ function getContextualSuggestions(content: string): Suggestion[] {
     })
   } else if (lower.includes("resume") || lower.includes("ats")) {
     list.push({
-      icon: "✨",
+      icon: "📄",
       label: "Optimize Resume Points",
       prompt: "Rewrite my project bullet points with quantifiable impact metrics for better ATS ranking.",
     })
@@ -86,16 +86,70 @@ function getContextualSuggestions(content: string): Suggestion[] {
   return list.slice(0, 3)
 }
 
+// Dedicated memoized FollowUps component to eliminate re-renders and animation resets
+const FollowUpsList = React.memo(function FollowUpsList({
+  items,
+  onPick,
+}: {
+  items: Array<{ label?: string; prompt?: string } | string>
+  onPick?: (prompt: string) => void
+}) {
+  if (!items || items.length === 0) return null
+
+  return (
+    <div className="mt-2.5 not-prose">
+      <p className="text-[12px] font-medium text-ink-2">Follow-ups</p>
+      <div className="mt-0.5 flex flex-col">
+        {items.map((s, i) => {
+          const text = typeof s === "string" ? s : s.label || s.prompt || ""
+          const promptToSend = typeof s === "string" ? s : s.prompt || s.label || ""
+          return (
+            <button
+              key={text || i}
+              type="button"
+              onClick={() => onPick?.(promptToSend)}
+              className="-mx-1.5 flex items-center gap-2 rounded-[7px] border-b border-line px-1.5 py-1.5 text-left text-[12.5px] text-ink transition-colors duration-100 hover:bg-hover-2 cursor-pointer"
+              style={{ animation: `fade-up 350ms cubic-bezier(0.23,1,0.32,1) ${i * 90}ms both` }}
+            >
+              <svg
+                width="11"
+                height="11"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="shrink-0 text-ink-3"
+              >
+                <path d="M9 10l-5 5 5 5" />
+                <path d="M20 4v7a4 4 0 0 1-4 4H4" />
+              </svg>
+              <span>{text}</span>
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+})
+
 export default function ChatMessage({ message, isLast, isStreaming, onSuggestionClick, onRetry }: Props) {
   const isUser = message.role === "user"
   const isLongMessage = isUser && message.content && message.content.length > 250
   const [isExpanded, setIsExpanded] = useState(false)
   const [copied, setCopied] = useState(false)
+  
   const hasEmbeddedSuggestions = Boolean(message.content && message.content.includes("```suggestions"))
-  const suggestions = !isUser && isLast && !isStreaming && message.content && !hasEmbeddedSuggestions ? getContextualSuggestions(message.content) : []
+  
+  const suggestions = React.useMemo(() => {
+    return !isUser && isLast && !isStreaming && message.content && !hasEmbeddedSuggestions
+      ? getContextualSuggestions(message.content)
+      : []
+  }, [isUser, isLast, isStreaming, message.content, hasEmbeddedSuggestions])
 
-  // Custom renderer overrides for ReactMarkdown to handle interactive AI actions
-  const mdComponents = {
+  // Custom renderer overrides for ReactMarkdown with stable useMemo
+  const mdComponents = React.useMemo(() => ({
     a: ({ href, children, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => {
       if (href && href.startsWith("/actions/")) {
         const url = new URL(href, "http://localhost")
@@ -156,7 +210,7 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
             onClick={handleActionClick}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs border border-primary/20 my-2 cursor-pointer shadow-xs transition-all duration-150 active:scale-95 not-prose"
           >
-            <Sparkles className="h-3.5 w-3.5 shrink-0" />
+            <Bot className="h-3.5 w-3.5 shrink-0" />
             <span>{children}</span>
           </button>
         )
@@ -179,6 +233,22 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
       <td className="border-b border-border/50 px-4 py-3 align-top last:border-0 text-xs" {...props}>{children}</td>
     ),
     pre: ({ children, ...props }: React.HTMLAttributes<HTMLElement>) => {
+      // If the child is a custom interactive block (suggestions, analysis, outreach, toolchips, etc.), unwrap it directly
+      if (React.isValidElement(children)) {
+        const childProps = children.props as { className?: string } | undefined
+        const className = childProps?.className || ""
+        if (
+          className.includes("language-suggestions") ||
+          className.includes("language-analysis") ||
+          className.includes("language-outreach") ||
+          className.includes("language-toolchips") ||
+          className.includes("language-tools") ||
+          className.includes("language-streaming")
+        ) {
+          return <>{children}</>
+        }
+      }
+
       const extractText = (node: React.ReactNode): string => {
         if (!node) return ""
         if (typeof node === "string" || typeof node === "number") return String(node)
@@ -196,15 +266,15 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
       }
 
       return (
-        <div className="relative group my-4">
+        <div className="relative group my-4 not-prose">
           <button
             onClick={handleCopy}
-            className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-md bg-secondary/80 text-secondary-foreground hover:bg-secondary shadow-sm z-10"
+            className="absolute top-2.5 right-2.5 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-md bg-white/90 dark:bg-zinc-800/90 text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-white dark:hover:bg-zinc-700 border border-zinc-200 dark:border-zinc-700 shadow-xs z-10 cursor-pointer"
             title="Copy code"
           >
             <Copy className="h-3.5 w-3.5" />
           </button>
-          <pre className="whitespace-pre-wrap break-words rounded-xl border bg-muted p-4 text-sm" {...props}>
+          <pre className="whitespace-pre-wrap break-words rounded-xl border border-zinc-200/90 dark:border-zinc-800 bg-zinc-100/90 dark:bg-zinc-900/90 text-zinc-800 dark:text-zinc-100 p-4 text-xs font-mono leading-relaxed overflow-x-auto shadow-2xs" {...props}>
             {children}
           </pre>
         </div>
@@ -217,32 +287,31 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
         try {
           const data = JSON.parse(String(children))
           return (
-            <div className="my-4 p-1 rounded-xl bg-gradient-to-br from-primary/10 via-secondary/20 to-background border border-primary/20 shadow-sm">
+            <div className="my-4 p-1 rounded-xl bg-gradient-to-br from-primary/10 via-secondary/20 to-background border border-primary/20 shadow-sm not-prose">
               <AnalysisResult data={data} />
             </div>
           )
         } catch {
-          // If parsing fails, fallback to standard code block
-          return <code className={cn(className, isInline && "text-primary bg-muted px-1.5 py-0.5 rounded text-xs")} {...props}>{children}</code>
+          return <code className={cn(className, isInline ? "text-primary bg-muted px-1.5 py-0.5 rounded text-xs font-mono font-medium" : "text-zinc-800 dark:text-zinc-100 font-mono text-xs")} {...props}>{children}</code>
         }
       }
       if (className === "language-outreach") {
         try {
           const data = JSON.parse(String(children))
           return (
-            <div className="my-4">
+            <div className="my-4 not-prose">
               <OutreachResult data={data} />
             </div>
           )
         } catch {
-          return <code className={cn(className, isInline && "text-primary bg-muted px-1.5 py-0.5 rounded text-xs")} {...props}>{children}</code>
+          return <code className={cn(className, isInline ? "text-primary bg-muted px-1.5 py-0.5 rounded text-xs font-mono font-medium" : "text-zinc-800 dark:text-zinc-100 font-mono text-xs")} {...props}>{children}</code>
         }
       }
       if (className === "language-toolchips" || className === "language-tools") {
         try {
           const data = JSON.parse(String(children))
           return (
-            <div className="my-3">
+            <div className="my-3 not-prose">
               <ToolChips
                 rows={data.rows}
                 diffs={data.diffs}
@@ -253,7 +322,7 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
           )
         } catch {
           return (
-            <div className="my-3">
+            <div className="my-3 not-prose">
               <ToolChips initialOpen={true} />
             </div>
           )
@@ -263,7 +332,7 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
         try {
           const data = JSON.parse(String(children))
           return (
-            <div className="my-3">
+            <div className="my-3 not-prose">
               <StreamingText
                 tokens={data.tokens}
                 text={data.text}
@@ -275,7 +344,7 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
           )
         } catch {
           return (
-            <div className="my-3">
+            <div className="my-3 not-prose">
               <StreamingText onFollowUpClick={onSuggestionClick} />
             </div>
           )
@@ -285,38 +354,23 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
         try {
           const data = JSON.parse(String(children))
           if (Array.isArray(data) && data.length > 0) {
-            return (
-              <div className="mt-3.5 pt-2.5 border-t border-border/40 flex flex-wrap items-center gap-1.5 not-prose">
-                <span className="text-[10px] font-semibold text-muted-foreground/75 flex items-center gap-1 w-full mb-0.5 uppercase tracking-wider">
-                  <Sparkles className="h-3 w-3 text-primary" /> Suggested next actions:
-                </span>
-                {data.map((s: { icon?: string; label: string; prompt: string }, idx: number) => (
-                  <button
-                    key={idx}
-                    type="button"
-                    onClick={() => onSuggestionClick?.(s.prompt)}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-secondary/40 hover:bg-primary/10 hover:text-primary hover:border-primary/40 border border-border/80 transition-all duration-150 active:scale-95 shadow-xs cursor-pointer text-foreground"
-                  >
-                    <span>{s.icon || "✨"}</span>
-                    <span>{s.label}</span>
-                  </button>
-                ))}
-              </div>
-            )
+            return <FollowUpsList items={data} onPick={onSuggestionClick} />
           }
         } catch {
           return null
         }
       }
-      return <code className={cn(className, isInline && "text-primary bg-muted px-1.5 py-0.5 rounded text-xs")} {...props}>{children}</code>
+      return <code className={cn(className, isInline ? "text-primary bg-muted px-1.5 py-0.5 rounded text-xs font-mono font-medium" : "text-zinc-800 dark:text-zinc-100 font-mono text-xs")} {...props}>{children}</code>
     }
-  }
+  }), [onSuggestionClick])
+
+  const showAvatar = !isUser && (Boolean(message.content) || (message.toolInvocations && message.toolInvocations.length > 0))
 
   return (
     <div className={cn("flex gap-3 w-full group", isUser ? "justify-end" : "justify-start")}>
-      {!isUser && (
-        <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-muted border border-border/80 text-foreground/80 mt-0.5 shadow-2xs">
-          <Sparkles className="h-3.5 w-3.5 text-primary" />
+      {showAvatar && (
+        <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-purple-500/10 border border-purple-500/20 text-purple-500 mt-0.5 shadow-2xs">
+          <Bot className="h-3.5 w-3.5" />
         </div>
       )}
       
@@ -460,35 +514,7 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
 
                 {/* Follow-ups Section */}
                 {suggestions.length > 0 && onSuggestionClick && (
-                  <div className="mt-3 pt-1">
-                    <p className="text-[12px] font-medium text-muted-foreground/90 mb-1">Follow-ups</p>
-                    <div className="flex flex-col">
-                      {suggestions.map((s, idx) => (
-                        <button
-                          key={idx}
-                          type="button"
-                          onClick={() => onSuggestionClick(s.prompt)}
-                          className="flex items-center gap-2 py-2 text-left text-[12.5px] text-foreground/90 border-b border-border/40 hover:bg-muted/40 rounded-md px-1.5 transition-colors cursor-pointer"
-                        >
-                          <svg
-                            width="11"
-                            height="11"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            className="shrink-0 text-muted-foreground"
-                          >
-                            <path d="M9 10l-5 5 5 5" />
-                            <path d="M20 4v7a4 4 0 0 1-4 4H4" />
-                          </svg>
-                          <span>{s.label}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+                  <FollowUpsList items={suggestions} onPick={onSuggestionClick} />
                 )}
               </div>
             )}

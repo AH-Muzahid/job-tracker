@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
-import { Sparkles, FileText } from "lucide-react"
+import { FileText } from "lucide-react"
 import TailorResumeModal from "@/components/resumes/TailorResumeModal"
 
 interface AnalysisData {
@@ -137,7 +137,7 @@ export default function AnalysisResult({ data }: { data: Record<string, unknown>
             onClick={() => setTailorOpen(true)}
             className="text-xs h-7 rounded-lg shadow-xs cursor-pointer bg-primary text-primary-foreground hover:bg-primary/90"
           >
-            <Sparkles className="h-3 w-3 mr-1" />
+            <FileText className="h-3 w-3 mr-1" />
             Generate Tailored Resume
           </Button>
         </div>

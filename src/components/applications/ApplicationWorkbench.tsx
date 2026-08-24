@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { ExternalLink, Plus, Trash2 } from "lucide-react"
-import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -16,6 +15,8 @@ import { OutreachAssistantCard } from "./OutreachAssistantCard"
 import { MilestoneTimeline } from "./MilestoneTimeline"
 
 import { useTags, useCreateTag } from "@/lib/api"
+import { DecorIcon } from "@/components/decor-icon"
+import { DashboardCard } from "@/components/dashboard-card"
 
 interface Props {
   application: Application
@@ -248,198 +249,225 @@ export function ApplicationWorkbench({
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-      {/* Left Primary Workspace (Details, Forms, Notes & Outreach Assistant) */}
-      <div className="lg:col-span-2 space-y-6">
-        <Card className="border border-border bg-card/60 backdrop-blur-md shadow-lg rounded-2xl">
-          <CardHeader className="pb-3 flex flex-row items-center justify-between border-b border-border/50 bg-secondary/10">
-            <div className="flex gap-2">
-              <Button
-                variant={activeTab === "details" ? "secondary" : "ghost"}
-                size="sm"
-                onClick={() => setActiveTab("details")}
-                className="text-xs h-8 cursor-pointer font-semibold"
-              >
-                Intake details
-              </Button>
-              <Button
-                variant={activeTab === "timeline" ? "secondary" : "ghost"}
-                size="sm"
-                onClick={() => setActiveTab("timeline")}
-                className="text-xs h-8 cursor-pointer font-semibold"
-              >
-                Status History
-              </Button>
-            </div>
-            {onDelete && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={onDelete}
-                className="text-xs h-8 text-destructive hover:bg-destructive/10 hover:text-destructive font-semibold cursor-pointer"
-              >
-                <Trash2 className="h-3.5 w-3.5 mr-1" /> Delete
-              </Button>
-            )}
-          </CardHeader>
-          <CardContent className="p-5 pt-4">
-            {activeTab === "details" && (
-              <form onSubmit={handleUpdateDetails} className="space-y-4">
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="companyName" className="text-xs font-semibold text-foreground/80">Company Name</Label>
-                    <Input
-                      id="companyName"
-                      value={companyName}
-                      onChange={(e) => setCompanyName(e.target.value)}
-                      className="bg-background border-input text-sm text-foreground"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="jobTitle" className="text-xs font-semibold text-foreground/80">Job Role/Title</Label>
-                    <Input
-                      id="jobTitle"
-                      value={jobTitle}
-                      onChange={(e) => setJobTitle(e.target.value)}
-                      className="bg-background border-input text-sm text-foreground"
-                    />
-                  </div>
+    <div className="space-y-6">
+      {/* 1. Main 1px Continuous Border Grid */}
+      <div className="relative border border-border bg-border">
+        <DecorIcon className="hidden md:block" position="top-left" />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-px bg-border">
+          {/* Left Primary Workspace (Details & Timeline) */}
+          <DashboardCard className="lg:col-span-2 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between border-b border-border p-2.5 sm:p-3.5 bg-background gap-2 overflow-x-auto no-scrollbar">
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab("details")}
+                    className={`text-xs sm:text-sm px-3 sm:px-4 py-1.5 rounded-md font-medium transition-colors cursor-pointer whitespace-nowrap ${
+                      activeTab === "details"
+                        ? "bg-muted text-foreground border border-border"
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
+                    }`}
+                  >
+                    Intake Details
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab("outreach")}
+                    className={`text-xs sm:text-sm px-3 sm:px-4 py-1.5 rounded-md font-medium transition-colors cursor-pointer whitespace-nowrap ${
+                      activeTab === "outreach"
+                        ? "bg-muted text-foreground border border-border"
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
+                    }`}
+                  >
+                    Outreach Note
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab("timeline")}
+                    className={`text-xs sm:text-sm px-3 sm:px-4 py-1.5 rounded-md font-medium transition-colors cursor-pointer whitespace-nowrap ${
+                      activeTab === "timeline"
+                        ? "bg-muted text-foreground border border-border"
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
+                    }`}
+                  >
+                    Status History
+                  </button>
                 </div>
-
-                <div className="grid gap-4 sm:grid-cols-3">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="status" className="text-xs font-semibold text-foreground/80">Current Status</Label>
-                    <Select value={status} onValueChange={setStatus}>
-                      <SelectTrigger className="bg-background border-input text-xs text-foreground h-9.5">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="bg-popover border-border text-foreground">
-                        {["Saved", "Applied", "Assessment", "Interview", "Rejected", "Offer"].map((s) => (
-                          <SelectItem key={s} value={s} className="text-xs">{s}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="source" className="text-xs font-semibold text-foreground/80">Source</Label>
-                    <Select value={source} onValueChange={setSource}>
-                      <SelectTrigger className="bg-background border-input text-xs text-foreground h-9.5">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="bg-popover border-border text-foreground">
-                        {["LinkedIn", "Bdjobs", "Indeed", "Wellfound", "Facebook", "Referral", "Other"].map((s) => (
-                          <SelectItem key={s} value={s} className="text-xs">{s}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="jobUrl" className="text-xs font-semibold text-foreground/80">Job URL</Label>
-                    <div className="flex gap-2">
-                      <Input
-                        id="jobUrl"
-                        value={jobUrl}
-                        onChange={(e) => setJobUrl(e.target.value)}
-                        placeholder="Paste link..."
-                        className="bg-background border-input text-sm text-foreground flex-1"
-                      />
-                      {application.jobUrl && (
-                        <Button size="icon" variant="outline" className="shrink-0 h-9.5" asChild>
-                          <a href={application.jobUrl} target="_blank" rel="noopener noreferrer">
-                            <ExternalLink className="h-4 w-4" />
-                          </a>
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-xs font-semibold text-foreground/80">Tags</Label>
-                  <div className="flex flex-wrap gap-1.5 min-h-[38px] p-2 rounded-lg bg-secondary/20 border border-border">
-                    {allTags.map((tag) => {
-                      const isSelected = selectedTagIds.includes(tag.id)
-                      return (
-                        <button
-                          key={tag.id}
-                          type="button"
-                          onClick={() => handleToggleTag(tag.id)}
-                          className={`text-[10px] px-2.5 py-1 rounded-md border transition-all cursor-pointer font-medium ${
-                            isSelected
-                              ? "bg-primary/10 border-primary text-primary shadow-sm"
-                              : "bg-background text-foreground border-border hover:bg-secondary/80"
-                          }`}
-                        >
-                          {tag.name}
-                        </button>
-                      )
-                    })}
-                  </div>
-                  <div className="flex gap-2 max-w-xs items-center mt-2">
-                    <Input
-                      placeholder="Add tag name..."
-                      value={newTagName}
-                      onChange={(e) => setNewTagName(e.target.value)}
-                      className="h-8 text-xs bg-background border-input text-foreground"
-                    />
-                    <Button type="button" size="sm" onClick={handleCreateTag} className="h-8 text-xs cursor-pointer bg-primary text-primary-foreground hover:bg-primary/95">
-                      <Plus className="h-3 w-3 mr-1" /> Create
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="space-y-1.5 pt-1">
-                  <Label htmlFor="notes" className="text-xs font-semibold text-foreground/80">Notes / Job Description (JD)</Label>
-                  <Textarea
-                    id="notes"
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    placeholder="Enter salary, requirements, or personal tracker details here..."
-                    className="min-h-[160px] text-xs bg-background border-input text-foreground leading-relaxed placeholder:text-muted-foreground/50 focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-0 focus:border-primary transition-all resize-none outline-none p-3 rounded-lg"
-                  />
-                </div>
-
-                <div className="pt-2 flex justify-end">
-                  <Button type="submit" disabled={isSaving} className="text-xs px-4 h-9 bg-primary text-primary-foreground hover:bg-primary/95 font-semibold cursor-pointer">
-                    {isSaving ? "Saving..." : "Save Changes"}
+                {onDelete && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={onDelete}
+                    className="text-xs sm:text-sm h-8.5 text-destructive hover:bg-destructive/10 hover:text-destructive font-medium cursor-pointer shrink-0"
+                  >
+                    <Trash2 className="h-4 w-4 mr-1 sm:mr-1.5" /> Delete
                   </Button>
-                </div>
-              </form>
-            )}
+                )}
+              </div>
 
-            {activeTab === "timeline" && (
-              <MilestoneTimeline application={application} />
-            )}
-          </CardContent>
-        </Card>
+              <div className="p-4 sm:p-6">
+                {activeTab === "details" && (
+                  <form onSubmit={handleUpdateDetails} className="space-y-4">
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="companyName" className="text-sm font-medium text-foreground">Company Name</Label>
+                        <Input
+                          id="companyName"
+                          value={companyName}
+                          onChange={(e) => setCompanyName(e.target.value)}
+                          className="bg-background border-border text-sm text-foreground h-10 rounded-md"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="jobTitle" className="text-sm font-medium text-foreground">Job Role/Title</Label>
+                        <Input
+                          id="jobTitle"
+                          value={jobTitle}
+                          onChange={(e) => setJobTitle(e.target.value)}
+                          className="bg-background border-border text-sm text-foreground h-10 rounded-md"
+                        />
+                      </div>
+                    </div>
 
-        {/* Outreach Assistant Card moved to Primary Column for full width breathing room */}
-        <OutreachAssistantCard
-          analysisExists={!!analysis}
-          outreachDrafts={outreachDrafts}
-          outreachLoading={outreachLoading}
-          draftSubject={draftSubject}
-          draftBody={draftBody}
-          copiedSubject={copiedSubject}
-          copiedBody={copiedBody}
-          setDraftSubject={setDraftSubject}
-          setDraftBody={setDraftBody}
-          onGenerateOutreach={handleGenerateOutreach}
-          onOpenMailClient={handleOpenMailClient}
-          onMarkAppliedManually={handleMarkAppliedManually}
-          onCopyToClipboard={copyToClipboard}
-          jdNotes={application.notes || ""}
-        />
-      </div>
+                    <div className="grid gap-4 sm:grid-cols-3">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="status" className="text-sm font-medium text-foreground">Current Status</Label>
+                        <Select value={status} onValueChange={setStatus}>
+                          <SelectTrigger className="bg-background border-border text-sm text-foreground h-10 rounded-md">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="bg-popover border-border text-foreground rounded-md">
+                            {["Saved", "Applied", "Assessment", "Interview", "Rejected", "Offer"].map((s) => (
+                              <SelectItem key={s} value={s} className="text-sm">{s}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
 
-      {/* Right Column (Sticky AI Fit Assessment Sidebar) */}
-      <div className="lg:col-span-1 space-y-6 lg:sticky lg:top-6">
-        <FitAssessmentCard
-          analysis={analysis}
-          analysisLoading={analysisLoading}
-          onTriggerAnalysis={onTriggerAnalysis}
-        />
+                      <div className="space-y-1.5">
+                        <Label htmlFor="source" className="text-sm font-medium text-foreground">Application Source</Label>
+                        <Select value={source} onValueChange={setSource}>
+                          <SelectTrigger className="bg-background border-border text-sm text-foreground h-10 rounded-md">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="bg-popover border-border text-foreground rounded-md">
+                            {["LinkedIn", "Indeed", "Glassdoor", "Company Site", "Referral", "Other"].map((s) => (
+                              <SelectItem key={s} value={s} className="text-sm">{s}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label htmlFor="jobUrl" className="text-sm font-medium text-foreground">Job Posting URL</Label>
+                        <div className="flex gap-1.5">
+                          <Input
+                            id="jobUrl"
+                            value={jobUrl}
+                            onChange={(e) => setJobUrl(e.target.value)}
+                            placeholder="https://..."
+                            className="bg-background border-border text-sm text-foreground h-10 rounded-md flex-1"
+                          />
+                          {jobUrl && (
+                            <Button size="icon" variant="outline" className="h-10 w-10 rounded-md shrink-0" asChild>
+                              <a href={jobUrl.startsWith("http") ? jobUrl : `https://${jobUrl}`} target="_blank" rel="noreferrer">
+                                <ExternalLink className="h-4 w-4" />
+                              </a>
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium text-foreground">Tags</Label>
+                      <div className="flex flex-wrap gap-2 min-h-[42px] p-2.5 rounded-md bg-muted/20 border border-border">
+                        {allTags.map((tag) => {
+                          const isSelected = selectedTagIds.includes(tag.id)
+                          return (
+                            <button
+                              key={tag.id}
+                              type="button"
+                              onClick={() => handleToggleTag(tag.id)}
+                              className={`text-sm px-3 py-1 rounded-md border transition-all cursor-pointer font-medium ${
+                                isSelected
+                                  ? "bg-foreground/10 border-foreground/30 text-foreground"
+                                  : "bg-background text-muted-foreground border-border hover:text-foreground"
+                              }`}
+                            >
+                              {tag.name}
+                            </button>
+                          )
+                        })}
+                      </div>
+                      <div className="flex gap-2 max-w-xs items-center mt-1.5">
+                        <Input
+                          placeholder="New tag..."
+                          value={newTagName}
+                          onChange={(e) => setNewTagName(e.target.value)}
+                          className="h-8.5 text-sm bg-background border-border text-foreground rounded-md"
+                        />
+                        <Button type="button" size="sm" onClick={handleCreateTag} className="h-8.5 text-sm cursor-pointer font-medium rounded-md px-3">
+                          <Plus className="h-3.5 w-3.5 mr-1" /> Add
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5 pt-1">
+                      <Label htmlFor="notes" className="text-sm font-medium text-foreground">Notes / Job Description (JD)</Label>
+                      <Textarea
+                        id="notes"
+                        value={notes}
+                        onChange={(e) => setNotes(e.target.value)}
+                        placeholder="Enter requirements, compensation details, interview notes..."
+                        className="min-h-[160px] text-sm bg-background border-border text-foreground leading-relaxed placeholder:text-muted-foreground/40 focus:border-foreground/30 resize-none outline-none p-3.5 rounded-md"
+                      />
+                    </div>
+
+                    <div className="pt-2 flex justify-end">
+                      <Button type="submit" size="sm" disabled={isSaving} className="text-sm px-5 h-9 rounded-md font-semibold cursor-pointer">
+                        {isSaving ? "Saving..." : "Save Changes"}
+                      </Button>
+                    </div>
+                  </form>
+                )}
+
+                {activeTab === "outreach" && (
+                  <OutreachAssistantCard
+                    analysisExists={!!analysis}
+                    outreachDrafts={outreachDrafts}
+                    outreachLoading={outreachLoading}
+                    draftSubject={draftSubject}
+                    draftBody={draftBody}
+                    copiedSubject={copiedSubject}
+                    copiedBody={copiedBody}
+                    setDraftSubject={setDraftSubject}
+                    setDraftBody={setDraftBody}
+                    onGenerateOutreach={handleGenerateOutreach}
+                    onOpenMailClient={handleOpenMailClient}
+                    onMarkAppliedManually={handleMarkAppliedManually}
+                    onCopyToClipboard={copyToClipboard}
+                    jdNotes={application.notes || ""}
+                  />
+                )}
+
+                {activeTab === "timeline" && (
+                  <MilestoneTimeline application={application} />
+                )}
+              </div>
+            </div>
+          </DashboardCard>
+
+          {/* Right Intelligence Column */}
+          <DashboardCard className="lg:col-span-1 flex flex-col justify-between">
+            <FitAssessmentCard
+              analysis={analysis}
+              analysisLoading={analysisLoading}
+              onTriggerAnalysis={onTriggerAnalysis}
+            />
+          </DashboardCard>
+        </div>
       </div>
     </div>
   )

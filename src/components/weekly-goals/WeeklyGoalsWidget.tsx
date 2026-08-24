@@ -2,7 +2,7 @@
 
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Target, TrendingUp, Sparkles } from "lucide-react"
+import { Target, TrendingUp, Bot } from "lucide-react"
 import Link from "next/link"
 
 interface WeeklyGoal {
@@ -61,7 +61,7 @@ export default function WeeklyGoalsWidget({ goals, loading }: Props) {
             href="/weekly-goals"
             className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
           >
-            <Sparkles className="h-3 w-3" /> Set your weekly goals
+            <Bot className="h-3 w-3" /> Set your weekly goals
           </Link>
         </CardContent>
       </Card>

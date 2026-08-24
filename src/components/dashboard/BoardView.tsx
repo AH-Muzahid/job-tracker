@@ -1,11 +1,10 @@
 "use client"
 
 import { useMemo } from "react"
-import { Plus, MoreHorizontal } from "lucide-react"
-import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd"
+import { DecorIcon } from "@/components/decor-icon"
+import { DashboardCard } from "@/components/dashboard-card"
 import BoardCard from "./BoardCard"
 import { boardColumns } from "./types"
 import type { Application } from "./types"
@@ -15,14 +14,13 @@ type BoardColumn = (typeof boardColumns)[number]
 interface Props {
   applications: Application[]
   onSelect: (id: string) => void
-  onAddNew: () => void
   onEdit: (id: string) => void
   onDelete: (id: string) => void
   onMoveTo: (id: string, status: string) => void
   onDragEnd: (result: DropResult) => void
 }
 
-export default function BoardView({ applications, onSelect, onAddNew, onEdit, onDelete, onMoveTo, onDragEnd }: Props) {
+export default function BoardView({ applications, onSelect, onEdit, onDelete, onMoveTo, onDragEnd }: Props) {
   const board = useMemo(
     () =>
       boardColumns.map((column) => ({
@@ -36,23 +34,37 @@ export default function BoardView({ applications, onSelect, onAddNew, onEdit, on
 
   return (
     <DragDropContext onDragEnd={onDragEnd}>
-      <div className="grid gap-4 xl:grid-cols-5">
-        {board.map((column) => (
-          <BoardColumnCard
-            key={column.key}
-            column={column}
-            onSelect={onSelect}
-            onEdit={onEdit}
-            onDelete={onDelete}
-            onMoveTo={onMoveTo}
-          />
+      {/* Mobile Column Quick-Jump Chips (Visible only on mobile) */}
+      <div className="flex md:hidden items-center gap-1.5 overflow-x-auto pb-2 -mt-1 no-scrollbar w-full max-w-full">
+        {board.map((col) => (
+          <a
+            key={col.key}
+            href={`#col-${col.key}`}
+            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium border border-border bg-card/60 text-muted-foreground hover:text-foreground whitespace-nowrap active:bg-muted shrink-0"
+          >
+            <span className={`h-2 w-2 rounded-full ${col.dot}`} />
+            <span>{col.title}</span>
+            <span className="font-mono text-[10px] text-muted-foreground">({col.items.length})</span>
+          </a>
         ))}
+      </div>
 
-        <Card className="flex items-start justify-center p-4 border-dashed">
-          <Button variant="ghost" size="icon" onClick={onAddNew} className="h-9 w-9">
-            <Plus className="h-4 w-4" />
-          </Button>
-        </Card>
+      <div className="relative border border-border bg-background w-full max-w-full overflow-hidden">
+        <DecorIcon className="hidden md:block" position="top-left" />
+        {/* Responsive Kanban container: Snap horizontal scroll on mobile, 5-col border divided on desktop */}
+        <div className="flex md:grid md:grid-cols-5 divide-y md:divide-y-0 md:divide-x divide-border bg-background overflow-x-auto md:overflow-visible snap-x snap-mandatory scroll-smooth no-scrollbar w-full">
+          {board.map((column) => (
+            <div key={column.key} id={`col-${column.key}`} className="w-[82vw] sm:w-[320px] md:w-auto shrink-0 md:shrink md:flex-1 snap-start flex flex-col h-full bg-background">
+              <BoardColumnCard
+                column={column}
+                onSelect={onSelect}
+                onEdit={onEdit}
+                onDelete={onDelete}
+                onMoveTo={onMoveTo}
+              />
+            </div>
+          ))}
+        </div>
       </div>
     </DragDropContext>
   )
@@ -74,34 +86,30 @@ function BoardColumnCard({
   const Icon = column.icon
 
   return (
-    <Card className="flex flex-col">
-      <div className="flex items-center justify-between border-b p-3">
+    <DashboardCard className="flex flex-col min-h-[550px] h-full flex-1 bg-background">
+      {/* Column Header */}
+      <div className="flex items-center justify-between border-b border-border px-4 py-3 bg-background">
         <div className="flex items-center gap-2">
           <span className={`h-2.5 w-2.5 rounded-full ${column.dot}`} />
-          <Icon className="h-3.5 w-3.5 text-muted-foreground" />
-          <h2 className="text-xs font-semibold">{column.title}</h2>
-          <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5">
-            {column.items.length}
-          </Badge>
+          <Icon className="h-4 w-4 text-muted-foreground" />
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-foreground">{column.title}</h2>
         </div>
-
-        <button className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
-          <MoreHorizontal className="h-3.5 w-3.5" />
-        </button>
+        <Badge variant="outline" className="text-xs px-2 py-0.5 font-mono border-border bg-muted/30">
+          {column.items.length}
+        </Badge>
       </div>
 
+      {/* Droppable Card List */}
       <Droppable droppableId={column.key}>
         {(provided, snapshot) => (
           <div
             ref={provided.innerRef}
             {...provided.droppableProps}
-            className={`space-y-2.5 p-2.5 min-h-[200px] transition-colors rounded-b-lg ${
-              snapshot.isDraggingOver ? "bg-muted/50" : ""
-            }`}
+            className="space-y-2.5 p-3 flex-1 h-full min-h-[480px] bg-background transition-colors"
           >
             {column.items.length === 0 && !snapshot.isDraggingOver ? (
-              <div className="rounded-lg border border-dashed p-8 text-center">
-                <p className="text-xs text-muted-foreground/70">No jobs</p>
+              <div className="flex flex-col items-center justify-center h-36 rounded-md border border-dashed border-border/80 text-center p-4">
+                <p className="text-sm text-muted-foreground font-medium">No applications</p>
               </div>
             ) : (
               column.items.map((application, index) => (
@@ -112,7 +120,7 @@ function BoardColumnCard({
                       {...provided.draggableProps}
                       {...provided.dragHandleProps}
                       style={provided.draggableProps.style}
-                      className={snapshot.isDragging ? "opacity-90" : ""}
+                      className={`select-none ${snapshot.isDragging ? "opacity-80 scale-102" : ""}`}
                     >
                       <BoardCard
                         application={application}
@@ -130,6 +138,6 @@ function BoardColumnCard({
           </div>
         )}
       </Droppable>
-    </Card>
+    </DashboardCard>
   )
 }

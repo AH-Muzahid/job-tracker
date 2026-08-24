@@ -11,6 +11,11 @@ import ApplicationDetailHeader from "@/components/applications/ApplicationDetail
 import ApplicationDeleteDialog from "@/components/applications/ApplicationDeleteDialog"
 import { ApplicationWorkbench } from "@/components/applications/ApplicationWorkbench"
 
+import { DecorIcon } from "@/components/decor-icon"
+import { DashboardCard } from "@/components/dashboard-card"
+import { Delta, DeltaIcon, DeltaValue } from "@/components/delta"
+import StatusBadge from "@/components/StatusBadge"
+
 export default function ApplicationDetailPage() {
   const { isLoaded, isSignedIn } = useUser()
   const router = useRouter()
@@ -144,18 +149,28 @@ export default function ApplicationDetailPage() {
 
   if (!isLoaded || loading) {
     return (
-      <div className="space-y-4">
-        <Skeleton className="h-8 w-64" />
-        <Skeleton className="h-48 w-full" />
+      <div className="space-y-6 max-w-7xl mx-auto">
+        <Skeleton className="h-8 w-64 rounded-md" />
+        <div className="relative border border-border bg-border">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-px bg-border">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="p-6 bg-background space-y-3">
+                <Skeleton className="h-4 w-20 rounded-sm" />
+                <Skeleton className="h-8 w-16 rounded-sm" />
+                <Skeleton className="h-3 w-28 rounded-sm mt-4" />
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="text-center py-12">
-        <p className="text-destructive mb-4">{error}</p>
-        <Button variant="outline" onClick={() => router.push("/applications")}>
+      <div className="text-center py-12 border border-border bg-background p-8 max-w-md mx-auto">
+        <p className="text-destructive mb-4 text-xs font-mono">{error}</p>
+        <Button variant="outline" size="sm" onClick={() => router.push("/applications")}>
           Back to Applications
         </Button>
       </div>
@@ -164,8 +179,11 @@ export default function ApplicationDetailPage() {
 
   if (!application) return null
 
+  const daysActive = Math.max(1, Math.floor((Date.now() - new Date(application.applicationDate).getTime()) / (1000 * 60 * 60 * 24)))
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-7xl mx-auto pb-12">
+      {/* 1. Detail Header */}
       <ApplicationDetailHeader
         companyName={application.companyName}
         jobTitle={application.jobTitle}
@@ -173,6 +191,73 @@ export default function ApplicationDetailPage() {
         onDelete={() => setDialogOpen(true)}
       />
 
+      {/* 2. Top Efferd 4-Stat Metric Grid */}
+      <div className="relative border border-border bg-border">
+        <DecorIcon className="hidden md:block" position="top-left" />
+        <div className="grid grid-cols-1 gap-px bg-border sm:grid-cols-2 lg:grid-cols-4">
+          {/* Card 1: Status */}
+          <DashboardCard className="flex flex-col justify-between">
+            <div className="px-6 pt-5 pb-5">
+              <p className="text-sm font-normal text-muted-foreground">Current Stage</p>
+              <div className="mt-2">
+                <StatusBadge status={application.status} />
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5 text-xs px-6 py-3 border-t border-border bg-background font-mono text-muted-foreground">
+              <span>{daysActive}d active in pipeline</span>
+            </div>
+          </DashboardCard>
+
+          {/* Card 2: AI Fit Score */}
+          <DashboardCard className="flex flex-col justify-between">
+            <div className="px-6 pt-5 pb-5">
+              <p className="text-sm font-normal text-muted-foreground">AI Match Score</p>
+              <p className="text-3xl font-bold tracking-tight text-foreground mt-2">
+                {analysis?.matchScore ? `${analysis.matchScore}%` : "—"}
+              </p>
+            </div>
+            <div className="flex items-center gap-1.5 text-xs px-6 py-3 border-t border-border bg-background">
+              {analysis?.matchScore ? (
+                <Delta value={analysis.matchScore >= 75 ? 12 : 0}>
+                  <DeltaIcon />
+                  <DeltaValue />
+                </Delta>
+              ) : null}
+              <span className="text-muted-foreground">
+                {analysis?.matchScore ? (analysis.matchScore >= 80 ? "Strong Fit" : "Moderate Fit") : "Run Assessment"}
+              </span>
+            </div>
+          </DashboardCard>
+
+          {/* Card 3: Source */}
+          <DashboardCard className="flex flex-col justify-between">
+            <div className="px-6 pt-5 pb-5">
+              <p className="text-sm font-normal text-muted-foreground">Source Channel</p>
+              <p className="text-2xl font-bold tracking-tight text-foreground mt-2 truncate">
+                {application.source || "Direct"}
+              </p>
+            </div>
+            <div className="flex items-center gap-1.5 text-xs px-6 py-3 border-t border-border bg-background font-mono text-muted-foreground truncate">
+              <span>{application.jobUrl ? "URL attached" : "Manual intake"}</span>
+            </div>
+          </DashboardCard>
+
+          {/* Card 4: Date Applied */}
+          <DashboardCard className="flex flex-col justify-between">
+            <div className="px-6 pt-5 pb-5">
+              <p className="text-sm font-normal text-muted-foreground">Applied On</p>
+              <p className="text-xl font-bold tracking-tight text-foreground mt-2 font-mono">
+                {new Date(application.applicationDate).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+              </p>
+            </div>
+            <div className="flex items-center gap-1.5 text-xs px-6 py-3 border-t border-border bg-background font-mono text-muted-foreground">
+              <span>{application.statusChanges?.length || 1} history event(s)</span>
+            </div>
+          </DashboardCard>
+        </div>
+      </div>
+
+      {/* 3. Workbench & AI Analysis */}
       <ApplicationWorkbench
         application={application}
         analysis={analysis}
@@ -182,6 +267,7 @@ export default function ApplicationDetailPage() {
         onUpdate={setApplication}
       />
 
+      {/* 4. Delete Confirmation Dialog */}
       <ApplicationDeleteDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}

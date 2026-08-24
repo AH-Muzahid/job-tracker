@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Sparkles, Loader2, FileText } from "lucide-react"
+import { Bot, Loader2, FileText } from "lucide-react"
 import { 
   Dialog, 
   DialogContent, 
@@ -74,10 +74,10 @@ export default function TailorResumeModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={`${tailoredData ? "max-w-5xl w-[95vw] h-[90vh]" : "max-w-xl"} rounded-xl border border-border bg-card p-4 sm:p-6 flex flex-col gap-4 overflow-hidden`}>
+      <DialogContent className={`${tailoredData ? "max-w-5xl w-[95vw] h-[90vh]" : "max-w-xl"} rounded-md border border-border bg-card p-4 sm:p-6 flex flex-col gap-4 overflow-hidden`}>
         <DialogHeader className="shrink-0">
-          <DialogTitle className="flex items-center gap-2 text-lg font-bold text-foreground">
-            <Sparkles className="h-5 w-5 text-primary" />
+          <DialogTitle className="flex items-center gap-2 text-base sm:text-lg font-bold text-foreground">
+            <Bot className="h-5 w-5 text-primary" />
             {tailoredData ? "Tailored ATS Resume Preview & Export" : "1-Click ATS Tailored Resume Builder"}
           </DialogTitle>
         </DialogHeader>
@@ -90,69 +90,69 @@ export default function TailorResumeModal({
           <form onSubmit={handleGenerate} className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label className="text-xs font-medium text-foreground">Target Company</Label>
+                <Label className="text-sm font-medium text-foreground">Target Company</Label>
                 <Input
                   value={company}
                   onChange={(e) => setCompany(e.target.value)}
                   placeholder="e.g. Stripe, Google, Linear"
-                  className="text-xs rounded-lg"
+                  className="text-sm h-10 rounded-md"
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs font-medium text-foreground">Target Role Title</Label>
+                <Label className="text-sm font-medium text-foreground">Target Role Title</Label>
                 <Input
                   value={role}
                   onChange={(e) => setRole(e.target.value)}
                   placeholder="e.g. Senior Frontend Engineer"
-                  className="text-xs rounded-lg"
+                  className="text-sm h-10 rounded-md"
                 />
               </div>
             </div>
 
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <Label className="text-xs font-medium text-foreground">Job Description (JD) *</Label>
-                <span className="text-[10px] text-muted-foreground">Vector-less Graph RAG Traversal</span>
+                <Label className="text-sm font-medium text-foreground">Job Description (JD) *</Label>
+                <span className="text-xs text-muted-foreground font-mono">Knowledge Graph RAG</span>
               </div>
               <Textarea
                 rows={6}
                 value={jdText}
                 onChange={(e) => setJdText(e.target.value)}
                 placeholder="Paste the full job description or key technical requirements here..."
-                className="text-xs rounded-lg leading-relaxed resize-none"
+                className="text-sm rounded-md leading-relaxed resize-none"
                 required
               />
             </div>
 
-            <div className="p-3 bg-secondary/30 rounded-lg border border-border/60 text-xs text-muted-foreground flex items-start gap-2">
-              <FileText className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-              <span>
+            <div className="p-3.5 bg-muted/20 rounded-md border border-border text-sm text-muted-foreground flex items-start gap-2.5">
+              <FileText className="h-4 w-4 text-foreground shrink-0 mt-0.5" />
+              <span className="leading-relaxed">
                 Our <strong>Career Knowledge Graph</strong> will traverse your verified skills, production projects, and quantifiable achievements to engineer an optimal 1-page ATS-compliant resume.
               </span>
             </div>
 
-            <DialogFooter className="gap-2 pt-2">
+            <DialogFooter className="gap-2 pt-2 flex flex-wrap sm:flex-nowrap justify-end">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => onOpenChange(false)}
-                className="text-xs rounded-lg cursor-pointer"
+                className="text-sm h-9 px-4 rounded-md cursor-pointer font-medium"
               >
                 Cancel
               </Button>
               <Button
                 type="submit"
                 disabled={generating || jdText.trim().length < 20}
-                className="text-xs rounded-lg shadow-xs cursor-pointer bg-primary text-primary-foreground hover:bg-primary/90"
+                className="text-sm h-9 px-5 rounded-md shadow-xs cursor-pointer font-semibold gap-2"
               >
                 {generating ? (
                   <>
-                    <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                    Traversing Graph & Generating...
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Generating...
                   </>
                 ) : (
                   <>
-                    <Sparkles className="h-3.5 w-3.5 mr-1.5" />
+                    <Bot className="h-4 w-4" />
                     Generate Tailored Resume
                   </>
                 )}

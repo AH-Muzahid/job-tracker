@@ -18,35 +18,35 @@ interface MilestoneTimelineProps {
 
 export function MilestoneTimeline({ application }: MilestoneTimelineProps) {
   return (
-    <div className="space-y-6 py-4 px-2">
-      <h3 className="text-sm font-semibold text-slate-200 mb-4">Application Milestones</h3>
-      <div className="relative border-l border-slate-800 pl-5 space-y-6">
+    <div className="space-y-4 py-2">
+      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-4">Application Milestones</h3>
+      <div className="relative border-l border-border pl-5 space-y-6">
         {application.statusChanges.map((change) => {
           const cfg = STATUS_CONFIG[change.toStatus] || STATUS_CONFIG.Saved
           return (
             <div key={change.id} className="relative">
               {/* Dot indicator */}
-              <span className="absolute -left-[27px] top-1.5 flex h-4.5 w-4.5 items-center justify-center rounded-full bg-slate-950 border border-slate-800 shadow">
-                <span className={`h-2 w-2 rounded-full ${change.toStatus === 'Offer' ? 'bg-emerald-500' : change.toStatus === 'Rejected' ? 'bg-rose-500' : 'bg-indigo-500'}`} />
+              <span className="absolute -left-[27px] top-1 flex h-4 w-4 items-center justify-center rounded-full bg-background border border-border shadow-xs">
+                <span className={`h-1.5 w-1.5 rounded-full ${change.toStatus === 'Offer' ? 'bg-emerald-500' : change.toStatus === 'Rejected' ? 'bg-rose-500' : 'bg-foreground'}`} />
               </span>
               
               <div className="space-y-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-[11px] font-semibold text-slate-400">
+                  <span className="text-[11px] font-mono text-muted-foreground">
                     {new Date(change.changedAt).toLocaleString()}
                   </span>
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-medium bg-slate-800 border border-slate-700 text-slate-300">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-medium bg-muted border border-border text-foreground">
                     {cfg.icon}
                     {change.toStatus}
                   </span>
                 </div>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-muted-foreground">
                   {change.fromStatus ? (
                     <>
-                      Status transitioned from <span className="font-semibold text-slate-300">{change.fromStatus}</span> to <span className="font-semibold text-slate-300">{change.toStatus}</span>.
+                      Status transitioned from <span className="font-medium text-foreground">{change.fromStatus}</span> to <span className="font-medium text-foreground">{change.toStatus}</span>.
                     </>
                   ) : (
-                    <>Application created and set to status <span className="font-semibold text-slate-300">{change.toStatus}</span>.</>
+                    <>Application created and set to status <span className="font-medium text-foreground">{change.toStatus}</span>.</>
                   )}
                 </p>
               </div>
@@ -54,7 +54,7 @@ export function MilestoneTimeline({ application }: MilestoneTimelineProps) {
           )
         })}
         {application.statusChanges.length === 0 && (
-          <div className="text-center py-6 text-slate-500 text-xs">No status changes recorded.</div>
+          <div className="text-center py-6 text-muted-foreground text-xs font-mono">No status changes recorded.</div>
         )}
       </div>
     </div>

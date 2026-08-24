@@ -4,7 +4,7 @@ import { useEffect, useState, Suspense } from "react"
 import { useUser } from "@clerk/nextjs"
 import { useRouter, useSearchParams } from "next/navigation"
 import { toast } from "sonner"
-import { Building2, Sparkles, X } from "lucide-react"
+import { Building2, Bot, X } from "lucide-react"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -50,8 +50,8 @@ function InterviewPrepContent() {
       fetch("/api/interview-sessions").then((r) => r.json()),
     ])
       .then(([n, s]) => {
-        setNotes(Array.isArray(n) ? n : [])
-        setSessions(Array.isArray(s) ? s : [])
+        setNotes(Array.isArray(n) ? n : (n && Array.isArray(n.data) ? n.data : []))
+        setSessions(Array.isArray(s) ? s : (s && Array.isArray(s.data) ? s.data : []))
       })
       .catch(() => {})
       .finally(() => setLoading(false))
@@ -120,7 +120,7 @@ function InterviewPrepContent() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto space-y-5 sm:space-y-6 pb-12">
+    <div className="max-w-7xl mx-auto space-y-5 sm:space-y-6 pb-12 w-full min-w-0 max-w-full overflow-x-hidden">
       {/* 1. Page Header */}
       <InterviewPrepHeader
         onStartMockInterview={() => {
@@ -132,24 +132,24 @@ function InterviewPrepContent() {
 
       {/* 1-Click Application-Linked Tailored Banner */}
       {customCompany && !dismissBanner && (
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 sm:p-4 rounded-xl border border-primary/30 bg-primary/5 shadow-xs relative">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 sm:p-4 rounded-md border border-border bg-card/60 shadow-xs relative">
           <div className="flex items-start sm:items-center gap-3">
-            <div className="p-2 rounded-lg bg-primary/10 text-primary border border-primary/20 shrink-0 mt-0.5 sm:mt-0">
+            <div className="p-2 rounded-md bg-muted/60 text-foreground border border-border shrink-0 mt-0.5 sm:mt-0">
               <Building2 className="h-4 w-4" />
             </div>
             <div>
               <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="text-xs font-semibold text-foreground">
+                <span className="text-sm font-semibold text-foreground">
                   Tailored Prep Room for {customCompany}
                 </span>
                 {customRole && (
-                  <span className="text-[11px] text-muted-foreground">({customRole})</span>
+                  <span className="text-xs text-muted-foreground">({customRole})</span>
                 )}
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-semibold bg-primary/15 text-primary rounded-md">
-                  <Sparkles className="h-2.5 w-2.5" /> 1-Click Tailored
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold bg-muted/40 text-foreground border border-border rounded-md">
+                  <Bot className="h-3 w-3" /> 1-Click Tailored
                 </span>
               </div>
-              <p className="text-[11px] text-muted-foreground mt-0.5">
+              <p className="text-xs text-muted-foreground mt-0.5">
                 The AI interviewer will dynamically query this company&apos;s JD keywords and interview culture.
               </p>
             </div>
@@ -163,7 +163,7 @@ function InterviewPrepContent() {
                 setModalCompany(customCompany)
                 setConversationalModalOpen(true)
               }}
-              className="h-8 text-xs bg-primary text-primary-foreground hover:bg-primary/90 shadow-xs cursor-pointer font-medium"
+              className="h-8.5 text-xs rounded-md shadow-xs cursor-pointer font-semibold px-3.5"
             >
               Launch Mock Room
             </Button>
@@ -171,7 +171,7 @@ function InterviewPrepContent() {
               size="icon"
               variant="ghost"
               onClick={() => setDismissBanner(true)}
-              className="h-8 w-8 text-muted-foreground hover:text-foreground cursor-pointer"
+              className="h-8 w-8 rounded-md text-muted-foreground hover:text-foreground cursor-pointer"
               title="Dismiss banner"
             >
               <X className="h-3.5 w-3.5" />
