@@ -42,6 +42,7 @@ export interface StudyDiscussionMessage {
   content: string
   topic?: string
   timestamp: string
+  suggestedNextQuestions?: string[]
 }
 
-export type PrepTabType = "study" | "sessions" | "notes"
+export type PrepTabType = "mock" | "study" | "sessions" | "notes"

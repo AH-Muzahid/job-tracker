@@ -14,7 +14,7 @@ import {
   RotateCcw,
   Sparkles,
 } from "lucide-react"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -120,28 +120,34 @@ export function ConceptLabTab({ onSaveAsNote }: ConceptLabTabProps) {
       }
 
       const data = await res.json()
-      const aiMsg: StudyDiscussionMessage = {
+      const assistantMsg: StudyDiscussionMessage = {
         role: "assistant",
-        content: data.answer,
+        content: data.explanation || "No explanation provided.",
         topic: selectedTopic,
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        suggestedNextQuestions: data.suggestedNextQuestions || [],
       }
 
-      setStudyHistory([...updatedHistory, aiMsg])
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Error querying study assistant."
-      toast.error(msg)
+      setStudyHistory((prev) => [...prev, assistantMsg])
+    } catch (err: any) {
+      toast.error(err.message || "Failed to ask AI Tutor.")
+      const errorMsg: StudyDiscussionMessage = {
+        role: "assistant",
+        content: "Sorry, I encountered an error answering your question. Please try again.",
+        topic: "Error",
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      }
+      setStudyHistory((prev) => [...prev, errorMsg])
     } finally {
       setIsAskingStudy(false)
     }
   }
 
-  function toggleVoiceInput() {
-    if (typeof window === "undefined") return
+  function handleMicToggle() {
     const SpeechRecognition =
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
     if (!SpeechRecognition) {
-      toast.info("Microphone recognition not supported in this browser.")
+      toast.error("Speech recognition is not supported in this browser.")
       return
     }
 
@@ -202,36 +208,21 @@ export function ConceptLabTab({ onSaveAsNote }: ConceptLabTabProps) {
 
   return (
     <div className="space-y-6">
-      {/* 1. Category Filter Pills */}
-      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
-        {TOPIC_CATEGORIES.map((topic) => (
-          <Button
-            key={topic}
-            variant={selectedTopic === topic ? "default" : "outline"}
-            size="sm"
-            onClick={() => setSelectedTopic(topic)}
-            className="rounded-full text-xs h-8 px-3.5 font-medium"
-          >
-            {topic}
-          </Button>
-        ))}
-      </div>
-
-      {/* 2. Standard shadcn Card for Asking Questions */}
-      <Card>
-        <CardHeader className="pb-3">
+      {/* 1. Unified Search & Ask Zone (Raycast / Perplexity style) */}
+      <Card className="border border-border bg-card shadow-2xs">
+        <CardContent className="p-3 sm:p-5 space-y-3">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
-              <CardTitle className="text-base">Ask Technical Concepts & Interview Questions</CardTitle>
-              <CardDescription className="text-xs">
+              <h3 className="text-sm font-semibold text-foreground">Ask Concept or System Design Question</h3>
+              <p className="text-xs text-muted-foreground">
                 Get hiring-grade architectural explanations, trade-offs, and mental models.
-              </CardDescription>
+              </p>
             </div>
 
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground">Language:</span>
+            <div className="flex items-center gap-1.5 self-start sm:self-auto">
+              <span className="text-[11px] text-muted-foreground">Language:</span>
               <Select value={studyLang} onValueChange={(v: any) => setStudyLang(v)}>
-                <SelectTrigger className="w-28 h-8 text-xs">
+                <SelectTrigger className="w-28 h-7 text-xs bg-background">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -242,9 +233,9 @@ export function ConceptLabTab({ onSaveAsNote }: ConceptLabTabProps) {
               </Select>
             </div>
           </div>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-2">
+
+          {/* Unified Input Box */}
+          <div className="flex gap-1.5 items-center">
             <Input
               value={studyQuestion}
               onChange={(e) => setStudyQuestion(e.target.value)}
@@ -255,161 +246,188 @@ export function ConceptLabTab({ onSaveAsNote }: ConceptLabTabProps) {
                 }
               }}
               placeholder="e.g. How does Redis cluster handle failover? / বাংলায় লিখুন..."
-              className="h-10 text-sm"
+              className="h-10 text-xs sm:text-sm bg-background flex-1"
             />
             <Button
               type="button"
               variant={isListeningMic ? "default" : "outline"}
               size="icon"
-              onClick={toggleVoiceInput}
-              title={isListeningMic ? "Listening... Click to stop" : "Speak question"}
-              className={cn("h-10 w-10 shrink-0", isListeningMic && "bg-destructive text-destructive-foreground animate-pulse")}
+              onClick={handleMicToggle}
+              className={cn("h-10 w-10 shrink-0 cursor-pointer", isListeningMic && "bg-red-500 hover:bg-red-600 text-white")}
+              title="Voice Input"
             >
-              <Mic className="h-4 w-4" />
+              <Mic className={cn("h-4 w-4", isListeningMic && "animate-pulse")} />
             </Button>
             <Button
-              type="button"
               onClick={() => handleAskStudy()}
               disabled={!studyQuestion.trim() || isAskingStudy}
-              className="h-10 px-4 shrink-0 gap-2"
+              className="h-10 px-4 text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 shrink-0 cursor-pointer"
             >
-              <Send className="h-4 w-4" />
-              <span>Ask</span>
+              {isAskingStudy ? "Thinking..." : "Ask"}
             </Button>
+          </div>
+
+          {/* Topic Filter Chips */}
+          <div className="pt-2 border-t border-border flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+            <span className="text-[11px] text-muted-foreground shrink-0 mr-1">Filter:</span>
+            {TOPIC_CATEGORIES.map((topic) => (
+              <button
+                key={topic}
+                type="button"
+                onClick={() => setSelectedTopic(topic)}
+                className={cn(
+                  "px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors shrink-0 cursor-pointer",
+                  selectedTopic === topic
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted/60 text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {topic}
+              </button>
+            ))}
           </div>
         </CardContent>
       </Card>
 
-      {/* 3. Curated Question Cards (when thread is empty) */}
-      {studyHistory.length === 0 && (
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-muted-foreground">Recommended Topics & Starters</h3>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {filteredQuestions.map((item, idx) => (
-              <Card
-                key={idx}
-                onClick={() => {
-                  setStudyQuestion(item.question)
-                  handleAskStudy(item.question)
-                }}
-                className="cursor-pointer hover:border-primary/50 transition-colors"
-              >
-                <CardHeader className="p-4 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Badge variant="secondary" className="text-[10px] font-semibold">
-                      {item.tag}
-                    </Badge>
-                    <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
-                  </div>
-                  <CardTitle className="text-xs font-medium leading-relaxed">
-                    {item.question}
-                  </CardTitle>
-                </CardHeader>
-              </Card>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* 4. Active Q&A Discussion Thread */}
+      {/* 2. Interactive Study Discussion Thread */}
       {studyHistory.length > 0 && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between border-b pb-2">
-            <h3 className="text-sm font-semibold">Discussion History ({studyHistory.length})</h3>
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-foreground uppercase tracking-wider">
+              Discussion Thread ({studyHistory.length} messages)
+            </span>
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setStudyHistory([])}
-              className="text-xs h-7 gap-1"
+              className="text-xs text-muted-foreground hover:text-foreground h-7"
             >
-              <RotateCcw className="h-3 w-3" />
-              <span>Clear History</span>
+              <RotateCcw className="h-3 w-3 mr-1" /> Clear Chat
             </Button>
           </div>
 
-          <div className="space-y-4">
-            {studyHistory.map((item, idx) => (
+          <div className="space-y-3">
+            {studyHistory.map((msg, idx) => (
               <Card
                 key={idx}
                 className={cn(
-                  item.role === "user" ? "bg-muted/40 border-muted" : "border-border"
+                  "border border-border p-4 transition-all",
+                  msg.role === "user" ? "bg-muted/40" : "bg-card shadow-2xs"
                 )}
               >
-                <CardHeader className="py-3 px-4 sm:px-6 border-b flex flex-row items-center justify-between gap-2">
+                <div className="flex items-center justify-between pb-2 mb-2 border-b border-border/50">
                   <div className="flex items-center gap-2">
-                    <Badge variant={item.role === "user" ? "outline" : "default"}>
-                      {item.role === "user" ? "You" : "AI Coach"}
+                    <span className="text-xs font-semibold text-foreground">
+                      {msg.role === "user" ? "Your Question" : "Staff Tutor Explanation"}
+                    </span>
+                    <Badge variant="outline" className="text-[10px] font-normal bg-muted/40 text-foreground">
+                      {msg.topic}
                     </Badge>
-                    {item.topic && (
-                      <span className="text-xs text-muted-foreground">
-                        • {item.topic}
-                      </span>
-                    )}
                   </div>
+                  <span className="text-[10px] text-muted-foreground">{msg.timestamp}</span>
+                </div>
 
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">{item.timestamp}</span>
-                    {item.role === "assistant" && (
-                      <div className="flex items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => toggleReadAloud(item.content)}
-                          className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                        >
-                          {activeSpeakingText === item.content ? (
-                            <VolumeX className="h-3.5 w-3.5 text-destructive" />
-                          ) : (
-                            <Volume2 className="h-3.5 w-3.5" />
-                          )}
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() =>
-                            onSaveAsNote(
-                              studyHistory[idx - 1]?.content || "Tech Concept",
-                              item.content,
-                              item.topic || "General"
-                            )
-                          }
-                          className="h-7 text-xs gap-1"
-                        >
-                          <BookmarkPlus className="h-3.5 w-3.5" />
-                          <span>Save Note</span>
-                        </Button>
+                <div className="text-xs sm:text-sm leading-relaxed space-y-2 text-foreground">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {msg.content}
+                  </ReactMarkdown>
+                </div>
+
+                {msg.role === "assistant" && (
+                  <div className="pt-3 mt-3 border-t border-border/50 flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          onSaveAsNote(
+                            studyHistory[idx - 1]?.content || "Tech Concept Note",
+                            msg.content,
+                            msg.topic || "General"
+                          )
+                        }
+                        className="text-xs h-7 px-2.5 font-medium cursor-pointer"
+                      >
+                        <BookmarkPlus className="h-3.5 w-3.5 mr-1" />
+                        <span>Save Note</span>
+                      </Button>
+
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => toggleReadAloud(msg.content)}
+                        className="text-xs h-7 px-2 text-muted-foreground hover:text-foreground cursor-pointer"
+                      >
+                        {activeSpeakingText === msg.content ? (
+                          <>
+                            <VolumeX className="h-3.5 w-3.5 mr-1" /> Stop Voice
+                          </>
+                        ) : (
+                          <>
+                            <Volume2 className="h-3.5 w-3.5 mr-1" /> Read Aloud
+                          </>
+                        )}
+                      </Button>
+                    </div>
+
+                    {msg.suggestedNextQuestions && msg.suggestedNextQuestions.length > 0 && (
+                      <div className="w-full pt-2 space-y-1.5">
+                        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                          Follow-up Deep Dives:
+                        </span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {msg.suggestedNextQuestions.map((q, qIdx) => (
+                            <button
+                              key={qIdx}
+                              type="button"
+                              onClick={() => handleAskStudy(q)}
+                              className="text-[11px] text-left px-2.5 py-1 rounded-md border border-border bg-muted/40 hover:bg-muted text-foreground transition-colors cursor-pointer"
+                            >
+                              {q}
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </div>
-                </CardHeader>
-                <CardContent className="p-4 sm:p-6">
-                  {item.role === "user" ? (
-                    <p className="text-sm font-medium text-foreground leading-relaxed whitespace-pre-wrap">
-                      {item.content}
-                    </p>
-                  ) : (
-                    <div className="prose prose-sm dark:prose-invert max-w-none prose-p:leading-relaxed prose-headings:text-foreground prose-headings:font-bold prose-h3:text-base prose-h4:text-sm prose-strong:text-foreground prose-strong:font-semibold prose-code:text-primary prose-code:bg-muted prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-pre:bg-muted/70 prose-pre:border prose-pre:border-border/60 prose-li:my-1 prose-ul:my-2">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                        {item.content}
-                      </ReactMarkdown>
-                    </div>
-                  )}
-                </CardContent>
+                )}
               </Card>
             ))}
-
-            {isAskingStudy && (
-              <Card className="p-4 flex items-center gap-3">
-                <Sparkles className="h-4 w-4 text-primary animate-spin" />
-                <p className="text-xs text-muted-foreground">Generating structured explanation...</p>
-              </Card>
-            )}
           </div>
         </div>
       )}
+
+      {/* 3. Recommended Topic Starters List */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Curated Questions ({filteredQuestions.length})
+          </h3>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+          {filteredQuestions.map((item, idx) => (
+            <div
+              key={idx}
+              onClick={() => handleAskStudy(item.question)}
+              className="p-3 rounded-xl border border-border bg-card shadow-2xs hover:border-border/80 transition-all cursor-pointer flex flex-col justify-between gap-2"
+            >
+              <div className="space-y-1">
+                <Badge variant="outline" className="text-[10px] font-normal bg-muted/50 text-foreground">
+                  {item.tag}
+                </Badge>
+                <p className="text-xs font-medium text-foreground leading-snug">
+                  {item.question}
+                </p>
+              </div>
+              <div className="flex justify-end items-center text-[10.5px] text-muted-foreground hover:text-foreground">
+                <span className="mr-1">Ask AI</span>
+                <ArrowRight className="h-3 w-3" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   )
 }

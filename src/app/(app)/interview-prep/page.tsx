@@ -4,7 +4,7 @@ import { useEffect, useState, Suspense } from "react"
 import { useUser } from "@clerk/nextjs"
 import { useRouter, useSearchParams } from "next/navigation"
 import { toast } from "sonner"
-import { Building2, Mic, Sparkles, X } from "lucide-react"
+import { Building2, Sparkles, X } from "lucide-react"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -12,6 +12,7 @@ import { ConversationalVoiceInterviewModal } from "@/components/interview/Conver
 
 import { PrepNote, InterviewSessionItem } from "@/components/interview/prep/types"
 import { InterviewPrepHeader } from "@/components/interview/prep/InterviewPrepBentoHero"
+import { MockInterviewLaunchpad } from "@/components/interview/prep/MockInterviewLaunchpad"
 import { ConceptLabTab } from "@/components/interview/prep/ConceptLabTab"
 import { MockTranscriptsTab } from "@/components/interview/prep/MockTranscriptsTab"
 import { RevisionNotesTab } from "@/components/interview/prep/RevisionNotesTab"
@@ -27,7 +28,12 @@ function InterviewPrepContent() {
   const customRole = searchParams.get("role") || undefined
 
   // Navigation Tab
-  const [activeTab, setActiveTab] = useState("study")
+  const [activeTab, setActiveTab] = useState("mock")
+
+  // Modal Configuration States
+  const [modalRole, setModalRole] = useState(customRole || "Senior Fullstack Engineer")
+  const [modalCompany, setModalCompany] = useState(customCompany || "Google / Tech Company")
+  const [modalType, setModalType] = useState("Technical")
 
   // Persistent Data States
   const [notes, setNotes] = useState<PrepNote[]>([])
@@ -59,6 +65,17 @@ function InterviewPrepContent() {
     }
     fetchAll()
   }, [isLoaded, isSignedIn, router])
+
+  function handleStartPreset(preset: {
+    role: string
+    company: string
+    type: string
+  }) {
+    setModalRole(preset.role)
+    setModalCompany(preset.company)
+    setModalType(preset.type)
+    setConversationalModalOpen(true)
+  }
 
   // Save AI answer as revision note
   async function handleSaveAsNote(title: string, content: string, category: string) {
@@ -103,10 +120,14 @@ function InterviewPrepContent() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6 pb-12">
-      {/* 1. Standard CareerTrack Page Header */}
+    <div className="max-w-7xl mx-auto space-y-5 sm:space-y-6 pb-12">
+      {/* 1. Page Header */}
       <InterviewPrepHeader
-        onStartMockInterview={() => setConversationalModalOpen(true)}
+        onStartMockInterview={() => {
+          setModalRole(customRole || "Senior Fullstack Engineer")
+          setModalCompany(customCompany || "Tech Company")
+          setConversationalModalOpen(true)
+        }}
       />
 
       {/* 1-Click Application-Linked Tailored Banner */}
@@ -117,14 +138,14 @@ function InterviewPrepContent() {
               <Building2 className="h-4 w-4" />
             </div>
             <div>
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 flex-wrap">
                 <span className="text-xs font-semibold text-foreground">
                   Tailored Prep Room for {customCompany}
                 </span>
                 {customRole && (
                   <span className="text-[11px] text-muted-foreground">({customRole})</span>
                 )}
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.2 text-[10px] font-semibold bg-primary/15 text-primary rounded-md">
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-semibold bg-primary/15 text-primary rounded-md">
                   <Sparkles className="h-2.5 w-2.5" /> 1-Click Tailored
                 </span>
               </div>
@@ -137,7 +158,11 @@ function InterviewPrepContent() {
           <div className="flex items-center gap-2 self-end sm:self-center">
             <Button
               size="sm"
-              onClick={() => setConversationalModalOpen(true)}
+              onClick={() => {
+                setModalRole(customRole || "Software Engineer")
+                setModalCompany(customCompany)
+                setConversationalModalOpen(true)
+              }}
               className="h-8 text-xs bg-primary text-primary-foreground hover:bg-primary/90 shadow-xs cursor-pointer font-medium"
             >
               Launch Mock Room
@@ -146,7 +171,7 @@ function InterviewPrepContent() {
               size="icon"
               variant="ghost"
               onClick={() => setDismissBanner(true)}
-              className="h-8 w-8 text-muted-foreground hover:text-foreground"
+              className="h-8 w-8 text-muted-foreground hover:text-foreground cursor-pointer"
               title="Dismiss banner"
             >
               <X className="h-3.5 w-3.5" />
@@ -155,44 +180,65 @@ function InterviewPrepContent() {
         </div>
       )}
 
-      {/* 2. Standard shadcn Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <div className="flex items-center justify-between border-b pb-3">
-          <TabsList className="bg-muted/60 p-1">
-            <TabsTrigger value="study" className="text-xs sm:text-sm">
-              AI Concept Tutor & Q&A
+      {/* 2. Clean Segmented Tabs (4 Unambiguous Modes) */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <div className="border-b border-border pb-2 overflow-x-auto no-scrollbar">
+          <TabsList className="bg-muted/60 p-1 h-9">
+            <TabsTrigger value="mock" className="text-xs font-medium px-3 sm:px-4 cursor-pointer">
+              Voice Mock Interview
             </TabsTrigger>
-            <TabsTrigger value="sessions" className="text-xs sm:text-sm">
-              Mock Transcripts ({sessions.length})
+            <TabsTrigger value="study" className="text-xs font-medium px-3 sm:px-4 cursor-pointer">
+              Concept Lab & Q&A
             </TabsTrigger>
-            <TabsTrigger value="notes" className="text-xs sm:text-sm">
+            <TabsTrigger value="notes" className="text-xs font-medium px-3 sm:px-4 cursor-pointer">
               Revision Notes ({notes.length})
+            </TabsTrigger>
+            <TabsTrigger value="sessions" className="text-xs font-medium px-3 sm:px-4 cursor-pointer">
+              Past Transcripts ({sessions.length})
             </TabsTrigger>
           </TabsList>
         </div>
 
-        {/* Tab 1: AI Concept Tutor & Q&A */}
-        <TabsContent value="study" className="pt-2">
-          <ConceptLabTab onSaveAsNote={handleSaveAsNote} />
-        </TabsContent>
-
-        {/* Tab 2: Recorded Mock Sessions & Transcripts */}
-        <TabsContent value="sessions" className="pt-2">
-          <MockTranscriptsTab
-            sessions={sessions}
-            loading={loading}
-            onDeleteSession={handleDeleteSession}
-            onStartMockInterview={() => setConversationalModalOpen(true)}
+        {/* Mode 1: Voice Mock Interview Launchpad */}
+        <TabsContent value="mock" className="pt-1">
+          <MockInterviewLaunchpad
+            onStartCustom={() => {
+              setModalRole(customRole || "Senior Fullstack Engineer")
+              setModalCompany(customCompany || "Tech Company")
+              setConversationalModalOpen(true)
+            }}
+            onStartPreset={handleStartPreset}
+            customCompany={customCompany}
+            customRole={customRole}
           />
         </TabsContent>
 
-        {/* Tab 3: Revision Notes & Saved Concepts */}
-        <TabsContent value="notes" className="pt-2">
+        {/* Mode 2: AI Concept Tutor & Q&A */}
+        <TabsContent value="study" className="pt-1">
+          <ConceptLabTab onSaveAsNote={handleSaveAsNote} />
+        </TabsContent>
+
+        {/* Mode 3: Revision Notes & Saved Concepts */}
+        <TabsContent value="notes" className="pt-1">
           <RevisionNotesTab
             notes={notes}
             loading={loading}
             onDeleteNote={handleDeleteNote}
             onNoteCreated={fetchAll}
+          />
+        </TabsContent>
+
+        {/* Mode 4: Recorded Mock Sessions & Transcripts */}
+        <TabsContent value="sessions" className="pt-1">
+          <MockTranscriptsTab
+            sessions={sessions}
+            loading={loading}
+            onDeleteSession={handleDeleteSession}
+            onStartMockInterview={() => {
+              setModalRole(customRole || "Senior Fullstack Engineer")
+              setModalCompany(customCompany || "Tech Company")
+              setConversationalModalOpen(true)
+            }}
           />
         </TabsContent>
       </Tabs>
@@ -204,9 +250,9 @@ function InterviewPrepContent() {
           setConversationalModalOpen(false)
           fetchAll()
         }}
-        initialRole={customRole || "Senior Fullstack Engineer"}
-        initialCompany={customCompany || "Google / Tech Company"}
-        initialType="Technical"
+        initialRole={modalRole}
+        initialCompany={modalCompany}
+        initialType={modalType}
         applicationId={customAppId}
         onSessionSaved={fetchAll}
       />
