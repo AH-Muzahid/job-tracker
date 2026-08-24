@@ -19,6 +19,7 @@ import {
   Briefcase,
   Brain,
   Sparkles,
+  MessageSquare,
 } from "lucide-react";
 import GlideMenu from "@/components/primitives/GlideMenu";
 import { useClerk } from "@clerk/nextjs";
@@ -372,9 +373,9 @@ export default function SidebarNav({
         "--sidebar-easing": SIDEBAR_MOTION.easing,
       } as CSSProperties}
     >
-      <div className="flex min-h-0 w-[224px] shrink-0 flex-col py-2">
+      <div className="flex h-full min-h-0 w-[224px] shrink-0 flex-col py-2">
         {/* Workspace Switcher & Collapse Controls */}
-        <div className="relative mb-2.5 h-10 shrink-0 px-2">
+        <div className="relative mb-2 h-8 shrink-0 px-2">
           <button
             ref={workspaceButtonRef}
             data-workspace-trigger
@@ -389,7 +390,7 @@ export default function SidebarNav({
               }
               setWorkspaceOpen((open) => !open);
             }}
-            className="sidebar-workspace-control absolute left-2 top-1 flex h-8 w-[164px] items-center rounded-[8px] px-2 text-left transition-[background-color,transform] duration-100 hover:bg-hover-2 active:scale-[0.99] cursor-pointer"
+            className="sidebar-workspace-control absolute left-2 top-0 flex h-8 w-[164px] items-center rounded-[8px] px-2 text-left transition-[background-color,transform,opacity] duration-150 hover:bg-hover-2 active:scale-[0.99] cursor-pointer"
           >
             <span className="sidebar-logo flex size-5 shrink-0 items-center justify-center text-ink">
               <IconPopsicle2 size={18} />
@@ -424,7 +425,7 @@ export default function SidebarNav({
             aria-hidden={isCollapsed}
             tabIndex={isCollapsed ? -1 : 0}
             onClick={collapse}
-            className="sidebar-collapse-control absolute right-2 top-1 flex size-8 items-center justify-center rounded-[8px] text-ink-3 transition-[opacity,background-color,color] duration-150 hover:bg-hover-2 hover:text-ink cursor-pointer"
+            className="sidebar-collapse-control absolute right-2 top-0 flex size-8 items-center justify-center rounded-[8px] text-ink-3 transition-[opacity,background-color,color] duration-150 hover:bg-hover-2 hover:text-ink cursor-pointer"
           >
             <IconSidebarLeftArrow size={18} />
           </button>
@@ -434,7 +435,7 @@ export default function SidebarNav({
             aria-hidden={!isCollapsed}
             tabIndex={isCollapsed ? 0 : -1}
             onClick={() => setCollapsed(false)}
-            className="sidebar-expand-control absolute left-2 top-0.5 flex size-9 items-center justify-center rounded-[8px] text-ink-3 transition-[opacity,background-color,color] duration-150 hover:bg-hover-2 hover:text-ink cursor-pointer"
+            className="sidebar-expand-control absolute left-2 top-0 flex size-8 items-center justify-center rounded-[8px] text-ink-3 transition-[opacity,background-color,color] duration-150 hover:bg-hover-2 hover:text-ink cursor-pointer"
           >
             <IconSidebarLeftArrow size={18} className="rotate-180" />
           </button>
@@ -540,6 +541,7 @@ export default function SidebarNav({
                 <div
                   key={item.id}
                   data-row
+                  title={item.label}
                   className={`group/item sidebar-row relative z-10 mx-2 flex h-8 items-center rounded-[8px] px-2 text-left transition-[width,background-color,color,transform] duration-150 active:scale-[0.98] cursor-pointer ${
                     active ? "bg-hover-2 group-hover/glide:bg-transparent" : ""
                   }`}
@@ -550,8 +552,14 @@ export default function SidebarNav({
                   }}
                 >
                   <span
-                    title={item.label}
-                    className={`sidebar-copy min-w-0 flex-1 truncate text-[14px] font-medium ${
+                    className={`flex size-5 shrink-0 items-center justify-center ${
+                      active ? "text-ink" : "text-ink-2"
+                    }`}
+                  >
+                    <MessageSquare size={16} />
+                  </span>
+                  <span
+                    className={`sidebar-copy ml-1.5 min-w-0 flex-1 truncate text-[14px] font-medium ${
                       active ? "text-ink" : "text-ink-2"
                     }`}
                   >
@@ -586,14 +594,19 @@ export default function SidebarNav({
         </div>
 
         {/* Footer CTA */}
-        <div className="sidebar-copy mx-2 mt-3 w-[208px] border-t border-line pt-3">
+        <div className="mx-2 mt-auto border-t border-line pt-2.5">
           <button
             type="button"
+            title={footerLabel}
             onClick={onFooterClick ?? onNewChat}
-            className="flex h-8 w-full items-center justify-center gap-1.5 rounded-control bg-hover-2 text-[12.5px] font-medium text-ink transition-[background-color,transform] duration-150 hover:bg-line-strong active:scale-[0.98] cursor-pointer"
+            className="flex h-8 w-full items-center rounded-control bg-hover-2 text-[12.5px] font-medium text-ink transition-[background-color,transform] duration-150 hover:bg-line-strong active:scale-[0.98] cursor-pointer px-2"
           >
-            {footerIcon}
-            {footerLabel}
+            <span className="flex size-5 shrink-0 items-center justify-center text-ink-2">
+              {footerIcon}
+            </span>
+            <span className="sidebar-copy ml-1.5 min-w-0 flex-1 truncate text-left">
+              {footerLabel}
+            </span>
           </button>
         </div>
       </div>

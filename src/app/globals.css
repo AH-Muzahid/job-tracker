@@ -326,9 +326,8 @@
 }
 
 [data-sidebar-collapsed="true"] .sidebar-workspace-control {
-  width: 36px !important;
-  padding-left: 0.5rem !important;
-  padding-right: 0.5rem !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
 }
 
 /* App-wide Custom Sleek Scrollbar */
