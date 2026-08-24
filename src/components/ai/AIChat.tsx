@@ -205,8 +205,14 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
       role: "user",
       content: trimmed,
     }
+    const assistantMsgId = "temp-asst-" + (Date.now() + 1)
+    const assistantMsg: Message = {
+      id: assistantMsgId,
+      role: "assistant",
+      content: "",
+    }
 
-    setMessages((prev) => [...prev, userMsg])
+    setMessages((prev) => [...prev, userMsg, assistantMsg])
     setInput("")
     setError(null)
     setIsStreaming(true)
@@ -248,14 +254,6 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
 
       const reader = res.body?.getReader()
       const decoder = new TextDecoder()
-      const assistantMsgId = "temp-asst-" + Date.now()
-      const assistantMsg: Message = {
-        id: assistantMsgId,
-        role: "assistant",
-        content: "",
-      }
-
-      setMessages((prev) => [...prev, assistantMsg])
 
       if (reader) {
         let rawBuffer = ""
@@ -337,8 +335,8 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
     } catch (e: unknown) {
       if (e instanceof Error && e.name !== "AbortError") {
         setError(e.message || "Failed to get response")
-        // Remove optimistic user message on failure so state doesn't stay out of sync
-        setMessages((prev) => prev.filter((m) => m.id !== userMsg.id))
+        // Remove optimistic messages on failure so state doesn't stay out of sync
+        setMessages((prev) => prev.filter((m) => m.id !== userMsg.id && m.id !== assistantMsgId))
       }
     } finally {
       setIsStreaming(false)

@@ -100,10 +100,10 @@ export async function POST(request: NextRequest) {
     buildFullContext(userId, mode),
   ])
 
-  // Save current user message
-  await prisma.chatMessage.create({
+  // Save current user message asynchronously so TTFT is not delayed
+  void prisma.chatMessage.create({
     data: { sessionId, role: "user", content: message, metadata: { mode } },
-  })
+  }).catch((err) => console.error("Failed to persist user message:", err))
 
   const history = historyRaw.reverse()
   const formattedMessages = [
