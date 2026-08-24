@@ -154,7 +154,7 @@ export default function TableView({ applications, onSelect, onBulkSuccess }: Pro
         <div className="overflow-x-auto min-w-full">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-border bg-muted/20">
+              <tr className="border-b border-border bg-background">
                 <th className="px-4 py-3 w-10 text-center">
                   <input
                     type="checkbox"
@@ -163,13 +163,13 @@ export default function TableView({ applications, onSelect, onBulkSuccess }: Pro
                     className="h-3.5 w-3.5 rounded-sm border-border bg-background accent-primary cursor-pointer"
                   />
                 </th>
-                <th className="px-4 py-3 text-left font-semibold text-xs uppercase tracking-wider text-muted-foreground">Company</th>
-                <th className="px-4 py-3 text-left font-semibold text-xs uppercase tracking-wider text-muted-foreground">Job Title</th>
-                <th className="px-4 py-3 text-left font-semibold text-xs uppercase tracking-wider text-muted-foreground hidden md:table-cell">Tags</th>
-                <th className="px-4 py-3 text-left font-semibold text-xs uppercase tracking-wider text-muted-foreground hidden lg:table-cell">Source</th>
-                <th className="px-4 py-3 text-left font-semibold text-xs uppercase tracking-wider text-muted-foreground">Date</th>
-                <th className="px-4 py-3 text-left font-semibold text-xs uppercase tracking-wider text-muted-foreground">Status</th>
-                <th className="px-4 py-3 text-left font-semibold text-xs uppercase tracking-wider text-muted-foreground"></th>
+                <th className="px-4 py-3 text-left font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Company</th>
+                <th className="px-4 py-3 text-left font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Job Title</th>
+                <th className="px-4 py-3 text-left font-mono text-[10px] uppercase tracking-wider text-muted-foreground hidden md:table-cell">Tags</th>
+                <th className="px-4 py-3 text-left font-mono text-[10px] uppercase tracking-wider text-muted-foreground hidden lg:table-cell">Source</th>
+                <th className="px-4 py-3 text-left font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Date</th>
+                <th className="px-4 py-3 text-left font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Status</th>
+                <th className="px-4 py-3 text-left font-mono text-[10px] uppercase tracking-wider text-muted-foreground"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -213,7 +213,7 @@ export default function TableView({ applications, onSelect, onBulkSuccess }: Pro
                       </div>
                     </td>
                     <td className="px-4 py-3 hidden lg:table-cell">
-                      <Badge variant="secondary" className="text-xs font-mono">{application.source}</Badge>
+                      <span className="inline-flex items-center rounded-md border border-border bg-muted/40 px-2 py-0.5 text-[11px] font-mono text-muted-foreground">{application.source}</span>
                     </td>
                     <td className="px-4 py-3 text-muted-foreground font-mono text-xs whitespace-nowrap">
                       {new Date(application.applicationDate).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}

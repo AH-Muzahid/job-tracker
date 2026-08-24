@@ -29,7 +29,7 @@ export function BillingHealth({ followUps }: { followUps?: FollowUpApp[] }) {
 
 	return (
 		<DashboardCard className="gap-0">
-			<CardHeader className="p-6 border-b">
+			<CardHeader className="px-5 pt-4 pb-4 border-b">
 				<CardTitle className="text-balance text-base font-semibold">Pipeline Health</CardTitle>
 				<CardDescription className="text-pretty text-xs text-muted-foreground mt-1">
 					{hasFollowUps ? `${followUps.length} follow-up(s) waiting` : "Nothing urgent needs your attention."}

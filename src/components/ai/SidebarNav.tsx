@@ -6,6 +6,7 @@ import {
   LogOut,
   Check,
   ChevronDown,
+  ChevronLeft,
   X,
   SquarePen,
   Home,
@@ -18,6 +19,7 @@ import {
   Briefcase,
   Brain,
   Bot,
+  FileText,
 } from "lucide-react";
 import GlideMenu from "@/components/primitives/GlideMenu";
 import { useClerk } from "@clerk/nextjs";
@@ -74,9 +76,8 @@ export function IconUserAdd({ size = 18, className = "" }: { size?: number; clas
 const DEFAULT_WORKSPACE = { key: "careertrack", name: "CareerTrack AI", monogram: "C" };
 
 const DEFAULT_NAV_ITEMS = [
-  { key: "home", label: "Dashboard", href: "/dashboard", icon: <IconHome size={18} /> },
-  { key: "applications", label: "Applications", href: "/applications", icon: <Briefcase size={18} /> },
   { key: "prep", label: "Interview Prep", href: "/interview-prep", icon: <Brain size={18} /> },
+  { key: "resumes", label: "Resumes", href: "/resumes", icon: <FileText size={18} /> },
 ];
 
 export type SidebarRecent = {
@@ -363,7 +364,7 @@ export default function SidebarNav({
         fill ? "h-full" : "h-[600px]"
       } ${className}`}
       style={{
-        width: isCollapsed ? SIDEBAR_MOTION.collapsedWidth : SIDEBAR_MOTION.expandedWidth,
+        width: isCollapsed ? SIDEBAR_MOTION.collapsedWidth : fill ? "100%" : SIDEBAR_MOTION.expandedWidth,
         transitionDuration: `${SIDEBAR_MOTION.duration}ms`,
         transitionTimingFunction: SIDEBAR_MOTION.easing,
         "--sidebar-copy-duration": `${SIDEBAR_MOTION.copyDuration}ms`,
@@ -371,72 +372,43 @@ export default function SidebarNav({
         "--sidebar-easing": SIDEBAR_MOTION.easing,
       } as CSSProperties}
     >
-      <div className="flex h-full min-h-0 w-[224px] shrink-0 flex-col py-2">
-        {/* Workspace Switcher & Collapse Controls */}
-        <div className="relative mb-2 h-8 shrink-0 px-2">
+      <div className="flex h-full min-h-0 w-full shrink-0 flex-col py-2">
+        {/* Vercel Drilldown Header: < AI Assistant */}
+        <div className="relative mb-2 h-8 shrink-0 px-2 flex items-center justify-between">
           <button
-            ref={workspaceButtonRef}
-            data-workspace-trigger
             type="button"
-            aria-expanded={workspaceOpen}
-            aria-hidden={isCollapsed}
-            tabIndex={isCollapsed ? -1 : 0}
-            onClick={() => {
-              if (!workspaceOpen && workspaceButtonRef.current) {
-                const rect = workspaceButtonRef.current.getBoundingClientRect();
-                setWorkspacePosition({ top: rect.bottom + 6, left: rect.left });
-              }
-              setWorkspaceOpen((open) => !open);
-            }}
-            className="sidebar-workspace-control absolute left-2 top-0 flex h-8 w-[164px] items-center rounded-[8px] px-2 text-left transition-[background-color,transform,opacity] duration-150 hover:bg-hover-2 active:scale-[0.99] cursor-pointer"
+            onClick={() => router.push("/dashboard")}
+            className="sidebar-workspace-control flex items-center gap-2 px-1.5 py-1 rounded-[8px] text-ink hover:bg-hover-2 active:scale-[0.98] transition-colors cursor-pointer group"
+            title="Back to Dashboard"
           >
-            <span className="sidebar-logo flex size-5 shrink-0 items-center justify-center text-ink">
-              <IconPopsicle2 size={18} />
-            </span>
-            <span className="sidebar-copy ml-1.5 min-w-0 flex-1 truncate text-[14px] font-medium text-ink-2">
-              {workspaceName}
-            </span>
-            <span className="sidebar-copy ml-1 flex shrink-0 text-ink-3">
-              <IconChevronDownSmall size={16} />
+            <ChevronLeft size={18} className="text-ink-2 group-hover:text-ink transition-transform group-hover:-translate-x-0.5 shrink-0" />
+            <span className="sidebar-copy font-semibold text-[14px] text-ink tracking-tight">
+              AI Assistant
             </span>
           </button>
 
-          {workspaceOpen && (
-            <WorkspaceMenu
-              position={workspacePosition}
-              workspace={{ name: workspaceName, monogram: workspaceMonogram }}
-              onClose={() => setWorkspaceOpen(false)}
-              onSignOut={() => signOut({ redirectUrl: "/sign-in" })}
-              onNavigate={(path) => {
-                if (path === "new-chat") {
-                  onNewChat?.();
-                } else {
-                  router.push(path);
-                }
-              }}
-            />
-          )}
-
-          <button
-            type="button"
-            aria-label="Collapse sidebar"
-            aria-hidden={isCollapsed}
-            tabIndex={isCollapsed ? -1 : 0}
-            onClick={collapse}
-            className="sidebar-collapse-control absolute right-2 top-0 flex size-8 items-center justify-center rounded-[8px] text-ink-3 transition-[opacity,background-color,color] duration-150 hover:bg-hover-2 hover:text-ink cursor-pointer"
-          >
-            <IconSidebarLeftArrow size={18} />
-          </button>
-          <button
-            type="button"
-            aria-label="Expand sidebar"
-            aria-hidden={!isCollapsed}
-            tabIndex={isCollapsed ? 0 : -1}
-            onClick={() => setCollapsed(false)}
-            className="sidebar-expand-control absolute left-2 top-0 flex size-8 items-center justify-center rounded-[8px] text-ink-3 transition-[opacity,background-color,color] duration-150 hover:bg-hover-2 hover:text-ink cursor-pointer"
-          >
-            <IconSidebarLeftArrow size={18} className="rotate-180" />
-          </button>
+          <div className="flex items-center">
+            <button
+              type="button"
+              aria-label="Collapse sidebar"
+              aria-hidden={isCollapsed}
+              tabIndex={isCollapsed ? -1 : 0}
+              onClick={collapse}
+              className="sidebar-collapse-control flex size-8 items-center justify-center rounded-[8px] text-ink-3 transition-[opacity,background-color,color] duration-150 hover:bg-hover-2 hover:text-ink cursor-pointer"
+            >
+              <IconSidebarLeftArrow size={18} />
+            </button>
+            <button
+              type="button"
+              aria-label="Expand sidebar"
+              aria-hidden={!isCollapsed}
+              tabIndex={isCollapsed ? 0 : -1}
+              onClick={() => setCollapsed(false)}
+              className="sidebar-expand-control flex size-8 items-center justify-center rounded-[8px] text-ink-3 transition-[opacity,background-color,color] duration-150 hover:bg-hover-2 hover:text-ink cursor-pointer"
+            >
+              <IconSidebarLeftArrow size={18} className="rotate-180" />
+            </button>
+          </div>
         </div>
 
         {/* Primary Action & Nav Items */}

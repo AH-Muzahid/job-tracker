@@ -49,8 +49,9 @@ export default function BoardView({ applications, onSelect, onEdit, onDelete, on
         ))}
       </div>
 
-      <div className="relative border border-border bg-background w-full max-w-full overflow-hidden">
+      <div className="relative border border-border bg-border w-full max-w-full overflow-hidden">
         <DecorIcon className="hidden md:block" position="top-left" />
+        <DecorIcon className="hidden md:block" position="top-right" />
         {/* Responsive Kanban container: Snap horizontal scroll on mobile, 5-col border divided on desktop */}
         <div className="flex md:grid md:grid-cols-5 divide-y md:divide-y-0 md:divide-x divide-border bg-background overflow-x-auto md:overflow-visible snap-x snap-mandatory scroll-smooth no-scrollbar w-full">
           {board.map((column) => (

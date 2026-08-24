@@ -8,6 +8,8 @@ import {
   deleteUserAIProfile,
 } from "@/lib/ai/config"
 
+export const dynamic = "force-dynamic"
+
 export async function GET() {
   const userId = await getInternalUserId()
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })

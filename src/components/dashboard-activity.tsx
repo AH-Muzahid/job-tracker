@@ -35,7 +35,7 @@ const items = [
 export function DashboardActivity() {
 	return (
 		<DashboardCard className="gap-0">
-			<CardHeader className="p-6 border-b">
+			<CardHeader className="px-5 pt-4 pb-4 border-b">
 				<CardTitle className="text-base font-semibold">Activity</CardTitle>
 				<CardDescription className="text-xs text-muted-foreground mt-1">
 					Latest updates in your career search.
@@ -44,14 +44,14 @@ export function DashboardActivity() {
 			<CardContent className="px-0">
 				<ul className="flex flex-col divide-y divide-border">
 					{items.map((item) => (
-						<li className="flex h-16 items-center gap-3 px-6" key={item.title}>
+						<li className="flex h-16 items-center gap-3 px-5" key={item.title}>
 							<span
 								aria-hidden="true"
-								className="flex size-10 shrink-0 items-center justify-center [&_svg]:size-4"
+								className="flex size-7 shrink-0 items-center justify-center rounded-md border border-border bg-muted/40 [&_svg]:size-3.5"
 							>
 								{item.icon}
 							</span>
-							<div className="min-w-0 flex-1 space-y-1">
+							<div className="min-w-0 flex-1 space-y-0.5">
 								<p className="line-clamp-1 text-pretty text-foreground text-sm leading-snug">
 									{item.title}
 								</p>

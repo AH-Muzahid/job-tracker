@@ -68,12 +68,12 @@ export function AppHeader() {
 
 				<Button
 					asChild
-					className="hidden sm:inline-flex text-xs h-8 gap-1.5 bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20"
+					className="hidden sm:inline-flex text-xs h-8 gap-1.5 bg-muted/40 border border-border text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer"
 					size="sm"
-					variant="outline"
+					variant="ghost"
 				>
 					<Link href="/ai-assistant">
-						<Bot className="size-3.5 text-primary" />
+						<Bot className="size-3.5" />
 						<span>Ask AI</span>
 					</Link>
 				</Button>
@@ -95,7 +95,7 @@ export function AppHeader() {
 					variant="ghost"
 				>
 					<BellIcon className="size-4" />
-					<span className="absolute top-1.5 right-1.5 size-1.5 rounded-full bg-emerald-500" />
+					<span className="absolute top-1.5 right-1.5 size-1.5 rounded-full bg-success" />
 				</Button>
 
 				<Separator

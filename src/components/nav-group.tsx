@@ -72,10 +72,13 @@ export function NavGroup({ label, items }: SidebarNavGroup) {
 										</CollapsibleContent>
 									</>
 								) : (
-									<SidebarMenuButton asChild isActive={isItemActive}>
-										<Link href={item.path || "#"}>
+									<SidebarMenuButton asChild isActive={isItemActive} tooltip={item.title}>
+										<Link href={item.path || "#"} className="flex items-center w-full">
 											{item.icon}
 											<span>{item.title}</span>
+											{item.hasDrilldown && (
+												<ChevronRightIcon className="ml-auto size-3.5 text-muted-foreground/60 transition-transform group-hover/collapsible:translate-x-0.5" />
+											)}
 										</Link>
 									</SidebarMenuButton>
 								)}

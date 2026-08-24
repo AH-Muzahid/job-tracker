@@ -120,11 +120,11 @@ function ApplicationsContent() {
   }
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-12 w-full min-w-0 max-w-full overflow-x-hidden">
+    <div className="space-y-8 max-w-7xl mx-auto pb-12 w-full min-w-0 max-w-full overflow-x-hidden">
       {/* 1. Header Section */}
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="text-lg sm:text-xl font-bold tracking-tight text-foreground truncate">Applications Pipeline</h1>
+          <h1 className="text-lg sm:text-xl font-display tracking-heading-sm text-foreground truncate">Applications Pipeline</h1>
           <p className="text-xs text-muted-foreground truncate mt-0.5">Manage, track, and advance your job search applications</p>
         </div>
         <Button size="sm" onClick={() => setFormModal(true)} className="rounded-md font-semibold text-xs cursor-pointer shrink-0 h-8 sm:h-9 px-3 sm:px-4">

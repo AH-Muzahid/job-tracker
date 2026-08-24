@@ -19,6 +19,7 @@ export type SidebarNavItem = {
 	path?: string;
 	icon?: ReactNode;
 	isActive?: boolean;
+	hasDrilldown?: boolean;
 	subItems?: SidebarNavItem[];
 };
 
@@ -65,6 +66,7 @@ export const navGroups: SidebarNavGroup[] = [
 				title: "AI Assistant",
 				path: "/ai-assistant",
 				icon: <BotIcon className="size-4" />,
+				hasDrilldown: true,
 			},
 			{
 				title: "Interview Prep",

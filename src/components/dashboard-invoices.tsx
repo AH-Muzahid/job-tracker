@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
 	CardContent,
 	CardDescription,
@@ -19,6 +18,7 @@ import {
 	TableRow,
 } from "@/components/ui/table";
 import { DashboardCard } from "@/components/dashboard-card";
+import StatusBadge from "@/components/StatusBadge";
 import { ArrowRightIcon } from "lucide-react";
 
 export type RecentApp = {
@@ -61,7 +61,7 @@ export function DashboardInvoices({ applications }: { applications?: RecentApp[]
 
 	return (
 		<DashboardCard className="relative gap-0 md:col-span-2">
-			<CardHeader className="p-6 border-b">
+			<CardHeader className="px-5 pt-4 pb-4 border-b">
 				<CardTitle className="text-base font-semibold">Recent Applications</CardTitle>
 				<CardDescription className="text-xs text-muted-foreground mt-1">
 					Latest pipeline submissions & stage updates.
@@ -82,26 +82,21 @@ export function DashboardInvoices({ applications }: { applications?: RecentApp[]
 						</TableRow>
 					</TableHeader>
 					<TableBody>
-						{list.map((app) => {
-							const statusKey = app.status.toLowerCase() as "saved" | "applied" | "assessment" | "interview" | "rejected" | "offer";
-							return (
-								<TableRow className="h-12" key={app.id}>
-									<TableCell className="max-w-40 truncate ps-6 font-medium text-foreground">
-										<Link href={`/applications/${app.id}`} className="hover:underline">
-											{app.companyName}
-										</Link>
-									</TableCell>
-									<TableCell className="text-muted-foreground truncate max-w-48 text-xs">
-										{app.jobTitle}
-									</TableCell>
-									<TableCell className="pe-6 text-right">
-										<Badge variant={statusKey || "default"} className="capitalize text-[10px] px-2 py-0.5">
-											{app.status}
-										</Badge>
-									</TableCell>
-								</TableRow>
-							);
-						})}
+						{list.map((app) => (
+							<TableRow className="h-12" key={app.id}>
+								<TableCell className="max-w-40 truncate ps-6 font-medium text-foreground">
+									<Link href={`/applications/${app.id}`} className="hover:underline">
+										{app.companyName}
+									</Link>
+								</TableCell>
+								<TableCell className="text-muted-foreground truncate max-w-48 text-xs">
+									{app.jobTitle}
+								</TableCell>
+								<TableCell className="pe-6 text-right">
+									<StatusBadge status={app.status} />
+								</TableCell>
+							</TableRow>
+						))}
 					</TableBody>
 				</Table>
 			</CardContent>

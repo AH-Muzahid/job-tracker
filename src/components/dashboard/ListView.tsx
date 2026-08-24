@@ -2,7 +2,6 @@
 
 import Link from "next/link"
 import { ExternalLink, Plus, Inbox } from "lucide-react"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import { DecorIcon } from "@/components/decor-icon"
@@ -72,13 +71,13 @@ function ListItem({ application, onClick }: { application: Application; onClick:
       </div>
       <div className="hidden sm:flex items-center gap-1.5">
         {application.tags.slice(0, 2).map(({ tag }) => (
-          <Badge key={tag.id} variant="outline" className="text-[11px] font-mono px-2 py-0.5 border-border">
+          <span key={tag.id} className="inline-flex items-center rounded-md border border-border bg-muted/40 px-2 py-0.5 text-[11px] font-mono text-muted-foreground">
             {tag.name}
-          </Badge>
+          </span>
         ))}
       </div>
       <StatusBadge status={application.status} />
-      <Badge variant="secondary" className="hidden md:inline-flex text-xs font-mono">{application.source}</Badge>
+      <span className="hidden md:inline-flex items-center rounded-md border border-border bg-muted/40 px-2 py-0.5 text-[11px] font-mono text-muted-foreground">{application.source}</span>
       <span className="hidden sm:inline-block shrink-0 text-xs font-mono text-muted-foreground">
         {new Date(application.applicationDate).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
       </span>

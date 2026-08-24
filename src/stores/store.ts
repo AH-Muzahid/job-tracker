@@ -15,8 +15,10 @@ export interface AISession {
 interface AIState {
   sessions: AISession[]
   sessionsLoading: boolean
+  activeChatId: string | null
   setSessions: (sessions: AISession[]) => void
   setSessionsLoading: (v: boolean) => void
+  setActiveChatId: (id: string | null) => void
 }
 
 interface UIState {
@@ -96,6 +98,8 @@ export const useUI = create<UIState>((set) => ({
 export const useAI = create<AIState>((set) => ({
   sessions: [],
   sessionsLoading: false,
+  activeChatId: null,
   setSessions: (sessions) => set({ sessions }),
   setSessionsLoading: (v) => set({ sessionsLoading: v }),
+  setActiveChatId: (id) => set({ activeChatId: id }),
 }))

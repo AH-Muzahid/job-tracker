@@ -47,36 +47,36 @@ export function HeroSection() {
 					</a>
 
 					<h1
-						className={cn(
-							"max-w-2xl text-balance text-center text-3xl text-foreground md:text-5xl lg:text-6xl",
-							"fade-in slide-in-from-bottom-10 animate-in fill-mode-backwards delay-100 duration-500 ease-out"
-						)}
-					>
-						Track Every Application. Land Your Dream Job.
-					</h1>
+					className={cn(
+						"max-w-2xl text-balance text-center text-3xl font-display tracking-display-lg text-foreground md:text-5xl lg:text-6xl",
+						"fade-in slide-in-from-bottom-10 animate-in fill-mode-backwards delay-100 duration-500 ease-out"
+					)}
+				>
+					Track Every Application. Land Your Dream Job.
+				</h1>
 
-					<p
-						className={cn(
-							"text-center text-muted-foreground text-sm tracking-wider sm:text-lg",
-							"fade-in slide-in-from-bottom-10 animate-in fill-mode-backwards delay-200 duration-500 ease-out"
-						)}
-					>
-						Organize your job search, ace interviews with AI prep, <br /> and
-						manage resumes — all in one place.
-					</p>
+				<p
+					className={cn(
+						"text-center text-muted-foreground text-sm tracking-normal sm:text-lg",
+						"fade-in slide-in-from-bottom-10 animate-in fill-mode-backwards delay-200 duration-500 ease-out"
+					)}
+				>
+					Organize your job search, ace interviews with AI prep, <br /> and
+					manage resumes — all in one place.
+				</p>
 
-					<div className="fade-in slide-in-from-bottom-10 flex w-fit animate-in items-center justify-center gap-3 fill-mode-backwards pt-2 delay-300 duration-500 ease-out">
-					<Button variant="outline" asChild>
-						<a href="#features">
-							<PhoneCallIcon data-icon="inline-start" />{" "}
-							Learn More
-						</a>
+				<div className="fade-in slide-in-from-bottom-10 flex w-fit animate-in items-center justify-center gap-3 fill-mode-backwards pt-2 delay-300 duration-500 ease-out">
+				<Button variant="outline" asChild className="h-9 px-4 rounded-md text-sm font-semibold gap-2 cursor-pointer">
+					<a href="#features">
+						<PhoneCallIcon data-icon="inline-start" />{" "}
+						Learn More
+					</a>
+				</Button>
+					<Button className="h-9 px-4 rounded-md text-sm font-semibold gap-2 cursor-pointer">
+						Start Free
+						<ArrowRightIcon data-icon="inline-end" />
 					</Button>
-						<Button>
-							Start Free
-							<ArrowRightIcon data-icon="inline-end" />
-						</Button>
-					</div>
+				</div>
 				</div>
 			</div>
 			<div className="relative">

@@ -3,6 +3,8 @@ import { getInternalUserId } from "@/lib/auth"
 import { getProvider, type AIProviderConfig } from "@/lib/ai/client"
 import { getUserAIConfig } from "@/lib/ai/config"
 
+export const dynamic = "force-dynamic"
+
 export async function POST(request: Request) {
   const userId = await getInternalUserId()
   if (!userId) {

@@ -87,7 +87,7 @@ export function NetRevenueChart() {
 
 	return (
 		<DashboardCard className="gap-0 md:col-span-2">
-			<CardHeader className="p-6 pb-2">
+			<CardHeader className="px-5 pt-4 pb-2">
 				<div className="flex flex-wrap items-center gap-2">
 					<CardTitle className="text-base font-semibold">Application Velocity</CardTitle>
 					<Delta value={Number(growthPct)} variant="badge">
@@ -119,7 +119,7 @@ export function NetRevenueChart() {
 						/>
 						<Bar
 							dataKey="sales"
-							fill="#ffffff"
+							fill="var(--chart-2)"
 							shape={<CustomGradientBar uniquePrefix={chartUid} />}
 						/>
 					</BarChart>

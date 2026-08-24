@@ -91,7 +91,7 @@ export default function FilterBar({
         </button>
       )}
 
-      <div className="ml-auto text-xs font-mono text-muted-foreground border border-border bg-card/60 px-2.5 py-1 rounded-md">
+      <div className="ml-auto text-xs font-mono tabular-nums text-muted-foreground border border-border bg-card/60 px-2.5 py-1 rounded-md">
         {hasFilters ? `${filteredCount} of ${total}` : `${total} total`}
       </div>
     </div>

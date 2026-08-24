@@ -1,5 +1,7 @@
-export function getCompanyColor() {
-  return "bg-muted/60 text-foreground border-border"
+// Returns Efferd-compliant neutral company avatar style.
+// Fixed (not random) — avoids SSR/client hydration mismatch.
+export function getCompanyColor(): string {
+  return "bg-muted/40 border-border text-muted-foreground"
 }
 
 export function getInitials(name: string) {
