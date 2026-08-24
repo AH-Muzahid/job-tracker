@@ -11,7 +11,6 @@ import {
   Home,
   Search,
   Plus,
-  Bot,
   Settings,
   PanelLeftClose,
   UserPlus,
@@ -19,7 +18,6 @@ import {
   Briefcase,
   Brain,
   Sparkles,
-  MessageSquare,
 } from "lucide-react";
 import GlideMenu from "@/components/primitives/GlideMenu";
 import { useClerk } from "@clerk/nextjs";

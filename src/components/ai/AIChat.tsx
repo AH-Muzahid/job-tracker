@@ -249,7 +249,7 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
       const reader = res.body?.getReader()
       const decoder = new TextDecoder()
       const assistantMsgId = "temp-asst-" + Date.now()
-      let assistantMsg: Message = {
+      const assistantMsg: Message = {
         id: assistantMsgId,
         role: "assistant",
         content: "",
