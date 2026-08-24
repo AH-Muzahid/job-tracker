@@ -39,18 +39,46 @@ export default function Navbar() {
 
   if (isFullscreen) {
     return (
-      <header className="sticky top-0 z-30 flex h-12 items-center border-b border-border/50 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 px-4 sm:px-6">
-        <div className="flex items-center gap-2 shrink-0">
-          <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary/10">
-            <Bot className="h-3.5 w-3.5 text-primary" />
+      <header className="sticky top-0 z-30 flex h-14 items-center border-b border-border/50 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 px-3 sm:px-6 gap-2.5">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground lg:hidden cursor-pointer"
+          onClick={() => setMobileOpen(!mobileOpen)}
+          aria-label="Open Navigation Menu"
+        >
+          {mobileOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+        </Button>
+
+        <div className="flex items-center gap-1.5 min-w-0">
+          <Link
+            href="/dashboard"
+            className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors shrink-0"
+          >
+            <div className="flex h-6 w-6 items-center justify-center rounded-md bg-primary text-primary-foreground font-bold text-[10px]">
+              C
+            </div>
+            <span className="text-xs font-medium hidden sm:inline">CareerTrack</span>
+          </Link>
+          <ChevronRight className="h-3 w-3 text-muted-foreground/50 shrink-0" />
+          <div className="flex items-center gap-1.5 min-w-0">
+            <div className="flex h-5 w-5 items-center justify-center rounded-md bg-primary/10">
+              <Bot className="h-3 w-3 text-primary" />
+            </div>
+            <span className="text-xs sm:text-sm font-semibold truncate text-foreground">AI Assistant</span>
           </div>
-          <span className="text-sm font-medium">AI Assistant</span>
         </div>
 
         <div className="flex-1" />
 
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={toggleTheme}>
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:text-foreground cursor-pointer"
+            onClick={toggleTheme}
+            aria-label="Toggle theme"
+          >
             {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           </Button>
           <div className="h-5 w-px bg-border hidden sm:block" />
