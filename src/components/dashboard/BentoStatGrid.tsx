@@ -1,6 +1,8 @@
 "use client"
 
 import { Briefcase, TrendingUp, Activity, Award } from "lucide-react"
+import { Card, CardHeader, CardContent } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 
 interface BentoStatGridProps {
   stats: {
@@ -98,13 +100,13 @@ export default function BentoStatGrid({ stats }: BentoStatGridProps) {
       {items.map((item) => {
         const IconComponent = item.icon
         return (
-          <div
+          <Card
             key={item.label}
-            className="group relative rounded-2xl border border-border/80 bg-card/60 backdrop-blur-xl p-4 shadow-sm hover:border-border/100 hover:shadow-md transition-all duration-300 flex flex-col justify-between"
+            className="group relative rounded-xl border border-border/80 bg-card/60 backdrop-blur-xl shadow-sm hover:border-border/100 hover:shadow-md transition-all duration-300 flex flex-col justify-between overflow-hidden"
           >
-            <div className="flex items-start justify-between">
+            <CardHeader className="p-4 pb-0 flex flex-row items-start justify-between space-y-0">
               <div className="flex items-center gap-2">
-                <div className={`p-2 rounded-xl border ${item.iconBg} transition-transform group-hover:scale-105`}>
+                <div className={`p-2 rounded-lg border ${item.iconBg} transition-transform group-hover:scale-105`}>
                   <IconComponent className="h-4 w-4" />
                 </div>
                 <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider">
@@ -112,18 +114,18 @@ export default function BentoStatGrid({ stats }: BentoStatGridProps) {
                 </span>
               </div>
               {item.arc !== undefined && <MiniArc value={item.arc} color={item.arcColor} />}
-            </div>
+            </CardHeader>
 
-            <div className="mt-3">
+            <CardContent className="p-4 pt-3">
               <p className="text-2xl font-bold tracking-tight text-foreground font-sans">
                 {item.value}
               </p>
-              <p className="text-[10px] font-mono text-muted-foreground mt-1 flex items-center gap-1">
+              <Badge variant="secondary" className="text-[10px] font-mono mt-1 flex items-center gap-1 w-fit bg-muted/50 border-border/50">
                 <span className="inline-block h-1.5 w-1.5 rounded-full bg-primary/60" />
                 {item.badge}
-              </p>
-            </div>
-          </div>
+              </Badge>
+            </CardContent>
+          </Card>
         )
       })}
     </div>

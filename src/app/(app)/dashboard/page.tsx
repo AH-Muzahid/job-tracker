@@ -42,7 +42,7 @@ function DashboardContent() {
   const followUpApps = safeStats.followUpApps || []
 
   return (
-    <div className="space-y-4 max-w-7xl mx-auto">
+    <div className="space-y-5 max-w-7xl mx-auto pb-10">
       {/* 1. Bento Command Center Hero */}
       <BentoCommandZone
         activePipeline={activePipeline}
@@ -72,21 +72,21 @@ function DashboardContent() {
 
 function DashboardBentoSkeleton() {
   return (
-    <div className="space-y-4 max-w-7xl mx-auto">
-      <Skeleton className="h-44 w-full rounded-2xl" />
-      <Skeleton className="h-20 w-full rounded-2xl" />
+    <div className="space-y-5 max-w-7xl mx-auto pb-10">
+      <Skeleton className="h-48 w-full rounded-lg" />
+      <Skeleton className="h-24 w-full rounded-lg" />
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {Array.from({ length: 4 }).map((_, i) => (
-          <Skeleton key={i} className="h-28 rounded-2xl" />
+          <Skeleton key={i} className="h-32 rounded-lg" />
         ))}
       </div>
       <div className="grid gap-4 lg:grid-cols-5">
-        <Skeleton className="h-64 rounded-2xl lg:col-span-3" />
-        <Skeleton className="h-64 rounded-2xl lg:col-span-2" />
+        <Skeleton className="h-72 rounded-lg lg:col-span-3" />
+        <Skeleton className="h-72 rounded-lg lg:col-span-2" />
       </div>
       <div className="grid gap-4 md:grid-cols-2">
         {Array.from({ length: 2 }).map((_, i) => (
-          <Skeleton key={i} className="h-56 rounded-2xl" />
+          <Skeleton key={i} className="h-64 rounded-lg" />
         ))}
       </div>
     </div>

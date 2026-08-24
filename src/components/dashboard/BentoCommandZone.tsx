@@ -173,28 +173,32 @@ export default function BentoCommandZone({ activePipeline, totalThisWeek = 0 }: 
 
   return (
     <>
-      <div className="rounded-2xl border border-border/80 bg-card/60 backdrop-blur-xl p-5 sm:p-6 shadow-sm hover:border-border transition-all duration-300">
+      <section
+        role="region"
+        aria-label="Application Command Center"
+        className="rounded-xl border border-border/80 bg-card/70 backdrop-blur-2xl p-5 sm:p-6 shadow-sm hover:border-border/90 hover:shadow-md transition-all duration-300 relative overflow-hidden"
+      >
         <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-6">
           
           {/* Left Column: Greeting & Status Micro-Badge */}
-          <div className="lg:w-5/12 space-y-3">
-            <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full border border-border/60 bg-muted/40 text-[11px] font-mono text-muted-foreground">
-              <span className="h-1.5 w-1.5 rounded-full bg-status-applied animate-pulse" />
+          <div className="lg:w-5/12 space-y-3.5">
+            <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-md border border-primary/20 bg-primary/10 text-[11px] font-mono text-primary font-medium">
+              <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
               <span>{activePipeline} Active Roles in Pipeline</span>
             </div>
 
             <div>
-              <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
-                {greeting}, {firstName}
+              <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground font-sans">
+                {greeting}, {firstName} 👋
               </h1>
-              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                Paste any job description or drop a file to instantly analyze compatibility and track it.
+              <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
+                Paste any job description, upload a document, or quickly add a job to analyze match score and track progress.
               </p>
             </div>
 
             {totalThisWeek > 0 && (
               <div className="pt-1 flex items-center gap-2 text-xs text-muted-foreground">
-                <Badge variant="outline" className="text-[10px] font-mono border-border/60">
+                <Badge variant="outline" className="text-[10px] font-mono border-border/80 bg-background/50 px-2 py-0.5 rounded-md">
                   +{totalThisWeek} added this week
                 </Badge>
               </div>
@@ -202,47 +206,50 @@ export default function BentoCommandZone({ activePipeline, totalThisWeek = 0 }: 
           </div>
 
           {/* Right Column: Interactive Command Control */}
-          <div className="lg:w-7/12 min-w-0 space-y-3">
+          <div className="lg:w-7/12 min-w-0 space-y-3.5">
             
             {/* Quick Chips Bar */}
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/50 pb-2">
-              <div className="flex items-center gap-1.5">
+            <div className="flex flex-wrap items-center justify-between gap-2 bg-muted/40 p-1 rounded-lg border border-border/60">
+              <div className="flex items-center gap-1">
                 <button
                   type="button"
                   onClick={() => setMode("scan")}
-                  className={`px-3 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                  aria-pressed={mode === "scan"}
+                  className={`px-3 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
                     mode === "scan"
-                      ? "bg-secondary text-secondary-foreground shadow-xs"
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
+                      ? "bg-background text-foreground shadow-xs font-bold border border-border/40"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
                   }`}
                 >
-                  <Sparkles className="h-3 w-3 inline mr-1" />
+                  <Sparkles className="h-3.5 w-3.5 text-primary" />
                   Text Intake
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setMode("upload")}
-                  className={`px-3 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                  aria-pressed={mode === "upload"}
+                  className={`px-3 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
                     mode === "upload"
-                      ? "bg-secondary text-secondary-foreground shadow-xs"
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
+                      ? "bg-background text-foreground shadow-xs font-bold border border-border/40"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
                   }`}
                 >
-                  <Upload className="h-3 w-3 inline mr-1" />
+                  <Upload className="h-3.5 w-3.5 text-blue-500" />
                   Drop File
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setMode("manual")}
-                  className={`px-3 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                  aria-pressed={mode === "manual"}
+                  className={`px-3 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
                     mode === "manual"
-                      ? "bg-secondary text-secondary-foreground shadow-xs"
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
+                      ? "bg-background text-foreground shadow-xs font-bold border border-border/40"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
                   }`}
                 >
-                  <Plus className="h-3 w-3 inline mr-1" />
+                  <Plus className="h-3.5 w-3.5 text-emerald-500" />
                   Manual Entry
                 </button>
               </div>
@@ -252,9 +259,9 @@ export default function BentoCommandZone({ activePipeline, totalThisWeek = 0 }: 
                 variant="ghost"
                 size="sm"
                 onClick={handlePasteClipboard}
-                className="h-7 text-[11px] font-mono text-muted-foreground hover:text-foreground px-2 cursor-pointer"
+                className="h-8 text-[11px] font-mono text-muted-foreground hover:text-foreground px-2.5 rounded-xl cursor-pointer hover:bg-background/60"
               >
-                <Clipboard className="h-3 w-3 mr-1" />
+                <Clipboard className="h-3.5 w-3.5 mr-1 text-purple-500" />
                 Paste Clipboard
               </Button>
             </div>
@@ -292,7 +299,7 @@ export default function BentoCommandZone({ activePipeline, totalThisWeek = 0 }: 
 
           </div>
         </div>
-      </div>
+      </section>
 
     </>
   )

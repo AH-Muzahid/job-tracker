@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma, withDbRetry } from "@/lib/prisma"
 import { getInternalUserId } from "@/lib/auth"
+import { getCachedJson, setCachedJson } from "@/lib/redis"
 
 const statuses = ["Saved", "Applied", "Assessment", "Interview", "Rejected", "Offer"] as const
 
@@ -8,6 +9,12 @@ export async function GET() {
   const userId = await getInternalUserId()
   if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
+  const cacheKey = `user:stats:${userId}`
+  const cached = await getCachedJson<Record<string, unknown>>(cacheKey)
+  if (cached) {
+    return NextResponse.json(cached)
   }
 
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
@@ -77,6 +84,8 @@ export async function GET() {
     bySource,
     followUpApps,
   }
+
+  void setCachedJson(cacheKey, stats, 60)
 
   return NextResponse.json(stats)
 }

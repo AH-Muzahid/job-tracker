@@ -45,15 +45,15 @@ export default function FilterBar({
         <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
         <input
           type="text"
-          placeholder="Search jobs..."
+          placeholder="Search company, position, tag..."
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
-          className="h-8 rounded-md border bg-muted/50 pl-8 pr-3 text-sm outline-none focus:ring-1 focus:ring-ring w-48"
+          className="h-9 rounded-xl border border-border/80 bg-card/60 backdrop-blur-md pl-8 pr-8 text-xs outline-none focus:border-primary/80 focus:ring-1 focus:ring-primary/30 w-56 transition-all"
         />
         {search && (
           <button
             onClick={() => onSearchChange("")}
-            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5 rounded-md hover:bg-muted transition-colors"
           >
             <X className="h-3 w-3" />
           </button>
@@ -84,16 +84,16 @@ export default function FilterBar({
       {hasFilters && (
         <button
           onClick={onClearAll}
-          className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
         >
           <X className="h-3 w-3" />
-          Clear
+          Clear filters
         </button>
       )}
 
-      <span className="text-xs text-muted-foreground">
-        {hasFilters ? `${filteredCount} of ${total}` : `${total} jobs`}
-      </span>
+      <div className="ml-auto text-xs font-mono text-muted-foreground bg-card/40 border border-border/60 px-2.5 py-1 rounded-lg">
+        {hasFilters ? `${filteredCount} of ${total} jobs` : `${total} jobs`}
+      </div>
     </div>
   )
 }
