@@ -38,8 +38,11 @@ export async function DELETE(
       })
     )
 
-    // Invalidate Redis cache
-    void invalidateCache(`user:memories:${userId}`)
+    // Invalidate Redis caches immediately
+    await Promise.all([
+      invalidateCache(`user:memories:${userId}`),
+      invalidateCache(`settings:bundle:${userId}`),
+    ])
 
     return NextResponse.json({ success: true, message: "Memory deleted" })
   } catch (error) {

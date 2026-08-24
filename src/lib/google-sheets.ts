@@ -1,4 +1,5 @@
 import { prisma, withDbRetry } from "@/lib/prisma"
+import { getCachedJson, setCachedJson, invalidateCache } from "@/lib/redis"
 
 export interface GoogleSheetsConfig {
   sheetUrl: string
@@ -82,10 +83,17 @@ function doPost(e) {
 }`
 
 /**
- * Retrieve user's configured Google Sheet integration settings.
+ * Retrieve user's configured Google Sheet integration settings with Redis caching.
  */
 export async function getGoogleSheetsConfig(userId: string): Promise<GoogleSheetsConfig | null> {
   if (!userId) return null
+
+  // 1. Check Redis cache first (15ms)
+  const cacheKey = `settings:sheets:${userId}`
+  const cached = await getCachedJson<GoogleSheetsConfig>(cacheKey)
+  if (cached) return cached
+
+  // 2. Fetch from DB on cache miss
   try {
     const memory = await withDbRetry<{ id: string; content: string } | null>(() =>
       prisma.userMemory.findFirst({
@@ -97,7 +105,11 @@ export async function getGoogleSheetsConfig(userId: string): Promise<GoogleSheet
     )
 
     if (!memory) return null
-    return JSON.parse(memory.content) as GoogleSheetsConfig
+    const config = JSON.parse(memory.content) as GoogleSheetsConfig
+
+    // Populate Redis cache for 1 hour
+    void setCachedJson(cacheKey, config, 3600)
+    return config
   } catch (error) {
     console.error("Error retrieving Google Sheets config:", error)
     return null
@@ -105,7 +117,7 @@ export async function getGoogleSheetsConfig(userId: string): Promise<GoogleSheet
 }
 
 /**
- * Persist or update user's Google Sheet integration settings.
+ * Persist or update user's Google Sheet integration settings with write-through cache invalidation.
  */
 export async function saveGoogleSheetsConfig(
   userId: string,
@@ -142,6 +154,15 @@ export async function saveGoogleSheetsConfig(
         })
       )
     }
+
+    // Invalidate and write-through cache immediately
+    const cacheKey = `settings:sheets:${userId}`
+    const bundleKey = `settings:bundle:${userId}`
+    await Promise.all([
+      setCachedJson(cacheKey, config, 3600),
+      invalidateCache(bundleKey),
+    ])
+
     return true
   } catch (error) {
     console.error("Error saving Google Sheets config:", error)

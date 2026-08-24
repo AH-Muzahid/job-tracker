@@ -1,5 +1,6 @@
 import { prisma, withDbRetry } from "@/lib/prisma"
 import { encrypt, decrypt } from "@/lib/encryption"
+import { getCachedJson, setCachedJson, invalidateCache } from "@/lib/redis"
 import type { AIProviderConfig } from "@/lib/ai/client"
 
 export interface AIKeyProfile {
@@ -26,13 +27,18 @@ export interface PublicAIKeyProfile {
 }
 
 /**
- * Internal helper to read and parse the full multi-key configuration from DB or Cookie.
+ * Internal helper to read and parse the full multi-key configuration with Redis caching.
  * Handles automatic migration from legacy single-key format.
  */
 async function getRawMultiConfig(userId: string): Promise<StoredMultiAIConfig | null> {
   if (!userId) return null
 
-  // 1. Try reading from Database
+  // 1. Check Redis cache first (15ms)
+  const cacheKey = `settings:ai:${userId}`
+  const cached = await getCachedJson<StoredMultiAIConfig>(cacheKey)
+  if (cached) return cached
+
+  // 2. Try reading from Database on cache miss
   try {
     const user = await withDbRetry(() =>
       prisma.user.findUnique({
@@ -48,7 +54,9 @@ async function getRawMultiConfig(userId: string): Promise<StoredMultiAIConfig | 
 
         // Handle new multi-profile schema
         if (parsed.profiles && Array.isArray(parsed.profiles)) {
-          return parsed as StoredMultiAIConfig
+          const config = parsed as StoredMultiAIConfig
+          void setCachedJson(cacheKey, config, 3600)
+          return config
         }
 
         // Handle legacy single-key schema (auto migration)
@@ -66,6 +74,7 @@ async function getRawMultiConfig(userId: string): Promise<StoredMultiAIConfig | 
             profiles: [defaultProfile],
           }
           saveRawMultiConfig(userId, migratedConfig).catch(() => {})
+          void setCachedJson(cacheKey, migratedConfig, 3600)
           return migratedConfig
         }
       } catch (decErr) {
@@ -80,7 +89,7 @@ async function getRawMultiConfig(userId: string): Promise<StoredMultiAIConfig | 
 }
 
 /**
- * Saves the full StoredMultiAIConfig object to DB.
+ * Saves the full StoredMultiAIConfig object to DB with write-through cache invalidation.
  */
 async function saveRawMultiConfig(userId: string, multiConfig: StoredMultiAIConfig): Promise<void> {
   const encrypted = encrypt(JSON.stringify(multiConfig))
@@ -90,6 +99,14 @@ async function saveRawMultiConfig(userId: string, multiConfig: StoredMultiAIConf
       data: { aiConfig: encrypted },
     })
   )
+
+  // Invalidate and write-through cache immediately
+  const cacheKey = `settings:ai:${userId}`
+  const bundleKey = `settings:bundle:${userId}`
+  await Promise.all([
+    setCachedJson(cacheKey, multiConfig, 3600),
+    invalidateCache(bundleKey),
+  ])
 }
 
 /**

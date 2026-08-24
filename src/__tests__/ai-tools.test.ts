@@ -61,6 +61,8 @@ vi.mock("@/lib/prisma", () => {
 vi.mock("@/lib/redis", () => ({
   getCachedData: vi.fn(async (_key, fetcher) => fetcher()),
   setCachedData: vi.fn(async () => {}),
+  getCachedJson: vi.fn(async () => null),
+  setCachedJson: vi.fn(async () => true),
   invalidateCache: vi.fn(async () => {}),
 }))
 

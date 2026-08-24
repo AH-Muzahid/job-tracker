@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getInternalUserId } from "@/lib/auth"
 import { prisma, withDbRetry } from "@/lib/prisma"
-import { invalidateCache } from "@/lib/redis"
+import { getCachedJson, setCachedJson, invalidateCache } from "@/lib/redis"
 
 interface UserMemoryRecord {
   id: string
@@ -17,6 +17,10 @@ export async function GET() {
   const userId = await getInternalUserId()
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
+  const cacheKey = `user:memories:${userId}`
+  const cached = await getCachedJson<UserMemoryRecord[]>(cacheKey)
+  if (cached) return NextResponse.json(cached)
+
   try {
     const memories = await withDbRetry<UserMemoryRecord[]>(() =>
       prisma.userMemory.findMany({
@@ -24,6 +28,8 @@ export async function GET() {
         orderBy: { createdAt: "desc" },
       })
     )
+
+    void setCachedJson(cacheKey, memories, 3600)
     return NextResponse.json(memories)
   } catch (error) {
     console.error("GET user memories error:", error)
@@ -54,8 +60,11 @@ export async function POST(request: NextRequest) {
       })
     )
 
-    // Invalidate Redis cache
-    void invalidateCache(`user:memories:${userId}`)
+    // Invalidate Redis caches immediately
+    await Promise.all([
+      invalidateCache(`user:memories:${userId}`),
+      invalidateCache(`settings:bundle:${userId}`),
+    ])
 
     return NextResponse.json(memory, { status: 201 })
   } catch (error) {
