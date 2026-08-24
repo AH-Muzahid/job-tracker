@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react"
 import { useUser } from "@clerk/nextjs"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { FileText, Star, Trash2, Upload, Eye } from "lucide-react"
+import { FileText, Star, Trash2, Upload, Eye, Sparkles } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -14,6 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog"
+import TailorResumeModal from "@/components/resumes/TailorResumeModal"
 
 interface Resume {
   id: string
@@ -37,6 +38,7 @@ export default function ResumesPage() {
   const [resumes, setResumes] = useState<Resume[]>([])
   const [loading, setLoading] = useState(true)
   const [addOpen, setAddOpen] = useState(false)
+  const [tailorOpen, setTailorOpen] = useState(false)
   const [form, setForm] = useState({ title: "" })
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -157,15 +159,27 @@ export default function ResumesPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 max-w-7xl mx-auto p-4 sm:p-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Resumes</h1>
-          <p className="text-sm text-muted-foreground">{resumes.length} resumes uploaded</p>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">Resume Hub</h1>
+          <p className="text-sm text-muted-foreground">{resumes.length} resumes uploaded & indexed in Career Knowledge Graph</p>
         </div>
-        <Button onClick={() => setAddOpen(true)} className="cursor-pointer">
-          <Upload className="h-4 w-4 mr-1" /> Add Resume
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button 
+            onClick={() => setTailorOpen(true)} 
+            className="rounded-lg text-xs shadow-xs cursor-pointer bg-primary text-primary-foreground hover:bg-primary/90"
+          >
+            <Sparkles className="h-4 w-4 mr-1.5" /> Tailor for a Job
+          </Button>
+          <Button 
+            variant="outline" 
+            onClick={() => setAddOpen(true)} 
+            className="rounded-lg text-xs cursor-pointer"
+          >
+            <Upload className="h-4 w-4 mr-1.5" /> Upload Resume
+          </Button>
+        </div>
       </div>
 
       {resumes.length === 0 ? (
@@ -354,6 +368,8 @@ export default function ResumesPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <TailorResumeModal open={tailorOpen} onOpenChange={setTailorOpen} />
     </div>
   )
 }

@@ -20,7 +20,8 @@ export async function GET(
   if (!resume) return new NextResponse("Not found", { status: 404 })
 
   // fileUrl is like /uploads/resumes/uuid.pdf
-  const filePath = path.join(process.cwd(), "public", resume.fileUrl)
+  const relPath = resume.fileUrl.replace(/^[/\\]+/, "")
+  const filePath = path.join(process.cwd(), "public", relPath)
 
   try {
     const fileBuffer = await readFile(filePath)

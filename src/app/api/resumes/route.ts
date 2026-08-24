@@ -5,6 +5,7 @@ import { writeFile, mkdir } from "fs/promises"
 import path from "path"
 import { PDFParse } from "pdf-parse"
 import { invalidateCache } from "@/lib/redis"
+import { buildCareerGraphFromText, saveKnowledgeGraph } from "@/lib/ai/knowledge-graph"
 
 export async function GET() {
   const userId = await getInternalUserId()
@@ -109,8 +110,19 @@ export async function POST(req: Request) {
       },
     })
 
-    // Invalidate cached default resume
-    void invalidateCache(`user:resume:${userId}`)
+    // Auto-generate & persist Career Knowledge Graph for Vector-less RAG
+    if (textContent) {
+      try {
+        const profile = await prisma.userProfile.findUnique({ where: { userId } })
+        const graph = buildCareerGraphFromText(textContent, profile)
+        await saveKnowledgeGraph(userId, graph)
+      } catch (graphErr) {
+        console.warn("Failed to generate career knowledge graph:", graphErr)
+      }
+    }
+
+    // Invalidate cached default resume and knowledge graph
+    void invalidateCache(`user:resume:${userId}`, `user:knowledge-graph:${userId}`)
 
     return NextResponse.json(resume, { status: 201 })
   } catch (error) {
