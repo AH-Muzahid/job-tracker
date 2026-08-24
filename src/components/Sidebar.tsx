@@ -73,14 +73,14 @@ export default function Sidebar() {
                 href={item.href}
                 onClick={() => setMobileOpen(false)}
                 className={cn(
-                  "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-semibold transition-all relative group",
+                  "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium transition-all relative group",
                   isActive
-                    ? "text-primary bg-primary/10 font-bold border border-primary/20"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
+                    ? "text-zinc-100 bg-zinc-800/80 font-semibold border border-zinc-700/70 shadow-2xs"
+                    : "text-zinc-400 hover:text-zinc-100 hover:bg-zinc-900/60",
                   isCollapsed && "justify-center px-2"
                 )}
               >
-                <item.icon className={cn("h-4 w-4 shrink-0 transition-colors", isActive ? "text-primary" : "text-muted-foreground group-hover:text-foreground")} />
+                <item.icon className={cn("h-4 w-4 shrink-0 transition-colors", isActive ? "text-zinc-100" : "text-zinc-400 group-hover:text-zinc-100")} />
                 {!isCollapsed && <span>{item.label}</span>}
               </Link>
             )

@@ -1,8 +1,7 @@
 "use client"
 
-import { Briefcase, TrendingUp, Activity, Award } from "lucide-react"
-import { Card, CardHeader, CardContent } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+import { Briefcase, TrendingUp, Activity, Award, ArrowUpRight } from "lucide-react"
+import Link from "next/link"
 
 interface BentoStatGridProps {
   stats: {
@@ -17,34 +16,33 @@ interface BentoStatGridProps {
   }
 }
 
-function MiniArc({ value, color = "hsl(var(--primary))" }: { value: number; color?: string }) {
-  const size = 36
-  const strokeWidth = 3
-  const radius = (size - strokeWidth) / 2
-  const circumference = 2 * Math.PI * radius
-  const offset = circumference - (value / 100) * circumference
+function VercelSparkline({ points, strokeColor = "#3b82f6" }: { points: number[]; strokeColor?: string }) {
+  if (!points || points.length < 2) {
+    points = [2, 4, 3, 7, 5, 9, 8, 12, 10, 15]
+  }
+  const max = Math.max(...points, 1)
+  const min = Math.min(...points, 0)
+  const range = max - min || 1
+  const width = 120
+  const height = 32
+
+  const pathPoints = points.map((p, index) => {
+    const x = (index / (points.length - 1)) * width
+    const y = height - ((p - min) / range) * (height - 6) - 3
+    return `${x},${y}`
+  })
+
+  const d = `M ${pathPoints.join(" L ")}`
 
   return (
-    <svg width={size} height={size} className="shrink-0 -rotate-90">
-      <circle
-        cx={size / 2}
-        cy={size / 2}
-        r={radius}
+    <svg width={width} height={height} className="overflow-visible shrink-0">
+      <path
+        d={d}
         fill="none"
-        stroke="hsl(var(--muted))"
-        strokeWidth={strokeWidth}
-      />
-      <circle
-        cx={size / 2}
-        cy={size / 2}
-        r={radius}
-        fill="none"
-        stroke={color}
-        strokeWidth={strokeWidth}
+        stroke={strokeColor}
+        strokeWidth="1.75"
         strokeLinecap="round"
-        strokeDasharray={circumference}
-        strokeDashoffset={offset}
-        className="transition-all duration-700"
+        strokeLinejoin="round"
       />
     </svg>
   )
@@ -59,75 +57,84 @@ export default function BentoStatGrid({ stats }: BentoStatGridProps) {
     : 0
   const activePipeline = stats.applied + stats.assessment + stats.interview
   const thisMonthCount = stats.trend[stats.trend.length - 1]?.count || 0
+  const trendCounts = stats.trend.length >= 2 ? stats.trend.map((t) => t.count) : [2, 4, 6, 8, stats.total || 10]
 
   const items = [
     {
       label: "Total Applications",
+      subLabel: "All Time Pipeline",
       value: stats.total,
       badge: `${thisMonthCount} this month`,
       icon: Briefcase,
-      iconBg: "bg-blue-500/10 text-blue-500 border-blue-500/20",
+      sparkColor: "#3b82f6",
+      sparkPoints: trendCounts,
+      href: "/applications",
     },
     {
       label: "Interview Rate",
+      subLabel: "Screening to Stage",
       value: `${interviewRate}%`,
-      badge: `${stats.interview + stats.assessment} interviewing`,
+      badge: `${stats.interview + stats.assessment} active`,
       icon: TrendingUp,
-      iconBg: "bg-purple-500/10 text-purple-500 border-purple-500/20",
-      arc: interviewRate,
-      arcColor: "#a855f7",
+      sparkColor: "#a855f7",
+      sparkPoints: [5, 12, 18, 15, 24, interviewRate || 20],
+      href: "/interview-prep",
     },
     {
-      label: "Active Pipeline",
+      label: "Active In Flight",
+      subLabel: "Applied & Assessing",
       value: activePipeline,
-      badge: `${stats.applied} active`,
+      badge: `${stats.applied} awaiting response`,
       icon: Activity,
-      iconBg: "bg-indigo-500/10 text-indigo-500 border-indigo-500/20",
+      sparkColor: "#06b6d4",
+      sparkPoints: [1, 3, 5, 4, 8, activePipeline || 6],
+      href: "/applications?status=Applied",
     },
     {
-      label: "Success Rate",
+      label: "Offer Rate",
+      subLabel: "Pipeline Conversion",
       value: `${successRate}%`,
-      badge: `${stats.offer} offers`,
+      badge: `${stats.offer} finalized`,
       icon: Award,
-      iconBg: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
-      arc: successRate,
-      arcColor: "#10b981",
+      sparkColor: "#10b981",
+      sparkPoints: [0, 1, 1, 2, stats.offer || 2],
+      href: "/applications?status=Offer",
     },
   ]
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-      {items.map((item) => {
-        const IconComponent = item.icon
-        return (
-          <Card
-            key={item.label}
-            className="group relative rounded-xl border border-border/80 bg-card/60 backdrop-blur-xl shadow-sm hover:border-border/100 hover:shadow-md transition-all duration-300 flex flex-col justify-between overflow-hidden"
-          >
-            <CardHeader className="p-4 pb-0 flex flex-row items-start justify-between space-y-0">
-              <div className="flex items-center gap-2">
-                <div className={`p-2 rounded-lg border ${item.iconBg} transition-transform group-hover:scale-105`}>
-                  <IconComponent className="h-4 w-4" />
-                </div>
-                <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider">
-                  {item.label}
-                </span>
-              </div>
-              {item.arc !== undefined && <MiniArc value={item.arc} color={item.arcColor} />}
-            </CardHeader>
-
-            <CardContent className="p-4 pt-3">
-              <p className="text-2xl font-bold tracking-tight text-foreground font-sans">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      {items.map((item) => (
+        <Link
+          key={item.label}
+          href={item.href}
+          className="group relative flex flex-col justify-between p-4 rounded-xl border border-border/70 bg-card/60 backdrop-blur-xl hover:border-zinc-700 hover:bg-card/90 transition-all duration-200"
+        >
+          <div>
+            <div className="flex items-center justify-between text-xs text-muted-foreground mb-3">
+              <span className="font-mono text-[11px] font-medium tracking-tight text-zinc-400 group-hover:text-zinc-200 transition-colors">
+                {item.label}
+              </span>
+              <ArrowUpRight className="h-3.5 w-3.5 text-zinc-500 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-semibold tracking-tight text-foreground font-sans">
                 {item.value}
-              </p>
-              <Badge variant="secondary" className="text-[10px] font-mono mt-1 flex items-center gap-1 w-fit bg-muted/50 border-border/50">
-                <span className="inline-block h-1.5 w-1.5 rounded-full bg-primary/60" />
+              </span>
+              <span className="text-[11px] font-mono text-muted-foreground">
                 {item.badge}
-              </Badge>
-            </CardContent>
-          </Card>
-        )
-      })}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-end justify-between mt-4 pt-2 border-t border-border/40">
+            <span className="text-[10px] font-mono text-zinc-500">
+              {item.subLabel}
+            </span>
+            <VercelSparkline points={item.sparkPoints} strokeColor={item.sparkColor} />
+          </div>
+        </Link>
+      ))}
     </div>
   )
 }

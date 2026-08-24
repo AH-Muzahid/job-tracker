@@ -29,24 +29,24 @@ export default function BentoPipelineFunnel({ stats }: BentoPipelineFunnelProps)
     <section
       role="region"
       aria-label="Live Application Pipeline Funnel"
-      className="rounded-xl border border-border/80 bg-card/70 backdrop-blur-2xl p-4 sm:p-5 shadow-sm hover:border-border/90 hover:shadow-md transition-all duration-300"
+      className="rounded-xl border border-border/80 bg-card/60 backdrop-blur-2xl p-4 sm:p-5 shadow-sm hover:border-zinc-700 transition-all duration-200"
     >
       <div className="flex items-center justify-between mb-4 px-1">
         <div className="flex items-center gap-2">
-          <div className="p-1.5 rounded-md bg-indigo-500/10 text-indigo-500 border border-indigo-500/20">
-            <Layers className="h-4 w-4" />
+          <div className="p-1.5 rounded-md bg-muted/60 text-foreground border border-border/60">
+            <Layers className="h-3.5 w-3.5" />
           </div>
           <div>
-            <h2 className="text-sm font-bold text-foreground tracking-tight">Live Pipeline Funnel</h2>
-            <p className="text-[10px] font-mono text-muted-foreground">Conversion steps across current active applications</p>
+            <h2 className="text-xs font-mono font-medium text-foreground tracking-tight">Conversion Funnel</h2>
+            <p className="text-[11px] text-muted-foreground">Active pipeline distribution by hiring stage</p>
           </div>
         </div>
-        <span className="text-[10px] font-mono text-muted-foreground bg-muted/40 border border-border/60 px-2 py-0.5 rounded-md hidden sm:inline-block">
-          Click stage to filter
+        <span className="text-[10px] font-mono text-zinc-400 bg-muted/30 border border-border/60 px-2 py-0.5 rounded-md hidden sm:inline-block">
+          {totalPipeline} active roles
         </span>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
         {STAGES.map((s) => {
           const count = stats[s.key]
           const percentage = totalPipeline > 0 ? Math.round((count / totalPipeline) * 100) : 0
@@ -55,34 +55,34 @@ export default function BentoPipelineFunnel({ stats }: BentoPipelineFunnelProps)
             <Link
               key={s.key}
               href={`/applications?status=${s.label}`}
-              className="group relative flex flex-col justify-between p-3 rounded-lg border border-border/70 bg-card/60 hover:bg-card hover:border-primary/40 hover:shadow-md transition-all duration-300"
+              className="group relative flex flex-col justify-between p-3.5 rounded-lg border border-border/60 bg-background/40 hover:bg-card hover:border-zinc-700 transition-all duration-200"
             >
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-[10px] font-mono text-muted-foreground font-semibold">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-mono text-zinc-500">
                   {s.step}
                 </span>
                 <span
-                  className="h-2 w-2 rounded-full shadow-xs"
+                  className="h-1.5 w-1.5 rounded-full"
                   style={{ backgroundColor: s.color }}
                 />
               </div>
 
               <div>
-                <p className="text-xs font-semibold text-muted-foreground group-hover:text-foreground transition-colors flex items-center justify-between">
+                <p className="text-xs font-medium text-zinc-400 group-hover:text-foreground transition-colors flex items-center justify-between">
                   <span>{s.label}</span>
-                  <ArrowRight className="h-3 w-3 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-primary" />
+                  <ArrowRight className="h-3 w-3 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-zinc-400" />
                 </p>
                 <div className="flex items-baseline justify-between mt-1">
-                  <p className="text-xl font-extrabold text-foreground tracking-tight">
+                  <p className="text-xl font-bold text-foreground tracking-tight font-sans">
                     {count}
                   </p>
-                  <span className="text-[10px] font-mono text-muted-foreground">
+                  <span className="text-[10px] font-mono text-zinc-500">
                     {percentage}%
                   </span>
                 </div>
 
                 {/* Micro Progress Bar */}
-                <div className="w-full h-1 bg-muted rounded-full mt-2 overflow-hidden">
+                <div className="w-full h-1 bg-muted/60 rounded-full mt-2 overflow-hidden">
                   <div
                     className="h-full rounded-full transition-all duration-500"
                     style={{ width: `${percentage}%`, backgroundColor: s.color }}
@@ -95,14 +95,14 @@ export default function BentoPipelineFunnel({ stats }: BentoPipelineFunnelProps)
       </div>
 
       {stats.rejected > 0 && (
-        <div className="mt-4 pt-3 border-t border-border/50 flex items-center justify-between px-1">
+        <div className="mt-4 pt-3 border-t border-border/40 flex items-center justify-between px-1">
           <Link
             href="/applications?status=Rejected"
             className="inline-flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors group"
           >
-            <span className="h-2 w-2 rounded-full bg-red-500" />
-            <span className="font-medium">Archived / Rejected Applications:</span>
-            <span className="font-bold text-foreground font-mono bg-muted/50 px-2 py-0.5 rounded-md group-hover:bg-muted transition-colors">
+            <span className="h-1.5 w-1.5 rounded-full bg-red-500/80" />
+            <span className="font-mono text-[11px] text-zinc-400">Archived / Rejected:</span>
+            <span className="font-bold text-foreground font-mono bg-muted/40 border border-border/60 px-2 py-0.5 rounded text-[11px]">
               {stats.rejected}
             </span>
           </Link>
