@@ -9,6 +9,9 @@ import { Sparkles, ChevronDown, ChevronUp, Copy, Check, CheckCircle2, ArrowUpRig
 import { toast } from "sonner"
 import AnalysisResult from "./AnalysisResult"
 import OutreachResult from "./OutreachResult"
+import ToolChips from "./ToolChips"
+import StreamingText from "./StreamingText"
+import LoadingState from "./LoadingState"
 import { type ToolInvocation } from "./AIChat"
 
 interface Props {
@@ -219,6 +222,49 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
           return <code className={cn(className, isInline && "text-primary bg-muted px-1.5 py-0.5 rounded text-xs")} {...props}>{children}</code>
         }
       }
+      if (className === "language-toolchips" || className === "language-tools") {
+        try {
+          const data = JSON.parse(String(children))
+          return (
+            <div className="my-3">
+              <ToolChips
+                rows={data.rows}
+                diffs={data.diffs}
+                diffLines={data.diffLines}
+                initialOpen={data.open ?? true}
+              />
+            </div>
+          )
+        } catch {
+          return (
+            <div className="my-3">
+              <ToolChips initialOpen={true} />
+            </div>
+          )
+        }
+      }
+      if (className === "language-streaming") {
+        try {
+          const data = JSON.parse(String(children))
+          return (
+            <div className="my-3">
+              <StreamingText
+                tokens={data.tokens}
+                text={data.text}
+                sources={data.sources}
+                followUps={data.followUps}
+                onFollowUpClick={onSuggestionClick}
+              />
+            </div>
+          )
+        } catch {
+          return (
+            <div className="my-3">
+              <StreamingText onFollowUpClick={onSuggestionClick} />
+            </div>
+          )
+        }
+      }
       if (className === "language-suggestions") {
         try {
           const data = JSON.parse(String(children))
@@ -274,51 +320,20 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
         )}
       >
         {message.toolInvocations && message.toolInvocations.length > 0 && (
-          <div className="flex flex-col gap-2 mb-3">
+          <div className="mb-3">
+            <ToolChips toolInvocations={message.toolInvocations} />
             {message.toolInvocations.map((tool: ToolInvocation, idx: number) => (
               <React.Fragment key={idx}>
-                <div className="flex items-center justify-between gap-2.5 text-xs text-foreground bg-secondary/40 backdrop-blur-xs px-3 py-2 rounded-xl border border-border/80 shadow-xs w-full sm:w-fit not-prose">
-                  <div className="flex items-center gap-2 min-w-0">
-                    {tool.state === 'call' ? (
-                      <span className="animate-spin leading-none inline-block h-3.5 w-3.5 border-2 border-primary/40 border-t-primary rounded-full shrink-0"></span>
-                    ) : (
-                      <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
-                    )}
-                    <span className="font-medium text-xs truncate">
-                      {tool.toolName === 'scrapeJobLink' && "Scanning job details from URL..."}
-                      {tool.toolName === 'createApplication' && "Created application in tracker"}
-                      {tool.toolName === 'updateApplicationStatus' && "Updated status in tracker"}
-                      {tool.toolName === 'deleteApplication' && "Deleted application from tracker"}
-                      {tool.toolName === 'syncToGoogleSheets' && "Synced applications to Google Sheet"}
-                      {tool.toolName === 'batchImportApplications' && "Batch imported job applications"}
-                      {tool.toolName === 'researchCompanyIntel' && "Researched company intelligence"}
-                      {tool.toolName === 'sendOutreachEmailViaResend' && "Dispatched email via Resend"}
-                      {tool.toolName === 'searchApplications' && "Searched database applications"}
-                      {tool.toolName === 'setWeeklyGoals' && "Saved weekly placement goals"}
-                      {tool.toolName === 'getResumeSummary' && "Retrieved verified career graph"}
-                      {tool.toolName === 'getPipelineStats' && "Fetched conversion metrics"}
-                      {tool.toolName === 'getPrepNotes' && "Loaded interview prep notes"}
-                      {tool.toolName === 'savePrepNote' && "Saved note to prep workspace"}
-                      {tool.toolName === 'recordMockInterviewScore' && "Recorded mock interview evaluation"}
-                      {tool.toolName === 'tailorResumeForJob' && "Generated ATS tailored resume"}
-                      {tool.toolName === 'addPrepQuestions' && "Saved interview question bank"}
-                      {tool.toolName === 'draftOutreachEmail' && "Drafted cold outreach"}
-                      {tool.toolName === 'queryCareerKnowledgeGraph' && "Queried Career Knowledge Graph"}
-                      {tool.toolName === 'syncCareerKnowledgeGraph' && "Synchronized Knowledge Graph"}
-                      {tool.toolName === 'saveUserMemory' && "Saved user preference memory"}
-                      {tool.toolName === 'forgetUserMemory' && "Removed outdated memory"}
-                      {!['scrapeJobLink', 'createApplication', 'updateApplicationStatus', 'deleteApplication', 'syncToGoogleSheets', 'batchImportApplications', 'researchCompanyIntel', 'sendOutreachEmailViaResend', 'searchApplications', 'setWeeklyGoals', 'getResumeSummary', 'getPipelineStats', 'getPrepNotes', 'savePrepNote', 'recordMockInterviewScore', 'tailorResumeForJob', 'addPrepQuestions', 'draftOutreachEmail', 'queryCareerKnowledgeGraph', 'syncCareerKnowledgeGraph', 'saveUserMemory', 'forgetUserMemory'].includes(tool.toolName) && `Executed ${tool.toolName}`}
-                    </span>
-                  </div>
-                  {tool.state === 'result' && (tool.toolName === 'createApplication' || tool.toolName === 'updateApplicationStatus') && (
+                {tool.state === 'result' && (tool.toolName === 'createApplication' || tool.toolName === 'updateApplicationStatus') && (
+                  <div className="my-1.5 text-xs">
                     <Link 
                       href="/applications" 
-                      className="inline-flex items-center gap-0.5 text-[11px] font-semibold text-primary hover:underline shrink-0 ml-2"
+                      className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline"
                     >
-                      View Board <ArrowUpRight className="h-3 w-3" />
+                      View Board Application <ArrowUpRight className="h-3 w-3" />
                     </Link>
-                  )}
-                </div>
+                  </div>
+                )}
                 {tool.state === 'result' && tool.toolName === 'draftOutreachEmail' && Boolean(tool.result) && (
                   <div className="my-2">
                     <OutreachResult data={tool.result as Record<string, unknown>} />
@@ -414,9 +429,8 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
             )}
           </>
         ) : isStreaming && (!message.toolInvocations || message.toolInvocations.length === 0) ? (
-          <div className="flex items-center gap-2 h-6 px-1 text-xs text-muted-foreground">
-            <span className="animate-spin inline-block h-3.5 w-3.5 border-2 border-muted-foreground/30 border-t-foreground rounded-full"></span>
-            <span>Thinking...</span>
+          <div className="py-1">
+            <LoadingState label="Thinking" variant="Drive" />
           </div>
         ) : null}
       </div>
