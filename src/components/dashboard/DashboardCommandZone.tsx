@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
-import { Bot, Plus, Upload, Clipboard, Loader2, ArrowRight } from "lucide-react";
+import { Bot, Plus, Upload, Clipboard, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
@@ -35,8 +35,6 @@ export function DashboardCommandZone({ activePipeline = 0 }: { activePipeline?: 
 	const [manualLoading, setManualLoading] = useState(false);
 
 	const { setPendingPrompt } = useUI();
-
-	const firstName = user?.firstName || "there";
 
 	// Real-time lightweight extraction heuristic
 	useEffect(() => {
@@ -156,30 +154,30 @@ export function DashboardCommandZone({ activePipeline = 0 }: { activePipeline?: 
 	};
 
 	return (
-		<DashboardCard className="p-5 sm:p-6 gap-4">
+		<DashboardCard className="p-4 sm:p-6 gap-4">
 			{/* Top Header Row */}
-			<div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-border">
+			<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border">
 				<div className="flex items-center gap-2.5">
 					<div className="flex size-7 items-center justify-center rounded-md bg-muted text-foreground border border-border shrink-0">
 						<Bot className="size-4" />
 					</div>
-					<div>
-						<h2 className="text-sm font-semibold text-foreground tracking-tight">
+					<div className="min-w-0">
+						<h2 className="text-sm font-semibold text-foreground tracking-tight truncate">
 							Instant JD Intake & Match
 						</h2>
-						<p className="text-xs text-muted-foreground">
-							Paste any job posting to analyze fit, extract key requirements, or log to pipeline.
+						<p className="text-xs text-muted-foreground line-clamp-1">
+							Paste job posting to analyze fit or log to pipeline.
 						</p>
 					</div>
 				</div>
 
-				<div className="flex items-center gap-2">
+				<div className="flex items-center gap-2 w-full sm:w-auto">
 					<Button
 						type="button"
 						variant="outline"
 						size="sm"
 						onClick={handlePasteClipboard}
-						className="h-8 text-xs font-mono bg-muted/30 border-border text-muted-foreground hover:text-foreground cursor-pointer"
+						className="flex-1 sm:flex-initial h-8 text-xs font-mono bg-muted/30 border-border text-muted-foreground hover:text-foreground cursor-pointer"
 					>
 						<Clipboard className="size-3.5 mr-1.5" />
 						Paste JD
@@ -188,7 +186,7 @@ export function DashboardCommandZone({ activePipeline = 0 }: { activePipeline?: 
 						type="button"
 						size="sm"
 						onClick={() => setMode("manual")}
-						className="h-8 text-xs font-medium cursor-pointer"
+						className="flex-1 sm:flex-initial h-8 text-xs font-medium cursor-pointer"
 					>
 						<Plus className="size-3.5 mr-1" />
 						Log Job
@@ -199,44 +197,44 @@ export function DashboardCommandZone({ activePipeline = 0 }: { activePipeline?: 
 			{/* Segmented Controls & Intake Area */}
 			<div className="space-y-3">
 				<div className="flex items-center justify-between gap-2">
-					<div className="inline-flex items-center gap-1 p-1 rounded-lg border border-border bg-muted/40 text-xs">
+					<div className="flex w-full sm:w-auto items-center gap-1 p-1 rounded-lg border border-border bg-muted/40 text-xs">
 						<button
 							type="button"
 							onClick={() => setMode("scan")}
-							className={`px-3 py-1 rounded-md transition-all cursor-pointer font-medium flex items-center gap-1.5 ${
+							className={`flex-1 sm:flex-initial justify-center px-3 py-1.5 rounded-md transition-all cursor-pointer font-medium flex items-center gap-1.5 text-xs whitespace-nowrap ${
 								mode === "scan"
 									? "bg-background text-foreground shadow-xs font-semibold"
 									: "text-muted-foreground hover:text-foreground"
 							}`}
 						>
-							<Bot className="size-3" />
-							AI Intake (Paste / URL)
+							<Bot className="size-3 shrink-0" />
+							<span>AI Intake</span>
 						</button>
 
 						<button
 							type="button"
 							onClick={() => setMode("upload")}
-							className={`px-3 py-1 rounded-md transition-all cursor-pointer font-medium flex items-center gap-1.5 ${
+							className={`flex-1 sm:flex-initial justify-center px-3 py-1.5 rounded-md transition-all cursor-pointer font-medium flex items-center gap-1.5 text-xs whitespace-nowrap ${
 								mode === "upload"
 									? "bg-background text-foreground shadow-xs font-semibold"
 									: "text-muted-foreground hover:text-foreground"
 							}`}
 						>
-							<Upload className="size-3" />
-							PDF / File
+							<Upload className="size-3 shrink-0" />
+							<span>Upload</span>
 						</button>
 
 						<button
 							type="button"
 							onClick={() => setMode("manual")}
-							className={`px-3 py-1 rounded-md transition-all cursor-pointer font-medium flex items-center gap-1.5 ${
+							className={`flex-1 sm:flex-initial justify-center px-3 py-1.5 rounded-md transition-all cursor-pointer font-medium flex items-center gap-1.5 text-xs whitespace-nowrap ${
 								mode === "manual"
 									? "bg-background text-foreground shadow-xs font-semibold"
 									: "text-muted-foreground hover:text-foreground"
 							}`}
 						>
-							<Plus className="size-3" />
-							Quick Entry
+							<Plus className="size-3 shrink-0" />
+							<span>Manual</span>
 						</button>
 					</div>
 
@@ -247,7 +245,7 @@ export function DashboardCommandZone({ activePipeline = 0 }: { activePipeline?: 
 
 				{/* MODE 1: Scan / Paste Text */}
 				{mode === "scan" && (
-					<form onSubmit={handleAiScan} className="space-y-2.5">
+					<form onSubmit={handleAiScan} className="space-y-3">
 						<div className="relative">
 							<Textarea
 								placeholder="Paste full job description text or job post URL here..."
@@ -271,8 +269,8 @@ export function DashboardCommandZone({ activePipeline = 0 }: { activePipeline?: 
 							)}
 						</div>
 
-						<div className="flex items-center justify-between">
-							<span className="text-[11px] font-mono text-muted-foreground">
+						<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+							<span className="text-[11px] font-mono text-muted-foreground order-2 sm:order-1">
 								{jdText.length > 0 ? `${jdText.length} characters` : "Instant AI Role & Skill Match"}
 							</span>
 
@@ -280,7 +278,7 @@ export function DashboardCommandZone({ activePipeline = 0 }: { activePipeline?: 
 								type="submit"
 								size="sm"
 								disabled={aiLoading || !jdText.trim()}
-								className="text-xs font-semibold h-8 px-4 cursor-pointer"
+								className="w-full sm:w-auto order-1 sm:order-2 text-xs font-semibold h-8 px-4 cursor-pointer"
 							>
 								{aiLoading ? (
 									<>
