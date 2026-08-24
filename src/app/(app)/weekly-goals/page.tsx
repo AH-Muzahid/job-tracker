@@ -116,17 +116,36 @@ export default function WeeklyGoalsPage() {
 
   if (!isLoaded || loading) {
     return (
-      <div className="space-y-6 max-w-7xl mx-auto">
-        <Skeleton className="h-8 w-64 rounded-md" />
+      <div className="space-y-6 max-w-7xl mx-auto pb-12 w-full min-w-0">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1.5">
+            <Skeleton className="h-8 w-56 rounded-md" />
+            <Skeleton className="h-4 w-80 rounded-sm" />
+          </div>
+          <Skeleton className="h-9 w-36 rounded-md" />
+        </div>
+
         <div className="relative border border-border bg-border">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-px bg-border">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-border">
             {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="p-6 bg-background space-y-3">
-                <Skeleton className="h-4 w-20 rounded-md" />
-                <Skeleton className="h-8 w-16 rounded-md" />
-                <Skeleton className="h-3 w-28 rounded-md mt-4" />
+              <div key={i} className="p-5 sm:p-6 bg-background space-y-3">
+                <Skeleton className="h-3.5 w-24 rounded-sm" />
+                <Skeleton className="h-7 w-16 rounded-sm" />
+                <Skeleton className="h-2.5 w-28 rounded-sm mt-3" />
               </div>
             ))}
+          </div>
+        </div>
+
+        <div className="p-6 rounded-xl border border-border bg-card space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-border">
+            <Skeleton className="h-5 w-44 rounded-md" />
+            <Skeleton className="h-4 w-20 rounded-full" />
+          </div>
+          <Skeleton className="h-2 w-full rounded-full" />
+          <div className="space-y-2.5 pt-2">
+            <Skeleton className="h-4 w-3/4 rounded-sm" />
+            <Skeleton className="h-4 w-1/2 rounded-sm" />
           </div>
         </div>
       </div>

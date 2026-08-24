@@ -68,7 +68,51 @@ export default function CalendarPage() {
   const today = new Date().toISOString().split("T")[0]
 
   if (!isLoaded || loading) {
-    return <div className="space-y-4"><Skeleton className="h-8 w-48" /><Skeleton className="h-96 w-full rounded-xl" /></div>
+    return (
+      <div className="space-y-6 max-w-7xl mx-auto pb-10 w-full min-w-0">
+        <div className="space-y-1.5">
+          <Skeleton className="h-8 w-56 rounded-md" />
+          <Skeleton className="h-4 w-80 rounded-sm" />
+        </div>
+
+        <Card className="rounded-xl border border-border/80 bg-card shadow-xs">
+          <CardContent className="p-4 sm:p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <Skeleton className="h-8 w-8 rounded-lg" />
+              <Skeleton className="h-6 w-36 rounded-md" />
+              <Skeleton className="h-8 w-8 rounded-lg" />
+            </div>
+
+            {/* Day of week headers */}
+            <div className="grid grid-cols-7 gap-1 sm:gap-2 text-center pb-2 border-b border-border/60">
+              {Array.from({ length: 7 }).map((_, i) => (
+                <Skeleton key={i} className="h-4 w-10 mx-auto rounded-sm" />
+              ))}
+            </div>
+
+            {/* 35 Calendar Cells */}
+            <div className="grid grid-cols-7 gap-1 sm:gap-2">
+              {Array.from({ length: 35 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="min-h-16 sm:min-h-24 p-1.5 sm:p-2 rounded-lg border border-border/40 bg-muted/20 space-y-2"
+                >
+                  <div className="flex justify-between items-center">
+                    <Skeleton className="size-4 rounded-full" />
+                  </div>
+                  {i % 4 === 1 && (
+                    <Skeleton className="h-3.5 w-full rounded-sm" />
+                  )}
+                  {i % 5 === 2 && (
+                    <Skeleton className="h-3.5 w-4/5 rounded-sm" />
+                  )}
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   return (

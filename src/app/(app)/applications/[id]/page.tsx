@@ -149,17 +149,61 @@ export default function ApplicationDetailPage() {
 
   if (!isLoaded || loading) {
     return (
-      <div className="space-y-6 max-w-7xl mx-auto">
-        <Skeleton className="h-8 w-64 rounded-md" />
+      <div className="space-y-6 max-w-7xl mx-auto pb-12 w-full min-w-0">
+        {/* Header Skeleton */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 sm:p-6 rounded-xl border border-border bg-card/60">
+          <div className="flex items-start gap-4">
+            <Skeleton className="size-11 rounded-xl shrink-0" />
+            <div className="space-y-2 flex-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <Skeleton className="h-6 w-44 rounded-md" />
+                <Skeleton className="h-5 w-20 rounded-full" />
+              </div>
+              <Skeleton className="h-4 w-56 rounded-sm" />
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-8 w-20 rounded-md" />
+            <Skeleton className="h-8 w-20 rounded-md" />
+          </div>
+        </div>
+
+        {/* 4 Stat Strip Skeleton */}
         <div className="relative border border-border bg-border">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-px bg-border">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-border">
             {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="p-6 bg-background space-y-3">
-                <Skeleton className="h-4 w-20 rounded-sm" />
-                <Skeleton className="h-8 w-16 rounded-sm" />
-                <Skeleton className="h-3 w-28 rounded-sm mt-4" />
+              <div key={i} className="p-4 sm:p-5 bg-background space-y-2.5">
+                <Skeleton className="h-3 w-20 rounded-sm" />
+                <Skeleton className="h-5 w-24 rounded-sm" />
               </div>
             ))}
+          </div>
+        </div>
+
+        {/* 2-Column Workbench Skeleton */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <div className="lg:col-span-7 space-y-6">
+            <div className="p-6 rounded-xl border border-border bg-card space-y-4">
+              <Skeleton className="h-5 w-36 rounded-sm pb-2 border-b border-border" />
+              <div className="space-y-2">
+                <Skeleton className="h-3.5 w-full rounded-sm" />
+                <Skeleton className="h-3.5 w-5/6 rounded-sm" />
+                <Skeleton className="h-3.5 w-4/5 rounded-sm" />
+                <Skeleton className="h-3.5 w-full rounded-sm" />
+              </div>
+            </div>
+          </div>
+          <div className="lg:col-span-5 space-y-6">
+            <div className="p-6 rounded-xl border border-border bg-card space-y-4">
+              <Skeleton className="h-5 w-40 rounded-sm pb-2 border-b border-border" />
+              <div className="flex items-center justify-center py-4">
+                <Skeleton className="size-24 rounded-full" />
+              </div>
+              <div className="space-y-2">
+                <Skeleton className="h-3 w-full rounded-sm" />
+                <Skeleton className="h-3 w-3/4 rounded-sm" />
+              </div>
+            </div>
           </div>
         </div>
       </div>

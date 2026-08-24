@@ -79,24 +79,29 @@ export default function CompaniesPage() {
 
   if (!isLoaded || loading) {
     return (
-      <div className="space-y-6 max-w-7xl mx-auto pb-10">
-        <div className="space-y-2">
-          <Skeleton className="h-8 w-48 rounded-lg" />
-          <Skeleton className="h-4 w-64 rounded-md" />
+      <div className="space-y-6 max-w-7xl mx-auto pb-10 w-full min-w-0">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1.5">
+            <Skeleton className="h-8 w-52 rounded-md" />
+            <Skeleton className="h-4 w-64 rounded-sm" />
+          </div>
+          <Skeleton className="h-9 w-36 rounded-lg" />
         </div>
+
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (
-            <Card key={i} className="rounded-xl border border-border/80 p-4">
-              <CardContent className="p-0 space-y-3">
-                <div className="flex items-center gap-3">
-                  <Skeleton className="h-10 w-10 rounded-xl shrink-0" />
+            <Card key={i} className="rounded-xl border border-border/80 p-4 space-y-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-start gap-3 min-w-0 flex-1">
+                  <Skeleton className="size-10 rounded-xl shrink-0" />
                   <div className="space-y-1.5 flex-1">
-                    <Skeleton className="h-4 w-3/4 rounded-md" />
-                    <Skeleton className="h-3 w-1/2 rounded-md" />
+                    <Skeleton className="h-4 w-32 rounded-sm" />
+                    <Skeleton className="h-3 w-20 rounded-full" />
                   </div>
                 </div>
-                <Skeleton className="h-4 w-full rounded-md mt-4" />
-              </CardContent>
+                <Skeleton className="size-7 rounded-lg" />
+              </div>
+              <Skeleton className="h-3.5 w-full rounded-sm pt-1" />
             </Card>
           ))}
         </div>

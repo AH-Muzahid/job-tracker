@@ -119,6 +119,10 @@ function InterviewPrepContent() {
     }
   }
 
+  if (!isLoaded || loading) {
+    return <InterviewPrepSkeleton />
+  }
+
   return (
     <div className="max-w-7xl mx-auto space-y-5 sm:space-y-6 pb-12 w-full min-w-0 max-w-full overflow-x-hidden">
       {/* 1. Page Header */}
@@ -260,16 +264,55 @@ function InterviewPrepContent() {
   )
 }
 
+function InterviewPrepSkeleton() {
+  return (
+    <div className="max-w-7xl mx-auto space-y-6 pb-12 w-full min-w-0">
+      {/* Header Skeleton */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 sm:p-6 rounded-xl border border-border bg-card/60">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <Skeleton className="size-6 rounded-md" />
+            <Skeleton className="h-6 w-48 rounded-md" />
+          </div>
+          <Skeleton className="h-4 w-72 rounded-sm" />
+        </div>
+        <Skeleton className="h-9 w-36 rounded-lg" />
+      </div>
+
+      {/* Tabs Skeleton */}
+      <div className="flex items-center gap-1.5 p-1 rounded-lg border border-border bg-muted/40 w-full sm:w-80">
+        <Skeleton className="h-7 flex-1 rounded-md" />
+        <Skeleton className="h-7 flex-1 rounded-md" />
+        <Skeleton className="h-7 flex-1 rounded-md" />
+      </div>
+
+      {/* 3 Launchpad Cards */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} className="p-5 rounded-xl border border-border bg-card space-y-4">
+            <div className="flex items-center justify-between">
+              <Skeleton className="h-4 w-24 rounded-full" />
+              <Skeleton className="h-4 w-16 rounded-sm" />
+            </div>
+            <div className="space-y-1.5">
+              <Skeleton className="h-5 w-44 rounded-sm" />
+              <Skeleton className="h-3.5 w-full rounded-sm" />
+              <Skeleton className="h-3.5 w-3/4 rounded-sm" />
+            </div>
+            <div className="pt-2 flex justify-between items-center border-t border-border/40">
+              <Skeleton className="h-3 w-20 rounded-sm" />
+              <Skeleton className="h-8 w-24 rounded-md" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export default function InterviewPrepPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="max-w-7xl mx-auto space-y-6 pb-12 p-6">
-          <Skeleton className="h-10 w-64" />
-          <Skeleton className="h-64 w-full" />
-        </div>
-      }
-    >
+    <Suspense fallback={<InterviewPrepSkeleton />}>
       <InterviewPrepContent />
     </Suspense>
   )

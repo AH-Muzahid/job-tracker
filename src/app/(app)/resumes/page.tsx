@@ -146,14 +146,38 @@ export default function ResumesPage() {
 
   if (!isLoaded || loading) {
     return (
-      <div className="space-y-4">
-        <Skeleton className="h-8 w-48" />
-        <div className="grid gap-3 md:grid-cols-2">
+      <div className="space-y-6 max-w-7xl mx-auto pb-10 w-full min-w-0">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1.5">
+            <Skeleton className="h-8 w-44 rounded-md" />
+            <Skeleton className="h-4 w-72 rounded-sm" />
+          </div>
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-9 w-32 rounded-lg" />
+            <Skeleton className="h-9 w-32 rounded-lg" />
+          </div>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 3 }).map((_, i) => (
-            <Card key={i}>
-              <CardContent className="p-4">
-                <Skeleton className="h-20 w-full" />
-              </CardContent>
+            <Card key={i} className="rounded-xl border border-border/80 p-5 space-y-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <Skeleton className="size-10 rounded-lg shrink-0" />
+                  <div className="space-y-1.5 flex-1">
+                    <Skeleton className="h-4 w-32 rounded-sm" />
+                    <Skeleton className="h-3 w-24 rounded-sm" />
+                  </div>
+                </div>
+                <Skeleton className="size-7 rounded-md" />
+              </div>
+              <div className="flex items-center justify-between pt-2 border-t border-border/40">
+                <Skeleton className="h-4 w-16 rounded-full" />
+                <div className="flex gap-2">
+                  <Skeleton className="h-7 w-16 rounded-md" />
+                  <Skeleton className="h-7 w-16 rounded-md" />
+                </div>
+              </div>
             </Card>
           ))}
         </div>
