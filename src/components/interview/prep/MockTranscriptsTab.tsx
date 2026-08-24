@@ -68,7 +68,7 @@ export function MockTranscriptsTab({
           </div>
           <Button
             onClick={onStartMockInterview}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs h-9 px-4 rounded-xl font-semibold"
+            className="bg-primary text-primary-foreground hover:bg-primary/90 text-xs h-9 px-4 rounded-xl font-medium"
           >
             Start First Mock Interview
           </Button>
@@ -78,13 +78,13 @@ export function MockTranscriptsTab({
           {sessions.map((session) => (
             <Card
               key={session.id}
-              className="rounded-3xl border hover:border-indigo-500/40 transition-all p-4 sm:p-5 flex flex-col justify-between gap-3 bg-card shadow-2xs"
+              className="rounded-3xl border border-border hover:border-border/80 transition-all p-4 sm:p-5 flex flex-col justify-between gap-3 bg-card shadow-2xs"
             >
               <div className="space-y-2">
                 <div className="flex items-center justify-between gap-2 flex-wrap">
                   <Badge
-                    variant="secondary"
-                    className="text-[10px] font-bold bg-indigo-500/10 text-indigo-500"
+                    variant="outline"
+                    className="text-[10px] font-medium bg-muted/50 text-foreground"
                   >
                     {session.interviewType} Round
                   </Badge>
@@ -95,7 +95,7 @@ export function MockTranscriptsTab({
                 </div>
 
                 <div>
-                  <h4 className="text-sm font-bold text-foreground">
+                  <h4 className="text-sm font-semibold text-foreground">
                     {session.targetCompany}
                   </h4>
                   <p className="text-xs text-muted-foreground font-medium">
@@ -146,7 +146,7 @@ export function MockTranscriptsTab({
                     setSelectedSession(session)
                     setSessionModalOpen(true)
                   }}
-                  className="text-xs h-8 px-3 gap-1 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium"
+                  className="text-xs h-8 px-3 gap-1 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 font-medium"
                 >
                   <span>Review Transcript</span>
                   <ChevronRight className="h-3.5 w-3.5" />
@@ -177,8 +177,8 @@ export function MockTranscriptsTab({
           <div className="flex-1 overflow-y-auto no-scrollbar space-y-4 py-3">
             {/* Executive Summary */}
             {selectedSession?.report?.executiveSummary && (
-              <div className="rounded-2xl border bg-muted/20 p-3.5 space-y-1">
-                <span className="text-[11px] font-bold text-indigo-500 flex items-center gap-1">
+              <div className="rounded-2xl border border-border bg-muted/20 p-3.5 space-y-1">
+                <span className="text-[11px] font-semibold text-primary flex items-center gap-1">
                   <Lightbulb className="h-3.5 w-3.5" />
                   <span>Executive Feedback</span>
                 </span>
@@ -252,8 +252,8 @@ export function MockTranscriptsTab({
                         className={cn(
                           "rounded-2xl px-3 py-2 text-xs max-w-[90%] leading-relaxed",
                           msg.role === "interviewer"
-                            ? "bg-muted text-foreground border rounded-tl-sm"
-                            : "bg-indigo-600 text-white rounded-tr-sm"
+                            ? "bg-muted text-foreground border border-border rounded-tl-sm"
+                            : "bg-primary text-primary-foreground rounded-tr-sm"
                         )}
                       >
                         {msg.text}

@@ -114,9 +114,9 @@ export function RevisionNotesTab({
           <Button
             size="sm"
             onClick={() => setNOpen(true)}
-            className="text-xs h-8 gap-1 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white"
+            className="text-xs h-8 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 font-medium"
           >
-            <Plus className="h-3.5 w-3.5" />
+            <Plus className="h-3.5 w-3.5 mr-1" />
             <span>Add Note</span>
           </Button>
         </div>
@@ -139,7 +139,7 @@ export function RevisionNotesTab({
           </div>
           <Button
             onClick={() => setNOpen(true)}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs h-9 px-4 rounded-xl font-semibold"
+            className="bg-primary text-primary-foreground hover:bg-primary/90 text-xs h-9 px-4 rounded-xl font-medium"
           >
             Create Custom Note
           </Button>
@@ -149,11 +149,11 @@ export function RevisionNotesTab({
           {filteredNotes.map((note) => (
             <Card
               key={note.id}
-              className="rounded-3xl border p-4 sm:p-5 flex flex-col justify-between gap-3 bg-card shadow-2xs hover:border-indigo-500/30 transition-all"
+              className="rounded-3xl border border-border p-4 sm:p-5 flex flex-col justify-between gap-3 bg-card shadow-2xs hover:border-border/80 transition-all"
             >
               <div className="space-y-2">
                 <div className="flex items-center justify-between gap-2">
-                  <Badge variant="secondary" className="text-[10px] font-bold bg-indigo-500/10 text-indigo-500">
+                  <Badge variant="outline" className="text-[10px] font-medium bg-muted/50 text-foreground">
                     {note.category}
                   </Badge>
                   <span className="text-[10px] text-muted-foreground">
@@ -161,7 +161,7 @@ export function RevisionNotesTab({
                   </span>
                 </div>
 
-                <h4 className="text-sm font-bold text-foreground leading-snug">{note.title}</h4>
+                <h4 className="text-sm font-semibold text-foreground leading-snug">{note.title}</h4>
                 <p className="text-xs text-muted-foreground line-clamp-4 leading-relaxed whitespace-pre-wrap">
                   {note.content}
                 </p>
@@ -245,7 +245,7 @@ export function RevisionNotesTab({
                 type="submit"
                 size="sm"
                 disabled={submittingNote}
-                className="text-xs rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white"
+                className="text-xs rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 font-medium"
               >
                 {submittingNote ? "Saving..." : "Save Note"}
               </Button>
