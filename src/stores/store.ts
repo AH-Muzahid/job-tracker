@@ -2,7 +2,7 @@ import { create } from "zustand"
 
 export type AIMode =
   | "profile" | "jd-scan" | "application" | "tracker"
-  | "response" | "interview" | "weekly" | "recovery"
+  | "response" | "interview" | "weekly" | "recovery" | "general"
 
 export interface AISession {
   id: string

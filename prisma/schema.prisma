@@ -54,6 +54,7 @@ model Application {
   @@index([userId])
   @@index([companyId])
   @@index([userId, status])
+  @@index([userId, applicationDate])
   @@index([userId, createdAt])
 }
 
@@ -68,6 +69,7 @@ model StatusChange {
   application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
 
   @@index([applicationId])
+  @@index([applicationId, changedAt])
 }
 
 model Tag {
