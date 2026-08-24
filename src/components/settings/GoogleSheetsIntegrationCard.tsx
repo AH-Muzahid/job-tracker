@@ -10,40 +10,67 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { toast } from "sonner"
 import { GOOGLE_APPS_SCRIPT_TEMPLATE } from "@/lib/google-sheets"
 
-export function GoogleSheetsIntegrationCard() {
-  const [sheetUrl, setSheetUrl] = useState("")
-  const [webhookUrl, setWebhookUrl] = useState("")
-  const [autoSyncEnabled, setAutoSyncEnabled] = useState(false)
-  const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null)
+export interface GoogleSheetsConfigData {
+  sheetUrl: string
+  webhookUrl: string
+  autoSyncEnabled: boolean
+  lastSyncedAt?: string | null
+}
+
+interface Props {
+  initialConfig?: GoogleSheetsConfigData | null
+  isLoading?: boolean
+}
+
+export function GoogleSheetsIntegrationCard({ initialConfig, isLoading = false }: Props) {
+  const [sheetUrl, setSheetUrl] = useState(initialConfig?.sheetUrl || "")
+  const [webhookUrl, setWebhookUrl] = useState(initialConfig?.webhookUrl || "")
+  const [autoSyncEnabled, setAutoSyncEnabled] = useState(initialConfig?.autoSyncEnabled || false)
+  const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(initialConfig?.lastSyncedAt || null)
   
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(isLoading && !initialConfig)
   const [saving, setSaving] = useState(false)
   const [syncing, setSyncing] = useState(false)
   const [copied, setCopied] = useState(false)
 
-  // Fetch current config on mount
+  // Sync state if initialConfig changes
   useEffect(() => {
-    async function loadConfig() {
-      try {
-        setLoading(true)
-        const res = await fetch("/api/integrations/google-sheets")
-        if (res.ok) {
-          const data = await res.json()
-          if (data.config) {
-            setSheetUrl(data.config.sheetUrl || "")
-            setWebhookUrl(data.config.webhookUrl || "")
-            setAutoSyncEnabled(Boolean(data.config.autoSyncEnabled))
-            setLastSyncedAt(data.config.lastSyncedAt || null)
-          }
-        }
-      } catch (err) {
-        console.error("Failed to load Google Sheets config:", err)
-      } finally {
-        setLoading(false)
-      }
+    if (initialConfig) {
+      setSheetUrl(initialConfig.sheetUrl || "")
+      setWebhookUrl(initialConfig.webhookUrl || "")
+      setAutoSyncEnabled(Boolean(initialConfig.autoSyncEnabled))
+      setLastSyncedAt(initialConfig.lastSyncedAt || null)
+      setLoading(false)
     }
-    loadConfig()
-  }, [])
+  }, [initialConfig])
+
+  // Fallback direct load if not provided by parent
+  useEffect(() => {
+    if (!initialConfig) {
+      let isMounted = true
+      async function loadConfig() {
+        try {
+          setLoading(true)
+          const res = await fetch("/api/integrations/google-sheets")
+          if (res.ok && isMounted) {
+            const data = await res.json()
+            if (data.config) {
+              setSheetUrl(data.config.sheetUrl || "")
+              setWebhookUrl(data.config.webhookUrl || "")
+              setAutoSyncEnabled(Boolean(data.config.autoSyncEnabled))
+              setLastSyncedAt(data.config.lastSyncedAt || null)
+            }
+          }
+        } catch (err) {
+          console.error("Failed to load Google Sheets config:", err)
+        } finally {
+          if (isMounted) setLoading(false)
+        }
+      }
+      loadConfig()
+      return () => { isMounted = false }
+    }
+  }, [initialConfig])
 
   async function handleSave() {
     try {
@@ -74,7 +101,7 @@ export function GoogleSheetsIntegrationCard() {
 
   async function handleManualSync() {
     if (!webhookUrl) {
-      toast.error("Please provide and save a Webhook URL first.")
+      toast.error("Please configure the Apps Script Webhook URL first.")
       return
     }
 
@@ -83,14 +110,15 @@ export function GoogleSheetsIntegrationCard() {
       const res = await fetch("/api/integrations/google-sheets/sync", {
         method: "POST",
       })
-      const data = await res.json()
 
+      const data = await res.json()
       if (!res.ok) {
-        throw new Error(data.error || "Sync failed")
+        throw new Error(data.error || "Failed to sync applications")
       }
 
-      setLastSyncedAt(new Date().toISOString())
-      toast.success(data.message || `Successfully synced ${data.count} applications!`)
+      const syncTime = new Date().toISOString()
+      setLastSyncedAt(syncTime)
+      toast.success(`Successfully synced ${data.count || 0} applications to Google Sheets!`)
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Sync failed"
       toast.error(msg)
@@ -102,30 +130,30 @@ export function GoogleSheetsIntegrationCard() {
   function copyAppsScript() {
     navigator.clipboard.writeText(GOOGLE_APPS_SCRIPT_TEMPLATE)
     setCopied(true)
-    toast.success("Apps Script code copied!")
+    toast.success("Apps Script code copied to clipboard!")
     setTimeout(() => setCopied(false), 2500)
   }
 
   return (
-    <Card className="rounded-xl border border-border bg-card shadow-xs">
+    <Card className="rounded-xl border border-border/80 bg-card shadow-2xs">
       <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="p-1.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shrink-0">
               <FileSpreadsheet className="h-4 w-4" />
             </div>
             <div>
-              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              <CardTitle className="text-sm font-semibold text-foreground">
                 Google Sheets Real-time Auto-Sync
               </CardTitle>
-              <CardDescription className="text-xs text-muted-foreground">
+              <CardDescription className="text-xs text-muted-foreground mt-0.5">
                 Automatically push every created or imported application to your live Google Sheet.
               </CardDescription>
             </div>
           </div>
 
           <span
-            className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
+            className={`inline-flex items-center self-start sm:self-center px-2 py-0.5 rounded-md text-[11px] font-medium border ${
               autoSyncEnabled && webhookUrl
                 ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
                 : "bg-muted text-muted-foreground border-border"
@@ -171,50 +199,124 @@ export function GoogleSheetsIntegrationCard() {
                   Google Apps Script Webhook URL <span className="text-destructive">*</span>
                 </Label>
 
+                {/* Setup Modal */}
                 <Dialog>
                   <DialogTrigger asChild>
                     <button
                       type="button"
-                      className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline cursor-pointer"
+                      className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline cursor-pointer font-medium"
                     >
-                      <HelpCircle className="h-3 w-3" /> Setup in 30 seconds
+                      <HelpCircle className="h-3.5 w-3.5" /> Setup in 30 seconds
                     </button>
                   </DialogTrigger>
-                  <DialogContent className="max-w-lg">
+                  <DialogContent className="max-w-xl">
                     <DialogHeader>
-                      <DialogTitle className="text-sm font-semibold flex items-center gap-2">
-                        <FileSpreadsheet className="h-4 w-4 text-emerald-500" />
-                        How to connect your Google Sheet in 30 seconds
-                      </DialogTitle>
+                      <div className="flex items-center justify-between pr-6">
+                        <DialogTitle className="text-sm font-semibold flex items-center gap-2">
+                          <FileSpreadsheet className="h-4 w-4 text-emerald-500 shrink-0" />
+                          Connect Google Sheet in 5 Steps
+                        </DialogTitle>
+                      </div>
                     </DialogHeader>
-                    <div className="space-y-3 text-xs text-muted-foreground leading-relaxed pt-2">
-                      <ol className="list-decimal list-inside space-y-2">
-                        <li>
-                          Open any blank Google Sheet and click <strong className="text-foreground">Extensions &gt; Apps Script</strong>.
-                        </li>
-                        <li>
-                          Paste the script below into the code editor and click <strong className="text-foreground">Save</strong>.
-                        </li>
-                        <li>
-                          Click <strong className="text-foreground">Deploy &gt; New deployment</strong>.
-                        </li>
-                        <li>
-                          Select type <strong className="text-foreground">Web app</strong>, set <em>&quot;Execute as&quot;</em> to <strong>Me</strong>, and <em>&quot;Who has access&quot;</em> to <strong>Anyone</strong>.
-                        </li>
-                        <li>
-                          Click <strong className="text-foreground">Deploy</strong>, copy the generated <strong className="text-foreground">Web app URL</strong>, and paste it into CareerTrack below!
-                        </li>
-                      </ol>
 
+                    <div className="space-y-3 text-xs text-muted-foreground leading-relaxed pt-1">
+                      {/* Step 1 */}
+                      <div className="flex items-start gap-2.5 p-2.5 rounded-lg bg-muted/40 border border-border/60">
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+                          1
+                        </span>
+                        <div className="space-y-1 flex-1">
+                          <p className="text-foreground font-medium">Open Google Sheet & Apps Script</p>
+                          <p className="text-[11px] text-muted-foreground">
+                            Open any blank Google Sheet and click{" "}
+                            <strong className="text-foreground">Extensions ➔ Apps Script</strong>.
+                          </p>
+                          <a
+                            href="https://sheets.new"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline font-semibold pt-0.5"
+                          >
+                            Create New Sheet at sheets.new <ExternalLink className="h-3 w-3" />
+                          </a>
+                        </div>
+                      </div>
+
+                      {/* Step 2 */}
+                      <div className="flex items-start gap-2.5 p-2.5 rounded-lg bg-muted/40 border border-border/60">
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+                          2
+                        </span>
+                        <div className="space-y-1 flex-1">
+                          <p className="text-foreground font-medium">Paste the Code & Save</p>
+                          <p className="text-[11px] text-muted-foreground">
+                            Delete any sample code in the editor, paste the Apps Script code below, and press{" "}
+                            <kbd className="px-1 py-0.5 rounded bg-muted border border-border text-[10px] font-mono">Ctrl+S / ⌘+S</kbd> to save.
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Step 3 */}
+                      <div className="flex items-start gap-2.5 p-2.5 rounded-lg bg-muted/40 border border-border/60">
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+                          3
+                        </span>
+                        <div className="space-y-1 flex-1">
+                          <p className="text-foreground font-medium">Click Deploy</p>
+                          <p className="text-[11px] text-muted-foreground">
+                            Click the blue <strong className="text-foreground">Deploy</strong> button (top right) ➔ select{" "}
+                            <strong className="text-foreground">New deployment</strong>.
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Step 4 */}
+                      <div className="flex items-start gap-2.5 p-2.5 rounded-lg bg-muted/40 border border-border/60">
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+                          4
+                        </span>
+                        <div className="space-y-1 flex-1">
+                          <p className="text-foreground font-medium">Configure Web App Permissions</p>
+                          <p className="text-[11px] text-muted-foreground">
+                            Click the Gear ⚙️ icon ➔ select <strong className="text-foreground">Web app</strong>.
+                          </p>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-1 text-[11px]">
+                            <div className="p-1.5 rounded bg-background border border-border">
+                              <span className="text-muted-foreground">Execute as: </span>
+                              <strong className="text-foreground">Me (your email)</strong>
+                            </div>
+                            <div className="p-1.5 rounded bg-background border border-border">
+                              <span className="text-muted-foreground">Who has access: </span>
+                              <strong className="text-foreground">Anyone</strong>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Step 5 */}
+                      <div className="flex items-start gap-2.5 p-2.5 rounded-lg bg-muted/40 border border-border/60">
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+                          5
+                        </span>
+                        <div className="space-y-1 flex-1">
+                          <p className="text-foreground font-medium">Copy Web App URL</p>
+                          <p className="text-[11px] text-muted-foreground">
+                            Click <strong className="text-foreground">Deploy</strong>, copy the generated{" "}
+                            <strong className="text-foreground">Web app URL</strong> (ending in <code className="font-mono text-primary">/exec</code>), and paste it into the Webhook URL field.
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Code Snippet Box */}
                       <div className="pt-2">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="font-semibold text-[11px] text-foreground">Apps Script Code:</span>
-                          <Button variant="outline" size="sm" onClick={copyAppsScript} className="h-6 text-[11px] gap-1">
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="font-semibold text-xs text-foreground">Apps Script Code:</span>
+                          <Button variant="outline" size="sm" onClick={copyAppsScript} className="h-6 text-xs gap-1.5 cursor-pointer">
                             {copied ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
-                            {copied ? "Copied" : "Copy Code"}
+                            {copied ? "Copied!" : "Copy Code"}
                           </Button>
                         </div>
-                        <pre className="p-2.5 rounded-lg bg-muted border border-border text-[11px] font-mono overflow-x-auto max-h-48">
+                        <pre className="p-3 rounded-lg bg-muted/70 border border-border text-[10.5px] font-mono overflow-x-auto max-h-40 leading-relaxed text-foreground/90 select-all">
                           {GOOGLE_APPS_SCRIPT_TEMPLATE}
                         </pre>
                       </div>
@@ -233,8 +335,8 @@ export function GoogleSheetsIntegrationCard() {
 
             {/* Toggle auto-sync */}
             <div className="flex items-center justify-between pt-1">
-              <div className="space-y-0.5">
-                <Label className="text-xs font-medium">Automatic Instant Sync</Label>
+              <div className="space-y-0.5 pr-2">
+                <Label className="text-xs font-medium text-foreground">Automatic Instant Sync</Label>
                 <p className="text-[11px] text-muted-foreground">
                   Whenever an application is added by you or the AI agent, append it to your Google Sheet immediately.
                 </p>

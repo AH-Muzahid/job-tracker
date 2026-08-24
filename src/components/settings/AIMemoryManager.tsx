@@ -16,9 +16,14 @@ interface MemoryItem {
   createdAt: string
 }
 
-export function AIMemoryManager() {
-  const [memories, setMemories] = useState<MemoryItem[]>([])
-  const [loading, setLoading] = useState(true)
+export interface AIMemoryManagerProps {
+  initialMemories?: MemoryItem[] | null
+  isLoading?: boolean
+}
+
+export function AIMemoryManager({ initialMemories, isLoading = false }: AIMemoryManagerProps) {
+  const [memories, setMemories] = useState<MemoryItem[]>(initialMemories || [])
+  const [loading, setLoading] = useState(isLoading && !initialMemories)
   const [newContent, setNewContent] = useState("")
   const [newCategory, setNewCategory] = useState("preference")
   const [adding, setAdding] = useState(false)
@@ -39,8 +44,17 @@ export function AIMemoryManager() {
   }
 
   useEffect(() => {
-    fetchMemories()
-  }, [])
+    if (initialMemories) {
+      setMemories(initialMemories)
+      setLoading(false)
+    }
+  }, [initialMemories])
+
+  useEffect(() => {
+    if (!initialMemories) {
+      fetchMemories()
+    }
+  }, [initialMemories])
 
   const handleAddMemory = async (e: React.FormEvent) => {
     e.preventDefault()

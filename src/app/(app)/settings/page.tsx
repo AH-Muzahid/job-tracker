@@ -2,7 +2,7 @@
 
 import { useUser } from "@clerk/nextjs"
 import { useRouter } from "next/navigation"
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { Bell } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -11,19 +11,59 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { AccountInfoCard } from "@/components/settings/AccountInfoCard"
 import { PreferencesCard } from "@/components/settings/PreferencesCard"
 import { DataManagementCard } from "@/components/settings/DataManagementCard"
-import { GoogleSheetsIntegrationCard } from "@/components/settings/GoogleSheetsIntegrationCard"
-import { AIConfigCard } from "@/components/settings/AIConfigCard"
+import { GoogleSheetsIntegrationCard, type GoogleSheetsConfigData } from "@/components/settings/GoogleSheetsIntegrationCard"
+import { AIConfigCard, type AIProfile } from "@/components/settings/AIConfigCard"
 import { AIMemoryManager } from "@/components/settings/AIMemoryManager"
+
+interface SettingsBundle {
+  googleSheets: GoogleSheetsConfigData
+  ai: { activeId: string | null; profiles: AIProfile[] }
+  memories: Array<{
+    id: string
+    category: string
+    content: string
+    source?: string
+    createdAt: string
+  }>
+}
 
 export default function SettingsPage() {
   const { isLoaded, isSignedIn, user } = useUser()
   const router = useRouter()
+
+  const [bundle, setBundle] = useState<SettingsBundle | null>(null)
+  const [loadingBundle, setLoadingBundle] = useState(true)
 
   useEffect(() => {
     if (isLoaded && !isSignedIn) {
       router.push("/sign-in")
     }
   }, [isLoaded, isSignedIn, router])
+
+  // Fetch unified settings bundle in 1 single fast roundtrip
+  useEffect(() => {
+    if (!isSignedIn) return
+    let isMounted = true
+
+    async function loadBundle() {
+      try {
+        const res = await fetch("/api/settings/bundle")
+        if (res.ok && isMounted) {
+          const data: SettingsBundle = await res.json()
+          setBundle(data)
+        }
+      } catch (err) {
+        console.error("Failed to load settings bundle:", err)
+      } finally {
+        if (isMounted) setLoadingBundle(false)
+      }
+    }
+
+    loadBundle()
+    return () => {
+      isMounted = false
+    }
+  }, [isSignedIn])
 
   if (!isLoaded) {
     return (
@@ -54,13 +94,22 @@ export default function SettingsPage() {
       <DataManagementCard />
 
       {/* Google Sheets Real-time Auto-Sync */}
-      <GoogleSheetsIntegrationCard />
+      <GoogleSheetsIntegrationCard
+        initialConfig={bundle?.googleSheets || null}
+        isLoading={loadingBundle}
+      />
 
       {/* Multi-Profile AI Keys Management */}
-      <AIConfigCard />
+      <AIConfigCard
+        initialData={bundle?.ai || null}
+        isLoading={loadingBundle}
+      />
 
       {/* Persistent AI Semantic Memory */}
-      <AIMemoryManager />
+      <AIMemoryManager
+        initialMemories={bundle?.memories || null}
+        isLoading={loadingBundle}
+      />
 
       {/* Notifications */}
       <Card>

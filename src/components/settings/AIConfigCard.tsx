@@ -28,10 +28,15 @@ export interface AIProfile {
   hasKey: boolean
 }
 
-export function AIConfigCard() {
-  const [profiles, setProfiles] = useState<AIProfile[]>([])
-  const [activeId, setActiveId] = useState<string | null>(null)
-  const [loadingAi, setLoadingAi] = useState(true)
+export interface AIConfigCardProps {
+  initialData?: { activeId: string | null; profiles: AIProfile[] } | null
+  isLoading?: boolean
+}
+
+export function AIConfigCard({ initialData, isLoading = false }: AIConfigCardProps) {
+  const [profiles, setProfiles] = useState<AIProfile[]>(initialData?.profiles || [])
+  const [activeId, setActiveId] = useState<string | null>(initialData?.activeId || null)
+  const [loadingAi, setLoadingAi] = useState(isLoading && !initialData)
 
   // Form state
   const [showForm, setShowForm] = useState(false)
@@ -48,8 +53,18 @@ export function AIConfigCard() {
   const [testResults, setTestResults] = useState<Record<string, boolean | null>>({})
 
   useEffect(() => {
-    loadAiConfig()
-  }, [])
+    if (initialData) {
+      setProfiles(initialData.profiles || [])
+      setActiveId(initialData.activeId || null)
+      setLoadingAi(false)
+    }
+  }, [initialData])
+
+  useEffect(() => {
+    if (!initialData) {
+      loadAiConfig()
+    }
+  }, [initialData])
 
   async function loadAiConfig() {
     setLoadingAi(true)
