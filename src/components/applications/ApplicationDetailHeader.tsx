@@ -19,11 +19,16 @@ export default function ApplicationDetailHeader({ companyName, jobTitle, applica
         <h1 className="text-2xl font-bold">{cleanCompanyName}</h1>
         <p className="text-muted-foreground">{jobTitle}</p>
       </div>
-      <div className="flex gap-2">
-        <Button asChild variant="outline">
+      <div className="flex items-center gap-2">
+        <Button asChild size="sm" className="h-9 bg-primary text-primary-foreground font-medium shadow-xs">
+          <Link href={`/interview-prep?appId=${applicationId}&company=${encodeURIComponent(cleanCompanyName)}&role=${encodeURIComponent(jobTitle)}`}>
+            Prep Room
+          </Link>
+        </Button>
+        <Button asChild variant="outline" size="sm" className="h-9">
           <Link href={`/applications/${applicationId}/edit`}>Edit</Link>
         </Button>
-        <Button variant="destructive" onClick={onDelete}>Delete</Button>
+        <Button variant="destructive" size="sm" className="h-9" onClick={onDelete}>Delete</Button>
       </div>
     </div>
   )

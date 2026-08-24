@@ -21,9 +21,8 @@ export function InterviewPrepHeader({ onStartMockInterview }: InterviewPrepHeade
       </div>
 
       <div className="flex items-center gap-3 shrink-0">
-        <Button onClick={onStartMockInterview} className="gap-2">
-          <Mic className="h-4 w-4" />
-          <span>Start Voice Mock Interview</span>
+        <Button onClick={onStartMockInterview} className="font-medium shadow-xs">
+          Start Voice Mock Interview
         </Button>
       </div>
     </div>

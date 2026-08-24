@@ -5,6 +5,7 @@ import {
   Calendar,
   ExternalLink,
   Globe,
+  Mic,
   Pencil,
   StickyNote,
   Tag,
@@ -155,15 +156,24 @@ export default function ApplicationDetailModal({
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1.5 flex-wrap sm:flex-nowrap">
+                    <Button
+                      size="sm"
+                      className="h-8 px-3 text-xs bg-primary text-primary-foreground hover:bg-primary/90 font-medium shadow-xs"
+                      asChild
+                    >
+                      <Link href={`/interview-prep?appId=${application.id}&company=${encodeURIComponent(application.companyName)}&role=${encodeURIComponent(application.jobTitle)}`}>
+                        Prep Room
+                      </Link>
+                    </Button>
                     <Button
                       size="sm"
                       variant="outline"
-                      className="h-8 px-2.5 text-xs gap-1 border-border text-foreground hover:bg-secondary cursor-pointer font-semibold"
+                      className="h-8 px-3 text-xs border-border text-foreground hover:bg-secondary cursor-pointer font-medium"
                       asChild
                     >
                       <Link href={`/applications/${application.id}`}>
-                        Open Workbench <ExternalLink className="h-3 w-3" />
+                        Workbench
                       </Link>
                     </Button>
                     <Button
