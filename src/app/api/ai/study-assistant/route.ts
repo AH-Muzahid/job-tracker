@@ -1,11 +1,9 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server"
-import { generateText } from "ai"
 import { getInternalUserId } from "@/lib/auth"
-import { getProvider } from "@/lib/ai/client"
 import { getUserAIConfig } from "@/lib/ai/config"
 import { getCachedKnowledgeGraph } from "@/lib/ai/knowledge-graph"
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit"
+import { resilientGenerateText } from "@/lib/ai/resilience"
 
 export interface StudyQueryRequest {
   topic?: string
@@ -43,15 +41,6 @@ export async function POST(request: NextRequest) {
       .slice(0, 10)
       .join(", ")
 
-    const resolvedProvider = getProvider({
-      providerType: aiConfig.providerType as any,
-      apiKey: aiConfig.apiKey,
-      baseUrl: aiConfig.baseUrl,
-      model: aiConfig.model,
-    })
-
-    const targetModel = resolvedProvider.model(aiConfig.model || resolvedProvider.defaultModel)
-
     let languageRule = ""
     if (language === "bn") {
       languageRule = "বাংলা ভাষায় সহজ সাবলীল ভাষায় ব্যাখ্যা দিন। টেকনিক্যাল শব্দগুলো (যেমন React, Next.js, API, Indexing, Goroutines) ইংরেজি টেক টার্মে রাখুন।"
@@ -85,26 +74,31 @@ When explaining any concept or answering a question:
       },
     ]
 
-    const response = await generateText({
-      model: targetModel,
-      system: systemPrompt,
+    const result = await resilientGenerateText({
+      userId,
+      systemPrompt,
       messages,
       temperature: 0.7,
+      maxRetriesPerModel: 2,
+      timeoutMs: 15000,
     })
 
     return NextResponse.json({
-      answer: response.text,
+      explanation: result.text,
       topic,
-      suggestedFollowUps: [
-        "What are the main performance trade-offs?",
-        "How would you test and monitor this in production?",
-        "What edge cases should I mention during the interview?",
+      modelUsed: result.modelUsed,
+      fallbackTriggered: result.fallbackTriggered,
+      suggestedNextQuestions: [
+        `What are the main performance trade-offs of ${topic}?`,
+        `How would you test and monitor this in production?`,
+        `What edge cases should I mention during the interview?`,
       ],
     })
   } catch (error) {
     console.error("AI Study Assistant error:", error)
+    const message = error instanceof Error ? error.message : "Failed to generate study answer"
     return NextResponse.json(
-      { error: "Failed to generate study answer" },
+      { error: message },
       { status: 500 }
     )
   }

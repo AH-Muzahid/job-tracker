@@ -1,11 +1,9 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server"
-import { generateText } from "ai"
 import { getInternalUserId } from "@/lib/auth"
-import { getProvider } from "@/lib/ai/client"
 import { getUserAIConfig } from "@/lib/ai/config"
 import { getCachedKnowledgeGraph } from "@/lib/ai/knowledge-graph"
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit"
+import { resilientGenerateText, getEmergencyInterviewTurn } from "@/lib/ai/resilience"
 
 import { prisma, withDbRetry } from "@/lib/prisma"
 
@@ -63,15 +61,6 @@ export async function POST(request: NextRequest) {
       .map((n) => n.name)
       .slice(0, 8)
       .join(", ")
-
-    const resolvedProvider = getProvider({
-      providerType: aiConfig.providerType as any,
-      apiKey: aiConfig.apiKey,
-      baseUrl: aiConfig.baseUrl,
-      model: aiConfig.model,
-    })
-
-    const targetModel = resolvedProvider.model(aiConfig.model || resolvedProvider.defaultModel)
 
     const interviewerName =
       language === "en"
@@ -223,14 +212,31 @@ ${phaseInstruction}
       })
     }
 
-    const response = await generateText({
-      model: targetModel,
-      system: systemPrompt,
-      messages,
-      temperature: 0.7,
-    })
+    let replyText = ""
+    let fallbackTriggered = false
 
-    let replyText = response.text.trim()
+    try {
+      const resilientResult = await resilientGenerateText({
+        userId,
+        systemPrompt,
+        messages,
+        temperature: 0.7,
+        maxRetriesPerModel: 2,
+        timeoutMs: 12000,
+      })
+      replyText = resilientResult.text
+      fallbackTriggered = resilientResult.fallbackTriggered
+    } catch (llmErr) {
+      console.warn("All LLM providers failed in mock interview converse; using emergency dialogue engine:", llmErr)
+      replyText = getEmergencyInterviewTurn(
+        targetRole,
+        targetCompany,
+        currentPhaseTitle,
+        currentQuestionNumber
+      )
+      fallbackTriggered = true
+    }
+
     replyText = replyText.replace(/```(?:suggestions|json)?[\s\S]*?```/gi, "").trim()
 
     return NextResponse.json({
@@ -241,11 +247,12 @@ ${phaseInstruction}
       totalQuestions: targetTurnCount,
       currentPhase: currentPhaseTitle,
       isComplete: isFinalWrapUp,
+      fallbackTriggered,
     })
   } catch (error) {
-    console.error("Conversational interview error:", error)
+    console.error("Conversational interview fatal error:", error)
     return NextResponse.json(
-      { error: "Failed to generate conversational interview turn" },
+      { error: "Failed to process conversational interview turn" },
       { status: 500 }
     )
   }

@@ -172,6 +172,14 @@ export async function getUserAIProfiles(userId: string): Promise<{
 }
 
 /**
+ * Returns full raw AI profiles for server-side multi-provider failover
+ */
+export async function getAllUserAIProfiles(userId: string): Promise<AIKeyProfile[]> {
+  const multi = await getRawMultiConfig(userId)
+  return multi?.profiles || []
+}
+
+/**
  * Adds or updates a profile in the user's AI key collection.
  */
 export async function saveUserAIProfile(

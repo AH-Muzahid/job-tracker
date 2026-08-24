@@ -5,7 +5,7 @@ import Link from "next/link"
 import { cn } from "@/lib/utils"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
-import { Sparkles, ChevronDown, ChevronUp, Copy, Check, CheckCircle2, ArrowUpRight } from "lucide-react"
+import { Sparkles, ChevronDown, ChevronUp, Copy, Check, CheckCircle2, ArrowUpRight, RotateCcw } from "lucide-react"
 import { toast } from "sonner"
 import AnalysisResult from "./AnalysisResult"
 import OutreachResult from "./OutreachResult"
@@ -16,6 +16,7 @@ interface Props {
   isLast: boolean
   isStreaming: boolean
   onSuggestionClick?: (prompt: string) => void
+  onRetry?: () => void
 }
 
 interface Suggestion {
@@ -66,7 +67,7 @@ function getContextualSuggestions(content: string): Suggestion[] {
   return list.slice(0, 3)
 }
 
-export default function ChatMessage({ message, isLast, isStreaming, onSuggestionClick }: Props) {
+export default function ChatMessage({ message, isLast, isStreaming, onSuggestionClick, onRetry }: Props) {
   const isUser = message.role === "user"
   const isLongMessage = isUser && message.content && message.content.length > 250
   const [isExpanded, setIsExpanded] = useState(false)
@@ -398,6 +399,17 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
                   {copied ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
                   <span>{copied ? "Copied" : "Copy"}</span>
                 </button>
+                {isLast && onRetry && (
+                  <button
+                    type="button"
+                    onClick={onRetry}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md hover:bg-muted/80 hover:text-foreground transition-colors cursor-pointer text-xs"
+                    title="Retry this prompt"
+                  >
+                    <RotateCcw className="h-3 w-3" />
+                    <span>Retry</span>
+                  </button>
+                )}
               </div>
             )}
           </>

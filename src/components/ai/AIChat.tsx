@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect, useCallback } from "react"
-import { Send, Square, FileText, Briefcase, Target, MessageSquare, ArrowDown, Plus, Sparkles } from "lucide-react"
+import { Send, Square, FileText, Briefcase, Target, MessageSquare, ArrowDown, Plus, Sparkles, RotateCcw } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -287,6 +287,13 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
     }
   }
 
+  const handleRetry = () => {
+    const lastUserMsg = [...messages].reverse().find((m) => m.role === "user")
+    if (lastUserMsg && lastUserMsg.content) {
+      sendMessage(lastUserMsg.content)
+    }
+  }
+
   const showEmptyState = isNewChat && !hasMessages
 
   return (
@@ -398,11 +405,22 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
                   isLast={i === messages.length - 1}
                   isStreaming={isStreaming && i === messages.length - 1}
                   onSuggestionClick={(prompt) => sendMessage(prompt)}
+                  onRetry={handleRetry}
                 />
               ))}
               {error && (
-                <div className="text-xs font-medium text-destructive text-center p-3 rounded-lg bg-destructive/10 border border-destructive/20">
-                  {error}
+                <div className="flex items-center justify-between gap-2 text-xs font-medium text-destructive p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+                  <span>{error}</span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleRetry}
+                    className="h-6 text-xs px-2 bg-background/80 hover:bg-background border-destructive/30 text-destructive shrink-0 cursor-pointer"
+                  >
+                    <RotateCcw className="h-3 w-3 mr-1" />
+                    Retry
+                  </Button>
                 </div>
               )}
               <div className="h-28 shrink-0" ref={messagesEndRef} />
