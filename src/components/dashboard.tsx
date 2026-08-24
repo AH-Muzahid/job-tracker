@@ -17,25 +17,22 @@ export function Dashboard() {
 			<DecorIcon className="hidden md:block" position="top-left" />
 			<div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-border">
 				<DashboardStats data={stats} />
-				<div className="col-span-2 lg:col-span-2 flex flex-col">
+				<div className="col-span-2 lg:col-span-2 flex flex-col h-full bg-background">
 					<NetRevenueChart />
 				</div>
-				<div className="col-span-2 lg:col-span-2 flex flex-col">
+				<div className="col-span-2 lg:col-span-2 flex flex-col h-full bg-background">
 					<ChannelSalesChart />
 				</div>
-				<div className="col-span-2 lg:col-span-2 flex flex-col">
+				<div className="col-span-2 lg:col-span-2 flex flex-col h-full bg-background">
 					<DashboardInvoices applications={stats?.recent} />
 				</div>
-				<div className="col-span-2 lg:col-span-1 flex flex-col">
+				<div className="col-span-2 lg:col-span-1 flex flex-col h-full bg-background">
 					<BillingHealth followUps={stats?.followUpApps} />
 				</div>
-				<div className="col-span-2 lg:col-span-1 flex flex-col">
+				<div className="col-span-2 lg:col-span-1 flex flex-col h-full bg-background">
 					<DashboardActivity />
 				</div>
 			</div>
 		</div>
 	);
 }
-
-
-

@@ -28,15 +28,15 @@ export function BillingHealth({ followUps }: { followUps?: FollowUpApp[] }) {
 	const hasFollowUps = followUps && followUps.length > 0;
 
 	return (
-		<DashboardCard className="gap-0">
-			<CardHeader className="px-5 pt-4 pb-4 border-b">
+		<DashboardCard className="gap-0 h-full">
+			<CardHeader className="px-5 pt-4 pb-4 border-b shrink-0">
 				<CardTitle className="text-balance text-base font-semibold">Pipeline Health</CardTitle>
 				<CardDescription className="text-pretty text-xs text-muted-foreground mt-1">
 					{hasFollowUps ? `${followUps.length} follow-up(s) waiting` : "Nothing urgent needs your attention."}
 				</CardDescription>
 			</CardHeader>
-			<CardContent className="flex h-full items-center px-0">
-				<Empty>
+			<CardContent className="flex flex-1 items-center justify-center p-6">
+				<Empty className="w-full">
 					<EmptyHeader>
 						<EmptyMedia variant="icon">
 							<CircleCheckIcon aria-hidden="true" />
@@ -49,10 +49,10 @@ export function BillingHealth({ followUps }: { followUps?: FollowUpApp[] }) {
 						</EmptyDescription>
 					</EmptyHeader>
 					<EmptyContent>
-						<Button asChild variant="ghost">
+						<Button asChild variant="ghost" size="sm" className="mt-2 text-xs">
 							<Link href="/applications">
 								Review pipeline
-								<ArrowRightIcon aria-hidden="true" />
+								<ArrowRightIcon className="size-3.5 ml-1" aria-hidden="true" />
 							</Link>
 						</Button>
 					</EmptyContent>
@@ -61,5 +61,3 @@ export function BillingHealth({ followUps }: { followUps?: FollowUpApp[] }) {
 		</DashboardCard>
 	);
 }
-
-
