@@ -34,7 +34,7 @@ export default function RootLayout({
 }>) {
   return (
     <ClerkProvider appearance={{ theme: shadcn }}>
-      <html lang="en" suppressHydrationWarning className="dark overflow-x-hidden">
+      <html lang="en" suppressHydrationWarning className="dark">
         <body
           className={`${plusJakartaSans.variable} ${geistMono.variable} font-sans antialiased`}
         >
