@@ -95,15 +95,20 @@ export default function LoadingState({
       className="bg-clip-text text-[13px] font-medium text-transparent"
       style={{
         backgroundImage:
-          "linear-gradient(90deg, var(--ink-3) 35%, var(--ink) 50%, var(--ink-3) 65%)",
+          "linear-gradient(90deg, var(--color-ink-3, var(--muted-foreground, #71717a)) 20%, var(--color-ink, var(--foreground, #09090b)) 50%, var(--color-ink-3, var(--muted-foreground, #71717a)) 80%)",
         backgroundSize: "200% 100%",
-        animation: "shimmer-text 1.4s linear infinite",
+        WebkitBackgroundClip: "text",
+        animation: "shimmer-text 1.6s linear infinite",
       }}
     >
       {resolvedLabel}
     </span>
   );
-  const elapsedEl = <span className="font-mono text-[12px] text-ink-3 tabular-nums">{elapsed}</span>;
+  const elapsedEl = (
+    <span className="font-mono text-[12px] text-muted-foreground/80 tabular-nums">
+      {elapsed}
+    </span>
+  );
 
   if (surfer) {
     return (
