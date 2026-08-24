@@ -464,7 +464,11 @@ export default function SidebarNav({
         </GlideGroup>
 
         {/* Chat History with Search */}
-        <div className="mt-3 min-h-0 flex-1 overflow-y-auto">
+        <div
+          className={`mt-3 min-h-0 flex-1 overflow-y-auto transition-opacity duration-200 ${
+            isCollapsed ? "opacity-0 pointer-events-none" : "opacity-100"
+          }`}
+        >
           <div className="sidebar-copy relative mx-2 mb-1 h-8">
             <div
               aria-hidden={searchOpen}
@@ -552,14 +556,7 @@ export default function SidebarNav({
                   }}
                 >
                   <span
-                    className={`flex size-5 shrink-0 items-center justify-center ${
-                      active ? "text-ink" : "text-ink-2"
-                    }`}
-                  >
-                    <MessageSquare size={16} />
-                  </span>
-                  <span
-                    className={`sidebar-copy ml-1.5 min-w-0 flex-1 truncate text-[14px] font-medium ${
+                    className={`sidebar-copy min-w-0 flex-1 truncate text-[14px] font-medium ${
                       active ? "text-ink" : "text-ink-2"
                     }`}
                   >
