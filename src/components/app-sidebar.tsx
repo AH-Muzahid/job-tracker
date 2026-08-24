@@ -102,13 +102,17 @@ export function AppSidebar() {
 					<SidebarMenuButton
 						asChild
 						size="lg"
+						tooltip="Back to Dashboard"
 						className="hover:bg-sidebar-accent font-medium text-sidebar-foreground cursor-pointer group"
 					>
-						<Link href="/dashboard" className="flex items-center gap-2">
-							<ChevronLeft className="size-4 text-muted-foreground transition-transform group-hover:-translate-x-0.5 shrink-0" />
-							<span className="font-semibold text-sm tracking-tight text-foreground">
-								AI Assistant
-							</span>
+						<Link href="/dashboard" className="flex items-center gap-2.5">
+							<div className="flex size-7 items-center justify-center rounded-md bg-muted text-foreground shrink-0 transition-transform group-hover:-translate-x-0.5 border border-border">
+								<ChevronLeft className="size-4" />
+							</div>
+							<div className="flex flex-col gap-0.5 leading-none min-w-0 group-data-[collapsible=icon]:hidden">
+								<span className="font-bold text-sm text-foreground tracking-tight truncate">AI Assistant</span>
+								<span className="text-[10px] text-muted-foreground truncate">Back to Dashboard</span>
+							</div>
 						</Link>
 					</SidebarMenuButton>
 				</SidebarHeader>
@@ -119,7 +123,7 @@ export function AppSidebar() {
 							<div className="flex size-7 items-center justify-center rounded-md bg-primary text-primary-foreground font-bold text-xs shadow-xs">
 								<BriefcaseIcon className="size-4" />
 							</div>
-							<div className="flex flex-col gap-0.5 leading-none">
+							<div className="flex flex-col gap-0.5 leading-none min-w-0 group-data-[collapsible=icon]:hidden">
 								<span className="font-bold text-sm text-foreground tracking-tight">CareerTrack</span>
 								<span className="text-[10px] text-muted-foreground">AI Job Search</span>
 							</div>
@@ -178,8 +182,8 @@ export function AppSidebar() {
 							</SidebarMenu>
 						</SidebarGroup>
 
-						{/* Search chats */}
-						<div className="px-2 py-1">
+						{/* Search chats - hidden when collapsed to icon */}
+						<div className="px-2 py-1 group-data-[collapsible=icon]:hidden">
 							<div className="relative flex items-center">
 								<Search className="absolute left-2.5 size-3.5 text-muted-foreground pointer-events-none" />
 								<input
@@ -193,8 +197,8 @@ export function AppSidebar() {
 							</div>
 						</div>
 
-						{/* Chats list */}
-						<SidebarGroup className="flex-1 min-h-0 overflow-y-auto py-1">
+						{/* Chats list - hidden when collapsed to icon */}
+						<SidebarGroup className="flex-1 min-h-0 overflow-y-auto py-1 group-data-[collapsible=icon]:hidden">
 							<SidebarGroupLabel className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/80 px-2">
 								Chats
 							</SidebarGroupLabel>
@@ -257,6 +261,7 @@ export function AppSidebar() {
 						<SidebarMenuItem>
 							<SidebarMenuButton
 								asChild
+								tooltip="Configure AI"
 								className="text-muted-foreground hover:text-foreground cursor-pointer"
 								size="sm"
 							>
@@ -283,6 +288,7 @@ export function AppSidebar() {
 								<SidebarMenuItem key={item.title}>
 									<SidebarMenuButton
 										asChild
+										tooltip={item.title}
 										className="text-muted-foreground hover:text-foreground"
 										isActive={isFooterActive}
 										size="sm"
