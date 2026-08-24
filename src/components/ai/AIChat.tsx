@@ -102,7 +102,6 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
   const { pendingPrompt, setPendingPrompt, aiSidebarOpen } = useUI()
 
   const hasMessages = messages.length > 0
-  const isNewChat = !sessionId
 
   useEffect(() => {
     if (!sessionId) {
@@ -294,13 +293,9 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
     }
   }
 
-  const showEmptyState = isNewChat && !hasMessages
-
   return (
     <div className="flex flex-col h-full bg-background relative overflow-hidden">
-      {loading ? (
-        <MessagesSkeleton />
-      ) : showEmptyState ? (
+      {!loading && !hasMessages ? (
         <div className="flex-1 flex flex-col items-center justify-center px-4 overflow-y-auto z-10 py-8">
           <div className="w-full max-w-2xl space-y-6">
             {/* Clean Minimal Header */}
@@ -398,16 +393,20 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
         <>
           <div className="flex-1 overflow-y-auto" ref={containerRef} onScroll={handleScroll}>
             <div className="max-w-3xl mx-auto flex flex-col gap-5 p-4 sm:p-6">
-              {messages.map((msg, i) => (
-                <ChatMessage
-                  key={msg.id}
-                  message={msg}
-                  isLast={i === messages.length - 1}
-                  isStreaming={isStreaming && i === messages.length - 1}
-                  onSuggestionClick={(prompt) => sendMessage(prompt)}
-                  onRetry={handleRetry}
-                />
-              ))}
+              {loading ? (
+                <MessagesSkeleton />
+              ) : (
+                messages.map((msg, i) => (
+                  <ChatMessage
+                    key={msg.id}
+                    message={msg}
+                    isLast={i === messages.length - 1}
+                    isStreaming={isStreaming && i === messages.length - 1}
+                    onSuggestionClick={(prompt) => sendMessage(prompt)}
+                    onRetry={handleRetry}
+                  />
+                ))
+              )}
               {error && (
                 <div className="flex items-center justify-between gap-2 text-xs font-medium text-destructive p-3 rounded-lg bg-destructive/10 border border-destructive/20">
                   <span>{error}</span>
@@ -450,7 +449,7 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
                   placeholder="Ask a question, paste a role, or type an action..."
                   className="w-full bg-transparent border-0 outline-none resize-none text-xs placeholder:text-muted-foreground/50 min-h-[38px] max-h-[160px] px-1 py-0.5 leading-relaxed"
                   rows={Math.min(6, Math.max(1, input.split('\n').length))}
-                  disabled={isStreaming}
+                  disabled={isStreaming || loading}
                 />
                 <div className="flex items-center justify-between pt-1.5 mt-0.5 border-t border-border/40">
                   <div className="flex items-center gap-1.5">
@@ -460,6 +459,7 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
                       size="icon"
                       className="h-6 w-6 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors cursor-pointer"
                       title="Add context"
+                      disabled={loading}
                     >
                       <Plus className="h-3.5 w-3.5" />
                     </Button>
@@ -488,7 +488,7 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
                       <Button
                         size="icon"
                         onClick={() => sendMessage(input)}
-                        disabled={!input.trim()}
+                        disabled={!input.trim() || loading}
                         className="h-6 w-6 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-2xs cursor-pointer"
                       >
                         <Send className="h-3 w-3" />
