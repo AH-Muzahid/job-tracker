@@ -25,6 +25,7 @@ export function ConversationalVoiceInterviewModal({
   initialRole = "Senior Fullstack Engineer",
   initialCompany = "Google / Tech Company",
   initialType = "Technical",
+  applicationId,
   onSessionSaved,
 }: ConversationalVoiceInterviewModalProps) {
   // Session Configuration States
@@ -32,6 +33,12 @@ export function ConversationalVoiceInterviewModal({
   const [targetRole, setTargetRole] = useState(initialRole)
   const [targetCompany, setTargetCompany] = useState(initialCompany)
   const [interviewType, setInterviewType] = useState(initialType)
+
+  useEffect(() => {
+    if (initialRole) setTargetRole(initialRole)
+    if (initialCompany) setTargetCompany(initialCompany)
+    if (initialType) setInterviewType(initialType)
+  }, [initialRole, initialCompany, initialType])
   const [interviewerTone, setInterviewerTone] = useState<InterviewerTone>("friendly")
   const [voiceGender, setVoiceGender] = useState<VoiceGender>("female")
   const [language, setLanguage] = useState<InterviewLanguage>("mixed")
@@ -543,6 +550,7 @@ export function ConversationalVoiceInterviewModal({
             voiceGender,
             language,
             targetTurnCount,
+            applicationId,
             history: updatedDialogue.map((d) => ({ role: d.role, text: d.text })),
             userAnswer: processedAnswer || undefined,
           }),
@@ -745,6 +753,7 @@ export function ConversationalVoiceInterviewModal({
           targetCompany,
           interviewType,
           language,
+          applicationId,
           history: dialogue,
         }),
       })

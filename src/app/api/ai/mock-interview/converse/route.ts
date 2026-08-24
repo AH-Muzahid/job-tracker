@@ -7,6 +7,8 @@ import { getUserAIConfig } from "@/lib/ai/config"
 import { getCachedKnowledgeGraph } from "@/lib/ai/knowledge-graph"
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit"
 
+import { prisma, withDbRetry } from "@/lib/prisma"
+
 export interface ConversationTurnRequest {
   targetRole?: string
   targetCompany?: string
@@ -15,6 +17,7 @@ export interface ConversationTurnRequest {
   voiceGender?: "female" | "male"
   language?: "en" | "bn" | "mixed"
   targetTurnCount?: number
+  applicationId?: string
   history: Array<{ role: "interviewer" | "candidate"; text: string }>
   userAnswer?: string
 }
@@ -158,6 +161,29 @@ LANGUAGE INSTRUCTIONS (Natural Modern English):
 - Speak with natural human cadence and clear conversational transitions.`
     }
 
+    let targetAppIntel = ""
+    if (body.applicationId) {
+      try {
+        const app = await withDbRetry(() =>
+          prisma.application.findFirst({
+            where: { id: body.applicationId, userId },
+            include: { company: true, analysis: true },
+          })
+        )
+        if (app) {
+          targetAppIntel = `
+## APPLICATION-SPECIFIC CONTEXT FOR ${app.companyName.toUpperCase()}:
+- Role Applied: ${app.jobTitle}
+- Job Notes / Requirements: ${app.notes ? app.notes.slice(0, 500) : "Standard engineering role"}
+${app.company?.notes ? `- Company Culture/Tech Notes: ${app.company.notes}` : ""}
+${app.analysis?.jdKeywords ? `- Key JD Keywords: ${JSON.stringify(app.analysis.jdKeywords)}` : ""}
+- Instruction: Tailor your questions specifically around this company's culture, tech requirements, and challenges.`
+        }
+      } catch (err) {
+        console.error("Failed to load application intel for mock interview:", err)
+      }
+    }
+
     const systemPrompt = `You are ${interviewerName}, an Engineering Leader at ${targetCompany} conducting a live spoken voice mock interview for a ${targetRole} position.
 Round: ${interviewType}
 Target Questions: ${targetTurnCount} turns. Current Turn: Question ${currentQuestionNumber} of ${targetTurnCount}.
@@ -165,6 +191,7 @@ Target Questions: ${targetTurnCount} turns. Current Turn: Question ${currentQues
 ${toneInstructions}
 
 ${languageInstructions}
+${targetAppIntel}
 
 ## INTERVIEW STRUCTURE & PHASE:
 ${phaseInstruction}

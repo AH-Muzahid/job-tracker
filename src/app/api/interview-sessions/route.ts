@@ -26,7 +26,17 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json()
-    const { targetRole, targetCompany, interviewType, language = "mixed", score, verdict, dialogue, report } = body
+    const {
+      targetRole,
+      targetCompany,
+      interviewType,
+      language = "mixed",
+      score,
+      verdict,
+      dialogue,
+      report,
+      applicationId,
+    } = body
 
     const session = await (prisma as any).interviewSession.create({
       data: {
@@ -41,6 +51,34 @@ export async function POST(request: NextRequest) {
         report: report || null,
       },
     })
+
+    // If score/report exists, automatically create a linked PrepNote
+    if (score !== undefined || report) {
+      try {
+        let linkedAppId = applicationId
+        if (!linkedAppId && targetCompany) {
+          const app = await prisma.application.findFirst({
+            where: {
+              userId,
+              companyName: { contains: targetCompany, mode: "insensitive" },
+            },
+          })
+          if (app) linkedAppId = app.id
+        }
+
+        await prisma.prepNote.create({
+          data: {
+            userId,
+            title: `Mock Evaluation: ${targetCompany || "Interview"} (${score || "N/A"}/10)`,
+            category: "Mock Evaluation",
+            applicationId: linkedAppId || null,
+            content: `### Interview Result: ${targetRole} @ ${targetCompany}\n\n**Verdict:** ${verdict || "Completed"}\n**Score:** ${score || "N/A"}/10\n\n${report?.executiveSummary ? `**Executive Summary:**\n${report.executiveSummary}\n\n` : ""}${report?.strengths ? `**Strengths:**\n${report.strengths.map((s: string) => `- ${s}`).join("\n")}\n\n` : ""}${report?.improvementAreas ? `**Areas to Improve:**\n${report.improvementAreas.map((a: string) => `- ${a}`).join("\n")}` : ""}`,
+          },
+        })
+      } catch (err) {
+        console.error("Failed to auto-create linked prep note from mock session:", err)
+      }
+    }
 
     return NextResponse.json(session, { status: 201 })
   } catch (error) {
