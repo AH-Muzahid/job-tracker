@@ -1,6 +1,12 @@
 import { prisma } from "@/lib/prisma"
 import { getCachedJson, setCachedJson } from "@/lib/redis"
 import type { UserProfile } from "@prisma/client"
+import {
+  getCachedKnowledgeGraph,
+  saveKnowledgeGraph,
+  buildCareerGraphFromText,
+  formatGraphForContext,
+} from "@/lib/ai/knowledge-graph"
 
 export type AIMode =
   | "profile"
@@ -24,12 +30,12 @@ export async function buildFullContext(userId: string, mode: AIMode): Promise<st
   const parts: string[] = []
 
   // Determine selective flags based on mode
-  const needRecentApps = mode === "tracker" || mode === "recovery" || mode === "jd-scan" || mode === "application"
+  const needRecentApps = mode === "tracker" || mode === "recovery" || mode === "jd-scan" || mode === "application" || mode === "response"
   const needStats = mode === "tracker" || mode === "recovery"
-  const needResume = mode === "jd-scan" || mode === "application" || mode === "profile" || mode === "interview"
-  const needCompanies = mode === "jd-scan" || mode === "application" || mode === "tracker"
+  const needResume = mode === "jd-scan" || mode === "application" || mode === "profile" || mode === "interview" || mode === "response"
+  const needCompanies = mode === "jd-scan" || mode === "application" || mode === "tracker" || mode === "response"
   const needPrepNotes = mode === "interview" || mode === "profile"
-  const needStatusChanges = mode === "tracker" || mode === "recovery"
+  const needStatusChanges = mode === "tracker" || mode === "recovery" || mode === "response"
   const needAnalyses = mode === "jd-scan" || mode === "application" || mode === "recovery"
   const needPrepQuestions = mode === "interview"
   const needWeeklyGoals = mode === "weekly"
@@ -84,9 +90,10 @@ export async function buildFullContext(userId: string, mode: AIMode): Promise<st
     }
   }
 
-  // Selective targeted secondary queries with Redis caching for Default Resume
+  // Selective targeted secondary queries with Redis caching for Default Resume and Knowledge Graph
   const cachedResumePromise = needResume ? getCachedJson<CachedResume>(`user:resume:${userId}`) : Promise.resolve(null)
-  const cachedResume = await cachedResumePromise
+  const cachedGraphPromise = needResume ? getCachedKnowledgeGraph(userId) : Promise.resolve(null)
+  const [cachedResume, cachedGraph] = await Promise.all([cachedResumePromise, cachedGraphPromise])
 
   let defaultResume = cachedResume
   if (needResume && !defaultResume) {
@@ -197,11 +204,30 @@ export async function buildFullContext(userId: string, mode: AIMode): Promise<st
 
   if (defaultResume) {
     parts.push(`Default Resume: ${defaultResume.title} (${defaultResume.fileName})`)
-    if (defaultResume.textContent) {
-      const excerpt = defaultResume.textContent.length > 15000
-        ? defaultResume.textContent.slice(0, 15000) + "..."
+  }
+
+  if (cachedGraph && cachedGraph.nodes && cachedGraph.nodes.length > 0) {
+    const formattedGraph = formatGraphForContext(cachedGraph)
+    if (formattedGraph) {
+      parts.push(formattedGraph)
+    }
+  } else if (defaultResume?.textContent) {
+    // Auto-build and persist Knowledge Graph on the fly if missing
+    try {
+      const generatedGraph = buildCareerGraphFromText(defaultResume.textContent, profile)
+      if (generatedGraph && generatedGraph.nodes.length > 0) {
+        void saveKnowledgeGraph(userId, generatedGraph)
+        const formattedGraph = formatGraphForContext(generatedGraph)
+        if (formattedGraph) {
+          parts.push(formattedGraph)
+        }
+      }
+    } catch {
+      // Fallback: only if graph generation failed, provide compact excerpt
+      const excerpt = defaultResume.textContent.length > 2000
+        ? defaultResume.textContent.slice(0, 2000) + "..."
         : defaultResume.textContent
-      parts.push(`- Resume Excerpt:\n${excerpt}`)
+      parts.push(`- Key Resume Points:\n${excerpt}`)
     }
   }
 

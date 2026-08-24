@@ -152,49 +152,74 @@ export function buildCareerGraphFromText(
   const domainDevOps = addNode({ id: "dom_devops", type: "domain", name: "Cloud & DevOps" })
   const domainData = addNode({ id: "dom_data", type: "domain", name: "Databases & Data" })
 
-  // 2. Skill dictionary lookup in text
-  const knownSkills: Array<{ name: string; domainNode: GraphNode; level?: "intermediate" | "advanced" | "expert" }> = [
-    { name: "Go", domainNode: domainBackend, level: "advanced" },
-    { name: "TypeScript", domainNode: domainFrontend, level: "expert" },
-    { name: "JavaScript", domainNode: domainFrontend, level: "expert" },
-    { name: "React", domainNode: domainFrontend, level: "expert" },
-    { name: "Next.js", domainNode: domainFrontend, level: "expert" },
-    { name: "Node.js", domainNode: domainBackend, level: "advanced" },
-    { name: "Python", domainNode: domainBackend, level: "intermediate" },
-    { name: "PostgreSQL", domainNode: domainData, level: "advanced" },
-    { name: "Redis", domainNode: domainData, level: "advanced" },
-    { name: "Docker", domainNode: domainDevOps, level: "advanced" },
-    { name: "Kubernetes", domainNode: domainDevOps, level: "intermediate" },
-    { name: "AWS", domainNode: domainDevOps, level: "intermediate" },
-    { name: "Kafka", domainNode: domainBackend, level: "intermediate" },
-    { name: "TailwindCSS", domainNode: domainFrontend, level: "expert" },
-    { name: "GraphQL", domainNode: domainBackend, level: "intermediate" },
-    { name: "Prisma", domainNode: domainData, level: "advanced" },
-    { name: "Inngest", domainNode: domainBackend, level: "advanced" },
-    { name: "System Design", domainNode: domainBackend, level: "advanced" },
-    { name: "Microservices", domainNode: domainBackend, level: "advanced" },
-    { name: "CI/CD", domainNode: domainDevOps, level: "advanced" },
-    { name: "Vitest", domainNode: domainFrontend, level: "advanced" },
-    { name: "Playwright", domainNode: domainFrontend, level: "intermediate" },
-  ]
+  // 2. Skill dictionary lookup in text leveraging canonical aliases
+  const DOMAIN_MAP: Record<string, { domain: GraphNode; level?: "intermediate" | "advanced" | "expert"; displayName: string }> = {
+    go: { domain: domainBackend, level: "advanced", displayName: "Go" },
+    typescript: { domain: domainFrontend, level: "expert", displayName: "TypeScript" },
+    javascript: { domain: domainFrontend, level: "expert", displayName: "JavaScript" },
+    react: { domain: domainFrontend, level: "expert", displayName: "React" },
+    nextjs: { domain: domainFrontend, level: "expert", displayName: "Next.js" },
+    nodejs: { domain: domainBackend, level: "advanced", displayName: "Node.js" },
+    python: { domain: domainBackend, level: "advanced", displayName: "Python" },
+    django: { domain: domainBackend, level: "advanced", displayName: "Django" },
+    fastapi: { domain: domainBackend, level: "advanced", displayName: "FastAPI" },
+    flask: { domain: domainBackend, level: "intermediate", displayName: "Flask" },
+    rust: { domain: domainBackend, level: "advanced", displayName: "Rust" },
+    java: { domain: domainBackend, level: "advanced", displayName: "Java" },
+    "spring-boot": { domain: domainBackend, level: "advanced", displayName: "Spring Boot" },
+    postgresql: { domain: domainData, level: "advanced", displayName: "PostgreSQL" },
+    redis: { domain: domainData, level: "advanced", displayName: "Redis" },
+    mongodb: { domain: domainData, level: "advanced", displayName: "MongoDB" },
+    "prisma-orm": { domain: domainData, level: "advanced", displayName: "Prisma" },
+    docker: { domain: domainDevOps, level: "advanced", displayName: "Docker" },
+    kubernetes: { domain: domainDevOps, level: "intermediate", displayName: "Kubernetes" },
+    aws: { domain: domainDevOps, level: "advanced", displayName: "AWS" },
+    gcp: { domain: domainDevOps, level: "intermediate", displayName: "GCP" },
+    kafka: { domain: domainBackend, level: "intermediate", displayName: "Kafka" },
+    tailwindcss: { domain: domainFrontend, level: "expert", displayName: "TailwindCSS" },
+    graphql: { domain: domainBackend, level: "intermediate", displayName: "GraphQL" },
+    "rest-api": { domain: domainBackend, level: "expert", displayName: "REST API" },
+    inngest: { domain: domainBackend, level: "advanced", displayName: "Inngest" },
+    "system-design": { domain: domainBackend, level: "advanced", displayName: "System Design" },
+    microservices: { domain: domainBackend, level: "advanced", displayName: "Microservices" },
+    cicd: { domain: domainDevOps, level: "advanced", displayName: "CI/CD" },
+    tdd: { domain: domainDevOps, level: "advanced", displayName: "TDD" },
+    testing: { domain: domainFrontend, level: "advanced", displayName: "Unit Testing" },
+    vitest: { domain: domainFrontend, level: "advanced", displayName: "Vitest" },
+    jest: { domain: domainFrontend, level: "advanced", displayName: "Jest" },
+    playwright: { domain: domainFrontend, level: "intermediate", displayName: "Playwright" },
+    cypress: { domain: domainFrontend, level: "intermediate", displayName: "Cypress" },
+  }
 
   const lowerText = text.toLowerCase()
-
   const detectedSkillNodes: GraphNode[] = []
-  knownSkills.forEach((ks) => {
-    const canonical = toCanonical(ks.name)
-    const regex = new RegExp(`\\b${ks.name.replace(".", "\\.")}\\b|\\b${canonical}\\b`, "i")
+  const processedCanonicals = new Set<string>()
+
+  // Check all aliases
+  for (const [alias, canonical] of Object.entries(CANONICAL_ALIASES)) {
+    if (processedCanonicals.has(canonical)) continue
+
+    const escapedAlias = alias.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+    const regex = new RegExp(`\\b${escapedAlias}\\b`, "i")
+    
     if (regex.test(lowerText) || (profile?.strengths && profile.strengths.toLowerCase().includes(canonical))) {
+      processedCanonicals.add(canonical)
+      const mapping = DOMAIN_MAP[canonical] || {
+        domain: domainBackend,
+        level: "advanced",
+        displayName: canonical.charAt(0).toUpperCase() + canonical.slice(1),
+      }
+
       const skillNode = addNode({
         id: `skill_${canonical}`,
         type: "skill",
-        name: ks.name,
-        level: ks.level || "advanced",
+        name: mapping.displayName,
+        level: mapping.level || "advanced",
       })
       detectedSkillNodes.push(skillNode)
-      addEdge(skillNode.id, ks.domainNode.id, "BELONGS_TO", 1.0)
+      addEdge(skillNode.id, mapping.domain.id, "BELONGS_TO", 1.0)
     }
-  })
+  }
 
   // 3. Extract Projects & Connect to Skills
   if (profile?.bestProjects && Array.isArray(profile.bestProjects)) {
@@ -414,3 +439,64 @@ export async function saveKnowledgeGraph(userId: string, graph: CareerGraphData)
     return false
   }
 }
+
+/**
+ * Formats a CareerKnowledgeGraph into an ultra-dense, token-efficient structured markdown string (~200-350 tokens)
+ * for direct injection into dynamic AI context (Vector-less Graph RAG).
+ */
+export function formatGraphForContext(graph: CareerGraphData): string {
+  if (!graph || !graph.nodes || graph.nodes.length === 0) return ""
+
+  const domains = graph.nodes.filter((n) => n.type === "domain")
+  const skills = graph.nodes.filter((n) => n.type === "skill")
+  const projects = graph.nodes.filter((n) => n.type === "project")
+  const metrics = graph.nodes.filter((n) => n.type === "metric")
+
+  const domainSkillsMap: Record<string, string[]> = {}
+  domains.forEach((d) => { domainSkillsMap[d.name] = [] })
+
+  skills.forEach((s) => {
+    const belongEdge = graph.edges.find((e) => e.source === s.id && e.relation === "BELONGS_TO")
+    if (belongEdge) {
+      const dom = domains.find((d) => d.id === belongEdge.target)
+      if (dom) {
+        domainSkillsMap[dom.name] = domainSkillsMap[dom.name] || []
+        domainSkillsMap[dom.name].push(`${s.name} (${s.level || "competent"})`)
+      }
+    }
+  })
+
+  const lines: string[] = ["Career Knowledge Graph (Vector-less RAG Evidence):"]
+
+  // 1. Skill clusters by domain
+  Object.entries(domainSkillsMap).forEach(([domName, skillList]) => {
+    if (skillList.length > 0) {
+      lines.push(`- **${domName}**: ${skillList.join(", ")}`)
+    }
+  })
+
+  // 2. Verified Project Links
+  if (projects.length > 0) {
+    lines.push("Verified Production Projects:")
+    projects.forEach((p) => {
+      const appliedSkills = graph.edges
+        .filter((e) => e.target === p.id && e.relation === "APPLIED_IN")
+        .map((e) => skills.find((s) => s.id === e.source)?.name)
+        .filter(Boolean)
+
+      const stackStr = appliedSkills.length > 0 ? ` | Stack: ${appliedSkills.join(", ")}` : ""
+      lines.push(`- **${p.name}**${stackStr}${p.description ? ` — ${p.description}` : ""}`)
+    })
+  }
+
+  // 3. Proven Quantifiable Metrics
+  if (metrics.length > 0) {
+    lines.push("Quantifiable Achievement Proofs:")
+    metrics.slice(0, 6).forEach((m) => {
+      lines.push(`- ${m.name}`)
+    })
+  }
+
+  return lines.join("\n")
+}
+

@@ -72,7 +72,12 @@ vi.mock("@/lib/prisma", () => ({
         goal3Status: null,
       }),
     },
+    careerKnowledgeGraph: {
+      findUnique: vi.fn().mockResolvedValue(null),
+      upsert: vi.fn().mockResolvedValue({}),
+    },
   },
+  withDbRetry: (fn: () => unknown) => (typeof fn === "function" ? fn() : fn),
 }))
 
 describe("AI Context Builder", () => {

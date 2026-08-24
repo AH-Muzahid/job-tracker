@@ -57,6 +57,12 @@ const PROFILE_PATTERNS = [
   /upload (resume|my resume)/i,
 ]
 
+const DIRECT_JD_PROMPTS = [
+  /(analyze|evaluate|review|scan|check|match)\s+(this\s+)?(job|jd|role|position|posting)/i,
+  /job\s+(description|posting)/i,
+  /fit\s+for\s+(this\s+)?(role|job|position)/i,
+]
+
 export function classifyMode(message: string): AIMode {
   if (isLikelyJD(message)) return "jd-scan"
   if (APPLICATION_PATTERNS.some((p) => p.test(message))) return "application"
@@ -70,10 +76,12 @@ export function classifyMode(message: string): AIMode {
 }
 
 function isLikelyJD(text: string): boolean {
+  if (DIRECT_JD_PROMPTS.some((p) => p.test(text))) return true
+
   let matchCount = 0
   for (const pattern of JD_PATTERNS) {
     if (pattern.test(text)) matchCount++
   }
   const wordCount = text.split(/\s+/).length
-  return matchCount >= 2 && wordCount > 50
+  return (matchCount >= 2 && wordCount > 30) || (matchCount >= 1 && /https?:\/\//i.test(text))
 }
