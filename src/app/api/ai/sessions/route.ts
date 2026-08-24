@@ -9,7 +9,6 @@ export async function GET() {
   const sessions = await prisma.chatSession.findMany({
     where: {
       userId,
-      messages: { some: {} },
       NOT: { title: { startsWith: "Say 'connected'" } },
     },
     orderBy: { updatedAt: "desc" },
@@ -26,12 +25,18 @@ export async function POST(request: NextRequest) {
   const userId = await getInternalUserId()
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const body = await request.json()
+  let body: { mode?: string; title?: string } = {}
+  try {
+    body = await request.json()
+  } catch {
+    body = {}
+  }
+
   const session = await prisma.chatSession.create({
     data: {
       userId,
-      mode: body.mode || "jd-scan",
-      title: body.title || "New Chat",
+      mode: typeof body.mode === "string" ? body.mode : "general",
+      title: typeof body.title === "string" && body.title.trim() ? body.title.trim() : "New Chat",
     },
     include: {
       _count: { select: { messages: true } },

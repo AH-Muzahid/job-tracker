@@ -24,11 +24,20 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const { id } = await params
-  const body = await request.json()
+  let body: { title?: string; mode?: string } = {}
+  try {
+    body = await request.json()
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 })
+  }
+
+  const updateData: { title?: string; mode?: string } = {}
+  if (typeof body.title === "string") updateData.title = body.title
+  if (typeof body.mode === "string") updateData.mode = body.mode
 
   const session = await prisma.chatSession.updateMany({
     where: { id, userId },
-    data: { title: body.title, mode: body.mode },
+    data: updateData,
   })
 
   if (session.count === 0) return NextResponse.json({ error: "Not found" }, { status: 404 })

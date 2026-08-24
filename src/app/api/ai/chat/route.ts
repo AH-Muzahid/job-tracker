@@ -19,6 +19,7 @@ import { getWeeklyPrompt } from "@/lib/ai/prompts/weekly"
 import { getRecoveryPrompt } from "@/lib/ai/prompts/recovery"
 import { getGeneralPrompt } from "@/lib/ai/prompts/general"
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit"
+import { createAiTools } from "@/lib/ai/tools"
 import type { AIMode } from "@/lib/ai/context-builder"
 
 const MODE_PROMPTS: Record<string, () => string> = {
@@ -49,7 +50,13 @@ export async function POST(request: NextRequest) {
     return new Response(JSON.stringify({ error: "AI provider not configured. Go to Settings to set up your API key." }), { status: 400 })
   }
 
-  const body = await request.json()
+  let body: { message?: string; sessionId?: string; mode?: string; model?: string }
+  try {
+    body = await request.json()
+  } catch {
+    return new Response(JSON.stringify({ error: "Invalid JSON body" }), { status: 400 })
+  }
+
   const { message, sessionId: existingSessionId, mode: forcedMode, model: modelOverride } = body
 
   if (!message || typeof message !== "string") {
@@ -64,10 +71,11 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const mode: AIMode = (forcedMode || classifyMode(message)) as AIMode
+  let mode: AIMode
   let sessionId = existingSessionId
 
   if (!sessionId) {
+    mode = (forcedMode || classifyMode(message)) as AIMode
     const session = await prisma.chatSession.create({
       data: { userId, mode, title: message.slice(0, 80) },
     })
@@ -79,6 +87,7 @@ export async function POST(request: NextRequest) {
     if (!existing) {
       return new Response(JSON.stringify({ error: "Session not found" }), { status: 404 })
     }
+    mode = (forcedMode || existing.mode || classifyMode(message)) as AIMode
   }
 
   // 1. Fetch previous history BEFORE adding new message to avoid race condition
@@ -120,23 +129,30 @@ export async function POST(request: NextRequest) {
   const modelToUse = modelOverride || aiConfig.model || resolvedProvider.defaultModel
 
   try {
+    const aiTools = createAiTools(userId)
     const result = streamText({
       model: resolvedProvider.model(modelToUse),
       system: systemPrompt,
       messages: formattedMessages,
+      tools: aiTools,
+      temperature: 0.35,
       onError: (err) => {
         console.error("streamText runtime error:", err)
       },
       onFinish: async ({ text }) => {
         if (text?.trim()) {
-          await prisma.chatMessage.create({
-            data: {
-              sessionId,
-              role: "assistant",
-              content: text,
-              metadata: { mode, model: modelToUse },
-            },
-          })
+          try {
+            await prisma.chatMessage.create({
+              data: {
+                sessionId,
+                role: "assistant",
+                content: text,
+                metadata: { mode, model: modelToUse },
+              },
+            })
+          } catch (dbErr) {
+            console.error("Failed to persist assistant message to DB:", dbErr)
+          }
         }
       },
     })
@@ -173,13 +189,17 @@ export async function POST(request: NextRequest) {
         "Cache-Control": "no-cache, no-transform",
         "Connection": "keep-alive",
         "X-Accel-Buffering": "no",
+        "X-Session-Id": sessionId,
       },
     })
   } catch (initialErr: unknown) {
     const errMsg = initialErr instanceof Error ? initialErr.message : "Failed to initialize model stream"
     return new Response(`⚠️ **Model Error (${modelToUse}):** ${errMsg}`, {
       status: 200,
-      headers: { "Content-Type": "text/plain; charset=utf-8" },
+      headers: {
+        "Content-Type": "text/plain; charset=utf-8",
+        "X-Session-Id": sessionId,
+      },
     })
   }
 }
