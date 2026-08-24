@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
 import { InterviewSessionItem } from "./types"
+import { GapDoctorSection } from "../conversational/GapDoctorSection"
 
 interface MockTranscriptsTabProps {
   sessions: InterviewSessionItem[]
@@ -217,6 +218,17 @@ export function MockTranscriptsTab({
                 </div>
               )}
             </div>
+
+            {/* Targeted Knowledge Gaps & Remediation */}
+            {selectedSession?.report?.knowledgeGaps && selectedSession.report.knowledgeGaps.length > 0 && (
+              <div className="pt-2 border-t">
+                <GapDoctorSection
+                  gaps={selectedSession.report.knowledgeGaps}
+                  targetCompany={selectedSession.targetCompany}
+                  targetRole={selectedSession.targetRole}
+                />
+              </div>
+            )}
 
             {/* Complete Spoken Dialogue Transcript */}
             <div className="space-y-2 pt-2">

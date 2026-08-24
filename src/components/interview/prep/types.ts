@@ -1,3 +1,5 @@
+import type { KnowledgeGapItem } from "../conversational/types"
+
 export interface PrepNote {
   id: string
   title: string
@@ -24,6 +26,7 @@ export interface InterviewSessionItem {
     executiveSummary?: string
     strengths?: string[]
     improvementAreas?: string[]
+    knowledgeGaps?: KnowledgeGapItem[]
     starBreakdown?: {
       situation?: string
       task?: string

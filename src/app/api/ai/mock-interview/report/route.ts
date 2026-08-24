@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json()
-    const { targetRole, targetCompany, interviewType, language = "en", history = [] } = body
+    const { targetRole, targetCompany, interviewType, language = "en", history = [], applicationId } = body
 
     if (!Array.isArray(history) || history.length < 2) {
       return NextResponse.json({
@@ -64,10 +64,34 @@ Schema requirements:
   },
   "strengths": string[],
   "improvementAreas": string[],
-  "executiveSummary": string
+  "executiveSummary": string,
+  "knowledgeGaps": [
+    {
+      "id": "gap-1",
+      "topic": "Specific technical topic or behavioral situation (e.g. Distributed Caching or Conflict Resolution)",
+      "type": "technical" | "behavioral",
+      "severity": "high" | "medium" | "low",
+      "questionAsked": "The question the interviewer asked",
+      "candidateAnswerSummary": "Summary of what the candidate answered",
+      "weaknessReason": "Why this answer was insufficient or lacked depth/STAR structure",
+      "idealAnswer": "Exemplary 10/10 Staff-level answer demonstrating deep expertise and crisp clarity",
+      "starBreakdown": {
+        "situation": "Crisp 1-2 sentence context",
+        "task": "Specific goal/ownership",
+        "action": "Concrete actions taken ('I did X, Y, Z')",
+        "result": "Measurable business/engineering impact"
+      },
+      "keyTakeaways": ["Key bullet 1", "Key bullet 2", "Key bullet 3"],
+      "followUpPracticePrompt": "Follow-up question to re-test retention"
+    }
+  ]
 }
 
-Language note: If language is "bn" or "mixed", write the executive summary, strengths, and improvement areas in natural Bengali (বাংলা). Otherwise, write in English.
+Knowledge Gap Extraction Rules:
+- Identify 2 to 4 concrete knowledge gaps or communication shortcomings from the transcript.
+- For each gap, provide an exceptional, production-grade 10/10 ideal answer.
+- For behavioral gaps, ALWAYS include the 4-part starBreakdown.
+- Language note: If language is "bn" or "mixed", write the explanations, ideal answers, and takeaways in natural Bengali (বাংলা) keeping tech terms in English. Otherwise, write in English.
 CRITICAL: Respond ONLY with the single valid JSON object without markdown fences.`
 
     const promptText = `

@@ -70,4 +70,35 @@ describe("AI Voice Mock Interview Evaluator & STAR Framework", () => {
     const parsed = MockInterviewEvaluationSchema.safeParse(incompleteSample)
     expect(parsed.success).toBe(false)
   })
+
+  it("validates KnowledgeGapItem structure with 10/10 ideal answer and STAR breakdown", () => {
+    const gapSample = {
+      id: "gap-redis-cache",
+      topic: "Distributed Cache Stampede & Invalidation",
+      type: "technical" as const,
+      severity: "high" as const,
+      questionAsked: "How do you handle cache invalidation during flash sales?",
+      candidateAnswerSummary: "Mentioned simple Redis TTL but did not address race conditions.",
+      weaknessReason: "Lacked proactive distributed lock (mutex) and probabilistic early expiration (XFetch algorithm).",
+      idealAnswer:
+        "To prevent cache stampede during flash sales, I employ the Cache-Aside pattern coupled with distributed mutex locking using Redlock and probabilistic early recomputation (XFetch algorithm). Keys are assigned a jittered TTL to avoid synchronized expiration.",
+      starBreakdown: {
+        situation: "Flash sales drove 100k req/s causing DB thundering herd spikes.",
+        task: "Eliminate DB lock contention on expired cached product rows.",
+        action: "Implemented Redlock distributed mutexes and asynchronous cache warming background jobs.",
+        result: "Reduced DB load spikes by 92% and kept cache hit ratio above 99.4%.",
+      },
+      keyTakeaways: [
+        "Always jitter TTLs to prevent synchronized expiration",
+        "Use distributed mutex locking for hot key recomputation",
+        "Implement proactive background cache warming",
+      ],
+      followUpPracticePrompt: "How would you handle cache stampede across multi-region replica clusters?",
+    }
+
+    expect(gapSample.id).toBe("gap-redis-cache")
+    expect(gapSample.severity).toBe("high")
+    expect(gapSample.starBreakdown.action).toContain("Implemented Redlock")
+    expect(gapSample.keyTakeaways.length).toBe(3)
+  })
 })

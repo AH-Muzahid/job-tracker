@@ -19,6 +19,25 @@ export interface StarBreakdown {
   result?: string
 }
 
+export interface KnowledgeGapItem {
+  id: string
+  topic: string
+  type: "technical" | "behavioral"
+  severity: "high" | "medium" | "low"
+  questionAsked: string
+  candidateAnswerSummary: string
+  weaknessReason: string
+  idealAnswer: string
+  starBreakdown?: {
+    situation?: string
+    task?: string
+    action?: string
+    result?: string
+  }
+  keyTakeaways: string[]
+  followUpPracticePrompt: string
+}
+
 export interface InterviewReportData {
   verdict: "Strong Hire" | "Hire" | "Lean Hire" | "Needs Improvement"
   overallScore: number
@@ -28,6 +47,7 @@ export interface InterviewReportData {
   starBreakdown?: StarBreakdown
   strengths?: string[]
   improvementAreas?: string[]
+  knowledgeGaps?: KnowledgeGapItem[]
 }
 
 export interface InterviewPhaseInfo {
@@ -43,5 +63,6 @@ export interface ConversationalVoiceInterviewModalProps {
   initialRole?: string
   initialCompany?: string
   initialType?: string
+  applicationId?: string
   onSessionSaved?: () => void
 }

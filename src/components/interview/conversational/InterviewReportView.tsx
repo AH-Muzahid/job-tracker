@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { InterviewReportData } from "./types"
+import { GapDoctorSection } from "./GapDoctorSection"
 
 interface InterviewReportViewProps {
   targetRole: string
@@ -46,7 +47,7 @@ export function InterviewReportView({
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
             <DialogTitle className="text-lg sm:text-xl font-bold flex items-center gap-2">
-              <Award className="h-5 w-5 sm:h-6 sm:w-6 text-indigo-500" />
+              <Award className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
               <span>Hiring Debrief & Performance Audit</span>
             </DialogTitle>
             <DialogDescription className="text-xs">
@@ -59,7 +60,7 @@ export function InterviewReportView({
 
       {isGeneratingReport && (
         <div className="py-12 sm:py-16 text-center space-y-3">
-          <RotateCcw className="h-7 w-7 sm:h-8 sm:w-8 text-indigo-500 animate-spin mx-auto" />
+          <RotateCcw className="h-7 w-7 sm:h-8 sm:w-8 text-primary animate-spin mx-auto" />
           <p className="text-xs sm:text-sm font-semibold">Analyzing interview dialogue with STAR method...</p>
           <p className="text-[11px] sm:text-xs text-muted-foreground">Calculating hiring bar scores and growth areas...</p>
         </div>
@@ -68,14 +69,14 @@ export function InterviewReportView({
       {report && (
         <div className="space-y-4 sm:space-y-6">
           {/* Score Summary */}
-          <div className="rounded-2xl border p-4 sm:p-5 bg-gradient-to-br from-indigo-950/20 via-background to-background space-y-3 sm:space-y-4">
+          <div className="rounded-2xl border p-4 sm:p-5 bg-card space-y-3 sm:space-y-4">
             <div className="flex justify-between items-center">
               <div>
                 <h4 className="text-xs sm:text-sm font-semibold text-foreground">Cumulative Hiring Score</h4>
                 <p className="text-[11px] text-muted-foreground">Based on {dialogueCount} interview turns</p>
               </div>
               <div className="text-right">
-                <span className="text-2xl sm:text-3xl font-extrabold text-indigo-500">{report.overallScore}</span>
+                <span className="text-2xl sm:text-3xl font-extrabold text-primary">{report.overallScore}</span>
                 <span className="text-xs text-muted-foreground">/100</span>
               </div>
             </div>
@@ -116,27 +117,27 @@ export function InterviewReportView({
               <h4 className="text-xs font-semibold text-foreground uppercase tracking-wider">
                 STAR Method Deconstruction
               </h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
                 <div className="rounded-xl border p-3 bg-card space-y-1">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-blue-500">[S] Situation</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">[S] Situation</span>
                   <p className="text-xs text-muted-foreground leading-relaxed">
                     {report.starBreakdown.situation}
                   </p>
                 </div>
                 <div className="rounded-xl border p-3 bg-card space-y-1">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-500">[T] Task</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">[T] Task</span>
                   <p className="text-xs text-muted-foreground leading-relaxed">
                     {report.starBreakdown.task}
                   </p>
                 </div>
                 <div className="rounded-xl border p-3 bg-card space-y-1">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-purple-500">[A] Action</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">[A] Action</span>
                   <p className="text-xs text-muted-foreground leading-relaxed">
                     {report.starBreakdown.action}
                   </p>
                 </div>
                 <div className="rounded-xl border p-3 bg-card space-y-1">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-500">[R] Result</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">[R] Result</span>
                   <p className="text-xs text-muted-foreground leading-relaxed">
                     {report.starBreakdown.result}
                   </p>
@@ -178,17 +179,25 @@ export function InterviewReportView({
             </div>
           </div>
 
+          {/* Targeted Knowledge Gaps & Remediation (10/10 Answers + STAR Transformer) */}
+          {report.knowledgeGaps && report.knowledgeGaps.length > 0 && (
+            <GapDoctorSection
+              gaps={report.knowledgeGaps}
+              targetCompany={targetCompany}
+              targetRole={targetRole}
+            />
+          )}
+
           <div className="flex flex-col sm:flex-row justify-between items-center gap-2 sm:gap-0 pt-3 border-t">
             <Button
               variant="outline"
               size="sm"
               onClick={onPracticeAgain}
-              className="text-xs gap-1.5 w-full sm:w-auto"
+              className="text-xs w-full sm:w-auto font-medium cursor-pointer"
             >
-              <RotateCcw className="h-3.5 w-3.5" />
-              <span>Practice Another Interview</span>
+              Practice Another Interview
             </Button>
-            <Button size="sm" onClick={onClose} className="text-xs w-full sm:w-auto">
+            <Button size="sm" onClick={onClose} className="text-xs w-full sm:w-auto font-medium cursor-pointer">
               Close Room
             </Button>
           </div>
