@@ -143,8 +143,8 @@ export function HeroSection() {
 						className="pointer-events-none absolute -top-32 left-1/2 -translate-x-1/2 w-3/4 h-64 rounded-full bg-blue-500/25 blur-[100px]"
 					/>
 
-					{/* Floating Rounded Dashboard Device Mockup */}
-					<div className="relative mx-auto max-w-6xl overflow-hidden rounded-xl md:rounded-2xl border border-border/80 bg-card shadow-[0_25px_65px_-15px_rgba(0,0,0,0.35)] ring-1 ring-white/10">
+					{/* Sharp 0px Dashboard Device Mockup */}
+					<div className="relative mx-auto max-w-6xl overflow-hidden rounded-none border border-border bg-card shadow-[0_25px_65px_-15px_rgba(0,0,0,0.35)]">
 						{/* Dark Mode Screenshot */}
 						<Image
 							alt="CareerTrack Application Dashboard (Dark Mode)"
