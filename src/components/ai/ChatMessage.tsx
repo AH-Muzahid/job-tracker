@@ -12,6 +12,7 @@ import OutreachResult from "./OutreachResult"
 import ToolChips from "./ToolChips"
 import StreamingText from "./StreamingText"
 import LoadingState from "./LoadingState"
+import MermaidDiagram from "./MermaidDiagram"
 import { type ToolInvocation } from "./AIChat"
 
 interface Props {
@@ -277,7 +278,8 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
           className.includes("language-outreach") ||
           className.includes("language-toolchips") ||
           className.includes("language-tools") ||
-          className.includes("language-streaming")
+          className.includes("language-streaming") ||
+          className.includes("language-mermaid")
         ) {
           return <>{children}</>
         }
@@ -316,6 +318,10 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
     },
     code: ({ className, children, ...props }: React.HTMLAttributes<HTMLElement>) => {
       const isInline = !className || !className.includes("language-")
+
+      if (className && (className === "language-mermaid" || className.includes("language-mermaid"))) {
+        return <MermaidDiagram code={String(children)} />
+      }
       
       if (className === "language-analysis") {
         try {
