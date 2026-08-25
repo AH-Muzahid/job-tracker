@@ -80,7 +80,7 @@ export function NavUser() {
 				<DropdownMenuGroup>
 					<DropdownMenuItem
 						className="w-full cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/10"
-						onClick={() => signOut({ redirectUrl: "/sign-in" })}
+						onClick={() => signOut({ redirectUrl: "/" })}
 					>
 						<LogOutIcon className="size-4 mr-2" />
 						Log out

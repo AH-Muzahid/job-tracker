@@ -33,7 +33,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <ClerkProvider appearance={{ theme: shadcn }}>
+    <ClerkProvider appearance={{ theme: shadcn }} afterSignOutUrl="/">
       <html lang="en" suppressHydrationWarning className="dark">
         <body
           className={`${plusJakartaSans.variable} ${geistMono.variable} font-sans antialiased`}
