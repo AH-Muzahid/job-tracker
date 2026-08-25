@@ -253,11 +253,11 @@ export function ApplicationWorkbench({
       {/* 1. Main 1px Continuous Border Grid */}
       <div className="relative border border-border bg-border">
         <DecorIcon className="hidden md:block" position="top-left" />
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-px bg-border">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-px bg-border items-stretch">
           {/* Left Primary Workspace (Details & Timeline) */}
-          <DashboardCard className="lg:col-span-2 flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between border-b border-border p-2.5 sm:p-3.5 bg-background gap-2 overflow-x-auto no-scrollbar">
+          <DashboardCard className="lg:col-span-2 flex flex-col h-full">
+            <div className="flex flex-col h-full">
+              <div className="flex items-center justify-between border-b border-border p-2.5 sm:p-3.5 bg-background gap-2 overflow-x-auto no-scrollbar shrink-0">
                 <div className="flex items-center gap-1.5 shrink-0">
                   <button
                     type="button"
@@ -306,7 +306,7 @@ export function ApplicationWorkbench({
                 )}
               </div>
 
-              <div className="p-4 sm:p-6">
+              <div className="p-4 sm:p-6 min-h-[580px] flex-1 flex flex-col justify-start">
                 {activeTab === "details" && (
                   <form onSubmit={handleUpdateDetails} className="space-y-4">
                     <div className="grid gap-4 sm:grid-cols-2">
@@ -460,7 +460,7 @@ export function ApplicationWorkbench({
           </DashboardCard>
 
           {/* Right Intelligence Column */}
-          <DashboardCard className="lg:col-span-1 flex flex-col justify-between">
+          <DashboardCard className="lg:col-span-1 flex flex-col h-full">
             <FitAssessmentCard
               analysis={analysis}
               analysisLoading={analysisLoading}

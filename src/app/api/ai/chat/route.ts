@@ -20,6 +20,7 @@ import { getRecoveryPrompt } from "@/lib/ai/prompts/recovery"
 import { getGeneralPrompt } from "@/lib/ai/prompts/general"
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit"
 import { createAiTools } from "@/lib/ai/tools"
+import { generateHeuristicTitle, generateAndSaveSessionTitle } from "@/lib/ai/title-generator"
 import type { AIMode } from "@/lib/ai/context-builder"
 
 const MODE_PROMPTS: Record<string, () => string> = {
@@ -77,8 +78,9 @@ export async function POST(request: NextRequest) {
 
   if (!sessionId) {
     mode = (forcedMode || classifyMode(message)) as AIMode
+    const initialTitle = generateHeuristicTitle(message)
     const session = await prisma.chatSession.create({
-      data: { userId, mode, title: message.slice(0, 80) },
+      data: { userId, mode, title: initialTitle },
     })
     sessionId = session.id
   } else {
@@ -149,6 +151,8 @@ export async function POST(request: NextRequest) {
                 metadata: { mode, model: modelToUse },
               },
             })
+            // Generate and save a smart AI title in the background
+            void generateAndSaveSessionTitle(sessionId, message, text)
           } catch (dbErr) {
             console.error("Failed to persist assistant message to DB:", dbErr)
           }

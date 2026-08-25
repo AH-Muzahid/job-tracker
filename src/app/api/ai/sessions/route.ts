@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { getInternalUserId } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 
+import { generateHeuristicTitle } from "@/lib/ai/title-generator"
+
 export async function GET() {
   const userId = await getInternalUserId()
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -18,7 +20,28 @@ export async function GET() {
     },
   })
 
-  return NextResponse.json(sessions)
+  const formattedSessions = sessions.map((s) => {
+    let cleanTitle = s.title || "New Chat"
+    // If title has raw boilerplate prefixes or is casual greeting, format it nicely
+    if (
+      cleanTitle.startsWith("Analyze this") ||
+      cleanTitle.startsWith("Provide a concise") ||
+      cleanTitle.startsWith("Generate 5") ||
+      cleanTitle.startsWith("Draft a professional") ||
+      cleanTitle.startsWith("We socket") ||
+      cleanTitle.toLowerCase() === "hi" ||
+      cleanTitle.toLowerCase() === "hi bro" ||
+      cleanTitle.length > 30
+    ) {
+      cleanTitle = generateHeuristicTitle(cleanTitle)
+    }
+    return {
+      ...s,
+      title: cleanTitle,
+    }
+  })
+
+  return NextResponse.json(formattedSessions)
 }
 
 export async function POST(request: NextRequest) {
