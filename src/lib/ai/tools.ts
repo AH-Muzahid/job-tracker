@@ -51,6 +51,46 @@ function parseToolArgs(raw: any): Record<string, any> {
   return typeof current === "object" && current !== null ? current : {}
 }
 
+function extractCompanyAndRole(rawStr: string): { company: string; title: string } {
+  if (!rawStr) return { company: "", title: "" }
+  let str = rawStr.replace(/\{[\s\S]*?"reason":\s*"|"\}|^\s*["']|["']\s*$/g, "").trim()
+  str = str.replace(/^(?:creating|adding|add|create|track|record|save|new application for|application for)\s+/i, "").trim()
+  str = str.replace(/\s+in\s+(?:applied|interview|saved|assessment|offer|rejected)\s+status.*$/i, "").trim()
+  str = str.replace(/\s+status.*$/i, "").trim()
+
+  // Pattern 1: "Company - Job Title" or "Company – Job Title" or "Company : Job Title"
+  let match = str.match(/^\s*([A-Za-z0-9\s._&]+?)\s*[-–—:]\s*([A-Za-z0-9\s._&]+?)\s*$/i)
+  if (match && match[1] && match[2]) {
+    return { company: match[1].trim(), title: match[2].trim() }
+  }
+
+  // Pattern 2: "for Company as Job Title" or "Company as Job Title"
+  match = str.match(/^(?:for\s+)?([A-Za-z0-9\s._&]+?)\s+as\s+([A-Za-z0-9\s._&]+?)$/i)
+  if (match && match[1] && match[2]) {
+    return { company: match[1].trim(), title: match[2].trim() }
+  }
+
+  // Pattern 3: "Job Title at Company" or "Job Title @ Company"
+  match = str.match(/^([A-Za-z0-9\s._&]+?)\s+(?:at|@)\s+([A-Za-z0-9\s._&]+?)$/i)
+  if (match && match[1] && match[2]) {
+    return { company: match[2].trim(), title: match[1].trim() }
+  }
+
+  // Pattern 4: "Company (Job Title)"
+  match = str.match(/^([A-Za-z0-9\s._&]+?)\s*\(([^)]+)\)$/i)
+  if (match && match[1] && match[2]) {
+    return { company: match[1].trim(), title: match[2].trim() }
+  }
+
+  // Fallback: Check anywhere inside the raw string
+  match = rawStr.match(/(?:for|add|create)\s+([A-Za-z0-9\s._&]+?)\s*(?:as|[-–—:])\s*([A-Za-z0-9\s._&]+?)(?:\s+in\s+|$|"|\\)/i)
+  if (match && match[1] && match[2]) {
+    return { company: match[1].trim(), title: match[2].trim() }
+  }
+
+  return { company: "", title: "" }
+}
+
 export function createAiTools(userId: string) {
   return {
     updateApplicationStatus: tool({
@@ -108,11 +148,16 @@ export function createAiTools(userId: string) {
           }
           const newStatus = normalizedStatusMap[rawStatus.toLowerCase()] || "Applied"
 
-          // Regex extraction from reason if companyOrTitle is empty
+          // Natural entity extraction from reason if companyOrTitle is empty
           if (!companyOrTitle && args?.reason) {
-            const match = args.reason.match(/(?:update|for|status of)\s+([A-Za-z0-9._-]+)/i)
-            if (match && match[1]) {
-              companyOrTitle = match[1].trim()
+            const extracted = extractCompanyAndRole(args.reason)
+            if (extracted.company) {
+              companyOrTitle = extracted.company
+            } else {
+              const match = args.reason.match(/(?:update|for|status of)\s+([A-Za-z0-9._-]+)/i)
+              if (match && match[1]) {
+                companyOrTitle = match[1].trim()
+              }
             }
           }
 
@@ -232,18 +277,17 @@ export function createAiTools(userId: string) {
             ""
           ).trim()
 
-          // Fallback regex extraction if arguments were string-wrapped or passed casually inside reason
-          const rawStr = `${JSON.stringify(rawArgs)} ${args?.reason || ""}`
+          // Natural entity extraction if parameters were inside reason or string-wrapped
           if (!finalCompany || !finalTitle) {
-            const match = rawStr.match(/for\s+([A-Za-z0-9\s._-]+?)\s+as\s+([A-Za-z0-9\s._-]+?)(?:\\|"|\s+in\s+)/i)
-            if (match) {
-              if (!finalCompany) finalCompany = match[1].trim()
-              if (!finalTitle) finalTitle = match[2].trim()
-            }
+            const searchStr = args?.reason || JSON.stringify(rawArgs)
+            const extracted = extractCompanyAndRole(searchStr)
+            if (!finalCompany && extracted.company) finalCompany = extracted.company
+            if (!finalTitle && extracted.title) finalTitle = extracted.title
           }
 
           // Extract status intelligently
           let rawStatus = args?.status || args?.applicationStatus || ""
+          const rawStr = `${JSON.stringify(rawArgs)} ${args?.reason || ""}`
           const rawStrLower = rawStr.toLowerCase()
 
           if (!rawStatus) {
