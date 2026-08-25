@@ -221,24 +221,60 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
     return newSession.id as string
   }
 
-  async function sendMessage(textToSend: string, modeOverride?: AIMode) {
+  async function sendMessage(
+    textToSend: string,
+    modeOverride?: AIMode,
+    retryOptions?: { isRetry?: boolean; retryUserMsgId?: string }
+  ) {
     const trimmed = textToSend.trim()
     if (!trimmed || isStreaming) return
 
     const selectedMode = modeOverride || activeMode
-    const userMsg: Message = {
-      id: "temp-" + Date.now(),
-      role: "user",
-      content: trimmed,
-    }
-    const assistantMsgId = "temp-asst-" + (Date.now() + 1)
-    const assistantMsg: Message = {
-      id: assistantMsgId,
-      role: "assistant",
-      content: "",
+    const userMsgId = "temp-" + Date.now()
+    const assistantMsgId = "temp-asst-" + Date.now()
+
+    if (retryOptions?.isRetry) {
+      setMessages((prev) => {
+        let targetUserIdx = -1
+        if (retryOptions.retryUserMsgId) {
+          targetUserIdx = prev.findIndex((m) => m.id === retryOptions.retryUserMsgId)
+        }
+        if (targetUserIdx === -1) {
+          for (let i = prev.length - 1; i >= 0; i--) {
+            if (prev[i].role === "user") {
+              targetUserIdx = i
+              break
+            }
+          }
+        }
+        if (targetUserIdx !== -1) {
+          const sliced = prev.slice(0, targetUserIdx + 1)
+          return [
+            ...sliced,
+            { id: assistantMsgId, role: "assistant", content: "", toolInvocations: [] },
+          ]
+        }
+        return [
+          ...prev,
+          { id: userMsgId, role: "user", content: trimmed },
+          { id: assistantMsgId, role: "assistant", content: "", toolInvocations: [] },
+        ]
+      })
+    } else {
+      const userMsg: Message = {
+        id: userMsgId,
+        role: "user",
+        content: trimmed,
+      }
+      const assistantMsg: Message = {
+        id: assistantMsgId,
+        role: "assistant",
+        content: "",
+        toolInvocations: [],
+      }
+      setMessages((prev) => [...prev, userMsg, assistantMsg])
     }
 
-    setMessages((prev) => [...prev, userMsg, assistantMsg])
     setInput("")
     setError(null)
     setIsStreaming(true)
@@ -376,7 +412,7 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
         )
       } else {
         setError(e instanceof Error ? e.message : "Failed to get response")
-        setMessages((prev) => prev.filter((m) => m.id !== userMsg.id && m.id !== assistantMsgId))
+        setMessages((prev) => prev.filter((m) => (retryOptions?.isRetry ? true : m.id !== userMsgId) && m.id !== assistantMsgId))
       }
     } finally {
       setIsStreaming(false)
@@ -401,14 +437,40 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
     }
   }
 
-  const handleRetry = (contentToRetry?: string) => {
-    if (contentToRetry && typeof contentToRetry === "string") {
-      sendMessage(contentToRetry)
-      return
+  const handleRetry = (targetId?: string) => {
+    if (isStreaming) return
+
+    let targetUserMsg: Message | undefined
+    let targetUserMsgId: string | undefined
+
+    if (targetId) {
+      const idx = messages.findIndex((m) => m.id === targetId)
+      if (idx !== -1) {
+        if (messages[idx].role === "user") {
+          targetUserMsg = messages[idx]
+          targetUserMsgId = messages[idx].id
+        } else if (messages[idx].role === "assistant") {
+          for (let i = idx - 1; i >= 0; i--) {
+            if (messages[i].role === "user") {
+              targetUserMsg = messages[i]
+              targetUserMsgId = messages[i].id
+              break
+            }
+          }
+        }
+      }
     }
-    const lastUserMsg = [...messages].reverse().find((m) => m.role === "user")
-    if (lastUserMsg && lastUserMsg.content) {
-      sendMessage(lastUserMsg.content)
+
+    if (!targetUserMsg) {
+      targetUserMsg = [...messages].reverse().find((m) => m.role === "user")
+      targetUserMsgId = targetUserMsg?.id
+    }
+
+    if (targetUserMsg && targetUserMsg.content) {
+      sendMessage(targetUserMsg.content, undefined, {
+        isRetry: true,
+        retryUserMsgId: targetUserMsgId,
+      })
     }
   }
 
