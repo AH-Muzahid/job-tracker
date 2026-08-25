@@ -5,25 +5,46 @@ import { Button } from "@/components/ui/button";
 import { DecorIcon } from "@/components/decor-icon";
 import { FullWidthDivider } from "@/components/full-width-divider";
 import { ArrowRightIcon, PhoneCallIcon } from "lucide-react";
+import KineticGrid from "@/components/originkit/ui/kineticgrid";
 
 export function HeroSection() {
 	return (
 		<section>
-			<div className="relative">
+			<div className="relative overflow-hidden">
 				<DecorIcon className="size-4" position="top-left" />
 				<DecorIcon className="size-4" position="top-right" />
 
 				<FullWidthDivider className="-top-px" />
+
+				{/* Kinetic Grid Interactive Background */}
+				<div className="absolute inset-0 -z-1 overflow-hidden pointer-events-auto opacity-50 dark:opacity-35">
+					<KineticGrid
+						background="transparent"
+						dotColor="currentColor"
+						lineColor="currentColor"
+						trailColor="currentColor"
+						spacing={44}
+						radius={280}
+						strength={4}
+						trail={true}
+					/>
+					{/* Soft radial fade mask */}
+					<div
+						aria-hidden="true"
+						className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_30%,var(--background)_85%)]"
+					/>
+				</div>
+
 				<div className="relative flex flex-col items-center justify-center gap-5 px-4 py-12 md:px-4 md:py-24 lg:py-28">
 					{/* X Faded Borders & Shades */}
 					<div
 						aria-hidden="true"
-						className="absolute inset-0 -z-1 size-full overflow-hidden"
+						className="pointer-events-none absolute inset-0 -z-1 size-full overflow-hidden"
 					>
 						<div
 							className={cn(
 								"absolute -inset-x-20 inset-y-0 z-0 rounded-full",
-								"bg-[radial-gradient(ellipse_at_center,theme(--color-foreground/.1),transparent,transparent)]",
+								"bg-[radial-gradient(ellipse_at_center,theme(--color-foreground/.08),transparent,transparent)]",
 								"blur-[50px]"
 							)}
 						/>
