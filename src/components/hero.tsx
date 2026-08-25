@@ -110,51 +110,27 @@ export function HeroSection() {
 				<DecorIcon className="size-4" position="bottom-right" />
 
 				<FullWidthDivider className="-top-px" />
-				<div className="overflow-hidden border border-border bg-card shadow-2xl">
-					{/* Browser Window Chrome */}
-					<div className="flex h-8 items-center justify-between border-b border-border bg-muted/30 dark:bg-muted/20 px-3 sm:px-4">
-						{/* Window Controls */}
-						<div className="flex items-center gap-1.5">
-							<span className="size-2.5 rounded-full bg-red-500/80 border border-red-600/30" />
-							<span className="size-2.5 rounded-full bg-yellow-500/80 border border-yellow-600/30" />
-							<span className="size-2.5 rounded-full bg-emerald-500/80 border border-emerald-600/30" />
-						</div>
-
-						{/* Center Secure URL Address Bar */}
-						<div className="flex items-center justify-center gap-1.5 h-5.5 px-3 rounded-md bg-background border border-border text-[10.5px] font-mono text-muted-foreground w-48 sm:w-64 truncate shadow-2xs">
-							<Lock className="size-2.5 text-emerald-500 shrink-0" />
-							<span className="text-foreground/90 font-medium truncate">app.careertrack.io/dashboard</span>
-						</div>
-
-						{/* Right Actions */}
-						<div className="flex items-center gap-2 text-muted-foreground/60 text-xs">
-							<span className="hidden sm:inline-block text-[9.5px] font-mono text-muted-foreground/80">LIVE PREVIEW</span>
-						</div>
-					</div>
-
-					{/* Real Dashboard Image Screen */}
-					<div className="relative w-full bg-background overflow-hidden">
-						{/* Dark Mode Screenshot */}
-						<Image
-							alt="CareerTrack Dashboard Preview (Dark Mode)"
-							className="hidden dark:block w-full h-auto object-cover pointer-events-none select-none"
-							height={498}
-							src="/dashboard-dark.png"
-							width={1024}
-							priority
-							unoptimized
-						/>
-						{/* Light Mode Screenshot */}
-						<Image
-							alt="CareerTrack Dashboard Preview (Light Mode)"
-							className="block dark:hidden w-full h-auto object-cover pointer-events-none select-none"
-							height={498}
-							src="/dashboard-light.png"
-							width={1024}
-							priority
-							unoptimized
-						/>
-					</div>
+				<div className="overflow-hidden border border-border bg-background shadow-2xl">
+					{/* Dark Mode Screenshot */}
+					<Image
+						alt="CareerTrack Dashboard Preview (Dark Mode)"
+						className="hidden dark:block w-full h-auto object-cover pointer-events-none select-none"
+						height={501}
+						src="/dashboard-dark.png"
+						width={1024}
+						priority
+						unoptimized
+					/>
+					{/* Light Mode Screenshot */}
+					<Image
+						alt="CareerTrack Dashboard Preview (Light Mode)"
+						className="block dark:hidden w-full h-auto object-cover pointer-events-none select-none"
+						height={501}
+						src="/dashboard-light.png"
+						width={1024}
+						priority
+						unoptimized
+					/>
 				</div>
 				<FullWidthDivider className="-bottom-px" />
 			</div>
