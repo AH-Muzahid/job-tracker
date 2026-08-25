@@ -175,7 +175,7 @@ export default function TableView({ applications, onSelect, onBulkSuccess }: Pro
             <tbody className="divide-y divide-border">
               {applications.map((application) => {
                 const initials = getInitials(application.companyName)
-                const colorClass = getCompanyColor()
+                const colorClass = getCompanyColor(application.companyName)
                 const isSelected = selectedIds.includes(application.id)
 
                 return (

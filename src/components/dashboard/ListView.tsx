@@ -55,7 +55,7 @@ export default function ListView({ applications, onSelect }: Props) {
 
 function ListItem({ application, onClick }: { application: Application; onClick: () => void }) {
   const initials = getInitials(application.companyName)
-  const colorClass = getCompanyColor()
+  const colorClass = getCompanyColor(application.companyName)
 
   return (
     <div

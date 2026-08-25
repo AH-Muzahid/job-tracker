@@ -116,21 +116,25 @@ function BoardColumnCard({
               column.items.map((application, index) => (
                 <Draggable key={application.id} draggableId={application.id} index={index}>
                   {(provided, snapshot) => (
-                    <div
-                      ref={provided.innerRef}
-                      {...provided.draggableProps}
-                      {...provided.dragHandleProps}
-                      style={provided.draggableProps.style}
-                      className={`select-none ${snapshot.isDragging ? "opacity-80 scale-102" : ""}`}
-                    >
-                      <BoardCard
-                        application={application}
-                        onClick={() => onSelect(application.id)}
-                        onEdit={() => onEdit(application.id)}
-                        onDelete={() => onDelete(application.id)}
-                        onMoveTo={(status) => onMoveTo(application.id, status)}
-                      />
-                    </div>
+                      <div
+                        ref={provided.innerRef}
+                        {...provided.draggableProps}
+                        {...provided.dragHandleProps}
+                        style={provided.draggableProps.style}
+                        className={`select-none transition-all ${
+                          snapshot.isDragging
+                            ? "opacity-95 shadow-xl rotate-1 scale-[1.02] z-50 ring-2 ring-primary/40 rounded-lg"
+                            : ""
+                        }`}
+                      >
+                        <BoardCard
+                          application={application}
+                          onClick={() => onSelect(application.id)}
+                          onEdit={() => onEdit(application.id)}
+                          onDelete={() => onDelete(application.id)}
+                          onMoveTo={(status) => onMoveTo(application.id, status)}
+                        />
+                      </div>
                   )}
                 </Draggable>
               ))
