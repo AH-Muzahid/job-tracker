@@ -1,7 +1,7 @@
 "use client"
 
 import React from "react"
-import { Volume2 } from "lucide-react"
+import { Volume2, Check } from "lucide-react"
 import { DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -165,29 +165,47 @@ export function InterviewSetupScreen({
       <div className="space-y-2">
         <div className="flex justify-between items-center">
           <Label className="text-xs font-medium text-foreground">Round Structure & Length</Label>
-          <span className="text-[10px] text-muted-foreground">{targetTurnCount} structured questions</span>
+          <span className="text-[10px] font-mono text-muted-foreground">{targetTurnCount} structured questions</span>
         </div>
         <div className="grid grid-cols-3 gap-2">
           {[
             { count: 4, label: "Express", time: "4 Questions (~4 mins)" },
             { count: 5, label: "Standard", time: "5 Questions (Recommended)" },
             { count: 7, label: "In-Depth", time: "7 Questions (~10 mins)" },
-          ].map((item) => (
-            <button
-              key={item.count}
-              type="button"
-              onClick={() => setTargetTurnCount(item.count)}
-              className={cn(
-                "flex flex-col items-center justify-center p-2.5 rounded-xl border text-center transition-all cursor-pointer",
-                targetTurnCount === item.count
-                  ? "border-primary bg-primary/10 text-foreground font-semibold shadow-2xs"
-                  : "border-border hover:border-muted-foreground/30 bg-card text-muted-foreground"
-              )}
-            >
-              <span className="text-xs font-semibold text-foreground">{item.label}</span>
-              <span className="text-[10px] text-muted-foreground mt-0.5">{item.time}</span>
-            </button>
-          ))}
+          ].map((item) => {
+            const isSelected = targetTurnCount === item.count
+            return (
+              <button
+                key={item.count}
+                type="button"
+                onClick={() => setTargetTurnCount(item.count)}
+                className={cn(
+                  "relative flex flex-col items-center justify-center p-3 rounded-xl border text-center transition-all cursor-pointer",
+                  isSelected
+                    ? "border-primary bg-primary/15 ring-2 ring-primary text-foreground shadow-xs"
+                    : "border-border hover:border-border/80 bg-card/60 text-muted-foreground hover:bg-muted/30"
+                )}
+              >
+                {/* Active Indicator Badge */}
+                <div className="flex items-center gap-1.5 mb-1">
+                  <div
+                    className={cn(
+                      "size-4 rounded-full flex items-center justify-center transition-colors",
+                      isSelected
+                        ? "bg-primary text-primary-foreground"
+                        : "border border-muted-foreground/30 bg-background"
+                    )}
+                  >
+                    {isSelected && <Check className="size-2.5 stroke-[3]" />}
+                  </div>
+                  <span className={cn("text-xs font-semibold", isSelected ? "text-foreground" : "text-foreground/80")}>
+                    {item.label}
+                  </span>
+                </div>
+                <span className="text-[10px] font-mono text-muted-foreground">{item.time}</span>
+              </button>
+            )
+          })}
         </div>
       </div>
 
@@ -198,27 +216,44 @@ export function InterviewSetupScreen({
           <span className="text-[10px] text-muted-foreground">Select interviewer behavior</span>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-2.5">
-          {toneOptions.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => setInterviewerTone(t.id)}
-              className={cn(
-                "flex flex-col text-left p-2.5 sm:p-3 rounded-xl border transition-all cursor-pointer",
-                interviewerTone === t.id
-                  ? "border-primary bg-primary/10 text-foreground shadow-2xs"
-                  : "border-border hover:border-muted-foreground/30 bg-card text-muted-foreground"
-              )}
-            >
-              <span className="text-xs font-semibold text-foreground">{t.title}</span>
-              <span className="text-[11px] text-muted-foreground leading-tight mt-1">{t.desc}</span>
-            </button>
-          ))}
+          {toneOptions.map((t) => {
+            const isSelected = interviewerTone === t.id
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setInterviewerTone(t.id)}
+                className={cn(
+                  "flex flex-col text-left p-3 sm:p-3.5 rounded-xl border transition-all cursor-pointer",
+                  isSelected
+                    ? "border-primary bg-primary/15 ring-2 ring-primary text-foreground shadow-xs"
+                    : "border-border hover:border-border/80 bg-card/60 text-muted-foreground hover:bg-muted/30"
+                )}
+              >
+                <div className="flex items-center justify-between gap-2 w-full">
+                  <span className={cn("text-xs font-semibold", isSelected ? "text-foreground" : "text-foreground/90")}>
+                    {t.title}
+                  </span>
+                  <div
+                    className={cn(
+                      "size-4 rounded-full flex items-center justify-center shrink-0 transition-colors",
+                      isSelected
+                        ? "bg-primary text-primary-foreground"
+                        : "border border-muted-foreground/30 bg-background"
+                    )}
+                  >
+                    {isSelected && <Check className="size-2.5 stroke-[3]" />}
+                  </div>
+                </div>
+                <span className="text-[11px] text-muted-foreground leading-relaxed mt-1.5">{t.desc}</span>
+              </button>
+            )
+          })}
         </div>
       </div>
 
       {/* Voice Profile & Cadence Tuning */}
-      <div className="rounded-xl border border-border bg-card p-3 sm:p-4 space-y-3">
+      <div className="rounded-xl border border-border bg-card/80 p-3.5 sm:p-4 space-y-3">
         <div className="flex items-center justify-between">
           <span className="text-xs font-semibold text-foreground">Interviewer Voice & Speech Tuning</span>
           <span className="text-[10px] text-muted-foreground">Natural Voice Synthesis</span>
@@ -234,8 +269,9 @@ export function InterviewSetupScreen({
                 variant={voiceGender === "female" ? "default" : "outline"}
                 size="sm"
                 onClick={() => setVoiceGender("female")}
-                className="text-xs h-8 justify-center font-medium cursor-pointer"
+                className="text-xs h-8.5 justify-center font-medium cursor-pointer"
               >
+                {voiceGender === "female" && <Check className="size-3 mr-1" />}
                 Female Voice
               </Button>
               <Button
@@ -243,8 +279,9 @@ export function InterviewSetupScreen({
                 variant={voiceGender === "male" ? "default" : "outline"}
                 size="sm"
                 onClick={() => setVoiceGender("male")}
-                className="text-xs h-8 justify-center font-medium cursor-pointer"
+                className="text-xs h-8.5 justify-center font-medium cursor-pointer"
               >
+                {voiceGender === "male" && <Check className="size-3 mr-1" />}
                 Male Voice
               </Button>
             </div>
@@ -259,7 +296,7 @@ export function InterviewSetupScreen({
                 onClick={onTestVoice}
                 className="text-[11px] text-primary hover:underline flex items-center gap-1 font-medium cursor-pointer"
               >
-                <Volume2 className="h-3 w-3" /> Test Voice
+                <Volume2 className="size-3" /> Test Voice
               </button>
             </div>
             {language === "bn" || language === "mixed" ? (
@@ -269,7 +306,7 @@ export function InterviewSetupScreen({
               </div>
             ) : availableVoices.length > 0 ? (
               <Select value={selectedVoice} onValueChange={setSelectedVoice}>
-                <SelectTrigger className="text-xs h-8 bg-background">
+                <SelectTrigger className="text-xs h-8.5 bg-background">
                   <SelectValue placeholder="Auto-select best voice" />
                 </SelectTrigger>
                 <SelectContent>
@@ -297,7 +334,7 @@ export function InterviewSetupScreen({
         </div>
 
         {/* Cadence */}
-        <div className="space-y-1.5 pt-2 border-t">
+        <div className="space-y-1.5 pt-2 border-t border-border">
           <div className="flex justify-between text-xs text-muted-foreground">
             <span>Speaking Cadence</span>
             <span className="font-medium text-foreground">{speechRate}x (Natural Pace)</span>
@@ -314,7 +351,7 @@ export function InterviewSetupScreen({
         </div>
 
         {/* Hands-Free VAD Toggle */}
-        <div className="pt-2 border-t flex items-center justify-between">
+        <div className="pt-2 border-t border-border flex items-center justify-between">
           <div>
             <p className="text-xs font-medium text-foreground">Hands-Free Turn Taking (VAD)</p>
             <p className="text-[10px] text-muted-foreground">Automatically sends your answer after 2.2s of silence</p>
@@ -326,12 +363,13 @@ export function InterviewSetupScreen({
             onClick={() => setAutoTurnActive(!autoTurnActive)}
             className="text-xs h-7 px-3 font-medium cursor-pointer"
           >
+            {autoTurnActive && <Check className="size-3 mr-1" />}
             {autoTurnActive ? "Enabled" : "Manual Click"}
           </Button>
         </div>
       </div>
 
-      <div className="flex justify-end gap-2 pt-2 border-t">
+      <div className="flex justify-end gap-2 pt-2 border-t border-border">
         <Button variant="outline" size="sm" onClick={onClose} className="text-xs font-medium cursor-pointer">
           Cancel
         </Button>
