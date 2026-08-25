@@ -110,26 +110,26 @@ export function HeroSection() {
 				<DecorIcon className="size-4" position="bottom-right" />
 
 				<FullWidthDivider className="-top-px" />
-				<div className="overflow-hidden rounded-xl border border-border/80 bg-background shadow-2xl">
+				<div className="overflow-hidden border border-border bg-background">
 					{/* Dark Mode Dashboard Preview */}
 					<Image
 						alt="CareerTrack AI Dashboard Preview (Dark Mode)"
-						className="hidden dark:block w-full h-auto object-cover pointer-events-none select-none"
-						height={720}
+						className="hidden dark:block w-full h-auto object-cover pointer-events-none select-none [image-rendering:-webkit-optimize-contrast]"
+						height={502}
 						src="/dashboard-dark.png"
-						width={1440}
+						width={1024}
 						priority
-						quality={100}
+						unoptimized
 					/>
 					{/* Light Mode Dashboard Preview */}
 					<Image
 						alt="CareerTrack AI Dashboard Preview (Light Mode)"
-						className="block dark:hidden w-full h-auto object-cover pointer-events-none select-none"
-						height={720}
+						className="block dark:hidden w-full h-auto object-cover pointer-events-none select-none [image-rendering:-webkit-optimize-contrast]"
+						height={502}
 						src="/dashboard-light.png"
-						width={1440}
+						width={1024}
 						priority
-						quality={100}
+						unoptimized
 					/>
 				</div>
 				<FullWidthDivider className="-bottom-px" />
