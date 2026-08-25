@@ -9,7 +9,7 @@ import { AppBreadcrumbs } from "@/components/app-breadcrumbs";
 import { navLinks } from "@/components/app-shared";
 import { CustomSidebarTrigger } from "@/components/custom-sidebar-trigger";
 import { NavUser } from "@/components/nav-user";
-import { SearchIcon, SunIcon, MoonIcon, BellIcon, Bot } from "lucide-react";
+import { SearchIcon, SunIcon, MoonIcon, BellIcon, Bot, Briefcase } from "lucide-react";
 import { useUI } from "@/lib/store";
 import Link from "next/link";
 
@@ -33,10 +33,26 @@ export function AppHeader() {
 			)}
 		>
 			<DecorIcon className="hidden md:block" position="bottom-left" />
-			<div className="flex items-center gap-2 sm:gap-3 min-w-0">
+			<div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
 				<CustomSidebarTrigger />
 				<Separator
-					className="mr-1 sm:mr-2 h-4 data-[orientation=vertical]:self-center shrink-0"
+					className="h-4 data-[orientation=vertical]:self-center shrink-0"
+					orientation="vertical"
+				/>
+				<Link
+					href="/dashboard"
+					className="flex items-center gap-2 shrink-0 group hover:opacity-90 transition-opacity"
+					title="CareerTrack Dashboard"
+				>
+					<div className="flex size-7 items-center justify-center rounded-md bg-primary text-primary-foreground font-bold text-xs shadow-2xs">
+						<Briefcase className="size-3.5" />
+					</div>
+					<span className="font-bold text-sm text-foreground tracking-tight hidden sm:inline-block">
+						CareerTrack
+					</span>
+				</Link>
+				<Separator
+					className="h-4 data-[orientation=vertical]:self-center shrink-0"
 					orientation="vertical"
 				/>
 				<div className="min-w-0 truncate">
