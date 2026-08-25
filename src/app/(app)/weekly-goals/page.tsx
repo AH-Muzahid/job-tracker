@@ -57,7 +57,7 @@ export default function WeeklyGoalsPage() {
   const [formBlockers, setFormBlockers] = useState("")
 
   useEffect(() => {
-    if (isLoaded && !isSignedIn) { router.push("/sign-in"); return }
+    if (isLoaded && !isSignedIn) { router.push("/"); return }
     if (isLoaded) fetchGoals()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoaded])

@@ -98,7 +98,7 @@ export default function ProfileSetupPage() {
   // Load existing profile & resumes
   useEffect(() => {
     if (isLoaded && !isSignedIn) {
-      router.push("/sign-in")
+      router.push("/")
       return
     }
 

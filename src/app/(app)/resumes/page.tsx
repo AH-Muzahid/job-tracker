@@ -83,7 +83,7 @@ export default function ResumesPage() {
 
   useEffect(() => {
     if (!isLoaded) return
-    if (!isSignedIn) { router.push("/sign-in"); return }
+    if (!isSignedIn) { router.push("/"); return }
     fetchResumes()
   }, [isLoaded, isSignedIn, router])
 

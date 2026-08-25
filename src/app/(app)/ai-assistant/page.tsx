@@ -36,9 +36,9 @@ export default function AIAssistantPage() {
 
   useEffect(() => {
     if (isLoaded && !isSignedIn) {
-      router.push("/sign-in")
+      router.push("/");
     }
-  }, [isLoaded, isSignedIn, router])
+  }, [isLoaded, isSignedIn, router]);
 
   // Sync activeChatId with URL param and localStorage on mount
   useEffect(() => {

@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
@@ -6,8 +9,11 @@ import { DecorIcon } from "@/components/decor-icon";
 import { FullWidthDivider } from "@/components/full-width-divider";
 import { ArrowRightIcon, LayersIcon } from "lucide-react";
 import KineticGrid from "@/components/originkit/ui/kineticgrid";
+import { SignInModal } from "@/components/sign-in-modal";
 
 export function HeroSection() {
+	const [authOpen, setAuthOpen] = useState(false);
+
 	return (
 		<section className="relative">
 			{/* Top Hero Text Section (Directly Below Navigation) */}
@@ -105,11 +111,12 @@ export function HeroSection() {
 								Explore Platform
 							</a>
 						</Button>
-						<Button asChild className="h-10 px-5 rounded-none text-sm font-semibold gap-2 cursor-pointer">
-							<Link href="/sign-up">
-								Start Free
-								<ArrowRightIcon className="size-4" />
-							</Link>
+						<Button
+							className="h-10 px-5 rounded-none text-sm font-semibold gap-2 cursor-pointer"
+							onClick={() => setAuthOpen(true)}
+						>
+							Start Free
+							<ArrowRightIcon className="size-4" />
 						</Button>
 					</div>
 				</div>
@@ -117,6 +124,8 @@ export function HeroSection() {
 				{/* Bottom Grid Border Divider below text */}
 				<FullWidthDivider position="bottom" />
 			</div>
+
+			<SignInModal open={authOpen} onOpenChange={setAuthOpen} />
 
 			{/* Hero Mockup Blueprint Grid Section */}
 			<div className="relative">

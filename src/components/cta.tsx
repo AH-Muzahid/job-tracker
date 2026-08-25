@@ -1,10 +1,15 @@
+"use client";
+
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { DecorIcon } from "@/components/decor-icon";
 import { FullWidthDivider } from "@/components/full-width-divider";
 import { ArrowRightIcon } from "lucide-react";
-import Link from "next/link";
+import { SignInModal } from "@/components/sign-in-modal";
 
 export function CallToAction() {
+	const [authOpen, setAuthOpen] = useState(false);
+
 	return (
 		<section>
 			<div className="relative">
@@ -26,16 +31,16 @@ export function CallToAction() {
 						<Button variant="outline" size="lg" asChild>
 							<a href="#features">Learn More</a>
 						</Button>
-						<Button size="lg" asChild>
-							<Link href="/sign-up">
-								Get Started
-								<ArrowRightIcon data-icon="inline-end" />
-							</Link>
+						<Button size="lg" onClick={() => setAuthOpen(true)} className="cursor-pointer">
+							Get Started
+							<ArrowRightIcon data-icon="inline-end" />
 						</Button>
 					</div>
 				</div>
 				<FullWidthDivider className="-bottom-px" />
 			</div>
+			<SignInModal open={authOpen} onOpenChange={setAuthOpen} />
 		</section>
 	);
 }
+

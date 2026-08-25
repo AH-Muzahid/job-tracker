@@ -108,7 +108,7 @@ function ApplicationsContent() {
   }, [applications, handleMoveTo])
 
   if (!isLoaded) return <ApplicationsSkeleton />
-  if (!isSignedIn) { router.push("/sign-in"); return null }
+  if (!isSignedIn) { router.push("/"); return null }
 
   if (error) {
     return (

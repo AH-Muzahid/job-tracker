@@ -36,7 +36,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (isLoaded && !isSignedIn) {
-      router.push("/sign-in")
+      router.push("/")
     }
   }, [isLoaded, isSignedIn, router])
 
