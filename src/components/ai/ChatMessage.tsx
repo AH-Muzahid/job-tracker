@@ -20,7 +20,7 @@ interface Props {
   isLast: boolean
   isStreaming: boolean
   onSuggestionClick?: (prompt: string) => void
-  onRetry?: () => void
+  onRetry?: (content?: string) => void
 }
 
 interface Suggestion {
@@ -494,6 +494,37 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
               </button>
             )}
 
+            {/* User message action bar */}
+            {isUser && !isStreaming && (
+              <div className="flex items-center justify-end gap-1 mt-1.5 not-prose">
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(message.content)
+                    toast.success("Copied to clipboard")
+                  }}
+                  className="inline-flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                  title="Copy message"
+                >
+                  <Copy className="h-3 w-3" />
+                  <span>Copy</span>
+                </button>
+                {onRetry && (
+                  <button
+                    type="button"
+                    onClick={() => onRetry(message.content)}
+                    className="inline-flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                    title="Retry sending this message"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6" />
+                    </svg>
+                    <span>Retry</span>
+                  </button>
+                )}
+              </div>
+            )}
+
             {/* Smart Action Bar & Follow-ups */}
             {!isUser && !isStreaming && message.content && (
               <div className="mt-3 not-prose">
@@ -523,7 +554,7 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
                   {onRetry && (
                     <button
                       type="button"
-                      onClick={onRetry}
+                      onClick={() => onRetry(message.content)}
                       className="flex size-7 items-center justify-center rounded-md hover:bg-muted/80 hover:text-foreground transition-colors cursor-pointer"
                       title="Retry response"
                     >

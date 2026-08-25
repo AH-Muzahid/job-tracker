@@ -330,7 +330,11 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
     }
   }
 
-  const handleRetry = () => {
+  const handleRetry = (contentToRetry?: string) => {
+    if (contentToRetry && typeof contentToRetry === "string") {
+      sendMessage(contentToRetry)
+      return
+    }
     const lastUserMsg = [...messages].reverse().find((m) => m.role === "user")
     if (lastUserMsg && lastUserMsg.content) {
       sendMessage(lastUserMsg.content)
@@ -458,7 +462,7 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={handleRetry}
+                    onClick={() => handleRetry()}
                     className="h-6 text-xs px-2 bg-background/80 hover:bg-background border-destructive/30 text-destructive shrink-0 cursor-pointer"
                   >
                     <RotateCcw className="h-3 w-3 mr-1" />
