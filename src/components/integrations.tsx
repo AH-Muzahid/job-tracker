@@ -11,33 +11,93 @@ import {
 	BarChart3,
 	ShieldCheck,
 	Award,
-	ArrowRight,
+	ArrowUpRight,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
-/* ══════════════════════════════════════════════════════ */
-/*                 BENTO CARD CONTAINER                  */
-/* ══════════════════════════════════════════════════════ */
-
-function BentoCard({
-	children,
-	className,
-}: {
-	children: React.ReactNode;
+interface FeatureCardProps {
+	tag: string;
+	title: string;
+	description: string;
+	icon: React.ComponentType<{ className?: string }>;
+	iconColor: string;
+	lightImg: string;
+	darkImg: string;
 	className?: string;
-}) {
+	aspectRatio?: string;
+}
+
+function FeatureCard({
+	tag,
+	title,
+	description,
+	icon: Icon,
+	iconColor,
+	lightImg,
+	darkImg,
+	className,
+	aspectRatio = "aspect-[16/10]",
+}: FeatureCardProps) {
 	return (
 		<motion.div
 			className={cn(
-				"group relative flex flex-col justify-between h-full rounded-2xl overflow-hidden",
-				"bg-card/80 border border-border/80 shadow-sm backdrop-blur-xs",
-				"hover:border-primary/40 hover:shadow-xl transition-all duration-300",
+				"group relative flex flex-col justify-between overflow-hidden bg-card/60 backdrop-blur-xs",
+				"border border-border/80 transition-all duration-300",
+				"hover:border-primary/40 hover:bg-card/90 hover:shadow-lg",
 				className
 			)}
-			whileHover={{ y: -4 }}
+			whileHover={{ y: -2 }}
 			transition={{ duration: 0.2 }}
 		>
-			{children}
+			{/* Top Image Showcase with Dark/Light Support */}
+			<div className={cn("relative w-full overflow-hidden bg-muted/20 border-b border-border/70", aspectRatio)}>
+				{/* Light Mode Diagram */}
+				<Image
+					src={lightImg}
+					alt={`${title} 3D Diagram (Light Mode)`}
+					fill
+					className="block dark:hidden object-cover transition-transform duration-700 ease-out group-hover:scale-103 select-none pointer-events-none"
+					sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+					quality={95}
+				/>
+				{/* Dark Mode Diagram */}
+				<Image
+					src={darkImg}
+					alt={`${title} 3D Diagram (Dark Mode)`}
+					fill
+					className="hidden dark:block object-cover transition-transform duration-700 ease-out group-hover:scale-103 select-none pointer-events-none"
+					sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+					quality={95}
+				/>
+				{/* Top Corner Badge */}
+				<div className="absolute top-3 left-3 z-10">
+					<span className="px-2 py-0.5 text-[10px] font-mono font-medium rounded-sm bg-background/90 text-foreground border border-border/80 shadow-2xs backdrop-blur-md">
+						{tag}
+					</span>
+				</div>
+			</div>
+
+			{/* Bottom Content Compartment */}
+			<div className="p-5 sm:p-6 space-y-2 flex-1 flex flex-col justify-between">
+				<div className="space-y-1.5">
+					<div className="flex items-center gap-2">
+						<div className={cn("flex size-6.5 items-center justify-center rounded-md border shadow-2xs", iconColor)}>
+							<Icon className="size-3.5" />
+						</div>
+						<h3 className="font-bold text-foreground text-base sm:text-lg tracking-tight">
+							{title}
+						</h3>
+					</div>
+					<p className="text-muted-foreground text-xs sm:text-sm leading-relaxed">
+						{description}
+					</p>
+				</div>
+
+				<div className="pt-2 flex items-center gap-1 text-[11px] font-mono text-muted-foreground group-hover:text-primary transition-colors">
+					<span>Explore workflow</span>
+					<ArrowUpRight className="size-3 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+				</div>
+			</div>
 		</motion.div>
 	);
 }
@@ -55,6 +115,7 @@ export function Integrations() {
 				<FullWidthDivider className="-top-px" />
 
 				<div className="px-4 py-16 md:px-8 md:py-24 max-w-7xl mx-auto">
+					{/* Section Header */}
 					<motion.div
 						className="max-w-3xl mx-auto text-center mb-14"
 						initial={{ opacity: 0, y: 15 }}
@@ -62,9 +123,10 @@ export function Integrations() {
 						viewport={{ once: true, margin: "-100px" }}
 						transition={{ duration: 0.5 }}
 					>
-						<Badge variant="outline" className="mb-3 text-xs font-mono text-primary bg-primary/5 border-primary/20">
-							POWERFUL CORE SUITE
-						</Badge>
+						<div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-sm border border-border bg-card mb-3 text-xs font-mono text-muted-foreground shadow-2xs">
+							<span className="size-1.5 rounded-full bg-primary animate-pulse" />
+							<span>CORE PLATFORM ENGINE</span>
+						</div>
 						<h2 className="text-3xl md:text-5xl font-bold tracking-tight text-foreground mb-4">
 							Everything You Need to Land Your Next Role
 						</h2>
@@ -73,135 +135,65 @@ export function Integrations() {
 						</p>
 					</motion.div>
 
-					{/* Top Row — 2 Large 3D Diagram Cards */}
-					<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-						{/* Card 1: Smart Application Tracking */}
-						<BentoCard>
-							<div className="relative w-full aspect-[4/3] bg-muted/20 border-b border-border/60 overflow-hidden">
-								<Image
-									src="/features/smart-tracking.jpg"
-									alt="Smart Application Tracking 3D SaaS Diagram"
-									fill
-									className="object-cover transition-transform duration-500 group-hover:scale-105 select-none pointer-events-none"
-									sizes="(max-width: 768px) 100vw, 50vw"
-									quality={95}
-								/>
-							</div>
-							<div className="p-6 space-y-2">
-								<div className="flex items-center gap-2">
-									<div className="flex size-7 items-center justify-center rounded-lg bg-blue-500/10 text-blue-500">
-										<Sparkles className="size-4" />
-									</div>
-									<h3 className="font-bold text-foreground text-lg">Smart Application Tracking</h3>
-								</div>
-								<p className="text-muted-foreground text-sm leading-relaxed">
-									Auto-import opportunities from LinkedIn, paste job URLs, or upload bulk CSVs. AI instantly extracts requirements and salary benchmarks.
-								</p>
-							</div>
-						</BentoCard>
+					{/* Top Blueprint Grid — 2 Featured Cards */}
+					<div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+						<FeatureCard
+							tag="01 // AUTO-INTAKE"
+							title="Smart Application Tracking"
+							description="Auto-import opportunities from LinkedIn, paste job URLs, or upload bulk CSVs. AI instantly extracts requirements and salary benchmarks."
+							icon={Sparkles}
+							iconColor="bg-blue-500/10 text-blue-500 border-blue-500/20"
+							lightImg="/features/smart-tracking.jpg"
+							darkImg="/features/smart-tracking-dark.jpg"
+							aspectRatio="aspect-[16/10]"
+						/>
 
-						{/* Card 2: AI Interview Prep */}
-						<BentoCard>
-							<div className="relative w-full aspect-[4/3] bg-muted/20 border-b border-border/60 overflow-hidden">
-								<Image
-									src="/features/interview-prep.jpg"
-									alt="AI Interview Prep 3D SaaS Diagram"
-									fill
-									className="object-cover transition-transform duration-500 group-hover:scale-105 select-none pointer-events-none"
-									sizes="(max-width: 768px) 100vw, 50vw"
-									quality={95}
-								/>
-							</div>
-							<div className="p-6 space-y-2">
-								<div className="flex items-center gap-2">
-									<div className="flex size-7 items-center justify-center rounded-lg bg-violet-500/10 text-violet-500">
-										<MessageSquare className="size-4" />
-									</div>
-									<h3 className="font-bold text-foreground text-lg">AI Interview Prep</h3>
-								</div>
-								<p className="text-muted-foreground text-sm leading-relaxed">
-									Generate role-tailored behavioral and technical questions, practice with interactive voice simulations, and receive real-time STAR coaching.
-								</p>
-							</div>
-						</BentoCard>
+						<FeatureCard
+							tag="02 // AI COACH"
+							title="AI Interview Prep"
+							description="Generate role-tailored behavioral and technical questions, practice with interactive voice simulations, and receive real-time STAR coaching."
+							icon={MessageSquare}
+							iconColor="bg-violet-500/10 text-violet-500 border-violet-500/20"
+							lightImg="/features/interview-prep.jpg"
+							darkImg="/features/interview-prep-dark.jpg"
+							aspectRatio="aspect-[16/10]"
+						/>
 					</div>
 
-					{/* Bottom Row — 3 Specialized 3D Diagram Cards */}
-					<div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
-						{/* Card 3: Funnel Analytics */}
-						<BentoCard>
-							<div className="relative w-full aspect-[4/3] bg-muted/20 border-b border-border/60 overflow-hidden">
-								<Image
-									src="/features/funnel-analytics.jpg"
-									alt="Funnel Analytics 3D SaaS Diagram"
-									fill
-									className="object-cover transition-transform duration-500 group-hover:scale-105 select-none pointer-events-none"
-									sizes="(max-width: 768px) 100vw, 33vw"
-									quality={95}
-								/>
-							</div>
-							<div className="p-6 space-y-2">
-								<div className="flex items-center gap-2">
-									<div className="flex size-7 items-center justify-center rounded-lg bg-cyan-500/10 text-cyan-500">
-										<BarChart3 className="size-4" />
-									</div>
-									<h3 className="font-bold text-foreground text-base">Funnel Analytics</h3>
-								</div>
-								<p className="text-muted-foreground text-xs md:text-sm leading-relaxed">
-									Visualize interview conversion rates, recruiter response latency, and source channel yield.
-								</p>
-							</div>
-						</BentoCard>
+					{/* Bottom Blueprint Grid — 3 Specialized Cards */}
+					<div className="grid grid-cols-1 md:grid-cols-3 gap-5 mt-5">
+						<FeatureCard
+							tag="03 // PIPELINE"
+							title="Funnel Analytics"
+							description="Visualize interview conversion rates, recruiter response latency, and source channel yield with real-time funnel intelligence."
+							icon={BarChart3}
+							iconColor="bg-cyan-500/10 text-cyan-500 border-cyan-500/20"
+							lightImg="/features/funnel-analytics.jpg"
+							darkImg="/features/funnel-analytics-dark.jpg"
+							aspectRatio="aspect-[4/3]"
+						/>
 
-						{/* Card 4: Weekly AI Reviews */}
-						<BentoCard>
-							<div className="relative w-full aspect-[4/3] bg-muted/20 border-b border-border/60 overflow-hidden">
-								<Image
-									src="/features/weekly-reviews.jpg"
-									alt="Weekly AI Reviews 3D SaaS Diagram"
-									fill
-									className="object-cover transition-transform duration-500 group-hover:scale-105 select-none pointer-events-none"
-									sizes="(max-width: 768px) 100vw, 33vw"
-									quality={95}
-								/>
-							</div>
-							<div className="p-6 space-y-2">
-								<div className="flex items-center gap-2">
-									<div className="flex size-7 items-center justify-center rounded-lg bg-purple-500/10 text-purple-500">
-										<ShieldCheck className="size-4" />
-									</div>
-									<h3 className="font-bold text-foreground text-base">Weekly AI Reviews</h3>
-								</div>
-								<p className="text-muted-foreground text-xs md:text-sm leading-relaxed">
-									Your personal career agent tracks pacing, suggests high-impact follow-ups, and keeps momentum high.
-								</p>
-							</div>
-						</BentoCard>
+						<FeatureCard
+							tag="04 // AGENT"
+							title="Weekly AI Reviews"
+							description="Your personal career agent tracks pacing, suggests high-impact recruiter follow-ups, and keeps search momentum high."
+							icon={ShieldCheck}
+							iconColor="bg-purple-500/10 text-purple-500 border-purple-500/20"
+							lightImg="/features/weekly-reviews.jpg"
+							darkImg="/features/weekly-reviews-dark.jpg"
+							aspectRatio="aspect-[4/3]"
+						/>
 
-						{/* Card 5: Land the Offer */}
-						<BentoCard>
-							<div className="relative w-full aspect-[4/3] bg-muted/20 border-b border-border/60 overflow-hidden">
-								<Image
-									src="/features/offer-negotiation.jpg"
-									alt="Land the Offer 3D SaaS Diagram"
-									fill
-									className="object-cover transition-transform duration-500 group-hover:scale-105 select-none pointer-events-none"
-									sizes="(max-width: 768px) 100vw, 33vw"
-									quality={95}
-								/>
-							</div>
-							<div className="p-6 space-y-2">
-								<div className="flex items-center gap-2">
-									<div className="flex size-7 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-500">
-										<Award className="size-4" />
-									</div>
-									<h3 className="font-bold text-foreground text-base">Land the Offer</h3>
-								</div>
-								<p className="text-muted-foreground text-xs md:text-sm leading-relaxed">
-									Compare multi-offer equity, base compensation, and remote perks with AI negotiation counter-proposals.
-								</p>
-							</div>
-						</BentoCard>
+						<FeatureCard
+							tag="05 // NEGOTIATE"
+							title="Land the Offer"
+							description="Compare multi-offer equity, base compensation, and remote perks with automated AI negotiation counter-proposals."
+							icon={Award}
+							iconColor="bg-emerald-500/10 text-emerald-500 border-emerald-500/20"
+							lightImg="/features/offer-negotiation.jpg"
+							darkImg="/features/offer-negotiation-dark.jpg"
+							aspectRatio="aspect-[4/3]"
+						/>
 					</div>
 				</div>
 
