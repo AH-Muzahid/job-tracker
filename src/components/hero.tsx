@@ -115,7 +115,7 @@ export function HeroSection() {
 					<Image
 						alt="CareerTrack Dashboard Preview (Dark Mode)"
 						className="hidden dark:block w-full h-auto object-cover pointer-events-none select-none"
-						height={501}
+						height={495}
 						src="/dashboard-dark.png"
 						width={1024}
 						priority
@@ -125,7 +125,7 @@ export function HeroSection() {
 					<Image
 						alt="CareerTrack Dashboard Preview (Light Mode)"
 						className="block dark:hidden w-full h-auto object-cover pointer-events-none select-none"
-						height={501}
+						height={495}
 						src="/dashboard-light.png"
 						width={1024}
 						priority
