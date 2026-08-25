@@ -35,7 +35,7 @@ export default function Stats() {
               {
                 value: "3.2K+",
                 label: "Offers Received",
-                subtext: "Thousands of job offers received",
+                subtext: "Secured with AI negotiation & prep",
               },
             ]}
           />

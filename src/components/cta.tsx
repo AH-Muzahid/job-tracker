@@ -15,11 +15,11 @@ export function CallToAction() {
 
 				<FullWidthDivider className="-top-px" />
 				<div className="flex flex-col gap-6 px-4 py-16 md:py-24">
-					<h2 className="text-center font-semibold text-2xl md:text-4xl text-foreground">
-						Start Landing Your Dream Job Today!
+					<h2 className="text-center font-semibold text-2xl md:text-4xl text-foreground tracking-tight">
+						Ready to Accelerate Your Job Search?
 					</h2>
-					<p className="text-balance text-center text-muted-foreground text-sm md:text-lg">
-						Join 12,500+ job seekers tracking their way to success. No credit card required, cancel anytime.
+					<p className="text-balance text-center text-muted-foreground text-sm md:text-base max-w-xl mx-auto leading-relaxed">
+						Join over 12,500+ ambitious job seekers using CareerTrack to organize applications, master AI interviews, and land top offers.
 					</p>
 
 					<div className="flex items-center justify-center gap-3">
