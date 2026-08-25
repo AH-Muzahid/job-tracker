@@ -6,6 +6,7 @@ import { DecorIcon } from "@/components/decor-icon";
 import { FullWidthDivider } from "@/components/full-width-divider";
 import { ArrowRightIcon, PhoneCallIcon } from "lucide-react";
 import KineticGrid from "@/components/originkit/ui/kineticgrid";
+import { HeroDashboardMockup } from "@/components/hero-dashboard-mockup";
 
 export function HeroSection() {
 	return (
@@ -110,27 +111,8 @@ export function HeroSection() {
 				<DecorIcon className="size-4" position="bottom-right" />
 
 				<FullWidthDivider className="-top-px" />
-				<div className="overflow-hidden border border-border bg-background">
-					{/* Dark Mode Dashboard Preview */}
-					<Image
-						alt="CareerTrack AI Dashboard Preview (Dark Mode)"
-						className="hidden dark:block w-full h-auto object-cover pointer-events-none select-none [image-rendering:-webkit-optimize-contrast]"
-						height={499}
-						src="/dashboard-dark.png"
-						width={1024}
-						priority
-						unoptimized
-					/>
-					{/* Light Mode Dashboard Preview */}
-					<Image
-						alt="CareerTrack AI Dashboard Preview (Light Mode)"
-						className="block dark:hidden w-full h-auto object-cover pointer-events-none select-none [image-rendering:-webkit-optimize-contrast]"
-						height={499}
-						src="/dashboard-light.png"
-						width={1024}
-						priority
-						unoptimized
-					/>
+				<div className="overflow-hidden shadow-2xl">
+					<HeroDashboardMockup />
 				</div>
 				<FullWidthDivider className="-bottom-px" />
 			</div>
