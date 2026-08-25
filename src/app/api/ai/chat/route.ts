@@ -158,39 +158,11 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    const encoder = new TextEncoder()
-    const customStream = new ReadableStream({
-      async start(controller) {
-        try {
-          for await (const chunk of result.textStream) {
-            controller.enqueue(encoder.encode(chunk))
-          }
-          controller.close()
-        } catch (streamErr: unknown) {
-          console.error("Stream chunk error:", streamErr)
-          const errObj = streamErr as { data?: { error?: { message?: string } }; message?: string }
-          const errMessage =
-            errObj?.data?.error?.message ||
-            errObj?.message ||
-            "No active credentials or provider connection failed."
-
-          controller.enqueue(
-            encoder.encode(
-              `\n\n⚠️ **Model Error (${modelToUse}):** ${errMessage}\n\n*Please switch to an active model (such as Gemini 2.5 Flash or GPT-4o) using the model selector below.*`
-            )
-          )
-          controller.close()
-        }
-      },
-    })
-
-    return new Response(customStream, {
+    return result.toTextStreamResponse({
       headers: {
-        "Content-Type": "text/plain; charset=utf-8",
-        "Cache-Control": "no-cache, no-transform",
-        "Connection": "keep-alive",
-        "X-Accel-Buffering": "no",
         "X-Session-Id": sessionId,
+        "X-Accel-Buffering": "no",
+        "Cache-Control": "no-cache, no-transform",
       },
     })
   } catch (initialErr: unknown) {

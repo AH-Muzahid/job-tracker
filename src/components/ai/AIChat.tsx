@@ -113,7 +113,6 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
   const containerRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const abortRef = useRef<AbortController | null>(null)
-  const animFrameRef = useRef<number | null>(null)
   const createdSessionIdRef = useRef<string | null>(null)
   
   const { pendingPrompt, setPendingPrompt, aiSidebarOpen } = useUI()
@@ -272,79 +271,23 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
       const decoder = new TextDecoder()
 
       if (reader) {
-        let rawBuffer = ""
-        let displayedLength = 0
-        let isDoneReading = false
-
-        // Smooth word-by-word stream ticker
-        const updateDisplayedText = () => {
-          if (displayedLength < rawBuffer.length) {
-            const diff = rawBuffer.length - displayedLength
-            // Fast first token rendering + smooth adaptive ticker
-            let step = displayedLength === 0 ? Math.min(diff, 6) : 1
-            if (diff > 200) {
-              step = Math.ceil(diff / 6)
-            } else if (diff > 80) {
-              step = Math.ceil(diff / 4)
-            } else if (diff > 30) {
-              step = 4
-            } else if (diff > 10) {
-              step = 2
-            }
-
-            displayedLength = Math.min(rawBuffer.length, displayedLength + step)
-            const currentText = rawBuffer.slice(0, displayedLength)
-
+        let accumulatedText = ""
+        while (true) {
+          const { value, done: doneReading } = await reader.read()
+          if (doneReading) break
+          if (value) {
+            const chunk = decoder.decode(value, { stream: true })
+            accumulatedText += chunk
             setMessages((prev) => {
               const updated = [...prev]
               const lastIdx = updated.findIndex((m) => m.id === assistantMsgId)
               if (lastIdx !== -1) {
-                updated[lastIdx] = { ...updated[lastIdx], content: currentText }
+                updated[lastIdx] = { ...updated[lastIdx], content: accumulatedText }
               }
               return updated
             })
           }
-
-          if (!isDoneReading || displayedLength < rawBuffer.length) {
-            animFrameRef.current = requestAnimationFrame(updateDisplayedText)
-          } else {
-            setIsStreaming(false)
-          }
         }
-
-        animFrameRef.current = requestAnimationFrame(updateDisplayedText)
-
-        while (!isDoneReading) {
-          const { value, done: doneReading } = await reader.read()
-          if (value) {
-            const chunk = decoder.decode(value, { stream: true })
-            rawBuffer += chunk
-          }
-          if (doneReading) {
-            isDoneReading = true
-            break
-          }
-        }
-
-        // Smoothly drain the remaining buffer
-        while (displayedLength < rawBuffer.length) {
-          await new Promise((r) => setTimeout(r, 16))
-        }
-
-        if (animFrameRef.current) {
-          cancelAnimationFrame(animFrameRef.current)
-          animFrameRef.current = null
-        }
-
-        // Finalize exact full response text
-        setMessages((prev) => {
-          const updated = [...prev]
-          const lastIdx = updated.findIndex((m) => m.id === assistantMsgId)
-          if (lastIdx !== -1) {
-            updated[lastIdx] = { ...updated[lastIdx], content: rawBuffer }
-          }
-          return updated
-        })
       }
     } catch (e: unknown) {
       if (e instanceof Error && e.name !== "AbortError") {
@@ -355,10 +298,6 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
     } finally {
       setIsStreaming(false)
       abortRef.current = null
-      if (animFrameRef.current) {
-        cancelAnimationFrame(animFrameRef.current)
-        animFrameRef.current = null
-      }
     }
   }
 
@@ -366,10 +305,6 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
     if (abortRef.current) {
       abortRef.current.abort()
       abortRef.current = null
-    }
-    if (animFrameRef.current) {
-      cancelAnimationFrame(animFrameRef.current)
-      animFrameRef.current = null
     }
     setIsStreaming(false)
   }
