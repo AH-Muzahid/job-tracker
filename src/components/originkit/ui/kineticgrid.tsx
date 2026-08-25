@@ -103,13 +103,15 @@ export default function KineticGrid(props: KineticGridProps) {
                 cols.push(col)
             }
         }
-        // One-shot grid render for the Framer canvas / thumbnail (no cursor,
-        // no animation) — draws the full mesh at home positions so the grid
-        // fills the whole component instead of a top-left patch.
+        const effectiveDotColor = dotColor && dotColor !== "currentColor" ? dotColor : "#a1a1aa"
+        const effectiveLineColor = lineColor && lineColor !== "currentColor" ? lineColor : "#3b82f6"
+        const effectiveTrailColor = trailColor && trailColor !== "currentColor" ? trailColor : "#60a5fa"
+
+        // One-shot grid render for the Framer canvas / thumbnail
         const drawStatic = () => {
             ctx.clearRect(0, 0, W, H)
             ctx.globalAlpha = 0.14
-            ctx.strokeStyle = lineColor
+            ctx.strokeStyle = effectiveLineColor
             ctx.lineWidth = 0.75
             for (let c = 0; c < cols.length; c++) {
                 for (let rIdx = 0; rIdx < cols[c].length; rIdx++) {
@@ -131,7 +133,7 @@ export default function KineticGrid(props: KineticGridProps) {
                 }
             }
             ctx.globalAlpha = 0.4
-            ctx.fillStyle = dotColor
+            ctx.fillStyle = effectiveDotColor
             for (const d of dots) {
                 ctx.beginPath()
                 ctx.arc(d.hx, d.hy, 1.2, 0, 2 * Math.PI)
@@ -145,8 +147,6 @@ export default function KineticGrid(props: KineticGridProps) {
         const ro =
             typeof ResizeObserver !== "undefined"
                 ? new ResizeObserver((entries) => {
-                      // contentRect is the reliable size — getBoundingClientRect
-                      // can be stale (pre-layout) when the effect first runs.
                       const cr = entries[0]?.contentRect
                       build(cr?.width, cr?.height)
                       if (isStatic) drawStatic()
@@ -154,7 +154,6 @@ export default function KineticGrid(props: KineticGridProps) {
                 : null
         ro?.observe(host)
 
-        // Static renderer: draw once, skip interaction + animation loop.
         if (isStatic) {
             drawStatic()
             return () => ro?.disconnect()
@@ -173,7 +172,19 @@ export default function KineticGrid(props: KineticGridProps) {
             if (trail.length > 80) trail.shift()
         }
 
-        const onMove = (e: MouseEvent) => setMouse(e.clientX, e.clientY)
+        const onMove = (e: MouseEvent) => {
+            const r = canvas.getBoundingClientRect()
+            if (
+                e.clientX >= r.left - 80 &&
+                e.clientX <= r.right + 80 &&
+                e.clientY >= r.top - 80 &&
+                e.clientY <= r.bottom + 80
+            ) {
+                setMouse(e.clientX, e.clientY)
+            } else {
+                onLeave()
+            }
+        }
         const onLeave = () => {
             mouseRef.current.active = false
             mouseRef.current.x = -9999
@@ -184,10 +195,10 @@ export default function KineticGrid(props: KineticGridProps) {
             if (t) setMouse(t.clientX, t.clientY)
         }
 
-        host.addEventListener("mousemove", onMove)
-        host.addEventListener("mouseleave", onLeave)
-        host.addEventListener("touchmove", onTouch, { passive: true })
-        host.addEventListener("touchend", onLeave)
+        window.addEventListener("mousemove", onMove, { passive: true })
+        window.addEventListener("touchmove", onTouch, { passive: true })
+        document.addEventListener("mouseleave", onLeave)
+        window.addEventListener("touchend", onLeave)
 
         let raf = 0
         const frame = () => {
@@ -231,18 +242,18 @@ export default function KineticGrid(props: KineticGridProps) {
                           )
                         : 0
                     if (right) {
-                        ctx.globalAlpha = 0.06 + prox * 0.7
-                        ctx.strokeStyle = lineColor
-                        ctx.lineWidth = 0.5 + prox * 1.5
+                        ctx.globalAlpha = 0.08 + prox * 0.72
+                        ctx.strokeStyle = effectiveLineColor
+                        ctx.lineWidth = 0.6 + prox * 1.6
                         ctx.beginPath()
                         ctx.moveTo(d.x, d.y)
                         ctx.lineTo(right.x, right.y)
                         ctx.stroke()
                     }
                     if (down) {
-                        ctx.globalAlpha = 0.06 + prox * 0.7
-                        ctx.strokeStyle = lineColor
-                        ctx.lineWidth = 0.5 + prox * 1.5
+                        ctx.globalAlpha = 0.08 + prox * 0.72
+                        ctx.strokeStyle = effectiveLineColor
+                        ctx.lineWidth = 0.6 + prox * 1.6
                         ctx.beginPath()
                         ctx.moveTo(d.x, d.y)
                         ctx.lineTo(down.x, down.y)
@@ -259,14 +270,14 @@ export default function KineticGrid(props: KineticGridProps) {
                           1 - Math.sqrt((m.x - d.x) ** 2 + (m.y - d.y) ** 2) / R
                       )
                     : 0
-                ctx.globalAlpha = 0.22 + prox * 0.78
-                ctx.fillStyle = dotColor
+                ctx.globalAlpha = 0.28 + prox * 0.72
+                ctx.fillStyle = effectiveDotColor
                 ctx.beginPath()
-                ctx.arc(d.x, d.y, 0.8 + prox * 2.2, 0, 2 * Math.PI)
+                ctx.arc(d.x, d.y, 1.0 + prox * 2.2, 0, 2 * Math.PI)
                 ctx.fill()
             }
 
-            // Cursor trail line — visible on plain mouse move, fades out.
+            // Cursor trail line
             if (trail) {
                 const now = performance.now()
                 const tr = trailRef.current
@@ -278,8 +289,8 @@ export default function KineticGrid(props: KineticGridProps) {
                     const age = now - b.t
                     if (age > 260) continue
                     ctx.globalAlpha = Math.max(0, 1 - age / 260) * 0.85
-                    ctx.strokeStyle = trailColor
-                    ctx.lineWidth = 2
+                    ctx.strokeStyle = effectiveTrailColor
+                    ctx.lineWidth = 2.5
                     ctx.beginPath()
                     ctx.moveTo(a.x, a.y)
                     ctx.lineTo(b.x, b.y)
@@ -295,10 +306,10 @@ export default function KineticGrid(props: KineticGridProps) {
         return () => {
             cancelAnimationFrame(raf)
             ro?.disconnect()
-            host.removeEventListener("mousemove", onMove)
-            host.removeEventListener("mouseleave", onLeave)
-            host.removeEventListener("touchmove", onTouch)
-            host.removeEventListener("touchend", onLeave)
+            window.removeEventListener("mousemove", onMove)
+            window.removeEventListener("touchmove", onTouch)
+            document.removeEventListener("mouseleave", onLeave)
+            window.removeEventListener("touchend", onLeave)
         }
     }, [
         background,

@@ -17,21 +17,21 @@ export function HeroSection() {
 				<FullWidthDivider className="-top-px" />
 
 				{/* Kinetic Grid Interactive Background */}
-				<div className="absolute inset-0 -z-1 overflow-hidden pointer-events-auto opacity-50 dark:opacity-35">
+				<div className="absolute inset-0 -z-1 overflow-hidden pointer-events-auto">
 					<KineticGrid
 						background="transparent"
-						dotColor="currentColor"
-						lineColor="currentColor"
-						trailColor="currentColor"
-						spacing={44}
-						radius={280}
-						strength={4}
+						dotColor="#71717a"
+						lineColor="#3b82f6"
+						trailColor="#60a5fa"
+						spacing={38}
+						radius={320}
+						strength={5}
 						trail={true}
 					/>
 					{/* Soft radial fade mask */}
 					<div
 						aria-hidden="true"
-						className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_30%,var(--background)_85%)]"
+						className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_25%,var(--background)_80%)]"
 					/>
 				</div>
 
