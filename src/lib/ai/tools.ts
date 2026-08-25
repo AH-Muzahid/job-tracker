@@ -12,6 +12,45 @@ import {
 import { sendEmail, formatOutreachEmailHtml } from "@/lib/email"
 import { syncApplicationsToGoogleSheets, getGoogleSheetsConfig } from "@/lib/google-sheets"
 
+function parseToolArgs(raw: any): Record<string, any> {
+  if (!raw) return {}
+  let current = raw
+  if (typeof current === "string") {
+    try {
+      current = JSON.parse(current)
+    } catch {
+      const jsonMatch = current.match(/\{[\s\S]*\}/)
+      if (jsonMatch) {
+        try {
+          current = JSON.parse(jsonMatch[0])
+        } catch {}
+      }
+    }
+  }
+  if (current && typeof current === "object") {
+    if (typeof current.arguments === "string") {
+      try {
+        return { ...current, ...JSON.parse(current.arguments) }
+      } catch {}
+    }
+    if (typeof current.input === "string") {
+      try {
+        return { ...current, ...JSON.parse(current.input) }
+      } catch {}
+    }
+    if (current.arguments && typeof current.arguments === "object") {
+      return { ...current, ...current.arguments }
+    }
+    if (current.input && typeof current.input === "object") {
+      return { ...current, ...current.input }
+    }
+    if (current.parameters && typeof current.parameters === "object") {
+      return { ...current, ...current.parameters }
+    }
+  }
+  return typeof current === "object" && current !== null ? current : {}
+}
+
 export function createAiTools(userId: string) {
   return {
     updateApplicationStatus: tool({
@@ -29,17 +68,21 @@ export function createAiTools(userId: string) {
       }),
       execute: async (rawArgs: any) => {
         try {
+          const args = parseToolArgs(rawArgs)
+          console.log("\n[AI Tool: updateApplicationStatus] Executing with raw args:", rawArgs)
+          console.log("[AI Tool: updateApplicationStatus] Parsed args:", args)
+
           const companyOrTitle = (
-            rawArgs?.companyOrTitle ||
-            rawArgs?.companyName ||
-            rawArgs?.company ||
-            rawArgs?.jobTitle ||
-            rawArgs?.title ||
-            rawArgs?.role ||
+            args?.companyOrTitle ||
+            args?.companyName ||
+            args?.company ||
+            args?.jobTitle ||
+            args?.title ||
+            args?.role ||
             ""
           ).trim()
 
-          const rawStatus = rawArgs?.newStatus || rawArgs?.status || "Applied"
+          const rawStatus = args?.newStatus || args?.status || "Applied"
           const normalizedStatusMap: Record<string, string> = {
             saved: "Saved",
             applied: "Applied",
@@ -51,9 +94,10 @@ export function createAiTools(userId: string) {
           }
           const newStatus = normalizedStatusMap[rawStatus.toLowerCase()] || rawStatus
 
-          const notes = rawArgs?.notes
+          const notes = args?.notes
 
           if (!companyOrTitle) {
+            console.warn("[AI Tool: updateApplicationStatus] FAILED: Missing companyOrTitle")
             return {
               success: false,
               message: "Company name (or job title) is required to update application status.",
@@ -74,6 +118,7 @@ export function createAiTools(userId: string) {
           )
 
           if (!app) {
+            console.warn(`[AI Tool: updateApplicationStatus] App not found matching: "${companyOrTitle}"`)
             return {
               success: false,
               message: `Could not find an application matching "${companyOrTitle}".`,
@@ -103,6 +148,7 @@ export function createAiTools(userId: string) {
           void invalidateCache(`user:pipeline-stats:${userId}`)
           void invalidateCache(`user:applications:${userId}`)
 
+          console.log(`[AI Tool: updateApplicationStatus] SUCCESS: Updated ${app.companyName} to ${newStatus}`)
           return {
             success: true,
             applicationId: app.id,
@@ -135,24 +181,38 @@ export function createAiTools(userId: string) {
       }),
       execute: async (rawArgs: any) => {
         try {
-          const finalCompany = (
-            rawArgs?.companyName ||
-            rawArgs?.company ||
-            rawArgs?.company_name ||
-            rawArgs?.organization ||
+          const args = parseToolArgs(rawArgs)
+          console.log("\n[AI Tool: createApplication] Executing with raw args:", rawArgs)
+          console.log("[AI Tool: createApplication] Parsed args:", args)
+
+          let finalCompany = (
+            args?.companyName ||
+            args?.company ||
+            args?.company_name ||
+            args?.organization ||
             ""
           ).trim()
 
-          const finalTitle = (
-            rawArgs?.jobTitle ||
-            rawArgs?.title ||
-            rawArgs?.job_title ||
-            rawArgs?.role ||
-            rawArgs?.position ||
+          let finalTitle = (
+            args?.jobTitle ||
+            args?.title ||
+            args?.job_title ||
+            args?.role ||
+            args?.position ||
             ""
           ).trim()
 
-          const rawStatus = (rawArgs?.status || rawArgs?.applicationStatus || "Saved") as string
+          // Fallback regex extraction if arguments were string-wrapped or passed casually
+          if (!finalCompany || !finalTitle) {
+            const rawStr = JSON.stringify(rawArgs)
+            const match = rawStr.match(/for\s+([A-Za-z0-9\s._-]+?)\s+as\s+([A-Za-z0-9\s._-]+?)(?:\\|"|\s+in\s+)/i)
+            if (match) {
+              if (!finalCompany) finalCompany = match[1].trim()
+              if (!finalTitle) finalTitle = match[2].trim()
+            }
+          }
+
+          const rawStatus = (args?.status || args?.applicationStatus || "Saved") as string
           const normalizedStatusMap: Record<string, string> = {
             saved: "Saved",
             applied: "Applied",
@@ -164,11 +224,19 @@ export function createAiTools(userId: string) {
           }
           const status = normalizedStatusMap[rawStatus.toLowerCase()] || "Saved"
 
-          const jobUrl = rawArgs?.jobUrl
-          const source = rawArgs?.source || "Other"
-          const notes = rawArgs?.notes
+          const jobUrl = args?.jobUrl
+          const source = args?.source || "Other"
+          const notes = args?.notes
+
+          console.log("[AI Tool: createApplication] Extracted payload:", {
+            finalCompany,
+            finalTitle,
+            status,
+            source,
+          })
 
           if (!finalCompany || !finalTitle) {
+            console.warn("[AI Tool: createApplication] FAILED: Missing company or title:", { finalCompany, finalTitle })
             return {
               success: false,
               message: "Please specify both the company name and the job title to track this application (e.g. company: 'Stripe', role: 'Senior Backend Engineer').",
