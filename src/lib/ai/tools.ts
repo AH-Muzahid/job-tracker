@@ -64,6 +64,7 @@ export function createAiTools(userId: string) {
         role: z.string().optional().describe("Alias for companyOrTitle"),
         newStatus: z.string().optional().describe("The new status: Saved, Applied, Assessment, Interview, Rejected, Offer"),
         status: z.string().optional().describe("Alias for newStatus"),
+        reason: z.string().optional().describe("Reason or natural description of the status change"),
         notes: z.string().optional().describe("Optional note or update reason"),
       }),
       execute: async (rawArgs: any) => {
@@ -72,7 +73,7 @@ export function createAiTools(userId: string) {
           console.log("\n[AI Tool: updateApplicationStatus] Executing with raw args:", rawArgs)
           console.log("[AI Tool: updateApplicationStatus] Parsed args:", args)
 
-          const companyOrTitle = (
+          let companyOrTitle = (
             args?.companyOrTitle ||
             args?.companyName ||
             args?.company ||
@@ -82,7 +83,20 @@ export function createAiTools(userId: string) {
             ""
           ).trim()
 
-          const rawStatus = args?.newStatus || args?.status || "Applied"
+          // Extract status from args or reason text
+          let rawStatus = args?.newStatus || args?.status || ""
+          const combinedStr = `${JSON.stringify(rawArgs)} ${args?.reason || ""} ${args?.notes || ""}`.toLowerCase()
+
+          if (!rawStatus) {
+            if (combinedStr.includes("applied")) rawStatus = "Applied"
+            else if (combinedStr.includes("interview")) rawStatus = "Interview"
+            else if (combinedStr.includes("assessment")) rawStatus = "Assessment"
+            else if (combinedStr.includes("offer")) rawStatus = "Offer"
+            else if (combinedStr.includes("rejected")) rawStatus = "Rejected"
+            else if (combinedStr.includes("saved")) rawStatus = "Saved"
+            else rawStatus = "Applied"
+          }
+
           const normalizedStatusMap: Record<string, string> = {
             saved: "Saved",
             applied: "Applied",
@@ -92,40 +106,55 @@ export function createAiTools(userId: string) {
             rejected: "Rejected",
             offer: "Offer",
           }
-          const newStatus = normalizedStatusMap[rawStatus.toLowerCase()] || rawStatus
+          const newStatus = normalizedStatusMap[rawStatus.toLowerCase()] || "Applied"
 
-          const notes = args?.notes
-
-          if (!companyOrTitle) {
-            console.warn("[AI Tool: updateApplicationStatus] FAILED: Missing companyOrTitle")
-            return {
-              success: false,
-              message: "Company name (or job title) is required to update application status.",
+          // Regex extraction from reason if companyOrTitle is empty
+          if (!companyOrTitle && args?.reason) {
+            const match = args.reason.match(/(?:update|for|status of)\s+([A-Za-z0-9._-]+)/i)
+            if (match && match[1]) {
+              companyOrTitle = match[1].trim()
             }
           }
 
-          const app = await withDbRetry(() =>
-            prisma.application.findFirst({
-              where: {
-                userId,
-                OR: [
-                  { companyName: { contains: companyOrTitle, mode: "insensitive" } },
-                  { jobTitle: { contains: companyOrTitle, mode: "insensitive" } },
-                ],
-              },
-              orderBy: { updatedAt: "desc" },
-            })
-          )
+          let app: any = null
+
+          if (companyOrTitle) {
+            app = await withDbRetry(() =>
+              prisma.application.findFirst({
+                where: {
+                  userId,
+                  OR: [
+                    { companyName: { contains: companyOrTitle, mode: "insensitive" } },
+                    { jobTitle: { contains: companyOrTitle, mode: "insensitive" } },
+                  ],
+                },
+                orderBy: { updatedAt: "desc" },
+              })
+            )
+          }
+
+          // Fallback: If no company specified or found, target the user's most recent application
+          if (!app) {
+            console.log("[AI Tool: updateApplicationStatus] Finding most recent application for fallback update...")
+            app = await withDbRetry(() =>
+              prisma.application.findFirst({
+                where: { userId },
+                orderBy: { updatedAt: "desc" },
+              })
+            )
+          }
 
           if (!app) {
-            console.warn(`[AI Tool: updateApplicationStatus] App not found matching: "${companyOrTitle}"`)
+            console.warn(`[AI Tool: updateApplicationStatus] No application found in tracker to update.`)
             return {
               success: false,
-              message: `Could not find an application matching "${companyOrTitle}".`,
+              message: "No active application found to update. Please specify the company name (e.g. 'Update Stripe status to Applied').",
             }
           }
 
+          const notes = args?.notes
           const prevStatus = app.status
+
           await withDbRetry(async () => {
             await prisma.application.update({
               where: { id: app.id },
@@ -148,7 +177,7 @@ export function createAiTools(userId: string) {
           void invalidateCache(`user:pipeline-stats:${userId}`)
           void invalidateCache(`user:applications:${userId}`)
 
-          console.log(`[AI Tool: updateApplicationStatus] SUCCESS: Updated ${app.companyName} to ${newStatus}`)
+          console.log(`[AI Tool: updateApplicationStatus] SUCCESS: Updated ${app.companyName} (${app.jobTitle}) to ${newStatus}`)
           return {
             success: true,
             applicationId: app.id,
@@ -156,7 +185,7 @@ export function createAiTools(userId: string) {
             jobTitle: app.jobTitle,
             fromStatus: prevStatus,
             toStatus: newStatus,
-            message: `Successfully updated ${app.companyName} (${app.jobTitle}) status to ${newStatus}.`,
+            message: `✅ **Status Updated:** **${app.companyName}** (*${app.jobTitle}*) is now in **${newStatus}** status (was *${prevStatus}*).`,
           }
         } catch (error) {
           console.error("updateApplicationStatus tool error:", error)
@@ -174,7 +203,8 @@ export function createAiTools(userId: string) {
         title: z.string().optional().describe("Alias for jobTitle"),
         role: z.string().optional().describe("Alias for jobTitle"),
         position: z.string().optional().describe("Alias for jobTitle"),
-        status: z.string().optional().default("Saved").describe("The application status: Saved, Applied, Assessment, Interview, Rejected, Offer"),
+        status: z.string().optional().describe("The application status: Saved, Applied, Assessment, Interview, Rejected, Offer"),
+        reason: z.string().optional().describe("Reason or natural description of the application"),
         jobUrl: z.string().optional().describe("Optional URL to the job listing"),
         source: z.string().optional().describe("Source platform e.g. LinkedIn, Indeed, BDJobs"),
         notes: z.string().optional().describe("Initial notes about the role"),
@@ -202,9 +232,9 @@ export function createAiTools(userId: string) {
             ""
           ).trim()
 
-          // Fallback regex extraction if arguments were string-wrapped or passed casually
+          // Fallback regex extraction if arguments were string-wrapped or passed casually inside reason
+          const rawStr = `${JSON.stringify(rawArgs)} ${args?.reason || ""}`
           if (!finalCompany || !finalTitle) {
-            const rawStr = JSON.stringify(rawArgs)
             const match = rawStr.match(/for\s+([A-Za-z0-9\s._-]+?)\s+as\s+([A-Za-z0-9\s._-]+?)(?:\\|"|\s+in\s+)/i)
             if (match) {
               if (!finalCompany) finalCompany = match[1].trim()
@@ -212,7 +242,19 @@ export function createAiTools(userId: string) {
             }
           }
 
-          const rawStatus = (args?.status || args?.applicationStatus || "Saved") as string
+          // Extract status intelligently
+          let rawStatus = args?.status || args?.applicationStatus || ""
+          const rawStrLower = rawStr.toLowerCase()
+
+          if (!rawStatus) {
+            if (rawStrLower.includes("applied")) rawStatus = "Applied"
+            else if (rawStrLower.includes("interview")) rawStatus = "Interview"
+            else if (rawStrLower.includes("assessment")) rawStatus = "Assessment"
+            else if (rawStrLower.includes("offer")) rawStatus = "Offer"
+            else if (rawStrLower.includes("rejected")) rawStatus = "Rejected"
+            else rawStatus = "Saved"
+          }
+
           const normalizedStatusMap: Record<string, string> = {
             saved: "Saved",
             applied: "Applied",
