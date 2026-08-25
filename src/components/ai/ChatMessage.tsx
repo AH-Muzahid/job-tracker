@@ -192,15 +192,15 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
         
         const handleActionClick = async () => {
           const company = url.searchParams.get("company")?.trim()
-          const status = url.searchParams.get("status")?.trim()
-          const title = url.searchParams.get("title")?.trim()
+          const status = url.searchParams.get("status")?.trim() || "Saved"
+          const title = url.searchParams.get("title")?.trim() || "Software Engineer"
           
           if (!company) {
             toast.error("Company name is required to execute this AI action")
             return
           }
 
-          const toastId = toast.loading(`Executing: ${children}...`)
+          const toastId = toast.loading(`Processing ${company}...`)
           
           try {
             if (actionType === "status") {
@@ -216,23 +216,58 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
                 body: JSON.stringify({ status }),
               })
               if (!updateRes.ok) throw new Error("Failed to update status")
-              toast.success(`Updated ${app.companyName} status to ${status}!`, { id: toastId })
+              toast.success(`Updated ${app.companyName} status to ${status}!`, { 
+                id: toastId,
+                action: {
+                  label: "View Board",
+                  onClick: () => window.open(`/applications/${app.id}`, "_blank"),
+                },
+                duration: 5000,
+              })
             } else if (actionType === "add") {
+              const currentContent = message.content ? `[AI Generated Notes & Outreach]\n${message.content}` : null
+
               const addRes = await fetch("/api/applications", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                   companyName: company,
-                  jobTitle: title || "Frontend Engineer",
-                  source: "LinkedIn",
-                  status: status || "Saved",
+                  jobTitle: title,
+                  source: "AI Assistant",
+                  status: status,
+                  notes: currentContent,
                   applicationDate: new Date().toISOString(),
                 }),
               })
-              if (!addRes.ok) throw new Error("Failed to create application")
+              if (!addRes.ok) {
+                const errJson = await addRes.json().catch(() => ({}))
+                throw new Error(errJson.error || "Failed to save application")
+              }
               const newApp = await addRes.json()
-              toast.success(`Added application for ${company}!`, { id: toastId })
-              window.location.href = `/applications/${newApp.id}`
+
+              // Non-blocking background AI fit assessment trigger if content exists
+              if (currentContent && newApp?.id) {
+                void fetch(`/api/ai/scan-jd`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    jdText: currentContent,
+                    applicationId: newApp.id,
+                  }),
+                }).catch(() => {
+                  // Non-blocking
+                })
+              }
+
+              toast.success(`Tracked ${company} (${title})!`, { 
+                id: toastId,
+                description: `Status: ${status} • Notes & outreach draft auto-saved.`,
+                action: {
+                  label: "View in Board",
+                  onClick: () => window.open(`/applications/${newApp.id}`, "_blank"),
+                },
+                duration: 6000,
+              })
             }
           } catch (e: unknown) {
             const msg = e instanceof Error ? e.message : "Failed to execute action"
