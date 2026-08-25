@@ -15,7 +15,7 @@ import { syncApplicationsToGoogleSheets, getGoogleSheetsConfig } from "@/lib/goo
 export function createAiTools(userId: string) {
   return {
     updateApplicationStatus: tool({
-      description: "Update the status of a job application (e.g. from Applied to Interview or Rejected) and record notes.",
+      description: "Update the status of an existing application (e.g. from Applied to Interview or Rejected) ONLY when the user explicitly asks to change or update status.",
       parameters: z.object({
         companyOrTitle: z.string().describe("The company name or job title to find the application"),
         newStatus: z.enum(["Saved", "Applied", "Assessment", "Interview", "Rejected", "Offer"]).describe("The new status for the application"),
@@ -31,6 +31,13 @@ export function createAiTools(userId: string) {
         notes?: string
       }) => {
         try {
+          if (!companyOrTitle?.trim()) {
+            return {
+              success: false,
+              message: "Company or job title is required to find and update application.",
+            }
+          }
+
           const app = await withDbRetry(() =>
             prisma.application.findFirst({
               where: {
@@ -71,6 +78,9 @@ export function createAiTools(userId: string) {
             })
           })
 
+          void invalidateCache(`user:pipeline-stats:${userId}`)
+          void invalidateCache(`user:applications:${userId}`)
+
           return {
             success: true,
             applicationId: app.id,
@@ -88,7 +98,7 @@ export function createAiTools(userId: string) {
     } as any),
 
     createApplication: tool({
-      description: "Create a new job application entry in the user's tracker.",
+      description: "Create a new job application entry in the user's tracker ONLY when the user explicitly instructs to add, save, log, or track a new application.",
       parameters: z.object({
         companyName: z.string().describe("Name of the company"),
         jobTitle: z.string().describe("Title of the job role"),
@@ -105,20 +115,30 @@ export function createAiTools(userId: string) {
         source,
         notes,
       }: {
-        companyName: string
-        jobTitle: string
+        companyName?: string
+        jobTitle?: string
         status?: "Saved" | "Applied" | "Assessment" | "Interview" | "Rejected" | "Offer"
         jobUrl?: string
         source?: string
         notes?: string
       }) => {
         try {
+          const finalCompany = (companyName || "").trim()
+          const finalTitle = (jobTitle || "").trim()
+
+          if (!finalCompany || !finalTitle) {
+            return {
+              success: false,
+              message: "Both companyName and jobTitle are required to create an application.",
+            }
+          }
+
           const newApp = await withDbRetry(() =>
             prisma.application.create({
               data: {
                 userId,
-                companyName,
-                jobTitle,
+                companyName: finalCompany,
+                jobTitle: finalTitle,
                 status: status || "Saved",
                 jobUrl: jobUrl || null,
                 source: source || "Other",
@@ -148,7 +168,7 @@ export function createAiTools(userId: string) {
             companyName: newApp.companyName,
             jobTitle: newApp.jobTitle,
             status: newApp.status,
-            message: `Created new application for ${companyName} (${jobTitle}) in ${status || "Saved"} status.`,
+            message: `Created new application for ${finalCompany} (${finalTitle}) in ${status || "Saved"} status.`,
           }
         } catch (error) {
           console.error("createApplication tool error:", error)
