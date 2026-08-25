@@ -84,16 +84,10 @@ export default function LoadingState({
   videoSrc?: string;
   className?: string;
 }) {
-  const { elapsed, seconds } = useElapsed();
+  const { elapsed } = useElapsed();
   const surfer = variant === "Surfer";
   
-  let defaultLabel = "Processing career context...";
-  if (seconds >= 8) {
-    defaultLabel = "Finalizing response & pipeline sync...";
-  } else if (seconds >= 2) {
-    defaultLabel = "Running database & tool actions...";
-  }
-
+  const defaultLabel = "Analyzing prompt & connecting to agent tools...";
   const resolvedLabel = label ?? (surfer ? "Subway surfing" : defaultLabel);
   const [videoOk, setVideoOk] = useState(true);
   const { delays, dur, round } = PATTERNS[variant] ?? PATTERNS.Drive;
