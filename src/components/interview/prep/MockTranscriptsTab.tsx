@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   AlertTriangle,
   Bot,
+  User,
   Mic,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -142,10 +143,10 @@ export function MockTranscriptsTab({
         </div>
       )}
 
-      {/* Transcript & Gap Analysis Modal */}
+      {/* Dual Conversational Transcript & Gap Analysis Modal */}
       {selectedSession && (
         <Dialog open={sessionModalOpen} onOpenChange={setSessionModalOpen}>
-          <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto bg-background border-border text-foreground p-5 sm:p-6">
+          <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto bg-background border-border text-foreground p-4 sm:p-6">
             <DialogHeader className="pb-3 border-b border-border space-y-1">
               <div className="flex items-center gap-2">
                 <span className="inline-flex items-center px-2 py-0.5 text-[10px] font-mono font-medium rounded-full bg-muted border border-border text-foreground">
@@ -178,29 +179,60 @@ export function MockTranscriptsTab({
                 </div>
               )}
 
-              {/* Transcript Messages */}
+              {/* Spoken Dual Conversation Transcript */}
               <div className="space-y-3">
                 <h4 className="text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">
                   Spoken Conversation Transcript
                 </h4>
-                <div className="space-y-2.5">
+
+                <div className="space-y-3.5 pt-1">
                   {selectedSession.dialogue && selectedSession.dialogue.length > 0 ? (
-                    selectedSession.dialogue.map((msg: { role: string; text: string; timestamp?: string }, idx: number) => (
-                      <div
-                        key={idx}
-                        className={cn(
-                          "p-3 rounded-lg text-xs leading-relaxed border",
-                          msg.role === "user"
-                            ? "bg-muted/40 border-border text-foreground ml-4 sm:ml-8"
-                            : "bg-card border-border text-foreground mr-4 sm:mr-8"
-                        )}
-                      >
-                        <span className="text-[10px] font-mono font-bold block mb-1 text-muted-foreground">
-                          {msg.role === "user" ? "You (Candidate)" : "Interviewer (AI)"}
-                        </span>
-                        {msg.text}
-                      </div>
-                    ))
+                    selectedSession.dialogue.map((msg: { role: string; text: string; timestamp?: string }, idx: number) => {
+                      const isUser = msg.role === "candidate" || msg.role === "user"
+
+                      return (
+                        <div
+                          key={idx}
+                          className={cn(
+                            "flex flex-col space-y-1",
+                            isUser ? "items-end" : "items-start"
+                          )}
+                        >
+                          {/* Message Sender Header */}
+                          <div className="flex items-center gap-1.5 text-[10px] font-mono text-muted-foreground px-1">
+                            {isUser ? (
+                              <>
+                                <span>{msg.timestamp || ""}</span>
+                                <span className="font-semibold text-foreground flex items-center gap-1">
+                                  <span>You (Candidate)</span>
+                                  <User className="size-3 text-primary" />
+                                </span>
+                              </>
+                            ) : (
+                              <>
+                                <span className="font-semibold text-foreground flex items-center gap-1">
+                                  <Bot className="size-3 text-muted-foreground" />
+                                  <span>Interviewer (AI)</span>
+                                </span>
+                                <span>{msg.timestamp || ""}</span>
+                              </>
+                            )}
+                          </div>
+
+                          {/* Dual Chat Bubble */}
+                          <div
+                            className={cn(
+                              "rounded-2xl px-3.5 py-2.5 text-xs sm:text-[13px] leading-relaxed max-w-[90%] sm:max-w-[82%] whitespace-pre-wrap",
+                              isUser
+                                ? "bg-primary/10 border border-primary/25 text-foreground rounded-tr-xs"
+                                : "bg-card border border-border text-foreground rounded-tl-xs shadow-2xs"
+                            )}
+                          >
+                            {msg.text}
+                          </div>
+                        </div>
+                      )
+                    })
                   ) : (
                     <p className="text-xs text-muted-foreground italic">No transcript messages recorded.</p>
                   )}
