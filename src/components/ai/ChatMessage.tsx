@@ -91,26 +91,60 @@ const FollowUpsList = React.memo(function FollowUpsList({
   items,
   onPick,
 }: {
-  items: Array<{ label?: string; prompt?: string } | string>
+  items: Array<{ label?: string; prompt?: string; icon?: string } | string>
   onPick?: (prompt: string) => void
 }) {
   if (!items || items.length === 0) return null
 
+  // Flatten and split if any item contains multiple questions, newlines, or bullets
+  const flattened: Array<{ label: string; prompt: string; icon?: string }> = []
+
+  items.forEach((item) => {
+    if (typeof item === "string") {
+      const lines = item
+        .split(/\r?\n+/)
+        .map((l) => l.replace(/^[\d+.\-•*#\s]+/, "").trim())
+        .filter((l) => l.length > 0)
+      lines.forEach((line) => {
+        flattened.push({ label: line, prompt: line })
+      })
+    } else if (item && typeof item === "object") {
+      const label = (item.label || item.prompt || "").trim()
+      const prompt = (item.prompt || item.label || "").trim()
+      if (label) {
+        if (label.includes("\n")) {
+          const lines = label
+            .split(/\r?\n+/)
+            .map((l) => l.replace(/^[\d+.\-•*#\s]+/, "").trim())
+            .filter((l) => l.length > 0)
+          lines.forEach((line) => {
+            flattened.push({ label: line, prompt: line, icon: item.icon })
+          })
+        } else {
+          flattened.push({ label, prompt, icon: item.icon })
+        }
+      }
+    }
+  })
+
+  if (flattened.length === 0) return null
+
   return (
-    <div className="mt-2.5 not-prose">
-      <p className="text-[12px] font-medium text-ink-2">Follow-ups</p>
-      <div className="mt-0.5 flex flex-col">
-        {items.map((s, i) => {
-          const text = typeof s === "string" ? s : s.label || s.prompt || ""
-          const promptToSend = typeof s === "string" ? s : s.prompt || s.label || ""
-          return (
-            <button
-              key={text || i}
-              type="button"
-              onClick={() => onPick?.(promptToSend)}
-              className="-mx-1.5 flex items-center gap-2 rounded-[7px] border-b border-line px-1.5 py-1.5 text-left text-[12.5px] text-ink transition-colors duration-100 hover:bg-hover-2 cursor-pointer"
-              style={{ animation: `fade-up 350ms cubic-bezier(0.23,1,0.32,1) ${i * 90}ms both` }}
-            >
+    <div className="mt-3 not-prose space-y-1.5">
+      <p className="text-[11px] font-mono font-medium text-muted-foreground uppercase tracking-wider">
+        Follow-up Questions
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {flattened.map((s, i) => (
+          <button
+            key={`${s.label}-${i}`}
+            type="button"
+            onClick={() => onPick?.(s.prompt)}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-muted/40 px-3 py-1.5 text-left text-xs font-medium text-foreground transition-colors hover:bg-muted hover:border-border/80 cursor-pointer shadow-2xs active:scale-95"
+          >
+            {s.icon ? (
+              <span className="text-xs">{s.icon}</span>
+            ) : (
               <svg
                 width="11"
                 height="11"
@@ -120,15 +154,15 @@ const FollowUpsList = React.memo(function FollowUpsList({
                 strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                className="shrink-0 text-ink-3"
+                className="shrink-0 text-muted-foreground"
               >
                 <path d="M9 10l-5 5 5 5" />
                 <path d="M20 4v7a4 4 0 0 1-4 4H4" />
               </svg>
-              <span>{text}</span>
-            </button>
-          )
-        })}
+            )}
+            <span>{s.label}</span>
+          </button>
+        ))}
       </div>
     </div>
   )
@@ -422,7 +456,11 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
             )}>
               <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
                 {(() => {
-                  let text = message.content
+                  let text = message.content || ""
+                  if (isStreaming && !isUser) {
+                    // Hide unclosed ```suggestions block while streaming to prevent flickering / jumping
+                    text = text.replace(/```suggestions[\s\S]*$/i, "").trim()
+                  }
                   if (isUser) {
                     const parts = text.split("```")
                     if (parts.length === 3 && parts[0].trim() === "" && parts[2].trim() === "") {
