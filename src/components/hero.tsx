@@ -103,35 +103,53 @@ export function HeroSection() {
 				</div>
 				</div>
 			</div>
-			<div className="relative">
+			<div className="relative px-4 py-8 sm:px-6 sm:py-12 md:py-16">
 				<DecorIcon className="size-4" position="top-left" />
 				<DecorIcon className="size-4" position="top-right" />
 				<DecorIcon className="size-4" position="bottom-left" />
 				<DecorIcon className="size-4" position="bottom-right" />
 
 				<FullWidthDivider className="-top-px" />
-				<div className="overflow-hidden border border-border bg-background shadow-2xl">
-					{/* Dark Mode Screenshot */}
-					<Image
-						alt="CareerTrack Dashboard Preview (Dark Mode)"
-						className="hidden dark:block w-full h-auto object-cover pointer-events-none select-none"
-						height={495}
-						src="/dashboard-dark.png"
-						width={1024}
-						priority
-						unoptimized
+
+				{/* Outer Glowing Blue Stage Container */}
+				<div className="relative mx-auto max-w-6xl overflow-hidden rounded-2xl md:rounded-3xl border border-blue-500/20 bg-gradient-to-b from-blue-600/20 via-sky-500/10 to-blue-900/10 p-3 sm:p-6 md:p-10 shadow-2xl backdrop-blur-md">
+					{/* Dot Matrix Pattern Overlay */}
+					<div
+						aria-hidden="true"
+						className="pointer-events-none absolute inset-0 opacity-25 bg-[radial-gradient(#3b82f6_1px,transparent_1px)] [background-size:20px_20px]"
 					/>
-					{/* Light Mode Screenshot */}
-					<Image
-						alt="CareerTrack Dashboard Preview (Light Mode)"
-						className="block dark:hidden w-full h-auto object-cover pointer-events-none select-none"
-						height={495}
-						src="/dashboard-light.png"
-						width={1024}
-						priority
-						unoptimized
+
+					{/* Top Ambient Light Glow Halo */}
+					<div
+						aria-hidden="true"
+						className="pointer-events-none absolute -top-24 left-1/2 -translate-x-1/2 w-3/4 h-56 rounded-full bg-blue-500/30 blur-[90px]"
 					/>
+
+					{/* Floating Dashboard Device Mockup */}
+					<div className="relative overflow-hidden rounded-xl md:rounded-2xl border border-border/80 bg-background shadow-[0_20px_60px_-15px_rgba(0,0,0,0.35)] ring-1 ring-white/20 dark:ring-white/10">
+						{/* Dark Mode Screenshot */}
+						<Image
+							alt="CareerTrack Dashboard Preview (Dark Mode)"
+							className="hidden dark:block w-full h-auto object-cover pointer-events-none select-none"
+							height={495}
+							src="/dashboard-dark.png"
+							width={1024}
+							priority
+							unoptimized
+						/>
+						{/* Light Mode Screenshot */}
+						<Image
+							alt="CareerTrack Dashboard Preview (Light Mode)"
+							className="block dark:hidden w-full h-auto object-cover pointer-events-none select-none"
+							height={495}
+							src="/dashboard-light.png"
+							width={1024}
+							priority
+							unoptimized
+						/>
+					</div>
 				</div>
+
 				<FullWidthDivider className="-bottom-px" />
 			</div>
 		</section>
