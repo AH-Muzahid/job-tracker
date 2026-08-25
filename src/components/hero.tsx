@@ -112,26 +112,7 @@ export function HeroSection() {
 
 				<FullWidthDivider className="-top-px" />
 				<div className="overflow-hidden border border-border bg-background shadow-2xl">
-					{/* Dark Mode Generated Mockup */}
-					<Image
-						alt="CareerTrack Dashboard Mockup Preview (Dark Mode)"
-						className="hidden dark:block w-full h-auto object-cover pointer-events-none select-none"
-						height={1080}
-						src="/mockup-dark.jpg"
-						width={1920}
-						priority
-						quality={100}
-					/>
-					{/* Light Mode Generated Mockup */}
-					<Image
-						alt="CareerTrack Dashboard Mockup Preview (Light Mode)"
-						className="block dark:hidden w-full h-auto object-cover pointer-events-none select-none"
-						height={1080}
-						src="/mockup-light.jpg"
-						width={1920}
-						priority
-						quality={100}
-					/>
+					<HeroDashboardMockup />
 				</div>
 				<FullWidthDivider className="-bottom-px" />
 			</div>
