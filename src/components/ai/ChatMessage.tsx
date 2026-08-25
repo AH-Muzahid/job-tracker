@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState } from "react"
+import Link from "next/link"
 import { cn } from "@/lib/utils"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
@@ -186,6 +187,22 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
   // Custom renderer overrides for ReactMarkdown with stable useMemo
   const mdComponents = React.useMemo(() => ({
     a: ({ href, children, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => {
+      if (href && (href.startsWith("/applications/") || href === "/applications")) {
+        return (
+          <Link
+            href={href}
+            className="inline-flex items-center gap-1.5 px-3 py-1 my-2 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary border border-primary/25 font-medium text-xs no-underline transition-all hover:shadow-xs group/btn cursor-pointer"
+          >
+            <span>{children}</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="transition-transform group-hover/btn:translate-x-0.5">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+              <polyline points="15 3 21 3 21 9" />
+              <line x1="10" y1="14" x2="21" y2="3" />
+            </svg>
+          </Link>
+        )
+      }
+
       if (href && href.startsWith("/actions/")) {
         const url = new URL(href, "http://localhost")
         const actionType = url.pathname.replace("/actions/", "")

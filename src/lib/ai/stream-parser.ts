@@ -30,11 +30,39 @@ export function createDataStreamParser() {
       buffer = lines.pop() ?? ""
 
       for (const line of lines) {
-        const trimmed = line.trim()
+        let trimmed = line.trim()
         if (!trimmed) continue
+
+        // Strip SSE data: prefix if present
+        if (trimmed.startsWith("data:")) {
+          trimmed = trimmed.slice(5).trim()
+          if (!trimmed) continue
+        }
 
         const colonIndex = trimmed.indexOf(":")
         if (colonIndex === -1) {
+          // Check if whole line is JSON
+          if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+            try {
+              const parsed = JSON.parse(trimmed)
+              if (parsed && typeof parsed === "object") {
+                const callId = parsed.toolCallId || parsed.id
+                if (callId) {
+                  const isResult = parsed.type === "tool-result" || Boolean(parsed.result)
+                  const existing = toolInvocationsMap.get(callId)
+                  toolInvocationsMap.set(callId, {
+                    toolCallId: callId,
+                    toolName: parsed.toolName || existing?.toolName || "tool",
+                    args: parsed.args || parsed.input || existing?.args || {},
+                    state: isResult ? "result" : "call",
+                    result: parsed.result ?? existing?.result,
+                  })
+                  continue
+                }
+              }
+            } catch {}
+          }
+
           // Plain text fallback line
           accumulatedText += trimmed + "\n"
           continue
@@ -54,30 +82,34 @@ export function createDataStreamParser() {
               }
               break
             }
-            case "9": {
+            case "9":
+            case "b": {
               // Tool call invocation (call)
-              if (parsed && typeof parsed === "object" && parsed.toolCallId) {
-                const existing = toolInvocationsMap.get(parsed.toolCallId)
-                toolInvocationsMap.set(parsed.toolCallId, {
-                  toolCallId: parsed.toolCallId,
+              if (parsed && typeof parsed === "object") {
+                const callId = parsed.toolCallId || parsed.id || `tool-${Date.now()}`
+                const existing = toolInvocationsMap.get(callId)
+                toolInvocationsMap.set(callId, {
+                  toolCallId: callId,
                   toolName: parsed.toolName || existing?.toolName || "tool",
-                  args: parsed.args || existing?.args || {},
+                  args: parsed.args || parsed.input || existing?.args || {},
                   state: "call",
                   result: existing?.result,
                 })
               }
               break
             }
-            case "a": {
+            case "a":
+            case "c": {
               // Tool call result (result)
-              if (parsed && typeof parsed === "object" && parsed.toolCallId) {
-                const existing = toolInvocationsMap.get(parsed.toolCallId)
-                toolInvocationsMap.set(parsed.toolCallId, {
-                  toolCallId: parsed.toolCallId,
+              if (parsed && typeof parsed === "object") {
+                const callId = parsed.toolCallId || parsed.id || `tool-${Date.now()}`
+                const existing = toolInvocationsMap.get(callId)
+                toolInvocationsMap.set(callId, {
+                  toolCallId: callId,
                   toolName: parsed.toolName || existing?.toolName || "tool",
-                  args: parsed.args || existing?.args || {},
+                  args: parsed.args || parsed.input || existing?.args || {},
                   state: "result",
-                  result: parsed.result,
+                  result: parsed.result ?? parsed.output,
                 })
               }
               break
@@ -88,7 +120,19 @@ export function createDataStreamParser() {
               break
             }
             default: {
-              // Metadata (d:), step finish (e:), data (2:)
+              // If type is not standard single-char code, check if parsed has toolCallId
+              if (parsed && typeof parsed === "object" && (parsed.toolCallId || parsed.id)) {
+                const callId = parsed.toolCallId || parsed.id
+                const isResult = parsed.type === "tool-result" || Boolean(parsed.result)
+                const existing = toolInvocationsMap.get(callId)
+                toolInvocationsMap.set(callId, {
+                  toolCallId: callId,
+                  toolName: parsed.toolName || existing?.toolName || "tool",
+                  args: parsed.args || parsed.input || existing?.args || {},
+                  state: isResult ? "result" : "call",
+                  result: parsed.result ?? existing?.result,
+                })
+              }
               break
             }
           }
@@ -111,7 +155,10 @@ export function createDataStreamParser() {
 
     finalize(): ParsedStreamState {
       if (buffer.trim()) {
-        const trimmed = buffer.trim()
+        let trimmed = buffer.trim()
+        if (trimmed.startsWith("data:")) {
+          trimmed = trimmed.slice(5).trim()
+        }
         const colonIndex = trimmed.indexOf(":")
         if (colonIndex !== -1) {
           const type = trimmed.slice(0, colonIndex).trim()
@@ -120,30 +167,32 @@ export function createDataStreamParser() {
             const parsed = JSON.parse(rawJson)
             if (type === "0" && typeof parsed === "string") {
               accumulatedText += parsed
-            } else if (type === "9" && parsed?.toolCallId) {
-              const existing = toolInvocationsMap.get(parsed.toolCallId)
-              toolInvocationsMap.set(parsed.toolCallId, {
-                toolCallId: parsed.toolCallId,
+            } else if (type === "9" || type === "b") {
+              const callId = parsed.toolCallId || parsed.id || `tool-${Date.now()}`
+              const existing = toolInvocationsMap.get(callId)
+              toolInvocationsMap.set(callId, {
+                toolCallId: callId,
                 toolName: parsed.toolName || existing?.toolName || "tool",
                 args: parsed.args || existing?.args || {},
                 state: "call",
                 result: existing?.result,
               })
-            } else if (type === "a" && parsed?.toolCallId) {
-              const existing = toolInvocationsMap.get(parsed.toolCallId)
-              toolInvocationsMap.set(parsed.toolCallId, {
-                toolCallId: parsed.toolCallId,
+            } else if (type === "a" || type === "c") {
+              const callId = parsed.toolCallId || parsed.id || `tool-${Date.now()}`
+              const existing = toolInvocationsMap.get(callId)
+              toolInvocationsMap.set(callId, {
+                toolCallId: callId,
                 toolName: parsed.toolName || existing?.toolName || "tool",
                 args: parsed.args || existing?.args || {},
                 state: "result",
-                result: parsed.result,
+                result: parsed.result ?? parsed.output,
               })
             }
           } catch {
             if (type === "0") accumulatedText += rawJson
           }
         } else {
-          accumulatedText += buffer
+          accumulatedText += trimmed
         }
         buffer = ""
       }

@@ -345,33 +345,39 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
         }
 
         const finalState = parser.finalize()
-        const hasTools = Boolean(finalState.toolInvocations && finalState.toolInvocations.length > 0)
 
-        if (!finalState.text.trim() && !hasTools) {
-          // Check if the backend persisted a tool confirmation message
-          try {
-            const sessionRes = await fetch(`/api/ai/sessions/${currentSessionId}`)
-            if (sessionRes.ok) {
-              const sessionData = await sessionRes.json()
-              const lastAsstMsg = (sessionData?.messages || [])
-                .filter((m: { role: string }) => m.role === "assistant")
-                .pop()
-              if (lastAsstMsg?.content) {
-                setMessages((prev) => {
-                  const updated = [...prev]
-                  const lastIdx = updated.findIndex((m) => m.id === assistantMsgId)
-                  if (lastIdx !== -1) {
-                    updated[lastIdx] = { ...updated[lastIdx], content: lastAsstMsg.content }
+        // Always check backend session for persisted toolInvocations metadata
+        try {
+          const sessionRes = await fetch(`/api/ai/sessions/${currentSessionId}`)
+          if (sessionRes.ok) {
+            const sessionData = await sessionRes.json()
+            const lastAsstMsg = (sessionData?.messages || [])
+              .filter((m: { role: string }) => m.role === "assistant")
+              .pop()
+
+            if (lastAsstMsg) {
+              const dbToolInvocations = lastAsstMsg.toolInvocations || lastAsstMsg.metadata?.toolInvocations || []
+              setMessages((prev) => {
+                const updated = [...prev]
+                const lastIdx = updated.findIndex((m) => m.id === assistantMsgId)
+                if (lastIdx !== -1) {
+                  updated[lastIdx] = {
+                    ...updated[lastIdx],
+                    id: lastAsstMsg.id || updated[lastIdx].id,
+                    content: lastAsstMsg.content || finalState.text || updated[lastIdx].content,
+                    toolInvocations: dbToolInvocations.length > 0 ? dbToolInvocations : (finalState.toolInvocations || updated[lastIdx].toolInvocations || []),
                   }
-                  return updated
-                })
-                return
-              }
+                }
+                return updated
+              })
+              return
             }
-          } catch {
-            // Fallback to warning if fetch fails
           }
+        } catch {
+          // Ignored
+        }
 
+        if (!finalState.text.trim() && (!finalState.toolInvocations || finalState.toolInvocations.length === 0)) {
           setMessages((prev) => {
             const updated = [...prev]
             const lastIdx = updated.findIndex((m) => m.id === assistantMsgId)

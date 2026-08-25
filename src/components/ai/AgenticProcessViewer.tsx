@@ -26,9 +26,21 @@ function getStepMetadata(inv: ToolInvocation): StepMeta {
 
   switch (toolName) {
     case "createApplication": {
-      const company = String(args?.companyName || args?.company || "Company")
-      const title = String(args?.jobTitle || args?.title || "Role")
-      const status = String(args?.status || "Saved")
+      const res = result as Record<string, unknown> | undefined
+      let company = String(args?.companyName || args?.company || res?.companyName || "")
+      let title = String(args?.jobTitle || args?.title || args?.role || res?.jobTitle || "")
+      const status = String(args?.status || res?.status || "Saved")
+
+      if (!company && typeof args?.reason === "string") {
+        const match = args.reason.match(/for\s+([A-Za-z0-9\s._-]+?)\s+as\s+([A-Za-z0-9\s._-]+?)(?:\\|"|\s+in\s+|$)/i)
+        if (match) {
+          company = match[1].trim()
+          title = match[2].trim()
+        }
+      }
+      if (!company) company = "Application"
+      if (!title) title = "Role"
+
       return {
         verb: isExecuting ? "Creating" : "Created",
         techBadge: { text: "DB", color: "text-purple-400 bg-purple-500/10 border-purple-500/20" },
@@ -38,8 +50,18 @@ function getStepMetadata(inv: ToolInvocation): StepMeta {
       }
     }
     case "updateApplicationStatus": {
-      const target = String(args?.companyOrTitle || args?.company || "Application")
-      const newStatus = String(args?.newStatus || args?.status || "Updated")
+      const res = result as Record<string, unknown> | undefined
+      let target = String(args?.companyOrTitle || args?.company || res?.companyName || "")
+      const newStatus = String(args?.newStatus || args?.status || res?.toStatus || "Updated")
+
+      if (!target && typeof args?.reason === "string") {
+        const match = args.reason.match(/(?:update|for|status of)\s+([A-Za-z0-9._-]+)/i)
+        if (match && match[1]) {
+          target = match[1].trim()
+        }
+      }
+      if (!target) target = "Application"
+
       return {
         verb: isExecuting ? "Updating" : "Updated",
         techBadge: { text: "DB", color: "text-blue-400 bg-blue-500/10 border-blue-500/20" },

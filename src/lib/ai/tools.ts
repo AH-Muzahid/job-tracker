@@ -185,7 +185,7 @@ export function createAiTools(userId: string) {
             jobTitle: app.jobTitle,
             fromStatus: prevStatus,
             toStatus: newStatus,
-            message: `✅ **Status Updated:** **${app.companyName}** (*${app.jobTitle}*) is now in **${newStatus}** status (was *${prevStatus}*).`,
+            message: `✅ **Status Updated:** **${app.companyName}** (*${app.jobTitle}*) is now in **${newStatus}** status (was *${prevStatus}*).\n\n[Open Application Details →](/applications/${app.id})`,
           }
         } catch (error) {
           console.error("updateApplicationStatus tool error:", error)
@@ -304,7 +304,7 @@ export function createAiTools(userId: string) {
               companyName: existingApp.companyName,
               jobTitle: existingApp.jobTitle,
               status: existingApp.status,
-              message: `⚠️ **Duplicate Detected:** You already have an active application for **${existingApp.companyName}** (*${existingApp.jobTitle}*) in **${existingApp.status}** status.\n\nTo prevent duplicate records, this was not added again. You can ask me to update its status, log an interview, or add notes instead.`,
+              message: `⚠️ **Duplicate Detected:** You already have an active application for **${existingApp.companyName}** (*${existingApp.jobTitle}*) in **${existingApp.status}** status.\n\n[Open Application Details →](/applications/${existingApp.id})\n\nTo prevent duplicate records, this was not added again. You can ask me to update its status, log an interview, or add notes instead.`,
             }
           }
 
@@ -349,7 +349,7 @@ export function createAiTools(userId: string) {
             companyName: newApp.companyName,
             jobTitle: newApp.jobTitle,
             status: newApp.status,
-            message: `✅ **Successfully Tracked:** Added **${finalCompany}** — *${finalTitle}* in **${status || "Saved"}** status.\n\n- **Company:** ${finalCompany}\n- **Role:** ${finalTitle}\n- **Status:** ${status || "Saved"}\n- **Date:** ${new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}\n\nWould you like me to draft an outreach email, analyze the requirements, or prepare a tailored cover letter?`,
+            message: `✅ **Successfully Tracked:** Added **${finalCompany}** — *${finalTitle}* in **${status || "Saved"}** status.\n\n- **Company:** ${finalCompany}\n- **Role:** ${finalTitle}\n- **Status:** ${status || "Saved"}\n- **Date:** ${new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}\n\n[Open Application Details →](/applications/${newApp.id})\n\nWould you like me to draft an outreach email, analyze the requirements, or prepare a tailored cover letter?`,
           }
         } catch (error) {
           console.error("createApplication tool error:", error)
