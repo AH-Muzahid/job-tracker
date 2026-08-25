@@ -641,7 +641,7 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
           </>
         ) : isStreaming && (!message.toolInvocations || message.toolInvocations.length === 0) ? (
           <div className="py-2">
-            <LoadingState label="Thinking" variant="Dots" />
+            <LoadingState variant="Dots" />
           </div>
         ) : null}
       </div>

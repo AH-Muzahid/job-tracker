@@ -87,13 +87,11 @@ export default function LoadingState({
   const { elapsed, seconds } = useElapsed();
   const surfer = variant === "Surfer";
   
-  let defaultLabel = "Thinking";
-  if (seconds >= 10) {
+  let defaultLabel = "Processing career context...";
+  if (seconds >= 8) {
     defaultLabel = "Finalizing response & pipeline sync...";
-  } else if (seconds >= 4) {
+  } else if (seconds >= 2) {
     defaultLabel = "Running database & tool actions...";
-  } else if (seconds >= 1.5) {
-    defaultLabel = "Processing career context...";
   }
 
   const resolvedLabel = label ?? (surfer ? "Subway surfing" : defaultLabel);
