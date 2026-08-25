@@ -263,16 +263,16 @@ body {
     text-decoration-color: currentColor;
   }
 
-  /* Efferd Display Typography — Negative Letter Spacing Scale */
-  .tracking-display-xxl { letter-spacing: -4.8px; }
-  .tracking-display-xl  { letter-spacing: -4.32px; }
-  .tracking-display-lg  { letter-spacing: -3.84px; }
-  .tracking-display-md  { letter-spacing: -3.36px; }
-  .tracking-display-sm  { letter-spacing: -2.4px; }
-  .tracking-heading-md  { letter-spacing: -1.28px; }
-  .tracking-heading-sm  { letter-spacing: -0.96px; }
-  /* Efferd font-weight 450 — between normal and medium */
-  .font-display { font-weight: 450; }
+  /* Efferd Display Typography — Relative Negative Letter Spacing Scale */
+  .tracking-display-xxl { letter-spacing: -0.04em; }
+  .tracking-display-xl  { letter-spacing: -0.035em; }
+  .tracking-display-lg  { letter-spacing: -0.03em; }
+  .tracking-display-md  { letter-spacing: -0.025em; }
+  .tracking-display-sm  { letter-spacing: -0.02em; }
+  .tracking-heading-md  { letter-spacing: -0.015em; }
+  .tracking-heading-sm  { letter-spacing: -0.01em; }
+  /* Efferd font-weight 500 */
+  .font-display { font-weight: 500; }
 }
 
 @keyframes pop-in {

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -48,7 +49,7 @@ export function HeroSection() {
 
 					<h1
 					className={cn(
-						"max-w-2xl text-balance text-center text-3xl font-display tracking-display-lg text-foreground md:text-5xl lg:text-6xl",
+						"max-w-3xl text-balance text-center text-3xl font-bold tracking-tight text-foreground sm:text-5xl lg:text-6xl sm:leading-[1.15]",
 						"fade-in slide-in-from-bottom-10 animate-in fill-mode-backwards delay-100 duration-500 ease-out"
 					)}
 				>
@@ -72,9 +73,11 @@ export function HeroSection() {
 						Learn More
 					</a>
 				</Button>
-					<Button className="h-9 px-4 rounded-md text-sm font-semibold gap-2 cursor-pointer">
-						Start Free
-						<ArrowRightIcon data-icon="inline-end" />
+					<Button asChild className="h-9 px-4 rounded-md text-sm font-semibold gap-2 cursor-pointer">
+						<Link href="/sign-up">
+							Start Free
+							<ArrowRightIcon data-icon="inline-end" />
+						</Link>
 					</Button>
 				</div>
 				</div>
