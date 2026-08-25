@@ -54,7 +54,7 @@ export function Integrations() {
 							viewport={{ once: true, margin: "-100px" }}
 							transition={{ duration: 0.5 }}
 						>
-							<div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-border bg-card/80 text-xs font-medium text-muted-foreground shadow-2xs backdrop-blur-xs">
+							<div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-none border border-border bg-card/80 text-xs font-medium text-muted-foreground shadow-2xs backdrop-blur-xs">
 								<Sparkles className="size-3 text-primary" />
 								<span>Features</span>
 							</div>
@@ -86,7 +86,7 @@ export function Integrations() {
 							<motion.div
 								key={feature.title}
 								className={cn(
-									"group relative flex flex-col justify-between overflow-hidden rounded-2xl",
+									"group relative flex flex-col justify-between overflow-hidden rounded-none",
 									"bg-card/70 border border-border/80 shadow-2xs backdrop-blur-xs",
 									"hover:border-primary/40 hover:shadow-xl transition-all duration-300"
 								)}
