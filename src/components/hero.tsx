@@ -111,8 +111,8 @@ export function HeroSection() {
 				</div>
 			</div>
 
-			{/* Hero Mockup Blueprint Grid Section */}
-			<div className="relative">
+			{/* Hero Mockup Glowing Stage with Blueprint Grid Crosshairs */}
+			<div className="relative overflow-hidden bg-gradient-to-b from-blue-500/10 via-background to-background p-4 sm:p-8 md:p-12 lg:p-14 border-x border-border">
 				<DecorIcon className="size-4" position="top-left" />
 				<DecorIcon className="size-4" position="top-right" />
 				<DecorIcon className="size-4" position="bottom-left" />
@@ -120,7 +120,20 @@ export function HeroSection() {
 
 				<FullWidthDivider className="-top-px" />
 
-				<div className="overflow-hidden border-x border-border bg-card/40 shadow-2xl">
+				{/* Dot Matrix Pattern Overlay */}
+				<div
+					aria-hidden="true"
+					className="pointer-events-none absolute inset-0 opacity-20 bg-[radial-gradient(#3b82f6_1px,transparent_1px)] [background-size:24px_24px]"
+				/>
+
+				{/* Ambient Glow Halo */}
+				<div
+					aria-hidden="true"
+					className="pointer-events-none absolute -top-32 left-1/2 -translate-x-1/2 w-3/4 h-64 rounded-full bg-blue-500/25 blur-[100px]"
+				/>
+
+				{/* Floating Rounded Dashboard Device Mockup */}
+				<div className="relative mx-auto max-w-6xl overflow-hidden rounded-xl md:rounded-2xl border border-border/80 bg-card shadow-[0_25px_65px_-15px_rgba(0,0,0,0.35)] ring-1 ring-white/10">
 					{/* Dark Mode Screenshot */}
 					<Image
 						alt="CareerTrack Application Dashboard (Dark Mode)"
