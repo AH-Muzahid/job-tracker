@@ -288,6 +288,20 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
             })
           }
         }
+
+        if (!accumulatedText.trim()) {
+          setMessages((prev) => {
+            const updated = [...prev]
+            const lastIdx = updated.findIndex((m) => m.id === assistantMsgId)
+            if (lastIdx !== -1) {
+              updated[lastIdx] = {
+                ...updated[lastIdx],
+                content: "⚠️ The model completed the request without text output. Please click retry or rephrase your request.",
+              }
+            }
+            return updated
+          })
+        }
       }
     } catch (e: unknown) {
       if (e instanceof Error && e.name !== "AbortError") {

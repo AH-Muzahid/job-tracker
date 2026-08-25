@@ -118,7 +118,7 @@ export async function POST(request: NextRequest) {
   const systemBase = getSystemBase()
   const modePrompt = MODE_PROMPTS[mode]?.() || ""
   // Cache-friendly ordering: static rules first (cacheable), dynamic user context last
-  const systemPrompt = `${systemBase}\n\n## Active Mode Instructions\n${modePrompt}\n\n## User Context (Dynamic)\n${context}`
+  const systemPrompt = `${systemBase}\n\n## Mandatory Response Output Rule\nALWAYS output your full, complete, and helpful response directly in Markdown text so the user can read and copy it immediately. If asked to draft an email, cover letter, interview answer, or analysis, generate the complete text directly in your response.\n\n## Active Mode Instructions\n${modePrompt}\n\n## User Context (Dynamic)\n${context}`
 
   const resolvedProvider = getProvider({
     providerType: aiConfig.providerType as "openai" | "anthropic" | "google" | "custom-openai",
