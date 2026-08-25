@@ -4,12 +4,13 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { DecorIcon } from "@/components/decor-icon";
 import { FullWidthDivider } from "@/components/full-width-divider";
-import { ArrowRightIcon, PhoneCallIcon, Lock } from "lucide-react";
+import { ArrowRightIcon, LayersIcon } from "lucide-react";
 import KineticGrid from "@/components/originkit/ui/kineticgrid";
 
 export function HeroSection() {
 	return (
 		<section>
+			{/* Top Hero Text Section */}
 			<div className="relative overflow-hidden">
 				<DecorIcon className="size-4" position="top-left" />
 				<DecorIcon className="size-4" position="top-right" />
@@ -35,8 +36,8 @@ export function HeroSection() {
 					/>
 				</div>
 
-				<div className="relative flex flex-col items-center justify-center gap-5 px-4 py-12 md:px-4 md:py-24 lg:py-28">
-					{/* X Faded Borders & Shades */}
+				<div className="relative flex flex-col items-center justify-center gap-5 px-4 py-16 md:px-6 md:py-24 lg:py-28">
+					{/* Ambient Glow */}
 					<div
 						aria-hidden="true"
 						className="pointer-events-none absolute inset-0 -z-1 size-full overflow-hidden"
@@ -49,61 +50,69 @@ export function HeroSection() {
 							)}
 						/>
 					</div>
-				<a
-					className={cn(
-						"group mx-auto flex w-fit items-center gap-3 rounded-sm border bg-card p-1 shadow",
-						"fade-in slide-in-from-bottom-10 animate-in fill-mode-backwards transition-all delay-500 duration-500 ease-out"
-					)}
-					href="#features"
-				>
-						<div className="rounded-xs border bg-card px-1.5 py-0.5 shadow-sm">
-							<p className="font-mono text-xs">NEW</p>
+
+					{/* Top Pill Badge */}
+					<a
+						className={cn(
+							"group mx-auto flex w-fit items-center gap-3 rounded-none border border-border bg-card p-1 shadow-2xs",
+							"fade-in slide-in-from-bottom-10 animate-in fill-mode-backwards transition-all delay-500 duration-500 ease-out"
+						)}
+						href="#features"
+					>
+						<div className="border border-border bg-muted/60 px-1.5 py-0.5 shadow-2xs">
+							<p className="font-mono text-xs font-semibold">NEW</p>
 						</div>
 
-						<span className="text-xs">AI-powered interview prep is here</span>
-						<span className="block h-5 border-l" />
+						<span className="text-xs font-medium">AI-powered interview prep & tracking</span>
+						<span className="block h-4 border-l border-border" />
 
 						<div className="pr-1">
 							<ArrowRightIcon className="size-3 -translate-x-0.5 duration-150 ease-out group-hover:translate-x-0.5" />
 						</div>
 					</a>
 
+					{/* Main Headline */}
 					<h1
-					className={cn(
-						"max-w-3xl text-balance text-center text-3xl font-bold tracking-tight text-foreground sm:text-5xl lg:text-6xl sm:leading-[1.15]",
-						"fade-in slide-in-from-bottom-10 animate-in fill-mode-backwards delay-100 duration-500 ease-out"
-					)}
-				>
-					Track Every Application. Land Your Dream Job.
-				</h1>
+						className={cn(
+							"max-w-4xl text-balance text-center text-4xl font-bold tracking-tight text-foreground sm:text-6xl lg:text-7xl sm:leading-[1.12]",
+							"fade-in slide-in-from-bottom-10 animate-in fill-mode-backwards delay-100 duration-500 ease-out"
+						)}
+					>
+						Track Every Application.
+						<br />
+						Land Your Dream Job.
+					</h1>
 
-				<p
-					className={cn(
-						"text-center text-muted-foreground text-sm tracking-normal sm:text-lg",
-						"fade-in slide-in-from-bottom-10 animate-in fill-mode-backwards delay-200 duration-500 ease-out"
-					)}
-				>
-					Organize your job search, ace interviews with AI prep, <br /> and
-					manage resumes — all in one place.
-				</p>
+					{/* Subtitle */}
+					<p
+						className={cn(
+							"max-w-2xl text-center text-muted-foreground text-sm tracking-normal sm:text-lg leading-relaxed",
+							"fade-in slide-in-from-bottom-10 animate-in fill-mode-backwards delay-200 duration-500 ease-out"
+						)}
+					>
+						Organize your job search pipeline, practice with live AI interview coaching, and manage tailored resumes — all in one unified platform.
+					</p>
 
-				<div className="fade-in slide-in-from-bottom-10 flex w-fit animate-in items-center justify-center gap-3 fill-mode-backwards pt-2 delay-300 duration-500 ease-out">
-				<Button variant="outline" asChild className="h-9 px-4 rounded-md text-sm font-semibold gap-2 cursor-pointer">
-					<a href="#features">
-						<PhoneCallIcon data-icon="inline-start" />{" "}
-						Learn More
-					</a>
-				</Button>
-					<Button asChild className="h-9 px-4 rounded-md text-sm font-semibold gap-2 cursor-pointer">
-						<Link href="/sign-up">
-							Start Free
-							<ArrowRightIcon data-icon="inline-end" />
-						</Link>
-					</Button>
-				</div>
+					{/* CTA Buttons */}
+					<div className="fade-in slide-in-from-bottom-10 flex w-fit animate-in items-center justify-center gap-3 fill-mode-backwards pt-3 delay-300 duration-500 ease-out">
+						<Button variant="outline" asChild className="h-10 px-5 rounded-none text-sm font-semibold gap-2 cursor-pointer border-border">
+							<a href="#features">
+								<LayersIcon className="size-4" />
+								Explore Platform
+							</a>
+						</Button>
+						<Button asChild className="h-10 px-5 rounded-none text-sm font-semibold gap-2 cursor-pointer">
+							<Link href="/sign-up">
+								Start Free
+								<ArrowRightIcon className="size-4" />
+							</Link>
+						</Button>
+					</div>
 				</div>
 			</div>
-			<div className="relative overflow-hidden bg-gradient-to-b from-blue-500/10 via-background to-background p-4 sm:p-8 md:p-12 lg:p-14">
+
+			{/* Hero Mockup Blueprint Grid Section */}
+			<div className="relative">
 				<DecorIcon className="size-4" position="top-left" />
 				<DecorIcon className="size-4" position="top-right" />
 				<DecorIcon className="size-4" position="bottom-left" />
@@ -111,23 +120,10 @@ export function HeroSection() {
 
 				<FullWidthDivider className="-top-px" />
 
-				{/* Dot Matrix Pattern Overlay spanning the full section grid */}
-				<div
-					aria-hidden="true"
-					className="pointer-events-none absolute inset-0 opacity-20 bg-[radial-gradient(#3b82f6_1px,transparent_1px)] [background-size:24px_24px]"
-				/>
-
-				{/* Ambient Glow Halo */}
-				<div
-					aria-hidden="true"
-					className="pointer-events-none absolute -top-32 left-1/2 -translate-x-1/2 w-3/4 h-64 rounded-full bg-blue-500/20 blur-[100px]"
-				/>
-
-				{/* Floating Dashboard Device Mockup */}
-				<div className="relative mx-auto max-w-6xl overflow-hidden rounded-xl md:rounded-2xl border border-border/80 bg-card shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] ring-1 ring-white/10">
+				<div className="overflow-hidden border-x border-border bg-card/40 shadow-2xl">
 					{/* Dark Mode Screenshot */}
 					<Image
-						alt="CareerTrack Dashboard Preview (Dark Mode)"
+						alt="CareerTrack Application Dashboard (Dark Mode)"
 						className="hidden dark:block w-full h-auto object-cover pointer-events-none select-none"
 						height={495}
 						src="/dashboard-dark.png"
@@ -137,7 +133,7 @@ export function HeroSection() {
 					/>
 					{/* Light Mode Screenshot */}
 					<Image
-						alt="CareerTrack Dashboard Preview (Light Mode)"
+						alt="CareerTrack Application Dashboard (Light Mode)"
 						className="block dark:hidden w-full h-auto object-cover pointer-events-none select-none"
 						height={495}
 						src="/dashboard-light.png"
