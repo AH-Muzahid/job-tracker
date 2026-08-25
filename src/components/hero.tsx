@@ -9,13 +9,17 @@ import KineticGrid from "@/components/originkit/ui/kineticgrid";
 
 export function HeroSection() {
 	return (
-		<section>
-			{/* Top Hero Text Section */}
-			<div className="relative overflow-hidden">
+		<section className="relative">
+			{/* Top Hero Text Section (Directly Below Navigation) */}
+			<div className="relative">
+				{/* Corner + Crosshairs below Nav */}
 				<DecorIcon className="size-4" position="top-left" />
 				<DecorIcon className="size-4" position="top-right" />
+				<DecorIcon className="size-4" position="bottom-left" />
+				<DecorIcon className="size-4" position="bottom-right" />
 
-				<FullWidthDivider className="-top-px" />
+				{/* Top Grid Border Divider */}
+				<FullWidthDivider position="top" />
 
 				{/* Kinetic Grid Interactive Background */}
 				<div className="absolute inset-0 -z-1 overflow-hidden pointer-events-auto">
@@ -109,54 +113,63 @@ export function HeroSection() {
 						</Button>
 					</div>
 				</div>
+
+				{/* Bottom Grid Border Divider below text */}
+				<FullWidthDivider position="bottom" />
 			</div>
 
-			{/* Hero Mockup Glowing Stage with Blueprint Grid Crosshairs */}
-			<div className="relative overflow-hidden bg-gradient-to-b from-blue-500/10 via-background to-background p-4 sm:p-8 md:p-12 lg:p-14 border-x border-border">
+			{/* Hero Mockup Blueprint Grid Section */}
+			<div className="relative">
+				{/* Corner + Crosshairs around Mockup */}
 				<DecorIcon className="size-4" position="top-left" />
 				<DecorIcon className="size-4" position="top-right" />
 				<DecorIcon className="size-4" position="bottom-left" />
 				<DecorIcon className="size-4" position="bottom-right" />
 
-				<FullWidthDivider className="-top-px" />
+				{/* Top Grid Border Divider */}
+				<FullWidthDivider position="top" />
 
-				{/* Dot Matrix Pattern Overlay */}
-				<div
-					aria-hidden="true"
-					className="pointer-events-none absolute inset-0 opacity-20 bg-[radial-gradient(#3b82f6_1px,transparent_1px)] [background-size:24px_24px]"
-				/>
-
-				{/* Ambient Glow Halo */}
-				<div
-					aria-hidden="true"
-					className="pointer-events-none absolute -top-32 left-1/2 -translate-x-1/2 w-3/4 h-64 rounded-full bg-blue-500/25 blur-[100px]"
-				/>
-
-				{/* Floating Rounded Dashboard Device Mockup */}
-				<div className="relative mx-auto max-w-6xl overflow-hidden rounded-xl md:rounded-2xl border border-border/80 bg-card shadow-[0_25px_65px_-15px_rgba(0,0,0,0.35)] ring-1 ring-white/10">
-					{/* Dark Mode Screenshot */}
-					<Image
-						alt="CareerTrack Application Dashboard (Dark Mode)"
-						className="hidden dark:block w-full h-auto object-cover pointer-events-none select-none"
-						height={495}
-						src="/dashboard-dark.png"
-						width={1024}
-						priority
-						unoptimized
+				{/* Glowing Stage & Floating Rounded Mockup Frame */}
+				<div className="relative overflow-hidden bg-gradient-to-b from-blue-500/10 via-background to-background p-4 sm:p-8 md:p-12 lg:p-14">
+					{/* Dot Matrix Pattern Overlay */}
+					<div
+						aria-hidden="true"
+						className="pointer-events-none absolute inset-0 opacity-20 bg-[radial-gradient(#3b82f6_1px,transparent_1px)] [background-size:24px_24px]"
 					/>
-					{/* Light Mode Screenshot */}
-					<Image
-						alt="CareerTrack Application Dashboard (Light Mode)"
-						className="block dark:hidden w-full h-auto object-cover pointer-events-none select-none"
-						height={495}
-						src="/dashboard-light.png"
-						width={1024}
-						priority
-						unoptimized
+
+					{/* Ambient Glow Halo */}
+					<div
+						aria-hidden="true"
+						className="pointer-events-none absolute -top-32 left-1/2 -translate-x-1/2 w-3/4 h-64 rounded-full bg-blue-500/25 blur-[100px]"
 					/>
+
+					{/* Floating Rounded Dashboard Device Mockup */}
+					<div className="relative mx-auto max-w-6xl overflow-hidden rounded-xl md:rounded-2xl border border-border/80 bg-card shadow-[0_25px_65px_-15px_rgba(0,0,0,0.35)] ring-1 ring-white/10">
+						{/* Dark Mode Screenshot */}
+						<Image
+							alt="CareerTrack Application Dashboard (Dark Mode)"
+							className="hidden dark:block w-full h-auto object-cover pointer-events-none select-none"
+							height={495}
+							src="/dashboard-dark.png"
+							width={1024}
+							priority
+							unoptimized
+						/>
+						{/* Light Mode Screenshot */}
+						<Image
+							alt="CareerTrack Application Dashboard (Light Mode)"
+							className="block dark:hidden w-full h-auto object-cover pointer-events-none select-none"
+							height={495}
+							src="/dashboard-light.png"
+							width={1024}
+							priority
+							unoptimized
+						/>
+					</div>
 				</div>
 
-				<FullWidthDivider className="-bottom-px" />
+				{/* Bottom Grid Border Divider */}
+				<FullWidthDivider position="bottom" />
 			</div>
 		</section>
 	);
