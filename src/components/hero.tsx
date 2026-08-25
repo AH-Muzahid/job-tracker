@@ -4,9 +4,8 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { DecorIcon } from "@/components/decor-icon";
 import { FullWidthDivider } from "@/components/full-width-divider";
-import { ArrowRightIcon, PhoneCallIcon } from "lucide-react";
+import { ArrowRightIcon, PhoneCallIcon, Lock } from "lucide-react";
 import KineticGrid from "@/components/originkit/ui/kineticgrid";
-import { HeroDashboardMockup } from "@/components/hero-dashboard-mockup";
 
 export function HeroSection() {
 	return (
@@ -111,8 +110,51 @@ export function HeroSection() {
 				<DecorIcon className="size-4" position="bottom-right" />
 
 				<FullWidthDivider className="-top-px" />
-				<div className="overflow-hidden border border-border bg-background shadow-2xl">
-					<HeroDashboardMockup />
+				<div className="overflow-hidden border border-border bg-card shadow-2xl">
+					{/* Browser Window Chrome */}
+					<div className="flex h-9 items-center justify-between border-b border-border bg-muted/40 px-3 sm:px-4">
+						{/* Window Controls */}
+						<div className="flex items-center gap-1.5">
+							<span className="size-2.5 rounded-full bg-red-500/80 border border-red-600/30" />
+							<span className="size-2.5 rounded-full bg-yellow-500/80 border border-yellow-600/30" />
+							<span className="size-2.5 rounded-full bg-emerald-500/80 border border-emerald-600/30" />
+						</div>
+
+						{/* Center Secure URL Address Bar */}
+						<div className="flex items-center justify-center gap-1.5 h-6 px-3 rounded-md bg-background/80 border border-border/70 text-[11px] font-mono text-muted-foreground w-44 sm:w-60 truncate shadow-2xs">
+							<Lock className="size-2.5 text-emerald-500 shrink-0" />
+							<span className="text-foreground/90 font-medium truncate">app.careertrack.io/dashboard</span>
+						</div>
+
+						{/* Right Actions */}
+						<div className="flex items-center gap-2 text-muted-foreground/60 text-xs">
+							<span className="hidden sm:inline-block text-[10px] font-mono text-muted-foreground/70">LIVE PREVIEW</span>
+						</div>
+					</div>
+
+					{/* Real Dashboard Image Screen */}
+					<div className="relative w-full bg-background overflow-hidden">
+						{/* Dark Mode Screenshot */}
+						<Image
+							alt="CareerTrack Dashboard Preview (Dark Mode)"
+							className="hidden dark:block w-full h-auto object-cover pointer-events-none select-none"
+							height={503}
+							src="/dashboard-dark.png"
+							width={1024}
+							priority
+							unoptimized
+						/>
+						{/* Light Mode Screenshot */}
+						<Image
+							alt="CareerTrack Dashboard Preview (Light Mode)"
+							className="block dark:hidden w-full h-auto object-cover pointer-events-none select-none"
+							height={503}
+							src="/dashboard-light.png"
+							width={1024}
+							priority
+							unoptimized
+						/>
+					</div>
 				</div>
 				<FullWidthDivider className="-bottom-px" />
 			</div>
