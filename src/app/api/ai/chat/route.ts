@@ -130,12 +130,10 @@ export async function POST(request: NextRequest) {
   const modelToUse = modelOverride || aiConfig.model || resolvedProvider.defaultModel
 
   try {
-    const aiTools = createAiTools(userId)
     const result = streamText({
       model: resolvedProvider.model(modelToUse),
       system: systemPrompt,
       messages: formattedMessages,
-      tools: aiTools,
       temperature: 0.35,
       onError: (err) => {
         console.error("streamText runtime error:", err)
