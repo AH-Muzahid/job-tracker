@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import { DecorIcon } from "@/components/decor-icon";
 import { FullWidthDivider } from "@/components/full-width-divider";
 import { motion } from "framer-motion";
-import { Sparkles, ArrowRight } from "lucide-react";
+import { Layers, ArrowRight } from "lucide-react";
 
 interface FeatureItem {
 	title: string;
@@ -55,7 +55,7 @@ export function Integrations() {
 							transition={{ duration: 0.5 }}
 						>
 							<div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-none border border-border bg-card/80 text-xs font-medium text-muted-foreground shadow-2xs backdrop-blur-xs">
-								<Sparkles className="size-3 text-primary" />
+								<Layers className="size-3 text-primary" />
 								<span>Features</span>
 							</div>
 
