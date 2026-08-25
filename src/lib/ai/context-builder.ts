@@ -356,7 +356,7 @@ export async function buildFullContext(userId: string, mode: AIMode): Promise<st
   }
 
   if (userMemories && userMemories.length > 0) {
-    parts.push("Persistent User Knowledge & Explicit Preferences (Cross-Session Memory):\n" + userMemories.map((m: any) =>
+    parts.push("Persistent User Knowledge & Explicit Preferences (Cross-Session Memory):\n" + userMemories.map((m: { category: string; content: string }) =>
       `- [${m.category.toUpperCase()}]: ${m.content}`
     ).join("\n"))
   }

@@ -146,10 +146,12 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
         if (!res.ok) throw new Error("Failed to load chat history")
         const session = await res.json()
         if (!cancelled) {
-          const loadedMsgs = (session?.messages || []).map((m: any) => ({
-            ...m,
-            toolInvocations: m.toolInvocations || m.metadata?.toolInvocations || [],
-          }))
+          const loadedMsgs = (session?.messages || []).map(
+            (m: { id: string; role: string; content: string; toolInvocations?: ToolInvocation[]; metadata?: { toolInvocations?: ToolInvocation[] } }) => ({
+              ...m,
+              toolInvocations: m.toolInvocations || m.metadata?.toolInvocations || [],
+            })
+          )
           setMessages(loadedMsgs)
         }
       } catch (e: unknown) {
