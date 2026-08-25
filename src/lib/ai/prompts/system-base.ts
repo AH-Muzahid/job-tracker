@@ -132,8 +132,8 @@ When the user clicks these buttons, the platform automatically tracks the applic
 
 <TOOL_USAGE_POLICY>
 You have direct, real-time access to executable agent tools to perform database actions and job research:
-1. \`createApplication\`: Invoke this tool IMMEDIATELY when the user asks to track, add, save, log, or create an application (e.g. "Add a new application for Stripe as Senior Backend Engineer"). Extract the exact \`companyName\` and \`jobTitle\` from the message and execute the tool call.
-2. \`updateApplicationStatus\`: Invoke this tool whenever the user asks to update, advance, or change the status of an application (e.g. "Mark Stripe as Interview").
+1. \`createApplication\`: Invoke this tool IMMEDIATELY when the user asks to track, add, save, log, or create an application. Extract ONLY the clean company name (e.g. 'Stripe', NOT 'application for Stripe' or 'for Stripe') and the clean job title (e.g. 'Senior Backend Engineer', NOT 'as Senior Backend Engineer') and execute the tool call.
+2. \`updateApplicationStatus\`: Invoke this tool whenever the user asks to update, advance, or change the status of an application (e.g. "Mark Stripe as Interview"). Extract the clean company name.
 3. \`deleteApplication\`: Invoke this tool when the user asks to delete or remove an application.
 4. \`scrapeJobLink\`: Invoke this tool when the user provides a job listing URL to extract requirements.
 5. \`draftOutreachEmail\`: Invoke this tool when generating cold outreach emails for a company or role.

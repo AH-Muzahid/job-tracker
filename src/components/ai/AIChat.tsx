@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect, useCallback } from "react"
-import { useQueryClient } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Send, Square, FileText, Briefcase, Target, MessageSquare, ArrowDown, Plus, Bot, RotateCcw } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
@@ -122,6 +122,20 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
 
   const hasMessages = messages.length > 0
 
+  // React Query cached session messages (0ms memory cache on tab switch)
+  const { data: sessionData, isLoading: isSessionLoading, error: sessionQueryError } = useQuery({
+    queryKey: ["ai", "session", sessionId],
+    queryFn: async () => {
+      if (!sessionId) return null
+      const res = await fetch(`/api/ai/sessions/${sessionId}`)
+      if (!res.ok) throw new Error("Failed to load chat history")
+      return res.json()
+    },
+    enabled: Boolean(sessionId),
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+  })
+
   useEffect(() => {
     if (!sessionId) {
       setLoading(false)
@@ -134,37 +148,23 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
       return
     }
 
-    setLoading(true)
-    setMessages([])
-    setError(null)
-    setShowScrollBtn(false)
-
-    let cancelled = false
-    ;(async () => {
-      try {
-        const res = await fetch(`/api/ai/sessions/${sessionId}`)
-        if (!res.ok) throw new Error("Failed to load chat history")
-        const session = await res.json()
-        if (!cancelled) {
-          const loadedMsgs = (session?.messages || []).map(
-            (m: { id: string; role: string; content: string; toolInvocations?: ToolInvocation[]; metadata?: { toolInvocations?: ToolInvocation[] } }) => ({
-              ...m,
-              toolInvocations: m.toolInvocations || m.metadata?.toolInvocations || [],
-            })
-          )
-          setMessages(loadedMsgs)
-        }
-      } catch (e: unknown) {
-        if (!cancelled) setError(e instanceof Error ? e.message : "Error loading chat")
-      } finally {
-        if (!cancelled) setLoading(false)
+    if (sessionData) {
+      const loadedMsgs = (sessionData?.messages || []).map(
+        (m: { id: string; role: string; content: string; toolInvocations?: ToolInvocation[]; metadata?: { toolInvocations?: ToolInvocation[] } }) => ({
+          ...m,
+          toolInvocations: m.toolInvocations || m.metadata?.toolInvocations || [],
+        })
+      )
+      setMessages(loadedMsgs)
+      setLoading(false)
+      setError(null)
+    } else {
+      setLoading(isSessionLoading)
+      if (sessionQueryError) {
+        setError(sessionQueryError instanceof Error ? sessionQueryError.message : "Error loading chat")
       }
-    })()
-
-    return () => {
-      cancelled = true
     }
-  }, [sessionId])
+  }, [sessionId, sessionData, isSessionLoading, sessionQueryError])
 
   useEffect(() => {
     // Only consume pendingPrompt if we are the visible instance
@@ -425,6 +425,8 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
       abortRef.current = null
       void queryClient.invalidateQueries({ queryKey: ["applications"] })
       void queryClient.invalidateQueries({ queryKey: ["stats"] })
+      void queryClient.invalidateQueries({ queryKey: ["ai", "session", currentSessionId] })
+      void queryClient.invalidateQueries({ queryKey: ["ai", "sessions"] })
     }
   }
 

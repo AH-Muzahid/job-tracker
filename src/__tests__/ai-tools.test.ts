@@ -107,6 +107,30 @@ describe("Autonomous AI Agent Tools Suite", () => {
       expect(result.status).toBe("Applied")
     })
 
+    it("createApplication strips prefixes like 'application for Stripe' and 'as Senior Backend Engineer'", async () => {
+      vi.mocked(prisma.application.findFirst).mockResolvedValueOnce(null)
+      vi.mocked(prisma.application.create).mockResolvedValueOnce({
+        id: "app-2",
+        userId,
+        companyName: "Stripe",
+        jobTitle: "Senior Backend Engineer",
+        status: "Applied",
+        applicationDate: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      } as any)
+
+      const result = await (tools.createApplication as any).execute({
+        companyName: "application for Stripe",
+        jobTitle: "as Senior Backend Engineer",
+        status: "Applied",
+      })
+
+      expect(result.success).toBe(true)
+      expect(result.companyName).toBe("Stripe")
+      expect(result.jobTitle).toBe("Senior Backend Engineer")
+    })
+
     it("createApplication prevents duplicate application creation", async () => {
       vi.mocked(prisma.application.findFirst).mockResolvedValueOnce({
         id: "app-1",

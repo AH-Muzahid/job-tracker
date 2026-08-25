@@ -91,6 +91,25 @@ function extractCompanyAndRole(rawStr: string): { company: string; title: string
   return { company: "", title: "" }
 }
 
+export function cleanCompanyName(company: string): string {
+  if (!company) return ""
+  let cleaned = company.trim()
+  cleaned = cleaned.replace(/^["'`]+|["'`]+$/g, "").trim()
+  cleaned = cleaned.replace(/^(?:an?\s+)?(?:new\s+)?(?:job\s+|role\s+|position\s+|opening\s+)?(?:application\s+)?(?:for|at|with|in|to)\s+/i, "")
+  cleaned = cleaned.replace(/^(?:the\s+)?(?:company|firm|org|organization)\s+(?:called|named)?\s*/i, "")
+  cleaned = cleaned.replace(/^["'`]+|["'`]+$/g, "").trim()
+  return cleaned
+}
+
+export function cleanJobTitle(title: string): string {
+  if (!title) return ""
+  let cleaned = title.trim()
+  cleaned = cleaned.replace(/^["'`]+|["'`]+$/g, "").trim()
+  cleaned = cleaned.replace(/^(?:as\s+(?:a\s+|an\s+)?|role\s+of\s+|position\s+of\s+|title\s+of\s+|job\s+title\s+of\s+|for\s+(?:the\s+)?(?:role|position)\s+of\s+)/i, "")
+  cleaned = cleaned.replace(/^["'`]+|["'`]+$/g, "").trim()
+  return cleaned
+}
+
 export function createAiTools(userId: string) {
   return {
     updateApplicationStatus: tool({
@@ -160,6 +179,8 @@ export function createAiTools(userId: string) {
               }
             }
           }
+
+          companyOrTitle = cleanCompanyName(companyOrTitle)
 
           let app: any = null
 
@@ -284,6 +305,9 @@ export function createAiTools(userId: string) {
             if (!finalCompany && extracted.company) finalCompany = extracted.company
             if (!finalTitle && extracted.title) finalTitle = extracted.title
           }
+
+          finalCompany = cleanCompanyName(finalCompany)
+          finalTitle = cleanJobTitle(finalTitle)
 
           // Extract status intelligently
           let rawStatus = args?.status || args?.applicationStatus || ""

@@ -4,6 +4,7 @@ export const dynamic = "force-dynamic"
 import { NextRequest } from "next/server"
 import { getInternalUserId } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { invalidateCache } from "@/lib/redis"
 import { getUserAIConfig } from "@/lib/ai/config"
 import { buildFullContext, budgetConversationHistory } from "@/lib/ai/context-builder"
 import { classifyMode } from "@/lib/ai/mode-router"
@@ -165,7 +166,7 @@ export async function POST(request: NextRequest) {
       messages: messagesWithContext,
       temperature: 0.35,
       tools,
-      maxSteps: 5,
+      maxSteps: 2,
       onError: (err) => {
         console.error("❌ [AI CHAT: ERROR] resilientStreamText runtime error:", err)
       },
@@ -220,6 +221,10 @@ export async function POST(request: NextRequest) {
             })
             // Generate and save a smart AI title in the background
             void generateAndSaveSessionTitle(sessionId, message, finalText)
+
+            // Invalidate Redis caches for instant freshness
+            void invalidateCache(`session:data:${sessionId}`)
+            void invalidateCache(`user:sessions:${userId}`)
           } catch (dbErr) {
             console.error("Failed to persist assistant message to DB:", dbErr)
           }

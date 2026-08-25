@@ -22,6 +22,9 @@ const TRACKER_PATTERNS = [
   /rejected (from|by)/i, /offer (from|by)/i,
   /pipeline/i, /applications?/i, /tracker/i,
   /summary.*(application|pipeline|status|job)/i,
+  /(?:add|create|save|track|record|update|change|mark|set)\s+(?:a\s+)?(?:new\s+)?(?:application|status|role|job)/i,
+  /(?:in|to)\s+(?:applied|interview|assessment|saved|offer|rejected)\s+status/i,
+  /update\s+status/i,
 ]
 
 const RESPONSE_PATTERNS = [

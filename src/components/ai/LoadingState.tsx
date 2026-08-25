@@ -68,8 +68,8 @@ function useElapsed() {
     return () => clearInterval(t);
   }, []);
   const total = ds / 10;
-  if (total < 60) return `${total.toFixed(1)}s`;
-  return `${Math.floor(total / 60)}m ${(total % 60).toFixed(1)}s`;
+  const timeStr = total < 60 ? `${total.toFixed(1)}s` : `${Math.floor(total / 60)}m ${(total % 60).toFixed(1)}s`;
+  return { elapsed: timeStr, seconds: total };
 }
 
 export default function LoadingState({
@@ -84,9 +84,19 @@ export default function LoadingState({
   videoSrc?: string;
   className?: string;
 }) {
-  const elapsed = useElapsed();
+  const { elapsed, seconds } = useElapsed();
   const surfer = variant === "Surfer";
-  const resolvedLabel = label ?? (surfer ? "Subway surfing" : "Thinking");
+  
+  let defaultLabel = "Thinking";
+  if (seconds >= 10) {
+    defaultLabel = "Finalizing response & pipeline sync...";
+  } else if (seconds >= 4) {
+    defaultLabel = "Running database & tool actions...";
+  } else if (seconds >= 1.5) {
+    defaultLabel = "Processing career context...";
+  }
+
+  const resolvedLabel = label ?? (surfer ? "Subway surfing" : defaultLabel);
   const [videoOk, setVideoOk] = useState(true);
   const { delays, dur, round } = PATTERNS[variant] ?? PATTERNS.Drive;
 
