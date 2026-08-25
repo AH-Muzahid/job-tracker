@@ -1,9 +1,11 @@
 "use client"
 
 import React from "react"
-import { Mic, CheckCircle2, Brain } from "lucide-react"
+import { Mic, CheckCircle2, Brain, Sparkles, ArrowRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { DashboardCard } from "@/components/dashboard-card"
+import { DecorIcon } from "@/components/decor-icon"
 import { Badge } from "@/components/ui/badge"
 
 interface MockInterviewLaunchpadProps {
@@ -60,18 +62,22 @@ export function MockInterviewLaunchpad({
 
   return (
     <div className="space-y-6">
-      {/* 1. Main Action Hero Card */}
-      <Card className="border border-border bg-card shadow-2xs overflow-hidden">
-        <CardContent className="p-4 sm:p-6 space-y-4">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="space-y-1.5 max-w-xl">
-              <div className="flex items-center gap-2">
-                <Badge variant="outline" className="text-[11px] font-medium bg-muted/50 text-foreground">
-                  AI Voice Simulation
-                </Badge>
-                <span className="text-[11px] text-muted-foreground">Bilingual • Banglish & English</span>
+      {/* 1. Main Action Hero Card in Efferd Style */}
+      <div className="relative border border-border bg-border">
+        <DecorIcon className="hidden md:block" position="top-left" />
+        <div className="bg-background p-5 sm:p-6 space-y-5">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-5">
+            <div className="space-y-2 max-w-xl">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-mono font-medium px-2.5 py-0.5 rounded-full bg-muted border border-border text-foreground">
+                  <span className="size-1.5 rounded-full bg-emerald-500" />
+                  Voice AI Simulation
+                </span>
+                <span className="text-[11px] font-mono text-muted-foreground">
+                  Bilingual • Banglish & English
+                </span>
               </div>
-              <h2 className="text-lg sm:text-xl font-bold tracking-tight text-foreground">
+              <h2 className="text-lg sm:text-xl font-semibold tracking-tight text-foreground">
                 Spoken AI Mock Interview Room
               </h2>
               <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
@@ -79,13 +85,13 @@ export function MockInterviewLaunchpad({
               </p>
             </div>
 
-            <div className="flex flex-col sm:flex-row md:flex-col gap-2 shrink-0">
+            <div className="flex flex-col sm:flex-row md:flex-col gap-2.5 shrink-0">
               <Button
                 onClick={onStartCustom}
-                size="lg"
-                className="bg-primary text-primary-foreground hover:bg-primary/90 text-xs sm:text-sm font-medium h-10 px-5 shadow-xs cursor-pointer"
+                size="sm"
+                className="text-xs sm:text-sm font-medium h-9 px-5 cursor-pointer shadow-xs"
               >
-                <Mic className="h-4 w-4 mr-1.5" />
+                <Mic className="size-3.5 mr-1.5" />
                 <span>Start Mock Interview</span>
               </Button>
               {customCompany && (
@@ -110,91 +116,96 @@ export function MockInterviewLaunchpad({
           </div>
 
           {/* 3 Steps Explainer */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-border">
-            <div className="flex items-start gap-2.5">
-              <div className="p-1.5 rounded-lg bg-muted text-foreground border border-border shrink-0 mt-0.5">
-                <Mic className="h-3.5 w-3.5" />
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-4 border-t border-border">
+            <div className="flex items-start gap-3">
+              <div className="flex size-7 items-center justify-center rounded-md bg-muted text-foreground border border-border shrink-0 mt-0.5">
+                <Mic className="size-3.5" />
               </div>
-              <div>
+              <div className="space-y-0.5">
                 <p className="text-xs font-semibold text-foreground">1. Speak Naturally</p>
-                <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">
+                <p className="text-[11px] text-muted-foreground leading-snug">
                   Answer verbally in Banglish or English with hands-free turn taking.
                 </p>
               </div>
             </div>
 
-            <div className="flex items-start gap-2.5">
-              <div className="p-1.5 rounded-lg bg-muted text-foreground border border-border shrink-0 mt-0.5">
-                <Brain className="h-3.5 w-3.5" />
+            <div className="flex items-start gap-3">
+              <div className="flex size-7 items-center justify-center rounded-md bg-muted text-foreground border border-border shrink-0 mt-0.5">
+                <Brain className="size-3.5" />
               </div>
-              <div>
+              <div className="space-y-0.5">
                 <p className="text-xs font-semibold text-foreground">2. Adaptive Follow-ups</p>
-                <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">
+                <p className="text-[11px] text-muted-foreground leading-snug">
                   AI interviewer deeply probes edge cases, complexity, and trade-offs.
                 </p>
               </div>
             </div>
 
-            <div className="flex items-start gap-2.5">
-              <div className="p-1.5 rounded-lg bg-muted text-foreground border border-border shrink-0 mt-0.5">
-                <CheckCircle2 className="h-3.5 w-3.5" />
+            <div className="flex items-start gap-3">
+              <div className="flex size-7 items-center justify-center rounded-md bg-muted text-foreground border border-border shrink-0 mt-0.5">
+                <CheckCircle2 className="size-3.5" />
               </div>
-              <div>
+              <div className="space-y-0.5">
                 <p className="text-xs font-semibold text-foreground">3. STAR Gap Report</p>
-                <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">
+                <p className="text-[11px] text-muted-foreground leading-snug">
                   Receive scores, ideal staff answers, and 1-click revision note exports.
                 </p>
               </div>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      {/* 2. Quick-Start Presets */}
+      {/* 2. Curated Practice Tracks in Hairline Grid */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-sm font-bold text-foreground">Curated Practice Tracks</h3>
-            <p className="text-xs text-muted-foreground">Pick a role track or configure your own custom interview above</p>
+            <h3 className="text-sm font-semibold text-foreground">Curated Practice Tracks</h3>
+            <p className="text-xs text-muted-foreground">Pick a standardized role track or launch your own custom session</p>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          {presets.map((preset, idx) => (
-            <Card
-              key={idx}
-              className="border border-border bg-card shadow-2xs hover:border-border/80 transition-all flex flex-col justify-between p-4"
-            >
-              <div className="space-y-2">
-                <div className="flex items-center justify-between gap-2">
-                  <Badge variant="outline" className="text-[10px] font-medium bg-muted/50 text-foreground">
-                    {preset.type}
-                  </Badge>
-                  <span className="text-[10px] text-muted-foreground">{preset.turns} Questions</span>
+        <div className="relative border border-border bg-border">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-px bg-border">
+            {presets.map((preset, idx) => (
+              <div
+                key={idx}
+                className="bg-background p-4 sm:p-5 flex flex-col justify-between gap-4 transition-colors hover:bg-muted/10"
+              >
+                <div className="space-y-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="inline-flex items-center px-2 py-0.5 text-[10px] font-mono font-medium rounded-full bg-muted border border-border text-foreground">
+                      {preset.type}
+                    </span>
+                    <span className="text-[10px] font-mono text-muted-foreground tabular-nums">
+                      {preset.turns} Questions
+                    </span>
+                  </div>
+
+                  <div>
+                    <h4 className="text-sm font-semibold text-foreground leading-snug">{preset.title}</h4>
+                    <p className="text-xs text-muted-foreground mt-1 leading-relaxed line-clamp-2">
+                      {preset.description}
+                    </p>
+                  </div>
                 </div>
 
-                <div>
-                  <h4 className="text-sm font-semibold text-foreground leading-snug">{preset.title}</h4>
-                  <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed line-clamp-2">
-                    {preset.description}
-                  </p>
+                <div className="pt-3 border-t border-border flex items-center justify-between">
+                  <span className="text-[11px] font-mono text-muted-foreground">
+                    {preset.tag}
+                  </span>
+                  <Button
+                    size="sm"
+                    onClick={() => onStartPreset(preset)}
+                    className="text-xs h-7.5 px-3 font-medium cursor-pointer"
+                  >
+                    <span>Start Track</span>
+                    <ArrowRight className="size-3 ml-1" />
+                  </Button>
                 </div>
               </div>
-
-              <div className="pt-3 border-t border-border mt-3 flex items-center justify-between">
-                <span className="text-[10px] text-muted-foreground font-medium">
-                  {preset.tag}
-                </span>
-                <Button
-                  size="sm"
-                  onClick={() => onStartPreset(preset)}
-                  className="text-xs h-7 px-3 bg-primary text-primary-foreground hover:bg-primary/90 font-medium cursor-pointer"
-                >
-                  Start Track
-                </Button>
-              </div>
-            </Card>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
     </div>

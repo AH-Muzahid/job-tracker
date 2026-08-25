@@ -9,10 +9,10 @@ import {
   Lightbulb,
   CheckCircle2,
   AlertTriangle,
+  Bot,
+  Mic,
 } from "lucide-react"
-import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   Dialog,
@@ -44,238 +44,183 @@ export function MockTranscriptsTab({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between pb-2 border-b border-border">
         <div>
-          <h2 className="text-sm sm:text-base font-bold text-foreground">Recorded Mock Interviews</h2>
-          <p className="text-xs text-muted-foreground">Review your spoken mock conversations and AI STAR performance debriefs</p>
+          <h2 className="text-sm sm:text-base font-semibold text-foreground">Recorded Mock Interviews</h2>
+          <p className="text-xs text-muted-foreground">Review your spoken mock conversations and AI STAR performance debriefs.</p>
         </div>
       </div>
 
       {loading ? (
-        <div className="space-y-3">
-          {[1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-24 w-full rounded-2xl" />
-          ))}
+        <div className="relative border border-border bg-border">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-px bg-border">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="p-5 bg-background space-y-3">
+                <Skeleton className="h-4 w-32 rounded-sm" />
+                <Skeleton className="h-3.5 w-48 rounded-sm" />
+                <Skeleton className="h-3 w-24 rounded-sm" />
+              </div>
+            ))}
+          </div>
         </div>
       ) : sessions.length === 0 ? (
-        <Card className="rounded-3xl border border-dashed p-8 text-center space-y-3">
-          <History className="h-10 w-10 text-muted-foreground mx-auto" />
+        <div className="p-12 text-center border border-dashed border-border rounded-lg bg-card/40 space-y-3">
+          <History className="size-8 text-muted-foreground mx-auto" />
           <div className="space-y-1">
-            <h3 className="text-sm font-bold">No Mock Sessions Recorded Yet</h3>
+            <p className="text-sm font-semibold text-foreground">No Mock Sessions Recorded Yet</p>
             <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-              Take a live spoken mock interview to practice with Tanya, Tanvir, Sarah, or David and your transcript will be saved here automatically!
+              Take a live spoken mock interview and your conversation transcript and score analysis will appear here.
             </p>
           </div>
           <Button
             onClick={onStartMockInterview}
-            className="bg-primary text-primary-foreground hover:bg-primary/90 text-xs h-9 px-4 rounded-xl font-medium"
+            size="sm"
+            className="text-xs h-8 px-4 font-medium cursor-pointer mt-2"
           >
+            <Mic className="size-3.5 mr-1.5" />
             Start First Mock Interview
           </Button>
-        </Card>
+        </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
-          {sessions.map((session) => (
-            <Card
-              key={session.id}
-              className="rounded-3xl border border-border hover:border-border/80 transition-all p-4 sm:p-5 flex flex-col justify-between gap-3 bg-card shadow-2xs"
-            >
-              <div className="space-y-2">
-                <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <Badge
-                    variant="outline"
-                    className="text-[10px] font-medium bg-muted/50 text-foreground"
-                  >
-                    {session.interviewType} Round
-                  </Badge>
-                  <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-                    <Calendar className="h-3 w-3" />
-                    <span>{new Date(session.createdAt).toLocaleDateString()}</span>
-                  </span>
+        <div className="relative border border-border bg-border">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-px bg-border">
+            {sessions.map((session) => (
+              <div
+                key={session.id}
+                className="bg-background p-4 sm:p-5 flex flex-col justify-between gap-3.5 group transition-colors hover:bg-muted/10"
+              >
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <span className="inline-flex items-center px-2 py-0.5 text-[10px] font-mono font-medium rounded-full bg-muted border border-border text-foreground">
+                      {session.interviewType} Round
+                    </span>
+                    <span className="text-[10px] font-mono text-muted-foreground flex items-center gap-1">
+                      <Calendar className="size-3" />
+                      <span>{new Date(session.createdAt).toLocaleDateString()}</span>
+                    </span>
+                  </div>
+
+                  <div>
+                    <h3 className="text-sm font-semibold text-foreground">
+                      {session.targetCompany}
+                    </h3>
+                    <p className="text-xs text-muted-foreground">
+                      {session.targetRole}
+                    </p>
+                  </div>
                 </div>
 
-                <div>
-                  <h4 className="text-sm font-semibold text-foreground">
-                    {session.targetCompany}
-                  </h4>
-                  <p className="text-xs text-muted-foreground font-medium">
-                    {session.targetRole}
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-2 pt-1">
-                  {session.score !== null && (
-                    <Badge
+                <div className="pt-2 border-t border-border flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Button
                       variant="outline"
-                      className={cn(
-                        "text-xs font-bold",
-                        session.score >= 80
-                          ? "border-emerald-500 text-emerald-600 bg-emerald-500/10"
-                          : session.score >= 60
-                          ? "border-amber-500 text-amber-600 bg-amber-500/10"
-                          : "border-red-500 text-red-600 bg-red-500/10"
-                      )}
+                      size="sm"
+                      onClick={() => {
+                        setSelectedSession(session)
+                        setSessionModalOpen(true)
+                      }}
+                      className="h-7 text-xs px-2.5 border-border cursor-pointer font-medium"
                     >
-                      Score: {session.score}/100
-                    </Badge>
-                  )}
-                  {session.verdict && (
-                    <Badge variant="secondary" className="text-xs font-semibold">
-                      {session.verdict}
-                    </Badge>
-                  )}
-                  <span className="text-[10.5px] text-muted-foreground">
-                    {Array.isArray(session.dialogue) ? session.dialogue.length : 0} Turns
-                  </span>
+                      <span>Review Debrief</span>
+                      <ChevronRight className="size-3 ml-1" />
+                    </Button>
+                  </div>
+
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => onDeleteSession(session.id)}
+                    className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md cursor-pointer opacity-80 group-hover:opacity-100"
+                    title="Remove Session"
+                  >
+                    <Trash2 className="size-3.5" />
+                  </Button>
                 </div>
               </div>
-
-              <div className="flex items-center justify-between border-t pt-3 mt-1">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onDeleteSession(session.id)}
-                  className="text-red-500 hover:text-red-600 hover:bg-red-500/10 text-xs h-7 px-2 rounded-lg"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
-
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    setSelectedSession(session)
-                    setSessionModalOpen(true)
-                  }}
-                  className="text-xs h-8 px-3 gap-1 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 font-medium"
-                >
-                  <span>Review Transcript</span>
-                  <ChevronRight className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-            </Card>
-          ))}
+            ))}
+          </div>
         </div>
       )}
 
-      {/* SESSION TRANSCRIPT & DEBRIEF MODAL */}
-      <Dialog open={sessionModalOpen} onOpenChange={setSessionModalOpen}>
-        <DialogContent className="w-[95vw] max-w-3xl max-h-[85vh] flex flex-col p-4 sm:p-6 overflow-hidden rounded-3xl">
-          <DialogHeader className="pb-3 border-b">
-            <DialogTitle className="text-base font-bold flex items-center justify-between gap-2 flex-wrap">
-              <span>{selectedSession?.targetCompany} — {selectedSession?.targetRole}</span>
-              {selectedSession?.score !== null && (
-                <Badge className="bg-emerald-600 text-white text-xs">
-                  Score: {selectedSession?.score}/100
-                </Badge>
-              )}
-            </DialogTitle>
-            <DialogDescription className="text-xs">
-              Recorded {selectedSession?.interviewType} Round on {selectedSession?.createdAt ? new Date(selectedSession.createdAt).toLocaleString() : ""}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="flex-1 overflow-y-auto no-scrollbar space-y-4 py-3">
-            {/* Executive Summary */}
-            {selectedSession?.report?.executiveSummary && (
-              <div className="rounded-2xl border border-border bg-muted/20 p-3.5 space-y-1">
-                <span className="text-[11px] font-semibold text-primary flex items-center gap-1">
-                  <Lightbulb className="h-3.5 w-3.5" />
-                  <span>Executive Feedback</span>
+      {/* Transcript & Gap Analysis Modal */}
+      {selectedSession && (
+        <Dialog open={sessionModalOpen} onOpenChange={setSessionModalOpen}>
+          <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto bg-background border-border text-foreground p-5 sm:p-6">
+            <DialogHeader className="pb-3 border-b border-border space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center px-2 py-0.5 text-[10px] font-mono font-medium rounded-full bg-muted border border-border text-foreground">
+                  {selectedSession.interviewType}
                 </span>
-                <p className="text-xs leading-relaxed text-foreground">
-                  {selectedSession.report.executiveSummary}
-                </p>
+                <span className="text-xs font-mono text-muted-foreground">
+                  {new Date(selectedSession.createdAt).toLocaleDateString()}
+                </span>
               </div>
-            )}
+              <DialogTitle className="text-lg font-semibold text-foreground">
+                {selectedSession.targetCompany} — {selectedSession.targetRole}
+              </DialogTitle>
+              <DialogDescription className="text-xs text-muted-foreground">
+                Complete verbal transcript and AI STAR assessment.
+              </DialogDescription>
+            </DialogHeader>
 
-            {/* Strengths & Improvement */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              {selectedSession?.report?.strengths && selectedSession.report.strengths.length > 0 && (
-                <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-3 space-y-1">
-                  <span className="text-[10.5px] font-bold text-emerald-600 flex items-center gap-1">
-                    <CheckCircle2 className="h-3.5 w-3.5" />
-                    <span>Key Strengths</span>
-                  </span>
-                  <ul className="text-xs space-y-1 text-muted-foreground list-disc list-inside">
-                    {selectedSession.report.strengths.map((s, i) => (
-                      <li key={i}>{s}</li>
-                    ))}
-                  </ul>
+            <div className="space-y-5 pt-2">
+              {/* STAR Gap Analysis Section */}
+              {selectedSession.report?.knowledgeGaps && selectedSession.report.knowledgeGaps.length > 0 && (
+                <div className="p-4 rounded-lg border border-border bg-muted/20 space-y-3">
+                  <h4 className="text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">
+                    Performance Evaluation & Knowledge Gaps
+                  </h4>
+                  <GapDoctorSection
+                    gaps={selectedSession.report.knowledgeGaps}
+                    targetCompany={selectedSession.targetCompany}
+                    targetRole={selectedSession.targetRole}
+                  />
                 </div>
               )}
 
-              {selectedSession?.report?.improvementAreas && selectedSession.report.improvementAreas.length > 0 && (
-                <div className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-3 space-y-1">
-                  <span className="text-[10.5px] font-bold text-amber-600 flex items-center gap-1">
-                    <AlertTriangle className="h-3.5 w-3.5" />
-                    <span>Areas to Polish</span>
-                  </span>
-                  <ul className="text-xs space-y-1 text-muted-foreground list-disc list-inside">
-                    {selectedSession.report.improvementAreas.map((a, i) => (
-                      <li key={i}>{a}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-
-            {/* Targeted Knowledge Gaps & Remediation */}
-            {selectedSession?.report?.knowledgeGaps && selectedSession.report.knowledgeGaps.length > 0 && (
-              <div className="pt-2 border-t">
-                <GapDoctorSection
-                  gaps={selectedSession.report.knowledgeGaps}
-                  targetCompany={selectedSession.targetCompany}
-                  targetRole={selectedSession.targetRole}
-                />
-              </div>
-            )}
-
-            {/* Complete Spoken Dialogue Transcript */}
-            <div className="space-y-2 pt-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                Full Spoken Dialogue Transcript
-              </span>
-              <div className="space-y-2 rounded-2xl border bg-muted/10 p-3">
-                {Array.isArray(selectedSession?.dialogue) &&
-                  selectedSession.dialogue.map((msg, idx) => (
-                    <div
-                      key={idx}
-                      className={cn(
-                        "flex flex-col",
-                        msg.role === "interviewer" ? "items-start" : "items-end"
-                      )}
-                    >
-                      <span className="text-[10px] text-muted-foreground mb-0.5">
-                        {msg.role === "interviewer" ? "Interviewer" : "You (Candidate)"} • {msg.timestamp || ""}
-                      </span>
+              {/* Transcript Messages */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">
+                  Spoken Conversation Transcript
+                </h4>
+                <div className="space-y-2.5">
+                  {selectedSession.dialogue && selectedSession.dialogue.length > 0 ? (
+                    selectedSession.dialogue.map((msg: { role: string; text: string; timestamp?: string }, idx: number) => (
                       <div
+                        key={idx}
                         className={cn(
-                          "rounded-2xl px-3 py-2 text-xs max-w-[90%] leading-relaxed",
-                          msg.role === "interviewer"
-                            ? "bg-muted text-foreground border border-border rounded-tl-sm"
-                            : "bg-primary text-primary-foreground rounded-tr-sm"
+                          "p-3 rounded-lg text-xs leading-relaxed border",
+                          msg.role === "user"
+                            ? "bg-muted/40 border-border text-foreground ml-4 sm:ml-8"
+                            : "bg-card border-border text-foreground mr-4 sm:mr-8"
                         )}
                       >
+                        <span className="text-[10px] font-mono font-bold block mb-1 text-muted-foreground">
+                          {msg.role === "user" ? "You (Candidate)" : "Interviewer (AI)"}
+                        </span>
                         {msg.text}
                       </div>
-                    </div>
-                  ))}
+                    ))
+                  ) : (
+                    <p className="text-xs text-muted-foreground italic">No transcript messages recorded.</p>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
 
-          <DialogFooter className="border-t pt-3">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setSessionModalOpen(false)}
-              className="text-xs rounded-xl"
-            >
-              Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            <DialogFooter className="pt-3 border-t border-border">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSessionModalOpen(false)}
+                className="h-8 text-xs cursor-pointer"
+              >
+                Close
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   )
 }

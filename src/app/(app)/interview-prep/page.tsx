@@ -4,10 +4,11 @@ import { useEffect, useState, Suspense } from "react"
 import { useUser } from "@clerk/nextjs"
 import { useRouter, useSearchParams } from "next/navigation"
 import { toast } from "sonner"
-import { Building2, Bot, X } from "lucide-react"
+import { Building2, Bot, X, Mic, BookOpen, Brain, History } from "lucide-react"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
+import { DecorIcon } from "@/components/decor-icon"
 import { ConversationalVoiceInterviewModal } from "@/components/interview/ConversationalVoiceInterviewModal"
 
 import { PrepNote, InterviewSessionItem } from "@/components/interview/prep/types"
@@ -124,7 +125,7 @@ function InterviewPrepContent() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto space-y-5 sm:space-y-6 pb-12 w-full min-w-0 max-w-full overflow-x-hidden">
+    <div className="max-w-7xl mx-auto space-y-6 pb-12 w-full min-w-0 max-w-full overflow-x-hidden">
       {/* 1. Page Header */}
       <InterviewPrepHeader
         onStartMockInterview={() => {
@@ -134,12 +135,51 @@ function InterviewPrepContent() {
         }}
       />
 
+      {/* 2. Top Efferd 4-KPI Metric Strip */}
+      <div className="relative border border-border bg-border">
+        <DecorIcon className="hidden md:block" position="top-left" />
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-border">
+          <div className="p-4 sm:p-5 bg-background space-y-1.5">
+            <span className="text-xs font-mono text-muted-foreground">Mock Rounds</span>
+            <div className="text-xl sm:text-2xl font-bold tracking-tight text-foreground font-mono tabular-nums">
+              {sessions.length}
+            </div>
+            <span className="text-[11px] font-mono text-muted-foreground block">completed</span>
+          </div>
+
+          <div className="p-4 sm:p-5 bg-background space-y-1.5">
+            <span className="text-xs font-mono text-muted-foreground">Revision Notes</span>
+            <div className="text-xl sm:text-2xl font-bold tracking-tight text-foreground font-mono tabular-nums">
+              {notes.length}
+            </div>
+            <span className="text-[11px] font-mono text-muted-foreground block">saved strategies</span>
+          </div>
+
+          <div className="p-4 sm:p-5 bg-background space-y-1.5">
+            <span className="text-xs font-mono text-muted-foreground">Curated Tracks</span>
+            <div className="text-xl sm:text-2xl font-bold tracking-tight text-foreground font-mono tabular-nums">
+              3
+            </div>
+            <span className="text-[11px] font-mono text-muted-foreground block">role simulations</span>
+          </div>
+
+          <div className="p-4 sm:p-5 bg-background space-y-1.5">
+            <span className="text-xs font-mono text-muted-foreground">Voice Engine</span>
+            <div className="text-xl sm:text-2xl font-bold tracking-tight text-foreground flex items-center gap-1.5 font-mono">
+              <span className="size-2 rounded-full bg-emerald-500" />
+              <span>Online</span>
+            </div>
+            <span className="text-[11px] font-mono text-muted-foreground block">STAR debrief ready</span>
+          </div>
+        </div>
+      </div>
+
       {/* 1-Click Application-Linked Tailored Banner */}
       {customCompany && !dismissBanner && (
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 sm:p-4 rounded-md border border-border bg-card/60 shadow-xs relative">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-lg border border-border bg-card shadow-2xs relative">
           <div className="flex items-start sm:items-center gap-3">
-            <div className="p-2 rounded-md bg-muted/60 text-foreground border border-border shrink-0 mt-0.5 sm:mt-0">
-              <Building2 className="h-4 w-4" />
+            <div className="p-2 rounded-md bg-muted text-foreground border border-border shrink-0 mt-0.5 sm:mt-0">
+              <Building2 className="size-4" />
             </div>
             <div>
               <div className="flex items-center gap-1.5 flex-wrap">
@@ -149,12 +189,12 @@ function InterviewPrepContent() {
                 {customRole && (
                   <span className="text-xs text-muted-foreground">({customRole})</span>
                 )}
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold bg-muted/40 text-foreground border border-border rounded-md">
-                  <Bot className="h-3 w-3" /> 1-Click Tailored
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-mono font-medium bg-muted text-foreground border border-border rounded-full">
+                  <Bot className="size-3" /> 1-Click Tailored
                 </span>
               </div>
               <p className="text-xs text-muted-foreground mt-0.5">
-                The AI interviewer will dynamically query this company&apos;s JD keywords and interview culture.
+                The AI interviewer will dynamically tailor questions to this company&apos;s interview culture.
               </p>
             </div>
           </div>
@@ -167,7 +207,7 @@ function InterviewPrepContent() {
                 setModalCompany(customCompany)
                 setConversationalModalOpen(true)
               }}
-              className="h-8.5 text-xs rounded-md shadow-xs cursor-pointer font-semibold px-3.5"
+              className="h-8 text-xs font-medium px-3.5 cursor-pointer shadow-xs"
             >
               Launch Mock Room
             </Button>
@@ -175,19 +215,19 @@ function InterviewPrepContent() {
               size="icon"
               variant="ghost"
               onClick={() => setDismissBanner(true)}
-              className="h-8 w-8 rounded-md text-muted-foreground hover:text-foreground cursor-pointer"
+              className="size-8 text-muted-foreground hover:text-foreground cursor-pointer"
               title="Dismiss banner"
             >
-              <X className="h-3.5 w-3.5" />
+              <X className="size-3.5" />
             </Button>
           </div>
         </div>
       )}
 
-      {/* 2. Clean Segmented Tabs (4 Unambiguous Modes) */}
+      {/* 3. Clean Segmented Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <div className="border-b border-border pb-2 overflow-x-auto no-scrollbar">
-          <TabsList className="bg-muted/60 p-1 h-9">
+          <TabsList className="bg-muted/40 p-1 h-9 border border-border">
             <TabsTrigger value="mock" className="text-xs font-medium px-3 sm:px-4 cursor-pointer">
               Voice Mock Interview
             </TabsTrigger>
@@ -268,43 +308,67 @@ function InterviewPrepSkeleton() {
   return (
     <div className="max-w-7xl mx-auto space-y-6 pb-12 w-full min-w-0">
       {/* Header Skeleton */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 sm:p-6 rounded-xl border border-border bg-card/60">
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <Skeleton className="size-6 rounded-md" />
-            <Skeleton className="h-6 w-48 rounded-md" />
-          </div>
-          <Skeleton className="h-4 w-72 rounded-sm" />
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-1">
+        <div className="space-y-1.5">
+          <Skeleton className="h-8 w-56 rounded-md" />
+          <Skeleton className="h-4 w-96 max-w-full rounded-sm" />
         </div>
         <Skeleton className="h-9 w-36 rounded-lg" />
       </div>
 
+      {/* 4 Stat Strip Skeleton */}
+      <div className="relative border border-border bg-border">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-border">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="p-4 sm:p-5 bg-background space-y-2">
+              <Skeleton className="h-3 w-20 rounded-sm" />
+              <Skeleton className="h-6 w-12 rounded-sm" />
+              <Skeleton className="h-2.5 w-24 rounded-sm" />
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* Tabs Skeleton */}
-      <div className="flex items-center gap-1.5 p-1 rounded-lg border border-border bg-muted/40 w-full sm:w-80">
+      <div className="flex items-center gap-1.5 p-1 rounded-lg border border-border bg-muted/40 w-full sm:w-96">
+        <Skeleton className="h-7 flex-1 rounded-md" />
         <Skeleton className="h-7 flex-1 rounded-md" />
         <Skeleton className="h-7 flex-1 rounded-md" />
         <Skeleton className="h-7 flex-1 rounded-md" />
       </div>
 
-      {/* 3 Launchpad Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="p-5 rounded-xl border border-border bg-card space-y-4">
-            <div className="flex items-center justify-between">
-              <Skeleton className="h-4 w-24 rounded-full" />
-              <Skeleton className="h-4 w-16 rounded-sm" />
-            </div>
-            <div className="space-y-1.5">
-              <Skeleton className="h-5 w-44 rounded-sm" />
-              <Skeleton className="h-3.5 w-full rounded-sm" />
-              <Skeleton className="h-3.5 w-3/4 rounded-sm" />
-            </div>
-            <div className="pt-2 flex justify-between items-center border-t border-border/40">
-              <Skeleton className="h-3 w-20 rounded-sm" />
-              <Skeleton className="h-8 w-24 rounded-md" />
-            </div>
+      {/* Hero Card Skeleton */}
+      <div className="p-5 sm:p-6 rounded-lg border border-border bg-card space-y-4">
+        <div className="flex justify-between items-center">
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-32 rounded-full" />
+            <Skeleton className="h-6 w-64 rounded-sm" />
+            <Skeleton className="h-3.5 w-96 max-w-full rounded-sm" />
           </div>
-        ))}
+          <Skeleton className="h-9 w-40 rounded-lg" />
+        </div>
+      </div>
+
+      {/* 3 Launchpad Cards */}
+      <div className="relative border border-border bg-border">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-px bg-border">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="p-5 bg-background space-y-4">
+              <div className="flex items-center justify-between">
+                <Skeleton className="h-4 w-20 rounded-full" />
+                <Skeleton className="h-3.5 w-16 rounded-sm" />
+              </div>
+              <div className="space-y-1.5">
+                <Skeleton className="h-4 w-40 rounded-sm" />
+                <Skeleton className="h-3 w-full rounded-sm" />
+              </div>
+              <div className="pt-2 flex justify-between items-center border-t border-border">
+                <Skeleton className="h-3 w-16 rounded-sm" />
+                <Skeleton className="h-7 w-20 rounded-md" />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   )

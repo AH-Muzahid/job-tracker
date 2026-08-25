@@ -9,12 +9,10 @@ import {
   Volume2,
   VolumeX,
 } from "lucide-react"
-import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   Dialog,
@@ -95,140 +93,159 @@ export function RevisionNotesTab({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between flex-wrap gap-2">
+      {/* Header & Controls */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-border">
         <div>
-          <h2 className="text-sm sm:text-base font-bold text-foreground">Revision Notes & Core Concepts</h2>
-          <p className="text-xs text-muted-foreground">Your curated cheat-sheets and saved explanations for quick revision</p>
+          <h2 className="text-sm sm:text-base font-semibold text-foreground">Revision Notes & Core Concepts</h2>
+          <p className="text-xs text-muted-foreground">Study your saved interview strategies, code snippets, and behavioral examples.</p>
         </div>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          <div className="relative flex-1 sm:w-64">
-            <Search className="h-3.5 w-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search notes & concepts..."
-              className="pl-8 text-xs h-8 rounded-xl"
-            />
-          </div>
+        <div className="flex items-center gap-2">
           <Button
-            size="sm"
             onClick={() => setNOpen(true)}
-            className="text-xs h-8 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 font-medium"
+            size="sm"
+            className="h-8 text-xs font-medium cursor-pointer shadow-xs"
           >
-            <Plus className="h-3.5 w-3.5 mr-1" />
-            <span>Add Note</span>
+            <Plus className="size-3.5 mr-1" />
+            Add Note
           </Button>
         </div>
       </div>
 
+      {/* Search Input */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
+        <Input
+          placeholder="Filter notes by title, topic, or concept keyword..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-9 h-9 text-xs bg-muted/20 border-border focus-visible:ring-1"
+        />
+      </div>
+
+      {/* Loading Skeleton */}
       {loading ? (
-        <div className="space-y-3">
-          {[1, 2].map((i) => (
-            <Skeleton key={i} className="h-28 w-full rounded-2xl" />
-          ))}
+        <div className="relative border border-border bg-border">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-px bg-border">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="p-5 bg-background space-y-3">
+                <Skeleton className="h-4 w-28 rounded-sm" />
+                <Skeleton className="h-3.5 w-full rounded-sm" />
+                <Skeleton className="h-3.5 w-3/4 rounded-sm" />
+              </div>
+            ))}
+          </div>
         </div>
       ) : filteredNotes.length === 0 ? (
-        <Card className="rounded-3xl border border-dashed p-8 text-center space-y-3">
-          <BookOpen className="h-10 w-10 text-muted-foreground mx-auto" />
+        <div className="p-12 text-center border border-dashed border-border rounded-lg bg-card/40 space-y-3">
+          <BookOpen className="size-8 text-muted-foreground mx-auto" />
           <div className="space-y-1">
-            <h3 className="text-sm font-bold">No Revision Notes Found</h3>
+            <p className="text-sm font-semibold text-foreground">No Revision Notes Found</p>
             <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-              Ask any question in the AI Concept Lab and click &quot;Save Note&quot; or create a custom note!
+              Save key insights from your Mock Interviews and Concept Lab conversations, or create custom notes manually.
             </p>
           </div>
           <Button
+            variant="outline"
+            size="sm"
             onClick={() => setNOpen(true)}
-            className="bg-primary text-primary-foreground hover:bg-primary/90 text-xs h-9 px-4 rounded-xl font-medium"
+            className="text-xs h-8 cursor-pointer mt-2"
           >
-            Create Custom Note
+            <Plus className="size-3.5 mr-1" /> Create Note
           </Button>
-        </Card>
+        </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
-          {filteredNotes.map((note) => (
-            <Card
-              key={note.id}
-              className="rounded-3xl border border-border p-4 sm:p-5 flex flex-col justify-between gap-3 bg-card shadow-2xs hover:border-border/80 transition-all"
-            >
-              <div className="space-y-2">
-                <div className="flex items-center justify-between gap-2">
-                  <Badge variant="outline" className="text-[10px] font-medium bg-muted/50 text-foreground">
-                    {note.category}
-                  </Badge>
-                  <span className="text-[10px] text-muted-foreground">
-                    {new Date(note.createdAt).toLocaleDateString()}
-                  </span>
+        <div className="relative border border-border bg-border">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-px bg-border">
+            {filteredNotes.map((note) => (
+              <div
+                key={note.id}
+                className="bg-background p-4 sm:p-5 flex flex-col justify-between gap-3 group transition-colors hover:bg-muted/10"
+              >
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="inline-flex items-center px-2 py-0.5 text-[10px] font-mono font-medium rounded-full bg-muted border border-border text-foreground">
+                      {note.category}
+                    </span>
+                    <span className="text-[10px] font-mono text-muted-foreground">
+                      {new Date(note.createdAt).toLocaleDateString()}
+                    </span>
+                  </div>
+
+                  <h3 className="text-sm font-semibold text-foreground leading-snug">{note.title}</h3>
+                  <p className="text-xs text-muted-foreground leading-relaxed whitespace-pre-wrap line-clamp-4">
+                    {note.content}
+                  </p>
                 </div>
 
-                <h4 className="text-sm font-semibold text-foreground leading-snug">{note.title}</h4>
-                <p className="text-xs text-muted-foreground line-clamp-4 leading-relaxed whitespace-pre-wrap">
-                  {note.content}
-                </p>
-              </div>
+                <div className="pt-2 border-t border-border flex items-center justify-between">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => toggleReadAloud(note.content)}
+                    className="h-7 text-[11px] font-mono px-2 text-muted-foreground hover:text-foreground cursor-pointer"
+                  >
+                    {activeSpeakingText === note.content ? (
+                      <VolumeX className="size-3 mr-1 text-destructive" />
+                    ) : (
+                      <Volume2 className="size-3 mr-1" />
+                    )}
+                    <span>Listen</span>
+                  </Button>
 
-              <div className="flex items-center justify-between border-t pt-3">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onDeleteNote(note.id)}
-                  className="text-red-500 hover:text-red-600 hover:bg-red-500/10 text-xs h-7 px-2 rounded-lg"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => toggleReadAloud(note.content)}
-                  className="text-xs h-7 px-2.5 gap-1 rounded-lg"
-                >
-                  {activeSpeakingText === note.content ? (
-                    <VolumeX className="h-3 w-3 text-amber-500" />
-                  ) : (
-                    <Volume2 className="h-3 w-3" />
-                  )}
-                  <span>Read Aloud</span>
-                </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => onDeleteNote(note.id)}
+                    className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md cursor-pointer opacity-80 group-hover:opacity-100"
+                    title="Delete Note"
+                  >
+                    <Trash2 className="size-3.5" />
+                  </Button>
+                </div>
               </div>
-            </Card>
-          ))}
+            ))}
+          </div>
         </div>
       )}
 
-      {/* CREATE CUSTOM NOTE MODAL */}
+      {/* Add Note Dialog */}
       <Dialog open={nOpen} onOpenChange={setNOpen}>
-        <DialogContent className="sm:max-w-lg rounded-3xl p-5 sm:p-6">
+        <DialogContent className="max-w-md bg-background border-border text-foreground">
           <DialogHeader>
-            <DialogTitle className="text-sm sm:text-base font-bold">Add Custom Revision Note</DialogTitle>
-            <DialogDescription className="text-xs">Save key concepts, architectural diagrams, or cheat codes</DialogDescription>
+            <DialogTitle className="text-base font-semibold">Add Study Note</DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Save key concepts, architectural patterns, or STAR interview answers.
+            </DialogDescription>
           </DialogHeader>
-          <form onSubmit={createNote} className="space-y-3 pt-2">
-            <div className="space-y-1">
-              <Label className="text-xs font-medium">Title / Concept</Label>
+          <form onSubmit={createNote} className="space-y-3.5 pt-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Title</Label>
               <Input
+                placeholder="e.g. Distributed Caching Strategies"
                 value={nForm.title}
                 onChange={(e) => setNForm({ ...nForm, title: e.target.value })}
-                placeholder="e.g. Postgres Index Types Cheat Sheet"
-                className="text-xs h-8 sm:h-9"
+                className="h-8.5 text-xs bg-muted/20 border-border"
+                required
               />
             </div>
-            <div className="space-y-1">
-              <Label className="text-xs font-medium">Category</Label>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Category</Label>
               <Input
+                placeholder="e.g. System Design, React, STAR Behavioral"
                 value={nForm.category}
                 onChange={(e) => setNForm({ ...nForm, category: e.target.value })}
-                placeholder="e.g. React, System Design, Database"
-                className="text-xs h-8 sm:h-9"
+                className="h-8.5 text-xs bg-muted/20 border-border"
               />
             </div>
-            <div className="space-y-1">
-              <Label className="text-xs font-medium">Note Content & Key Takeaways</Label>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Notes & Key Points</Label>
               <Textarea
+                placeholder="Write your study notes, trade-offs, and key learnings..."
                 value={nForm.content}
                 onChange={(e) => setNForm({ ...nForm, content: e.target.value })}
-                rows={4}
-                placeholder="Key bullet points, syntax, trade-offs..."
-                className="text-xs leading-relaxed"
+                className="min-h-[120px] text-xs bg-muted/20 border-border"
+                required
               />
             </div>
             <DialogFooter className="pt-2">
@@ -237,7 +254,7 @@ export function RevisionNotesTab({
                 variant="outline"
                 size="sm"
                 onClick={() => setNOpen(false)}
-                className="text-xs rounded-xl"
+                className="h-8 text-xs cursor-pointer"
               >
                 Cancel
               </Button>
@@ -245,7 +262,7 @@ export function RevisionNotesTab({
                 type="submit"
                 size="sm"
                 disabled={submittingNote}
-                className="text-xs rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 font-medium"
+                className="h-8 text-xs font-medium cursor-pointer"
               >
                 {submittingNote ? "Saving..." : "Save Note"}
               </Button>
