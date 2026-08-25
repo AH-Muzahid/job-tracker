@@ -70,12 +70,8 @@ export default function AIAssistantPage() {
     queryClient.invalidateQueries({ queryKey: ["ai", "sessions"] })
   }, [queryClient, setActiveChatId])
 
-  if (!isLoaded || loading) {
-    return (
-      <div className="flex h-[calc(100vh-3.5rem)] w-full p-4">
-        <Skeleton className="h-full w-full rounded-xl" />
-      </div>
-    )
+  if (!isLoaded) {
+    return null
   }
 
   return (

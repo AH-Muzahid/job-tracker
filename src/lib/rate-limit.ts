@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { ResponseUtil } from "@/lib/api-response"
+import { getRedisClient } from "@/lib/redis"
 
 interface RateLimitRecord {
   count: number
@@ -8,7 +9,7 @@ interface RateLimitRecord {
 
 const rateLimitStore = new Map<string, RateLimitRecord>()
 
-// Periodically clean up expired entries every 5 minutes
+// Periodically clean up expired in-memory entries every 5 minutes
 if (typeof setInterval !== "undefined") {
   setInterval(() => {
     const now = Date.now()
@@ -73,6 +74,55 @@ export function checkRateLimit(
     limit,
     remaining: limit - record.count,
     resetInSeconds: Math.ceil((record.resetAt - now) / 1000),
+  }
+}
+
+/**
+ * Distributed rate limiter using Upstash Redis with local memory fallback.
+ */
+export async function checkDistributedRateLimit(
+  identifier: string,
+  limit: number = 15,
+  windowSeconds: number = 60
+): Promise<RateLimitResult> {
+  const redis = getRedisClient()
+  if (!redis) {
+    return checkRateLimit(identifier, limit, windowSeconds * 1000)
+  }
+
+  const key = `ratelimit:${identifier}`
+  try {
+    const current = await redis.incr(key)
+    if (current === 1) {
+      await redis.expire(key, windowSeconds)
+    } else {
+      // Self-healing: if key has no TTL due to a previous crash, re-apply expiry
+      const currentTtl = await redis.ttl(key)
+      if (currentTtl === -1) {
+        await redis.expire(key, windowSeconds)
+      }
+    }
+    const ttl = await redis.ttl(key)
+    const resetInSeconds = ttl > 0 ? ttl : windowSeconds
+
+    if (current > limit) {
+      return {
+        success: false,
+        limit,
+        remaining: 0,
+        resetInSeconds,
+      }
+    }
+
+    return {
+      success: true,
+      limit,
+      remaining: Math.max(0, limit - current),
+      resetInSeconds,
+    }
+  } catch (err) {
+    console.warn(`[Distributed RateLimit Error] Falling back to in-memory:`, err)
+    return checkRateLimit(identifier, limit, windowSeconds * 1000)
   }
 }
 

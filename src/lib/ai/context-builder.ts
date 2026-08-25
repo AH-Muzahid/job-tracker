@@ -26,6 +26,55 @@ interface CachedResume {
   textContent: string | null
 }
 
+/**
+ * Sanitize external text to prevent tag injection and delimiter breakouts.
+ */
+export function sanitizeUntrustedContext(input: string): string {
+  if (!input) return ""
+  let sanitized = input.replace(/\u0000/g, "")
+  const tagRegex = /<\/?(?:system|instruction|admin|override|user_runtime_context|untrusted_content)[^>]*>/gi
+
+  // Recursive fixed-point loop to prevent nested bypasses like <<system>system>
+  let previous = ""
+  while (previous !== sanitized) {
+    previous = sanitized
+    sanitized = sanitized.replace(tagRegex, "")
+  }
+
+  return sanitized
+}
+
+/**
+ * Enforce strict character/token budgeting on conversation history to prevent context overflow,
+ * ensuring the resulting message array strictly starts with a "user" role for LLM API compatibility.
+ */
+export function budgetConversationHistory(
+  messages: Array<{ role: "user" | "assistant"; content: string }>,
+  maxCharBudget: number = 24_000
+): Array<{ role: "user" | "assistant"; content: string }> {
+  let currentChars = 0
+  const budgeted: Array<{ role: "user" | "assistant"; content: string }> = []
+
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i]
+    const msgLen = msg.content.length
+
+    if (currentChars + msgLen > maxCharBudget && budgeted.length >= 2) {
+      break
+    }
+
+    budgeted.unshift(msg)
+    currentChars += msgLen
+  }
+
+  // Ensure history strictly starts with a "user" role for provider API compatibility (Anthropic / Gemini)
+  while (budgeted.length > 0 && budgeted[0].role !== "user") {
+    budgeted.shift()
+  }
+
+  return budgeted
+}
+
 export async function buildFullContext(userId: string, mode: AIMode): Promise<string> {
   const parts: string[] = []
 
@@ -40,73 +89,71 @@ export async function buildFullContext(userId: string, mode: AIMode): Promise<st
   const needPrepQuestions = mode === "interview"
   const needWeeklyGoals = mode === "weekly"
 
-  // Base queries with Redis LTM caching for Profile and Memories
-  const cachedProfilePromise = getCachedJson<UserProfile>(`user:profile:${userId}`)
-  const cachedMemoriesPromise = getCachedJson<Array<{ category: string; content: string }>>(`user:memories:${userId}`)
+  // Parallelize all L1 Redis cache reads
+  const [cachedProfile, cachedMemories, cachedResume, cachedGraph] = await Promise.all([
+    getCachedJson<UserProfile>(`user:profile:${userId}`),
+    getCachedJson<Array<{ category: string; content: string }>>(`user:memories:${userId}`),
+    needResume ? getCachedJson<CachedResume>(`user:resume:${userId}`) : Promise.resolve(null),
+    needResume ? getCachedKnowledgeGraph(userId) : Promise.resolve(null),
+  ])
 
-  const [user, cachedProfile, cachedMemories, recentApps, pipelineStats] = await Promise.all([
+  // Parallelize remaining database fallback lookups and selective contextual queries
+  const [
+    user,
+    dbProfile,
+    dbMemories,
+    dbResume,
+    recentApps,
+    pipelineStats,
+    recentCompanies,
+    recentPrepNotes,
+    recentStatusChanges,
+    recentAnalyses,
+    prepQuestions,
+    currentGoals,
+  ] = await Promise.all([
     prisma.user.findUnique({
       where: { id: userId },
       select: { name: true, email: true },
     }),
-    cachedProfilePromise,
-    cachedMemoriesPromise,
-    needRecentApps ? prisma.application.findMany({
-      where: { userId },
-      orderBy: { createdAt: "desc" },
-      take: 15,
-      select: {
-        id: true, companyName: true, jobTitle: true, status: true,
-        source: true, applicationDate: true, notes: true,
-      },
-    }) : Promise.resolve([]),
-    needStats ? prisma.application.groupBy({
-      by: ["status"],
-      where: { userId },
-      _count: true,
-    }) : Promise.resolve([]),
-  ])
-
-  let profile = cachedProfile
-  if (!profile) {
-    profile = await prisma.userProfile.findUnique({ where: { userId } })
-    if (profile) {
-      // Asynchronously cache profile in Redis for 1 hour
-      void setCachedJson(`user:profile:${userId}`, profile, 3600)
-    }
-  }
-
-  let userMemories = cachedMemories
-  if (!userMemories) {
-    const rawMemories = await prisma.userMemory.findMany({
-      where: { userId },
-      orderBy: { createdAt: "desc" },
-      take: 15,
-      select: { category: true, content: true },
-    })
-    userMemories = rawMemories
-    if (rawMemories && rawMemories.length > 0) {
-      void setCachedJson(`user:memories:${userId}`, rawMemories, 3600)
-    }
-  }
-
-  // Selective targeted secondary queries with Redis caching for Default Resume and Knowledge Graph
-  const cachedResumePromise = needResume ? getCachedJson<CachedResume>(`user:resume:${userId}`) : Promise.resolve(null)
-  const cachedGraphPromise = needResume ? getCachedKnowledgeGraph(userId) : Promise.resolve(null)
-  const [cachedResume, cachedGraph] = await Promise.all([cachedResumePromise, cachedGraphPromise])
-
-  let defaultResume = cachedResume
-  if (needResume && !defaultResume) {
-    defaultResume = await prisma.resume.findFirst({
-      where: { userId, isDefault: true },
-      select: { title: true, fileName: true, fileUrl: true, textContent: true },
-    })
-    if (defaultResume) {
-      void setCachedJson(`user:resume:${userId}`, defaultResume, 3600)
-    }
-  }
-
-  const [recentCompanies, recentPrepNotes, recentStatusChanges, recentAnalyses, prepQuestions, currentGoals] = await Promise.all([
+    cachedProfile ? Promise.resolve(null) : prisma.userProfile.findUnique({ where: { userId } }),
+    cachedMemories
+      ? Promise.resolve(null)
+      : prisma.userMemory.findMany({
+          where: { userId },
+          orderBy: { createdAt: "desc" },
+          take: 15,
+          select: { category: true, content: true },
+        }),
+    needResume && !cachedResume
+      ? prisma.resume.findFirst({
+          where: { userId, isDefault: true },
+          select: { title: true, fileName: true, fileUrl: true, textContent: true },
+        })
+      : Promise.resolve(null),
+    needRecentApps
+      ? prisma.application.findMany({
+          where: { userId },
+          orderBy: { createdAt: "desc" },
+          take: 15,
+          select: {
+            id: true,
+            companyName: true,
+            jobTitle: true,
+            status: true,
+            source: true,
+            applicationDate: true,
+            notes: true,
+          },
+        })
+      : Promise.resolve([]),
+    needStats
+      ? prisma.application.groupBy({
+          by: ["status"],
+          where: { userId },
+          _count: true,
+        })
+      : Promise.resolve([]),
     needCompanies
       ? prisma.company.findMany({
           where: { userId },
@@ -114,7 +161,7 @@ export async function buildFullContext(userId: string, mode: AIMode): Promise<st
           take: 3,
           select: { name: true, industry: true, website: true, notes: true },
         })
-      : null,
+      : Promise.resolve(null),
     needPrepNotes
       ? prisma.prepNote.findMany({
           where: { userId },
@@ -122,7 +169,7 @@ export async function buildFullContext(userId: string, mode: AIMode): Promise<st
           take: 3,
           select: { title: true, category: true, content: true },
         })
-      : null,
+      : Promise.resolve(null),
     needStatusChanges
       ? prisma.statusChange.findMany({
           where: { application: { userId } },
@@ -135,7 +182,7 @@ export async function buildFullContext(userId: string, mode: AIMode): Promise<st
             application: { select: { companyName: true, jobTitle: true } },
           },
         })
-      : null,
+      : Promise.resolve(null),
     needAnalyses
       ? prisma.applicationAnalysis.findMany({
           where: { application: { userId } },
@@ -149,14 +196,14 @@ export async function buildFullContext(userId: string, mode: AIMode): Promise<st
             application: { select: { companyName: true, jobTitle: true } },
           },
         })
-      : null,
+      : Promise.resolve(null),
     needPrepQuestions
       ? prisma.prepQuestion.findMany({
           where: { userId },
           take: 10,
           orderBy: { createdAt: "desc" },
         })
-      : null,
+      : Promise.resolve(null),
     needWeeklyGoals
       ? (async () => {
           const now = new Date()
@@ -165,8 +212,23 @@ export async function buildFullContext(userId: string, mode: AIMode): Promise<st
           weekStart.setHours(0, 0, 0, 0)
           return prisma.weeklyGoal.findFirst({ where: { userId, weekStart } })
         })()
-      : null,
+      : Promise.resolve(null),
   ])
+
+  const profile = cachedProfile || dbProfile
+  if (!cachedProfile && dbProfile) {
+    void setCachedJson(`user:profile:${userId}`, dbProfile, 3600)
+  }
+
+  const userMemories = cachedMemories || dbMemories
+  if (!cachedMemories && dbMemories && dbMemories.length > 0) {
+    void setCachedJson(`user:memories:${userId}`, dbMemories, 3600)
+  }
+
+  const defaultResume = cachedResume || dbResume
+  if (!cachedResume && dbResume) {
+    void setCachedJson(`user:resume:${userId}`, dbResume, 3600)
+  }
 
   const displayName = user?.name || user?.email || "there"
   const hasProfile = Boolean(profile)
@@ -212,23 +274,23 @@ export async function buildFullContext(userId: string, mode: AIMode): Promise<st
       parts.push(formattedGraph)
     }
   } else if (defaultResume?.textContent) {
-    // Auto-build and persist Knowledge Graph on the fly if missing
-    try {
-      const generatedGraph = buildCareerGraphFromText(defaultResume.textContent, profile)
-      if (generatedGraph && generatedGraph.nodes.length > 0) {
-        void saveKnowledgeGraph(userId, generatedGraph)
-        const formattedGraph = formatGraphForContext(generatedGraph)
-        if (formattedGraph) {
-          parts.push(formattedGraph)
+    // Fast excerpt in TTFT critical path; trigger graph extraction asynchronously in background
+    const excerpt = defaultResume.textContent.length > 2000
+      ? defaultResume.textContent.slice(0, 2000) + "..."
+      : defaultResume.textContent
+    parts.push(`<untrusted_content type="resume_excerpt">\n${sanitizeUntrustedContext(excerpt)}\n</untrusted_content>`)
+
+    // Background build and cache Knowledge Graph without blocking streaming response
+    void Promise.resolve().then(async () => {
+      try {
+        const generatedGraph = buildCareerGraphFromText(defaultResume.textContent!, profile)
+        if (generatedGraph && generatedGraph.nodes.length > 0) {
+          await saveKnowledgeGraph(userId, generatedGraph)
         }
+      } catch (graphErr) {
+        console.error("Background Knowledge Graph build failed:", graphErr)
       }
-    } catch {
-      // Fallback: only if graph generation failed, provide compact excerpt
-      const excerpt = defaultResume.textContent.length > 2000
-        ? defaultResume.textContent.slice(0, 2000) + "..."
-        : defaultResume.textContent
-      parts.push(`- Key Resume Points:\n${excerpt}`)
-    }
+    })
   }
 
   if (pipelineStats && pipelineStats.length > 0) {
@@ -294,7 +356,7 @@ export async function buildFullContext(userId: string, mode: AIMode): Promise<st
   }
 
   if (userMemories && userMemories.length > 0) {
-    parts.push("Persistent User Knowledge & Explicit Preferences (Cross-Session Memory):\n" + userMemories.map((m) =>
+    parts.push("Persistent User Knowledge & Explicit Preferences (Cross-Session Memory):\n" + userMemories.map((m: any) =>
       `- [${m.category.toUpperCase()}]: ${m.content}`
     ).join("\n"))
   }

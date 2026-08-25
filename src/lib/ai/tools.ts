@@ -17,24 +17,46 @@ export function createAiTools(userId: string) {
     updateApplicationStatus: tool({
       description: "Update the status of an existing application (e.g. from Applied to Interview or Rejected) ONLY when the user explicitly asks to change or update status.",
       parameters: z.object({
-        companyOrTitle: z.string().describe("The company name or job title to find the application"),
-        newStatus: z.enum(["Saved", "Applied", "Assessment", "Interview", "Rejected", "Offer"]).describe("The new status for the application"),
+        companyOrTitle: z.string().optional().describe("The company name or job title to find the application"),
+        company: z.string().optional().describe("Alias for companyOrTitle"),
+        companyName: z.string().optional().describe("Alias for companyOrTitle"),
+        jobTitle: z.string().optional().describe("Alias for companyOrTitle"),
+        title: z.string().optional().describe("Alias for companyOrTitle"),
+        role: z.string().optional().describe("Alias for companyOrTitle"),
+        newStatus: z.string().optional().describe("The new status: Saved, Applied, Assessment, Interview, Rejected, Offer"),
+        status: z.string().optional().describe("Alias for newStatus"),
         notes: z.string().optional().describe("Optional note or update reason"),
       }),
-      execute: async ({
-        companyOrTitle,
-        newStatus,
-        notes,
-      }: {
-        companyOrTitle: string
-        newStatus: "Saved" | "Applied" | "Assessment" | "Interview" | "Rejected" | "Offer"
-        notes?: string
-      }) => {
+      execute: async (rawArgs: any) => {
         try {
-          if (!companyOrTitle?.trim()) {
+          const companyOrTitle = (
+            rawArgs?.companyOrTitle ||
+            rawArgs?.companyName ||
+            rawArgs?.company ||
+            rawArgs?.jobTitle ||
+            rawArgs?.title ||
+            rawArgs?.role ||
+            ""
+          ).trim()
+
+          const rawStatus = rawArgs?.newStatus || rawArgs?.status || "Applied"
+          const normalizedStatusMap: Record<string, string> = {
+            saved: "Saved",
+            applied: "Applied",
+            assessment: "Assessment",
+            interview: "Interview",
+            interviewing: "Interview",
+            rejected: "Rejected",
+            offer: "Offer",
+          }
+          const newStatus = normalizedStatusMap[rawStatus.toLowerCase()] || rawStatus
+
+          const notes = rawArgs?.notes
+
+          if (!companyOrTitle) {
             return {
               success: false,
-              message: "Company or job title is required to find and update application.",
+              message: "Company name (or job title) is required to update application status.",
             }
           }
 
@@ -98,38 +120,81 @@ export function createAiTools(userId: string) {
     } as any),
 
     createApplication: tool({
-      description: "Create a new job application entry in the user's tracker ONLY when the user explicitly instructs to add, save, log, or track a new application.",
+      description: "Create a new job application entry in the user's tracker when the user asks to add, save, log, track, or record an application.",
       parameters: z.object({
-        companyName: z.string().describe("Name of the company"),
-        jobTitle: z.string().describe("Title of the job role"),
-        status: z.enum(["Saved", "Applied", "Assessment", "Interview", "Rejected", "Offer"]).optional().default("Saved"),
-        jobUrl: z.string().optional().describe("URL to the job listing"),
+        companyName: z.string().optional().describe("The exact name of the company, e.g. 'Stripe', 'Google', 'Amazon'"),
+        company: z.string().optional().describe("Alias for companyName"),
+        jobTitle: z.string().optional().describe("The exact job title or role, e.g. 'Senior Backend Engineer', 'Frontend Developer'"),
+        title: z.string().optional().describe("Alias for jobTitle"),
+        role: z.string().optional().describe("Alias for jobTitle"),
+        position: z.string().optional().describe("Alias for jobTitle"),
+        status: z.string().optional().default("Saved").describe("The application status: Saved, Applied, Assessment, Interview, Rejected, Offer"),
+        jobUrl: z.string().optional().describe("Optional URL to the job listing"),
         source: z.string().optional().describe("Source platform e.g. LinkedIn, Indeed, BDJobs"),
         notes: z.string().optional().describe("Initial notes about the role"),
       }),
-      execute: async ({
-        companyName,
-        jobTitle,
-        status = "Saved",
-        jobUrl,
-        source,
-        notes,
-      }: {
-        companyName?: string
-        jobTitle?: string
-        status?: "Saved" | "Applied" | "Assessment" | "Interview" | "Rejected" | "Offer"
-        jobUrl?: string
-        source?: string
-        notes?: string
-      }) => {
+      execute: async (rawArgs: any) => {
         try {
-          const finalCompany = (companyName || "").trim()
-          const finalTitle = (jobTitle || "").trim()
+          const finalCompany = (
+            rawArgs?.companyName ||
+            rawArgs?.company ||
+            rawArgs?.company_name ||
+            rawArgs?.organization ||
+            ""
+          ).trim()
+
+          const finalTitle = (
+            rawArgs?.jobTitle ||
+            rawArgs?.title ||
+            rawArgs?.job_title ||
+            rawArgs?.role ||
+            rawArgs?.position ||
+            ""
+          ).trim()
+
+          const rawStatus = (rawArgs?.status || rawArgs?.applicationStatus || "Saved") as string
+          const normalizedStatusMap: Record<string, string> = {
+            saved: "Saved",
+            applied: "Applied",
+            assessment: "Assessment",
+            interview: "Interview",
+            interviewing: "Interview",
+            rejected: "Rejected",
+            offer: "Offer",
+          }
+          const status = normalizedStatusMap[rawStatus.toLowerCase()] || "Saved"
+
+          const jobUrl = rawArgs?.jobUrl
+          const source = rawArgs?.source || "Other"
+          const notes = rawArgs?.notes
 
           if (!finalCompany || !finalTitle) {
             return {
               success: false,
-              message: "Both companyName and jobTitle are required to create an application.",
+              message: "Please specify both the company name and the job title to track this application (e.g. company: 'Stripe', role: 'Senior Backend Engineer').",
+            }
+          }
+
+          // 1. Check for duplicate application (same company + job title)
+          const existingApp = await withDbRetry(() =>
+            prisma.application.findFirst({
+              where: {
+                userId,
+                companyName: { equals: finalCompany, mode: "insensitive" },
+                jobTitle: { equals: finalTitle, mode: "insensitive" },
+              },
+            })
+          )
+
+          if (existingApp) {
+            return {
+              success: false,
+              isDuplicate: true,
+              applicationId: existingApp.id,
+              companyName: existingApp.companyName,
+              jobTitle: existingApp.jobTitle,
+              status: existingApp.status,
+              message: `⚠️ **Duplicate Detected:** You already have an active application for **${existingApp.companyName}** (*${existingApp.jobTitle}*) in **${existingApp.status}** status.\n\nTo prevent duplicate records, this was not added again. You can ask me to update its status, log an interview, or add notes instead.`,
             }
           }
 
@@ -144,9 +209,15 @@ export function createAiTools(userId: string) {
                 source: source || "Other",
                 notes: notes || null,
                 applicationDate: new Date(),
+                statusChanges: { create: { toStatus: status || "Saved" } },
               },
             })
           )
+
+          // Invalidate Redis caches
+          void invalidateCache(`user:pipeline-stats:${userId}`)
+          void invalidateCache(`user:stats:${userId}`)
+          void invalidateCache(`user:applications:${userId}`)
 
           // Fire non-blocking auto-sync to Google Sheets
           void syncApplicationsToGoogleSheets(userId, [
@@ -168,11 +239,11 @@ export function createAiTools(userId: string) {
             companyName: newApp.companyName,
             jobTitle: newApp.jobTitle,
             status: newApp.status,
-            message: `Created new application for ${finalCompany} (${finalTitle}) in ${status || "Saved"} status.`,
+            message: `✅ **Successfully Tracked:** Added **${finalCompany}** — *${finalTitle}* in **${status || "Saved"}** status.\n\n- **Company:** ${finalCompany}\n- **Role:** ${finalTitle}\n- **Status:** ${status || "Saved"}\n- **Date:** ${new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}\n\nWould you like me to draft an outreach email, analyze the requirements, or prepare a tailored cover letter?`,
           }
         } catch (error) {
           console.error("createApplication tool error:", error)
-          return { success: false, message: "Failed to create application." }
+          return { success: false, message: "Failed to create application in database." }
         }
       },
     } as any),
@@ -182,8 +253,25 @@ export function createAiTools(userId: string) {
       parameters: z.object({
         companyOrTitle: z.string().describe("Company name or job title of the application to remove"),
       }),
-      execute: async ({ companyOrTitle }: { companyOrTitle: string }) => {
+      execute: async (rawArgs: any) => {
         try {
+          const companyOrTitle = (
+            rawArgs?.companyOrTitle ||
+            rawArgs?.companyName ||
+            rawArgs?.company ||
+            rawArgs?.jobTitle ||
+            rawArgs?.title ||
+            rawArgs?.role ||
+            ""
+          ).trim()
+
+          if (!companyOrTitle) {
+            return {
+              success: false,
+              message: "Company name or job title is required to delete an application.",
+            }
+          }
+
           const app = await withDbRetry(() =>
             prisma.application.findFirst({
               where: {
@@ -211,6 +299,7 @@ export function createAiTools(userId: string) {
           )
 
           void invalidateCache(`user:pipeline-stats:${userId}`)
+          void invalidateCache(`user:stats:${userId}`)
           void invalidateCache(`user:applications:${userId}`)
 
           return {
@@ -398,23 +487,71 @@ export function createAiTools(userId: string) {
       }),
       execute: async ({ url }: { url: string }) => {
         try {
-          const response = await fetch(`https://r.jina.ai/${url}`, {
+          const parsedUrl = new URL(url)
+          if (!["http:", "https:"].includes(parsedUrl.protocol)) {
+            return { success: false, message: "Only HTTP and HTTPS URLs are allowed." }
+          }
+
+          const host = parsedUrl.hostname.toLowerCase().replace(/^\[|\]$/g, "") // strip IPv6 brackets
+
+          const isBlocked = (() => {
+            // Loopback, unspecified, and local aliases
+            if (host === "localhost" || host === "0.0.0.0" || host === "::1" || host === "::" || host === "0") {
+              return true
+            }
+            if (host.endsWith(".internal") || host.endsWith(".local") || host.endsWith(".localhost")) {
+              return true
+            }
+            // Decimal encoded IP (e.g. 2130706433)
+            if (/^\d+$/.test(host)) {
+              return true
+            }
+            // IPv4 Private & Link-Local Subnets (127.0.0.0/8, 10.0.0.0/8, 192.168.0.0/16, 169.254.0.0/16, 172.16.0.0/12)
+            const ipv4Match = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/)
+            if (ipv4Match) {
+              const [, b1Str, b2Str] = ipv4Match
+              const b1 = Number(b1Str)
+              const b2 = Number(b2Str)
+              if (b1 === 127 || b1 === 10 || b1 === 0) return true
+              if (b1 === 169 && b2 === 254) return true
+              if (b1 === 192 && b2 === 168) return true
+              if (b1 === 172 && b2 >= 16 && b2 <= 31) return true // RFC 1918 Class B
+            }
+            return false
+          })()
+
+          if (isBlocked) {
+            return { success: false, message: "Target host is not permitted (private IP/metadata access blocked)." }
+          }
+
+          const controller = new AbortController()
+          const timeout = setTimeout(() => controller.abort(), 8000)
+
+          const response = await fetch(`https://r.jina.ai/${encodeURI(url)}`, {
             headers: {
               "X-Return-Format": "markdown",
             },
+            signal: controller.signal,
           })
+          clearTimeout(timeout)
+
           if (!response.ok) {
-            return { success: false, message: `Failed to scrape URL. Status: ${response.status}` }
+            return { success: false, message: `Failed to scrape URL. Upstream status: ${response.status}` }
           }
           const markdown = await response.text()
+          const safeMarkdown = markdown.slice(0, 15000)
           return {
             success: true,
-            markdown,
-            message: `Successfully scraped ${url}. Read the markdown content provided.`,
+            markdown: safeMarkdown,
+            message: `Successfully scraped ${url}. Content length: ${safeMarkdown.length} chars.`,
           }
         } catch (error) {
+          const isTimeout = error instanceof Error && error.name === "AbortError"
           console.error("scrapeJobLink tool error:", error)
-          return { success: false, message: "Failed to scrape URL due to network error." }
+          return {
+            success: false,
+            message: isTimeout ? "Scraping URL timed out after 8 seconds." : "Failed to scrape URL due to network error.",
+          }
         }
       },
     } as any),
@@ -1034,15 +1171,29 @@ export function createAiTools(userId: string) {
           const created = await withDbRetry(async () => {
             const results = []
             for (const app of applications) {
+              const comp = (app.companyName || "").trim()
+              const title = (app.jobTitle || "").trim()
+              if (!comp || !title) continue
+
+              const existing = await prisma.application.findFirst({
+                where: {
+                  userId,
+                  companyName: { equals: comp, mode: "insensitive" },
+                  jobTitle: { equals: title, mode: "insensitive" },
+                },
+              })
+              if (existing) continue
+
               const newApp = await prisma.application.create({
                 data: {
                   userId,
-                  companyName: app.companyName,
-                  jobTitle: app.jobTitle,
+                  companyName: comp,
+                  jobTitle: title,
                   status: app.status || "Saved",
                   source: app.source || "Bulk Import",
                   notes: app.notes || null,
                   applicationDate: new Date(),
+                  statusChanges: { create: { toStatus: app.status || "Saved" } },
                 },
               })
               results.push(newApp)
@@ -1051,6 +1202,7 @@ export function createAiTools(userId: string) {
           })
 
           void invalidateCache(`user:pipeline-stats:${userId}`)
+          void invalidateCache(`user:stats:${userId}`)
           void invalidateCache(`user:applications:${userId}`)
 
           // Fire non-blocking auto-sync to Google Sheets

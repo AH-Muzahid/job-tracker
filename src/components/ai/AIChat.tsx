@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect, useCallback } from "react"
+import { useQueryClient } from "@tanstack/react-query"
 import { Send, Square, FileText, Briefcase, Target, MessageSquare, ArrowDown, Plus, Bot, RotateCcw } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
@@ -8,6 +9,7 @@ import { Card } from "@/components/ui/card"
 import ChatMessage from "./ChatMessage"
 import { useUI, type AIMode } from "@/lib/store"
 import ModelSelector from "./ModelSelector"
+import { createDataStreamParser } from "@/lib/ai/stream-parser"
 
 interface Props {
   sessionId: string | null
@@ -116,6 +118,7 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
   const createdSessionIdRef = useRef<string | null>(null)
   
   const { pendingPrompt, setPendingPrompt, aiSidebarOpen } = useUI()
+  const queryClient = useQueryClient()
 
   const hasMessages = messages.length > 0
 
@@ -142,7 +145,13 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
         const res = await fetch(`/api/ai/sessions/${sessionId}`)
         if (!res.ok) throw new Error("Failed to load chat history")
         const session = await res.json()
-        if (!cancelled) setMessages(session?.messages || [])
+        if (!cancelled) {
+          const loadedMsgs = (session?.messages || []).map((m: any) => ({
+            ...m,
+            toolInvocations: m.toolInvocations || m.metadata?.toolInvocations || [],
+          }))
+          setMessages(loadedMsgs)
+        }
       } catch (e: unknown) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Error loading chat")
       } finally {
@@ -269,27 +278,62 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
 
       const reader = res.body?.getReader()
       const decoder = new TextDecoder()
+      const parser = createDataStreamParser()
 
       if (reader) {
-        let accumulatedText = ""
-        while (true) {
-          const { value, done: doneReading } = await reader.read()
-          if (doneReading) break
-          if (value) {
-            const chunk = decoder.decode(value, { stream: true })
-            accumulatedText += chunk
-            setMessages((prev) => {
-              const updated = [...prev]
-              const lastIdx = updated.findIndex((m) => m.id === assistantMsgId)
-              if (lastIdx !== -1) {
-                updated[lastIdx] = { ...updated[lastIdx], content: accumulatedText }
-              }
-              return updated
-            })
+        try {
+          while (true) {
+            const { value, done: doneReading } = await reader.read()
+            if (doneReading) break
+            if (value) {
+              const chunk = decoder.decode(value, { stream: true })
+              const parsed = parser.feed(chunk)
+              setMessages((prev) => {
+                const updated = [...prev]
+                const lastIdx = updated.findIndex((m) => m.id === assistantMsgId)
+                if (lastIdx !== -1) {
+                  updated[lastIdx] = {
+                    ...updated[lastIdx],
+                    content: parsed.text,
+                    toolInvocations: parsed.toolInvocations,
+                  }
+                }
+                return updated
+              })
+            }
           }
+        } finally {
+          reader.releaseLock()
         }
 
-        if (!accumulatedText.trim()) {
+        const finalState = parser.finalize()
+        const hasTools = Boolean(finalState.toolInvocations && finalState.toolInvocations.length > 0)
+
+        if (!finalState.text.trim() && !hasTools) {
+          // Check if the backend persisted a tool confirmation message
+          try {
+            const sessionRes = await fetch(`/api/ai/sessions/${currentSessionId}`)
+            if (sessionRes.ok) {
+              const sessionData = await sessionRes.json()
+              const lastAsstMsg = (sessionData?.messages || [])
+                .filter((m: { role: string }) => m.role === "assistant")
+                .pop()
+              if (lastAsstMsg?.content) {
+                setMessages((prev) => {
+                  const updated = [...prev]
+                  const lastIdx = updated.findIndex((m) => m.id === assistantMsgId)
+                  if (lastIdx !== -1) {
+                    updated[lastIdx] = { ...updated[lastIdx], content: lastAsstMsg.content }
+                  }
+                  return updated
+                })
+                return
+              }
+            }
+          } catch {
+            // Fallback to warning if fetch fails
+          }
+
           setMessages((prev) => {
             const updated = [...prev]
             const lastIdx = updated.findIndex((m) => m.id === assistantMsgId)
@@ -301,17 +345,42 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
             }
             return updated
           })
+        } else {
+          setMessages((prev) => {
+            const updated = [...prev]
+            const lastIdx = updated.findIndex((m) => m.id === assistantMsgId)
+            if (lastIdx !== -1) {
+              updated[lastIdx] = {
+                ...updated[lastIdx],
+                content: finalState.text,
+                toolInvocations: finalState.toolInvocations,
+              }
+            }
+            return updated
+          })
         }
       }
     } catch (e: unknown) {
-      if (e instanceof Error && e.name !== "AbortError") {
-        setError(e.message || "Failed to get response")
-        // Remove optimistic messages on failure so state doesn't stay out of sync
+      if (e instanceof Error && e.name === "AbortError") {
+        setMessages((prev) =>
+          prev.filter(
+            (m) =>
+              !(
+                m.id === assistantMsgId &&
+                !m.content.trim() &&
+                (!m.toolInvocations || m.toolInvocations.length === 0)
+              )
+          )
+        )
+      } else {
+        setError(e instanceof Error ? e.message : "Failed to get response")
         setMessages((prev) => prev.filter((m) => m.id !== userMsg.id && m.id !== assistantMsgId))
       }
     } finally {
       setIsStreaming(false)
       abortRef.current = null
+      void queryClient.invalidateQueries({ queryKey: ["applications"] })
+      void queryClient.invalidateQueries({ queryKey: ["stats"] })
     }
   }
 

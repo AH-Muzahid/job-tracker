@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { generateText } from "ai"
+import { generateText, streamText } from "ai"
 import type { LanguageModelV4 } from "@ai-sdk/provider"
 import { getProvider, AIProviderConfig } from "./client"
 import { getUserAIConfig, getAllUserAIProfiles } from "./config"
@@ -262,4 +262,55 @@ export function getEmergencyInterviewTurn(
     fallbackBank[turnNumber] ||
     `Could you walk me through your technical approach and how you'd implement that for ${targetCompany}?`
   )
+}
+
+/**
+ * Execute resilient text streaming with multi-provider fallback cascades
+ */
+export async function resilientStreamText(options: {
+  userId: string
+  preferredModelId?: string
+  system: string
+  messages: Array<{ role: "user" | "assistant" | "system"; content: string }>
+  temperature?: number
+  tools?: any
+  maxSteps?: number
+  onError?: (error: unknown) => void
+  onFinish?: (event: any) => Promise<void> | void
+  onStepFinish?: (event: any) => Promise<void> | void
+}) {
+  const candidates = await getFallbackModelCascade(options.userId, options.preferredModelId)
+
+  if (candidates.length === 0) {
+    throw new Error("No valid AI provider found. Please configure your API key in Settings.")
+  }
+
+  let lastError: unknown = null
+
+  for (const candidate of candidates) {
+    try {
+      const result = (streamText as any)({
+        model: candidate.model,
+        system: options.system,
+        messages: options.messages as any,
+        temperature: options.temperature ?? 0.35,
+        tools: options.tools,
+        maxSteps: options.maxSteps ?? 5,
+        onError: options.onError,
+        onFinish: options.onFinish,
+        onStepFinish: options.onStepFinish,
+      })
+
+      return {
+        result,
+        modelUsed: candidate.id,
+        providerUsed: candidate.name,
+      }
+    } catch (err) {
+      lastError = err
+      console.warn(`[Stream Fallback] Provider ${candidate.name} failed initialization:`, err)
+    }
+  }
+
+  throw lastError || new Error("All streaming model providers failed.")
 }

@@ -77,6 +77,7 @@ describe("Autonomous AI Agent Tools Suite", () => {
 
   describe("Application Lifecycle Tools", () => {
     it("createApplication creates new job entry in tracker", async () => {
+      vi.mocked(prisma.application.findFirst).mockResolvedValueOnce(null)
       vi.mocked(prisma.application.create).mockResolvedValueOnce({
         id: "app-1",
         userId,
@@ -104,6 +105,27 @@ describe("Autonomous AI Agent Tools Suite", () => {
       expect(result.success).toBe(true)
       expect(result.companyName).toBe("Stripe")
       expect(result.status).toBe("Applied")
+    })
+
+    it("createApplication prevents duplicate application creation", async () => {
+      vi.mocked(prisma.application.findFirst).mockResolvedValueOnce({
+        id: "app-1",
+        userId,
+        companyName: "Stripe",
+        jobTitle: "Senior Backend Engineer",
+        status: "Applied",
+      } as any)
+
+      const result = await (tools.createApplication as any).execute({
+        companyName: "Stripe",
+        jobTitle: "Senior Backend Engineer",
+        status: "Applied",
+      })
+
+      expect(result.success).toBe(false)
+      expect(result.isDuplicate).toBe(true)
+      expect(result.message).toContain("Duplicate Detected")
+      expect(prisma.application.create).not.toHaveBeenCalled()
     })
 
     it("updateApplicationStatus updates application and creates status change history", async () => {
@@ -220,6 +242,38 @@ describe("Autonomous AI Agent Tools Suite", () => {
       expect(result.success).toBe(true)
       expect(result.simulated).toBe(true)
       expect(result.recipient).toBe("recruiter@stripe.com")
+    })
+
+    it("scrapeJobLink blocks private IP addresses and localhost (SSRF prevention)", async () => {
+      const resultLocal = await (tools.scrapeJobLink as any).execute({
+        url: "http://localhost:3000/internal",
+      })
+      expect(resultLocal.success).toBe(false)
+      expect(resultLocal.message).toContain("blocked")
+
+      const resultMetadata = await (tools.scrapeJobLink as any).execute({
+        url: "http://169.254.169.254/latest/meta-data",
+      })
+      expect(resultMetadata.success).toBe(false)
+      expect(resultMetadata.message).toContain("blocked")
+
+      const resultIpv6 = await (tools.scrapeJobLink as any).execute({
+        url: "http://[::1]:8080/admin",
+      })
+      expect(resultIpv6.success).toBe(false)
+      expect(resultIpv6.message).toContain("blocked")
+
+      const resultClassB = await (tools.scrapeJobLink as any).execute({
+        url: "http://172.20.10.5/secrets",
+      })
+      expect(resultClassB.success).toBe(false)
+      expect(resultClassB.message).toContain("blocked")
+
+      const resultDecimal = await (tools.scrapeJobLink as any).execute({
+        url: "http://2130706433/",
+      })
+      expect(resultDecimal.success).toBe(false)
+      expect(resultDecimal.message).toContain("blocked")
     })
   })
 

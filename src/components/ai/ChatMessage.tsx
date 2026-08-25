@@ -10,6 +10,7 @@ import { toast } from "sonner"
 import AnalysisResult from "./AnalysisResult"
 import OutreachResult from "./OutreachResult"
 import ToolChips from "./ToolChips"
+import AgenticProcessViewer from "./AgenticProcessViewer"
 import StreamingText from "./StreamingText"
 import LoadingState from "./LoadingState"
 import MermaidDiagram from "./MermaidDiagram"
@@ -466,19 +467,12 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
       >
         {message.toolInvocations && message.toolInvocations.length > 0 && (
           <div className="mb-3">
-            <ToolChips toolInvocations={message.toolInvocations} />
+            <AgenticProcessViewer
+              toolInvocations={message.toolInvocations}
+              isStreaming={isStreaming}
+            />
             {message.toolInvocations.map((tool: ToolInvocation, idx: number) => (
               <React.Fragment key={idx}>
-                {tool.state === 'result' && (tool.toolName === 'createApplication' || tool.toolName === 'updateApplicationStatus') && (
-                  <div className="my-1.5 text-xs">
-                    <Link 
-                      href="/applications" 
-                      className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline"
-                    >
-                      View Board Application <ArrowUpRight className="h-3 w-3" />
-                    </Link>
-                  </div>
-                )}
                 {tool.state === 'result' && tool.toolName === 'draftOutreachEmail' && Boolean(tool.result) && (
                   <div className="my-2">
                     <OutreachResult data={tool.result as Record<string, unknown>} />
