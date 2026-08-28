@@ -79,10 +79,12 @@ function ApplicationsContent() {
   }, [urlParams, setUrlParams])
 
   const handleMoveTo = useCallback((id: string, status: string) => {
-    moveMutation.mutate(
-      { id, status },
-      { onSuccess: () => toast.success(`Moved to ${status}`), onError: () => toast.error("Failed to move") }
-    )
+    toast.success(`Moved to ${status}`)
+    moveMutation.mutate({ id, status }, {
+      onError: () => {
+        toast.error("Failed to move")
+      },
+    })
   }, [moveMutation])
 
   const handleDelete = useCallback(() => {
