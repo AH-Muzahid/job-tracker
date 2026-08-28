@@ -48,10 +48,17 @@ export function trimToTokenBudget(
   const kept: Array<{ role: string; content: string }> = []
   for (let i = rest.length - 1; i >= 0; i--) {
     const msgTokens = countMessageTokens([rest[i]])
-    if (budget - msgTokens < 0) break
+    if (budget - msgTokens < 0 && kept.length >= 2) break
     budget -= msgTokens
     kept.unshift(rest[i])
   }
 
-  return [firstMessage, ...kept]
+  const result = [firstMessage, ...kept]
+
+  // Ensure history starts with a user role message for API compatibility
+  while (result.length > 1 && result[1].role !== "user") {
+    result.splice(1, 1)
+  }
+
+  return result
 }
