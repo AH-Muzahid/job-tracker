@@ -94,7 +94,7 @@ function getStepMetadata(inv: ToolInvocation): StepMeta {
       const company = String(args?.company || args?.companyName || "Recruiter")
       return {
         verb: isExecuting ? "Drafting" : "Generated",
-        techBadge: { text: "✉️", color: "text-amber-400 bg-amber-500/10 border-amber-500/20" },
+        techBadge: { text: "MAIL", color: "text-amber-400 bg-amber-500/10 border-amber-500/20" },
         target: `Outreach • ${company}`,
         detail: isExecuting ? "synthesizing email..." : "high-conversion template",
       }
@@ -111,7 +111,7 @@ function getStepMetadata(inv: ToolInvocation): StepMeta {
     case "tailorResumeForJob": {
       return {
         verb: isExecuting ? "Tailoring" : "Tailored",
-        techBadge: { text: "📄", color: "text-indigo-400 bg-indigo-500/10 border-indigo-500/20" },
+        techBadge: { text: "RESUME", color: "text-indigo-400 bg-indigo-500/10 border-indigo-500/20" },
         target: "Resume Alignment",
         detail: isExecuting ? "optimizing bullet points..." : "+ATS impact metrics",
       }
@@ -133,6 +133,32 @@ function getStepMetadata(inv: ToolInvocation): StepMeta {
         target: `${count} Applications`,
         detail: isExecuting ? "bulk processing..." : `+${count} records`,
         diff: { add: count },
+      }
+    }
+    case "researchCompanyIntel": {
+      const company = String(args?.companyName || args?.company || "Company")
+      return {
+        verb: isExecuting ? "Researching" : "Researched",
+        techBadge: { text: "INTEL", color: "text-amber-400 bg-amber-500/10 border-amber-500/20" },
+        target: `${company} Intel`,
+        detail: isExecuting ? "gathering tech stack & culture..." : "saved to prep notes",
+      }
+    }
+    case "getPipelineStats": {
+      return {
+        verb: isExecuting ? "Calculating" : "Calculated",
+        techBadge: { text: "STATS", color: "text-blue-400 bg-blue-500/10 border-blue-500/20" },
+        target: "Pipeline Analytics",
+        detail: isExecuting ? "aggregating metrics..." : "pipeline summary",
+      }
+    }
+    case "listUserApplications": {
+      const status = args?.status ? String(args.status) : "Active"
+      return {
+        verb: isExecuting ? "Fetching" : "Retrieved",
+        techBadge: { text: "DB", color: "text-purple-400 bg-purple-500/10 border-purple-500/20" },
+        target: `${status} Applications`,
+        detail: isExecuting ? "querying tracker..." : "applications list",
       }
     }
     default: {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getInternalUserId } from "@/lib/auth"
+import { getCachedJson, setCachedJson, invalidateCache } from "@/lib/redis"
 
 export async function GET(req: NextRequest) {
   const userId = await getInternalUserId()
@@ -8,6 +9,10 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url)
   const search = searchParams.get("search")?.toLowerCase()
+
+  const cacheKey = `user:companies:${userId}:${search || "all"}`
+  const cached = await getCachedJson(cacheKey)
+  if (cached) return NextResponse.json(cached)
 
   const where: Record<string, unknown> = { userId }
   if (search) {
@@ -25,6 +30,7 @@ export async function GET(req: NextRequest) {
     },
   })
 
+  await setCachedJson(cacheKey, companies, 60)
   return NextResponse.json(companies)
 }
 
@@ -48,6 +54,7 @@ export async function POST(req: Request) {
       },
     })
 
+    void invalidateCache(`user:companies:${userId}`)
     return NextResponse.json(company, { status: 201 })
   } catch {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 })

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getInternalUserId } from "@/lib/auth"
+import { getCachedJson, setCachedJson, invalidateCache } from "@/lib/redis"
 
 export async function GET() {
   const userId = await getInternalUserId()
@@ -8,11 +9,16 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
+  const cacheKey = `user:tags:${userId}`
+  const cached = await getCachedJson(cacheKey)
+  if (cached) return NextResponse.json(cached)
+
   const tags = await prisma.tag.findMany({
     where: { userId },
     orderBy: { name: "asc" },
   })
 
+  await setCachedJson(cacheKey, tags, 60)
   return NextResponse.json(tags)
 }
 
@@ -37,6 +43,7 @@ export async function POST(req: Request) {
     }
 
     const tag = await prisma.tag.create({ data: { userId, name } })
+    void invalidateCache(`user:tags:${userId}`)
     return NextResponse.json(tag, { status: 201 })
   } catch {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 })
@@ -61,5 +68,6 @@ export async function DELETE(req: Request) {
   }
 
   await prisma.tag.delete({ where: { id } })
+  void invalidateCache(`user:tags:${userId}`)
   return NextResponse.json({ success: true })
 }

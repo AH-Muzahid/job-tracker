@@ -1,22 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
-
-/* ─────────────────────────────────────────────────────────
- * LOADING STATE — pixel-grid loader for long-running work
- *
- * Variants:
- *   Drive  — square cells, chevron wavefront driving right;
- *            the 650ms cycle is shorter than the sweep, so
- *            two fronts are always in flight
- *   Dots   — same wavefront, circular cells
- *   Orbit  — a comet lapping the grid perimeter
- *   Surfer — the Drive loader paired with a meme video below
- *
- * Paired with a shimmering label and a live elapsed timer
- * in mono tabular figures. Reduced motion freezes the grid
- * to its dim state; the timer still ticks.
- * ───────────────────────────────────────────────────────── */
+import React, { useEffect, useState } from "react";
+import { ChevronDown, ChevronRight, BrainCircuit, Terminal } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import { cn } from "@/lib/utils";
 
 const chevron = Array.from({ length: 9 }, (_, i) => {
   const r = Math.floor(i / 3),
@@ -61,101 +49,111 @@ function LoaderGrid({
   );
 }
 
-function useElapsed() {
+function useElapsed(isFinished?: boolean) {
   const [ds, setDs] = useState(0);
   useEffect(() => {
+    if (isFinished) return;
     const t = setInterval(() => setDs((d) => d + 1), 100);
     return () => clearInterval(t);
-  }, []);
+  }, [isFinished]);
   const total = ds / 10;
   const timeStr = total < 60 ? `${total.toFixed(1)}s` : `${Math.floor(total / 60)}m ${(total % 60).toFixed(1)}s`;
   return { elapsed: timeStr, seconds: total };
 }
 
+function getDynamicStage(seconds: number): string {
+  if (seconds < 2.0) return "Analyzing query & context...";
+  if (seconds < 5.0) return "Inspecting career tracker & database...";
+  if (seconds < 9.0) return "Synthesizing agent action plan...";
+  if (seconds < 18.0) return "Evaluating parameters & safety gates...";
+  return "Executing deep reasoning...";
+}
+
 export default function LoadingState({
   label,
-  variant = "Drive",
-  /** the meme feed for the Surfer variant; drop the file in /public to light it up */
-  videoSrc = "/subway-surfers.mp4",
+  reasoning,
+  isFinished = false,
+  variant = "Dots",
   className = "",
 }: {
   label?: string;
+  reasoning?: string;
+  isFinished?: boolean;
   variant?: string;
-  videoSrc?: string;
   className?: string;
 }) {
-  const { elapsed } = useElapsed();
-  const surfer = variant === "Surfer";
-  
-  const defaultLabel = "Thinking";
-  const resolvedLabel = label ?? (surfer ? "Subway surfing" : defaultLabel);
-  const [videoOk, setVideoOk] = useState(true);
-  const { delays, dur, round } = PATTERNS[variant] ?? PATTERNS.Drive;
+  const { elapsed, seconds } = useElapsed(isFinished);
+  const [isThoughtOpen, setIsThoughtOpen] = useState(true);
+  const { delays, dur, round } = PATTERNS[variant] ?? PATTERNS.Dots;
 
-  const labelEl = (
-    <span
-      className="bg-clip-text text-[13px] font-medium text-transparent"
-      style={{
-        backgroundImage:
-          "linear-gradient(90deg, var(--color-ink-3, var(--muted-foreground, #71717a)) 20%, var(--color-ink, var(--foreground, #09090b)) 50%, var(--color-ink-3, var(--muted-foreground, #71717a)) 80%)",
-        backgroundSize: "200% 100%",
-        WebkitBackgroundClip: "text",
-        animation: "shimmer-text 1.6s linear infinite",
-      }}
-    >
-      {resolvedLabel}
-    </span>
-  );
-  const elapsedEl = (
-    <span className="font-mono text-[12px] text-muted-foreground/80 tabular-nums">
-      {elapsed}
-    </span>
-  );
+  const dynamicStage = getDynamicStage(seconds);
+  const resolvedLabel = label || dynamicStage;
 
-  if (surfer) {
+  // If the model streams raw reasoning / thought tokens
+  if (reasoning && reasoning.trim()) {
     return (
-      <div role="status" className={`flex w-fit flex-col items-start select-none ${className}`}>
-        <div className="flex items-center gap-2.5">
-          <LoaderGrid {...PATTERNS.Drive} />
-          {labelEl}
-          {elapsedEl}
-        </div>
-
-        {/* the context card follows the status text it is illustrating */}
-        <div
-          className="mt-2 w-56 overflow-hidden rounded-[10px] shadow-overlay border border-line"
-          style={{ animation: "pop-in 200ms cubic-bezier(0.16,1,0.3,1) both", transformOrigin: "top left" }}
+      <div className={cn("w-full not-prose my-2 text-xs font-mono select-none", className)}>
+        <button
+          type="button"
+          onClick={() => setIsThoughtOpen(!isThoughtOpen)}
+          className="inline-flex items-center gap-2 py-1 px-2.5 -ml-2 rounded-md hover:bg-muted/70 transition-colors text-muted-foreground hover:text-foreground cursor-pointer group"
         >
-          <div className="relative aspect-video w-full" style={{ background: "var(--tooltip-bg)" }}>
-            {videoOk ? (
-              <video
-                src={videoSrc}
-                autoPlay
-                muted
-                loop
-                playsInline
-                onError={() => setVideoOk(false)}
-                className="h-full w-full object-cover"
-              />
-            ) : (
-              <div className="flex h-full w-full flex-col items-center justify-center gap-1.5">
-                <LoaderGrid {...PATTERNS.Drive} />
-                <span className="px-3 text-center font-mono text-[10px]" style={{ color: "var(--tooltip-muted)" }}>
-                  Video unavailable
-                </span>
-              </div>
-            )}
+          <BrainCircuit className="h-3.5 w-3.5 text-purple-500 animate-pulse shrink-0" />
+          <span className="font-semibold text-[11.5px] text-foreground/90">
+            {isFinished ? `Thought for ${elapsed}` : `Thinking (${elapsed})`}
+          </span>
+          <span className="text-[10.5px] text-muted-foreground/70 hidden sm:inline">
+            • {isFinished ? "Reasoning complete" : "Streaming thoughts..."}
+          </span>
+          {isThoughtOpen ? (
+            <ChevronDown className="h-3 w-3 text-muted-foreground/60 transition-transform group-hover:text-foreground" />
+          ) : (
+            <ChevronRight className="h-3 w-3 text-muted-foreground/60 transition-transform group-hover:text-foreground" />
+          )}
+        </button>
+
+        {isThoughtOpen && (
+          <div className="mt-1.5 pl-3 border-l-2 border-purple-500/30 py-1 space-y-1 text-muted-foreground/90 text-[11px] leading-relaxed max-h-[280px] overflow-y-auto font-sans">
+            <div className="prose prose-sm dark:prose-invert prose-p:my-1 prose-pre:my-1 max-w-none text-muted-foreground text-xs">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {reasoning}
+              </ReactMarkdown>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     );
   }
 
+  // Live dynamic activity stage view while thinking or preparing tools
   return (
-    <div role="status" className={`flex w-fit items-center gap-2.5 select-none ${className}`}>
-      <LoaderGrid delays={delays} dur={dur} round={round} />
-      {labelEl}
-      {elapsedEl}
+    <div role="status" className={cn("flex flex-col gap-1.5 py-1.5 select-none", className)}>
+      <div className="flex items-center gap-2.5">
+        <LoaderGrid delays={delays} dur={dur} round={round} />
+        <span
+          className="bg-clip-text text-[12.5px] font-medium text-transparent"
+          style={{
+            backgroundImage:
+              "linear-gradient(90deg, var(--color-ink-3, var(--muted-foreground, #71717a)) 20%, var(--color-ink, var(--foreground, #09090b)) 50%, var(--color-ink-3, var(--muted-foreground, #71717a)) 80%)",
+            backgroundSize: "200% 100%",
+            WebkitBackgroundClip: "text",
+            animation: "shimmer-text 1.6s linear infinite",
+          }}
+        >
+          {resolvedLabel}
+        </span>
+        <span className="font-mono text-[11.5px] text-muted-foreground/80 tabular-nums">
+          {elapsed}
+        </span>
+      </div>
+
+      {/* Dynamic step detail hint for long operations */}
+      {seconds >= 3.0 && (
+        <div className="flex items-center gap-1.5 pl-4 text-[11px] font-mono text-muted-foreground/60 animate-in fade-in duration-300">
+          <Terminal className="h-3 w-3 shrink-0" />
+          <span>Stage: {dynamicStage}</span>
+        </div>
+      )}
     </div>
   );
 }
