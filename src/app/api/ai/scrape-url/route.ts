@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getInternalUserId } from "@/lib/auth"
+import { checkDistributedRateLimit, rateLimitResponse } from "@/lib/rate-limit"
 
 export async function POST(req: NextRequest) {
   try {
@@ -7,6 +8,9 @@ export async function POST(req: NextRequest) {
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
+
+    const rl = await checkDistributedRateLimit(`scrape:${userId}`, 10, 60)
+    if (!rl.success) return rateLimitResponse(rl)
 
     const { url } = await req.json()
     if (!url || typeof url !== "string") {
@@ -18,6 +22,20 @@ export async function POST(req: NextRequest) {
       parsedUrl = new URL(url.startsWith("http") ? url : `https://${url}`)
     } catch {
       return NextResponse.json({ error: "Invalid URL format" }, { status: 400 })
+    }
+
+    // Block internal/private IPs to prevent SSRF
+    const hostname = parsedUrl.hostname
+    if (
+      hostname === "localhost" ||
+      hostname === "127.0.0.1" ||
+      hostname === "0.0.0.0" ||
+      hostname.startsWith("192.168.") ||
+      hostname.startsWith("10.") ||
+      hostname.startsWith("172.") ||
+      hostname.endsWith(".local")
+    ) {
+      return NextResponse.json({ error: "Internal URLs are not allowed" }, { status: 400 })
     }
 
     const res = await fetch(parsedUrl.toString(), {
@@ -33,14 +51,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: `Failed to fetch page content (Status ${res.status})` }, { status: 500 })
     }
 
-    const html = await res.text()
+    // Limit response size to 2MB
+    const contentLength = res.headers.get("content-length")
+    if (contentLength && parseInt(contentLength) > 2 * 1024 * 1024) {
+      return NextResponse.json({ error: "Page too large (max 2MB)" }, { status: 400 })
+    }
 
-    // Extract title
-    const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)
+    const html = await res.text()
+    const truncatedHtml = html.length > 2 * 1024 * 1024 ? html.slice(0, 2 * 1024 * 1024) : html
+
+    const titleMatch = truncatedHtml.match(/<title[^>]*>([\s\S]*?)<\/title>/i)
     const title = titleMatch ? titleMatch[1].trim() : ""
 
-    // Clean HTML tags and scripts
-    const text = html
+    const text = truncatedHtml
       .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, " ")
       .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, " ")
       .replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, " ")
@@ -61,7 +84,6 @@ export async function POST(req: NextRequest) {
       text: truncated,
     })
   } catch (error) {
-    console.error("URL scraper error:", error)
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Failed to scrape URL" },
       { status: 500 }

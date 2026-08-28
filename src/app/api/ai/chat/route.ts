@@ -120,7 +120,7 @@ export async function POST(request: NextRequest) {
   // Save current user message asynchronously
   void prisma.chatMessage.create({
     data: { sessionId, role: "user", content: message, metadata: { mode } },
-  }).catch((err) => console.error("Failed to persist user message:", err))
+  }).catch(() => {})
 
   const history = historyRaw.reverse()
   const rawFormatted = [
@@ -151,11 +151,6 @@ export async function POST(request: NextRequest) {
     ...budgetedMessages,
   ]
 
-  console.log("\n=======================================================")
-  console.log(`➡️ [AI CHAT: STEP 1] Message received: "${message}"`)
-  console.log(`🧠 [AI CHAT: STEP 2] Mode: [${mode}] | Session: ${sessionId}`)
-  console.log(`⚙️ [AI CHAT: STEP 3] Dispatched to LLM Stream (Provider: ${aiConfig.providerType}, Model: ${modelOverride || aiConfig.model || "default"})`)
-
   const tools = createAiTools(userId)
 
   try {
@@ -166,16 +161,9 @@ export async function POST(request: NextRequest) {
       messages: messagesWithContext,
       temperature: 0.35,
       tools,
-      maxSteps: 2,
-      onError: (err) => {
-        console.error("❌ [AI CHAT: ERROR] resilientStreamText runtime error:", err)
-      },
+      maxSteps: 5,
+      onError: () => {},
       onFinish: async ({ text, usage, toolResults }: any) => {
-        console.log(`📤 [AI CHAT: STEP 4] Model Finished (Provider: ${providerUsed}, Model: ${modelUsed})`)
-        console.log(`🛠️ [AI CHAT: STEP 5] Tool Invocations Count: ${toolResults?.length ?? 0}`)
-        if (toolResults && toolResults.length > 0) {
-          console.log("🛠️ [AI CHAT: STEP 5.1] Tool Details:", JSON.stringify(toolResults, null, 2))
-        }
 
         let finalText = text
         if (!finalText?.trim() && toolResults && toolResults.length > 0) {
@@ -191,9 +179,6 @@ export async function POST(request: NextRequest) {
             .filter(Boolean)
             .join("\n\n")
         }
-
-        console.log(`📝 [AI CHAT: STEP 6] Final Response Text: "${finalText?.slice(0, 160)}..."`)
-        console.log("=======================================================\n")
 
         if (finalText?.trim()) {
           try {
@@ -225,8 +210,8 @@ export async function POST(request: NextRequest) {
             // Invalidate Redis caches for instant freshness
             void invalidateCache(`session:data:${sessionId}`)
             void invalidateCache(`user:sessions:${userId}`)
-          } catch (dbErr) {
-            console.error("Failed to persist assistant message to DB:", dbErr)
+          } catch {
+            // DB persistence failed silently
           }
         }
 

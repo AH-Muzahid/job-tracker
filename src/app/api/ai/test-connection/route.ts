@@ -2,6 +2,7 @@ import { generateText } from "ai"
 import { getInternalUserId } from "@/lib/auth"
 import { getProvider, type AIProviderConfig } from "@/lib/ai/client"
 import { getUserAIConfig } from "@/lib/ai/config"
+import { checkDistributedRateLimit, rateLimitResponse } from "@/lib/rate-limit"
 
 export const dynamic = "force-dynamic"
 
@@ -10,6 +11,9 @@ export async function POST(request: Request) {
   if (!userId) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 })
   }
+
+  const rl = await checkDistributedRateLimit(`test-conn:${userId}`, 5, 60)
+  if (!rl.success) return rateLimitResponse(rl)
 
   let configToTest: AIProviderConfig | null = null
 
@@ -56,7 +60,6 @@ export async function POST(request: Request) {
 
     return new Response(JSON.stringify({ ok: true }), { status: 200 })
   } catch (error: unknown) {
-    console.error("[AI Test Connection Error]:", error)
     const errorMessage = error instanceof Error ? error.message : "Failed to connect to AI provider"
     return new Response(JSON.stringify({ ok: false, error: errorMessage }), { status: 200 })
   }

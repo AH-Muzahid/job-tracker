@@ -8,17 +8,19 @@ export interface ToolInvocationState {
 
 export interface ParsedStreamState {
   text: string
+  reasoning?: string
   toolInvocations: ToolInvocationState[]
   error?: string
 }
 
 /**
  * Robust Data Stream parser for Vercel AI SDK protocol
- * Consumes raw string chunks and maintains accumulated text and live toolInvocations.
+ * Consumes raw string chunks and maintains accumulated text, live reasoning, and toolInvocations.
  */
 export function createDataStreamParser() {
   let buffer = ""
   let accumulatedText = ""
+  let accumulatedReasoning = ""
   const toolInvocationsMap = new Map<string, ToolInvocationState>()
 
   return {
@@ -79,6 +81,19 @@ export function createDataStreamParser() {
               // Text delta
               if (typeof parsed === "string") {
                 accumulatedText += parsed
+              }
+              break
+            }
+            case "2":
+            case "g":
+            case "h":
+            case "thought":
+            case "reasoning": {
+              // Reasoning / Thinking delta
+              if (typeof parsed === "string") {
+                accumulatedReasoning += parsed
+              } else if (parsed && typeof parsed === "object") {
+                accumulatedReasoning += parsed.text || parsed.content || parsed.delta || ""
               }
               break
             }
@@ -149,6 +164,7 @@ export function createDataStreamParser() {
 
       return {
         text: accumulatedText,
+        reasoning: accumulatedReasoning,
         toolInvocations: Array.from(toolInvocationsMap.values()),
       }
     },
@@ -167,6 +183,9 @@ export function createDataStreamParser() {
             const parsed = JSON.parse(rawJson)
             if (type === "0" && typeof parsed === "string") {
               accumulatedText += parsed
+            } else if (type === "2" || type === "g" || type === "h" || type === "thought" || type === "reasoning") {
+              if (typeof parsed === "string") accumulatedReasoning += parsed
+              else if (parsed && typeof parsed === "object") accumulatedReasoning += parsed.text || parsed.content || parsed.delta || ""
             } else if (type === "9" || type === "b") {
               const callId = parsed.toolCallId || parsed.id || `tool-${Date.now()}`
               const existing = toolInvocationsMap.get(callId)
@@ -199,6 +218,7 @@ export function createDataStreamParser() {
 
       return {
         text: accumulatedText,
+        reasoning: accumulatedReasoning,
         toolInvocations: Array.from(toolInvocationsMap.values()),
       }
     },

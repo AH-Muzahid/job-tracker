@@ -129,8 +129,6 @@ export function createAiTools(userId: string) {
       execute: async (rawArgs: any) => {
         try {
           const args = parseToolArgs(rawArgs)
-          console.log("\n[AI Tool: updateApplicationStatus] Executing with raw args:", rawArgs)
-          console.log("[AI Tool: updateApplicationStatus] Parsed args:", args)
 
           let companyOrTitle = (
             args?.companyOrTitle ||
@@ -201,7 +199,6 @@ export function createAiTools(userId: string) {
 
           // Fallback: If no company specified or found, target the user's most recent application
           if (!app) {
-            console.log("[AI Tool: updateApplicationStatus] Finding most recent application for fallback update...")
             app = await withDbRetry(() =>
               prisma.application.findFirst({
                 where: { userId },
@@ -211,7 +208,6 @@ export function createAiTools(userId: string) {
           }
 
           if (!app) {
-            console.warn(`[AI Tool: updateApplicationStatus] No application found in tracker to update.`)
             return {
               success: false,
               message: "No active application found to update. Please specify the company name (e.g. 'Update Stripe status to Applied').",
@@ -243,7 +239,6 @@ export function createAiTools(userId: string) {
           void invalidateCache(`user:pipeline-stats:${userId}`)
           void invalidateCache(`user:applications:${userId}`)
 
-          console.log(`[AI Tool: updateApplicationStatus] SUCCESS: Updated ${app.companyName} (${app.jobTitle}) to ${newStatus}`)
           return {
             success: true,
             applicationId: app.id,
@@ -254,7 +249,7 @@ export function createAiTools(userId: string) {
             message: `✅ **Status Updated:** **${app.companyName}** (*${app.jobTitle}*) is now in **${newStatus}** status (was *${prevStatus}*).\n\n[Open Application Details →](/applications/${app.id})`,
           }
         } catch (error) {
-          console.error("updateApplicationStatus tool error:", error)
+          // silent
           return { success: false, message: "Failed to update application status." }
         }
       },
@@ -278,8 +273,6 @@ export function createAiTools(userId: string) {
       execute: async (rawArgs: any) => {
         try {
           const args = parseToolArgs(rawArgs)
-          console.log("\n[AI Tool: createApplication] Executing with raw args:", rawArgs)
-          console.log("[AI Tool: createApplication] Parsed args:", args)
 
           let finalCompany = (
             args?.companyName ||
@@ -338,15 +331,7 @@ export function createAiTools(userId: string) {
           const source = args?.source || "Other"
           const notes = args?.notes
 
-          console.log("[AI Tool: createApplication] Extracted payload:", {
-            finalCompany,
-            finalTitle,
-            status,
-            source,
-          })
-
           if (!finalCompany || !finalTitle) {
-            console.warn("[AI Tool: createApplication] FAILED: Missing company or title:", { finalCompany, finalTitle })
             return {
               success: false,
               message: "Please specify both the company name and the job title to track this application (e.g. company: 'Stripe', role: 'Senior Backend Engineer').",
@@ -417,10 +402,10 @@ export function createAiTools(userId: string) {
             companyName: newApp.companyName,
             jobTitle: newApp.jobTitle,
             status: newApp.status,
-            message: `✅ **Successfully Tracked:** Added **${finalCompany}** — *${finalTitle}* in **${status || "Saved"}** status.\n\n- **Company:** ${finalCompany}\n- **Role:** ${finalTitle}\n- **Status:** ${status || "Saved"}\n- **Date:** ${new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}\n\n[Open Application Details →](/applications/${newApp.id})\n\nWould you like me to draft an outreach email, analyze the requirements, or prepare a tailored cover letter?`,
+            message: `**Successfully Tracked:** Added **${finalCompany}** — *${finalTitle}* in **${status || "Saved"}** status.\n\n- **Company:** ${finalCompany}\n- **Role:** ${finalTitle}\n- **Status:** ${status || "Saved"}\n- **Date:** ${new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}\n\n[Open Application Details →](/applications/${newApp.id})\n\nWould you like me to draft an outreach email, analyze the requirements, or prepare a tailored cover letter?`,
           }
         } catch (error) {
-          console.error("createApplication tool error:", error)
+          // silent
           return { success: false, message: "Failed to create application in database." }
         }
       },
@@ -429,44 +414,57 @@ export function createAiTools(userId: string) {
     deleteApplication: tool({
       description: "Delete or remove an application from the user's tracker by company name or job title.",
       parameters: z.object({
-        companyOrTitle: z.string().describe("Company name or job title of the application to remove"),
+        companyOrTitle: z.string().optional().describe("Company name or job title of the application to remove (e.g. 'Stripe')"),
       }),
       execute: async (rawArgs: any) => {
         try {
-          const companyOrTitle = (
-            rawArgs?.companyOrTitle ||
-            rawArgs?.companyName ||
-            rawArgs?.company ||
-            rawArgs?.jobTitle ||
-            rawArgs?.title ||
-            rawArgs?.role ||
+          const args = parseToolArgs(rawArgs)
+          let companyOrTitle = (
+            args?.companyOrTitle ||
+            args?.companyName ||
+            args?.company ||
+            args?.jobTitle ||
+            args?.title ||
+            args?.role ||
             ""
           ).trim()
 
-          if (!companyOrTitle) {
-            return {
-              success: false,
-              message: "Company name or job title is required to delete an application.",
-            }
+          companyOrTitle = cleanCompanyName(companyOrTitle)
+
+          const genericPhrases = ["the application", "application", "this", "it", "that", "current", "latest", "recent", "job"]
+          const isGeneric = !companyOrTitle || genericPhrases.includes(companyOrTitle.toLowerCase())
+
+          let app: any = null
+
+          if (!isGeneric) {
+            app = await withDbRetry(() =>
+              prisma.application.findFirst({
+                where: {
+                  userId,
+                  OR: [
+                    { companyName: { contains: companyOrTitle, mode: "insensitive" } },
+                    { jobTitle: { contains: companyOrTitle, mode: "insensitive" } },
+                  ],
+                },
+                orderBy: { updatedAt: "desc" },
+              })
+            )
           }
 
-          const app = await withDbRetry(() =>
-            prisma.application.findFirst({
-              where: {
-                userId,
-                OR: [
-                  { companyName: { contains: companyOrTitle, mode: "insensitive" } },
-                  { jobTitle: { contains: companyOrTitle, mode: "insensitive" } },
-                ],
-              },
-              orderBy: { updatedAt: "desc" },
-            })
-          )
+          // Fallback: If generic reference (e.g. "delete the application", "delete it") or not found by exact string, target user's most recent application
+          if (!app) {
+            app = await withDbRetry(() =>
+              prisma.application.findFirst({
+                where: { userId },
+                orderBy: { updatedAt: "desc" },
+              })
+            )
+          }
 
           if (!app) {
             return {
               success: false,
-              message: `Could not find an application matching "${companyOrTitle}".`,
+              message: "No active application found in your tracker to delete.",
             }
           }
 
@@ -484,10 +482,10 @@ export function createAiTools(userId: string) {
             success: true,
             deletedCompany: app.companyName,
             deletedTitle: app.jobTitle,
-            message: `Successfully deleted application for ${app.companyName} (${app.jobTitle}).`,
+            message: `**Successfully Deleted:** Removed **${app.companyName}** (*${app.jobTitle}*) from your application tracker.`,
           }
         } catch (error) {
-          console.error("deleteApplication tool error:", error)
+          // silent
           return { success: false, message: "Failed to delete application." }
         }
       },
@@ -500,16 +498,13 @@ export function createAiTools(userId: string) {
         goal2: z.string().optional().describe("Goal 2: Activity support goal e.g. Apply to 15 targeted roles"),
         goal3: z.string().optional().describe("Goal 3: Readiness/practice goal e.g. 2 mock interviews"),
       }),
-      execute: async ({
-        goal1,
-        goal2,
-        goal3,
-      }: {
-        goal1: string
-        goal2?: string
-        goal3?: string
-      }) => {
+      execute: async (rawArgs: any) => {
         try {
+          const args = parseToolArgs(rawArgs)
+          const goal1 = args?.goal1 || "Apply to targeted roles"
+          const goal2 = args?.goal2 || null
+          const goal3 = args?.goal3 || null
+
           const now = new Date()
           const weekStart = new Date(now)
           weekStart.setDate(now.getDate() - now.getDay() + 1)
@@ -520,15 +515,15 @@ export function createAiTools(userId: string) {
               where: { userId_weekStart: { userId, weekStart } },
               update: {
                 goal1,
-                goal2: goal2 || null,
-                goal3: goal3 || null,
+                goal2,
+                goal3,
               },
               create: {
                 userId,
                 weekStart,
                 goal1,
-                goal2: goal2 || null,
-                goal3: goal3 || null,
+                goal2,
+                goal3,
               },
             })
           )
@@ -536,10 +531,10 @@ export function createAiTools(userId: string) {
           return {
             success: true,
             goalId: goal.id,
-            message: `Updated weekly goals for week starting ${weekStart.toLocaleDateString()}.`,
+            message: `Updated weekly goals for week starting ${weekStart.toLocaleDateString()}:\n1. ${goal1}${goal2 ? `\n2. ${goal2}` : ""}${goal3 ? `\n3. ${goal3}` : ""}`,
           }
         } catch (error) {
-          console.error("setWeeklyGoals tool error:", error)
+          // silent
           return { success: false, message: "Failed to update weekly goals." }
         }
       },
@@ -557,20 +552,22 @@ export function createAiTools(userId: string) {
           })
         ).describe("List of questions to add"),
       }),
-      execute: async ({
-        category,
-        questions,
-      }: {
-        category: string
-        questions: Array<{ question: string; suggestedAnswer?: string; difficulty?: "Easy" | "Medium" | "Hard" }>
-      }) => {
+      execute: async (rawArgs: any) => {
         try {
+          const args = parseToolArgs(rawArgs)
+          const category = args?.category || "General Technical"
+          const questions = Array.isArray(args?.questions) ? args.questions : []
+
+          if (questions.length === 0) {
+            return { success: false, message: "No questions provided to add." }
+          }
+
           await withDbRetry(() =>
             prisma.prepQuestion.createMany({
-              data: questions.map((q) => ({
+              data: questions.map((q: any) => ({
                 userId,
                 category,
-                question: q.question,
+                question: q.question || String(q),
                 answer: q.suggestedAnswer || null,
                 difficulty: q.difficulty || "Medium",
               })),
@@ -583,7 +580,7 @@ export function createAiTools(userId: string) {
             message: `Successfully added ${questions.length} questions to ${category} question bank.`,
           }
         } catch (error) {
-          console.error("addPrepQuestions tool error:", error)
+          // silent
           return { success: false, message: "Failed to add prep questions." }
         }
       },
@@ -596,8 +593,13 @@ export function createAiTools(userId: string) {
         status: z.enum(["Saved", "Applied", "Assessment", "Interview", "Rejected", "Offer"]).optional().describe("Filter by application status"),
         limit: z.number().optional().default(10).describe("Maximum number of results to return"),
       }),
-      execute: async ({ query, status, limit = 10 }: { query?: string; status?: any; limit?: number }) => {
+      execute: async (rawArgs: any) => {
         try {
+          const args = parseToolArgs(rawArgs)
+          const query = args?.query
+          const status = args?.status
+          const limit = Math.min(args?.limit || 10, 25)
+
           const whereClause: any = { userId }
           if (status) whereClause.status = status
           if (query) {
@@ -618,9 +620,21 @@ export function createAiTools(userId: string) {
               },
             })
           )
-          return { success: true, count: apps.length, applications: apps }
+
+          const formattedList = apps.map((a, idx) =>
+            `${idx + 1}. **${a.companyName}** — *${a.jobTitle}* (${a.status})`
+          ).join("\n")
+
+          return {
+            success: true,
+            count: apps.length,
+            applications: apps,
+            message: apps.length === 0
+              ? `No applications found matching "${query || status || "search"}".`
+              : `Found **${apps.length}** matching application${apps.length === 1 ? "" : "s"}:\n\n${formattedList}`,
+          }
         } catch (error) {
-          console.error("searchApplications tool error:", error)
+          // silent
           return { success: false, message: "Failed to search applications." }
         }
       },
@@ -632,8 +646,12 @@ export function createAiTools(userId: string) {
         query: z.string().optional().describe("Search keyword for prep notes"),
         category: z.string().optional().describe("Category of prep notes"),
       }),
-      execute: async ({ query, category }: { query?: string; category?: string }) => {
+      execute: async (rawArgs: any) => {
         try {
+          const args = parseToolArgs(rawArgs)
+          const query = args?.query
+          const category = args?.category
+
           const whereClause: any = { userId }
           if (category) whereClause.category = { contains: category, mode: "insensitive" }
           if (query) {
@@ -650,9 +668,21 @@ export function createAiTools(userId: string) {
               select: { id: true, title: true, category: true, content: true, createdAt: true },
             })
           )
-          return { success: true, count: notes.length, notes }
+
+          const formattedList = notes.map((n, idx) =>
+            `${idx + 1}. **${n.title}** (${n.category})`
+          ).join("\n")
+
+          return {
+            success: true,
+            count: notes.length,
+            notes,
+            message: notes.length === 0
+              ? "No prep notes found."
+              : `Found **${notes.length}** prep note${notes.length === 1 ? "" : "s"}:\n\n${formattedList}`,
+          }
         } catch (error) {
-          console.error("getPrepNotes tool error:", error)
+          // silent
           return { success: false, message: "Failed to fetch prep notes." }
         }
       },
@@ -725,7 +755,7 @@ export function createAiTools(userId: string) {
           }
         } catch (error) {
           const isTimeout = error instanceof Error && error.name === "AbortError"
-          console.error("scrapeJobLink tool error:", error)
+          // silent
           return {
             success: false,
             message: isTimeout ? "Scraping URL timed out after 8 seconds." : "Failed to scrape URL due to network error.",
@@ -755,7 +785,7 @@ export function createAiTools(userId: string) {
             textContent: resume.textContent || "No text content extracted from this resume.",
           }
         } catch (error) {
-          console.error("getResumeSummary tool error:", error)
+          // silent
           return { success: false, message: "Failed to fetch resume." }
         }
       },
@@ -776,6 +806,21 @@ export function createAiTools(userId: string) {
           const statsMap: Record<string, number> = {}
           stats.forEach((s) => { statsMap[s.status] = s._count })
           const total = Object.values(statsMap).reduce((a, b) => a + b, 0)
+          
+          const breakdownParts = [
+            statsMap.Applied ? `${statsMap.Applied} Applied` : null,
+            statsMap.Interview ? `${statsMap.Interview} Interview` : null,
+            statsMap.Offer ? `${statsMap.Offer} Offer` : null,
+            statsMap.Saved ? `${statsMap.Saved} Saved` : null,
+            statsMap.Assessment ? `${statsMap.Assessment} Assessment` : null,
+            statsMap.Rejected ? `${statsMap.Rejected} Rejected` : null,
+          ].filter(Boolean)
+          
+          const breakdownStr = breakdownParts.join(", ")
+          const message = total === 0
+            ? "You currently have 0 tracked job applications in your career pipeline."
+            : `You currently have **${total}** tracked job application${total === 1 ? "" : "s"} in your career pipeline${breakdownStr ? ` (${breakdownStr})` : ""}.\n\n- **Applied:** ${statsMap.Applied || 0}\n- **Interview:** ${statsMap.Interview || 0}\n- **Offer:** ${statsMap.Offer || 0}\n- **Saved:** ${statsMap.Saved || 0}\n- **Assessment:** ${statsMap.Assessment || 0}\n- **Rejected:** ${statsMap.Rejected || 0}`
+
           return {
             success: true,
             total,
@@ -785,10 +830,64 @@ export function createAiTools(userId: string) {
             interview: statsMap.Interview || 0,
             rejected: statsMap.Rejected || 0,
             offer: statsMap.Offer || 0,
+            breakdown: statsMap,
+            message,
           }
         } catch (error) {
-          console.error("getPipelineStats tool error:", error)
+          // silent
           return { success: false, message: "Failed to fetch pipeline stats." }
+        }
+      },
+    } as any),
+
+    listUserApplications: tool({
+      description: "List the user's active tracked job applications with company names, job titles, statuses, and dates.",
+      parameters: z.object({
+        status: z.string().optional().describe("Optional status filter (e.g. 'Applied', 'Interview', 'Saved', 'Offer')"),
+        limit: z.number().optional().default(10).describe("Maximum number of applications to return (default 10)"),
+      }),
+      execute: async (rawArgs: any) => {
+        try {
+          const args = parseToolArgs(rawArgs)
+          const status = args?.status
+          const limit = Math.min(args?.limit || 10, 25)
+
+          const applications = await withDbRetry(() =>
+            prisma.application.findMany({
+              where: {
+                userId,
+                ...(status ? { status: { equals: status, mode: "insensitive" } } : {}),
+              },
+              orderBy: { updatedAt: "desc" },
+              take: limit,
+              select: {
+                id: true,
+                companyName: true,
+                jobTitle: true,
+                status: true,
+                source: true,
+                applicationDate: true,
+                updatedAt: true,
+              },
+            })
+          )
+
+          const count = applications.length
+          const formattedList = applications.map((a, idx) => 
+            `${idx + 1}. **${a.companyName}** — *${a.jobTitle}* (${a.status})`
+          ).join("\n")
+
+          return {
+            success: true,
+            count,
+            applications,
+            message: count === 0
+              ? "No applications found in your tracker."
+              : `Found **${count}** application${count === 1 ? "" : "s"}:\n\n${formattedList}`,
+          }
+        } catch (error) {
+          // silent
+          return { success: false, message: "Failed to list applications." }
         }
       },
     } as any),
@@ -802,20 +901,15 @@ export function createAiTools(userId: string) {
         body: z.string().describe("Formatted email message body"),
         type: z.enum(["ColdOutreach", "FollowUp", "Application", "ThankYou"]).optional().default("ColdOutreach"),
       }),
-      execute: async ({
-        companyOrTitle,
-        recipientEmail,
-        subject,
-        body,
-        type = "ColdOutreach",
-      }: {
-        companyOrTitle: string
-        recipientEmail?: string
-        subject: string
-        body: string
-        type?: "ColdOutreach" | "FollowUp" | "Application" | "ThankYou"
-      }) => {
+      execute: async (rawArgs: any) => {
         try {
+          const args = parseToolArgs(rawArgs)
+          const companyOrTitle = cleanCompanyName(args?.companyOrTitle || args?.company || args?.companyName || "Target Company")
+          const recipientEmail = args?.recipientEmail || "recruiter@example.com"
+          const subject = args?.subject || `Application - ${companyOrTitle}`
+          const body = args?.body || ""
+          const type = args?.type || "ColdOutreach"
+
           const app = await withDbRetry(() =>
             prisma.application.findFirst({
               where: {
@@ -834,14 +928,14 @@ export function createAiTools(userId: string) {
             applicationId: app?.id,
             companyName: app?.companyName || companyOrTitle,
             jobTitle: app?.jobTitle,
-            recipientEmail: recipientEmail || "recruiter@example.com",
+            recipientEmail,
             subject,
             body,
             type,
-            message: `Drafted ${type} email for ${app?.companyName || companyOrTitle}. You can review and approve it.`,
+            message: `Drafted ${type} email for **${app?.companyName || companyOrTitle}**.\n\n**To:** ${recipientEmail}\n**Subject:** ${subject}\n\n${body}`,
           }
         } catch (error) {
-          console.error("draftOutreachEmail tool error:", error)
+          // silent
           return { success: false, message: "Failed to draft outreach email." }
         }
       },
@@ -853,14 +947,16 @@ export function createAiTools(userId: string) {
         category: z.enum(["preference", "skill", "experience", "constraint", "general"]).describe("The category of the memory"),
         content: z.string().describe("The concise factual statement to remember"),
       }),
-      execute: async ({
-        category,
-        content,
-      }: {
-        category: "preference" | "skill" | "experience" | "constraint" | "general"
-        content: string
-      }) => {
+      execute: async (rawArgs: any) => {
         try {
+          const args = parseToolArgs(rawArgs)
+          const category = args?.category || "general"
+          const content = args?.content || ""
+
+          if (!content) {
+            return { success: false, message: "Memory content is required." }
+          }
+
           // Prevent exact duplicate memories
           const existing = await withDbRetry<{ id: string; content: string } | null>(() =>
             prisma.userMemory.findFirst({
@@ -898,10 +994,10 @@ export function createAiTools(userId: string) {
             memoryId: memory.id,
             category: memory.category,
             content: memory.content,
-            message: `Memory saved: "${content}"`,
+            message: `Memory saved: "${content}" (Category: ${category})`,
           }
         } catch (error) {
-          console.error("saveUserMemory tool error:", error)
+          // silent
           return { success: false, message: "Failed to save user memory." }
         }
       },
@@ -912,8 +1008,15 @@ export function createAiTools(userId: string) {
       parameters: z.object({
         searchQuery: z.string().describe("Keyword or phrase in the memory to delete"),
       }),
-      execute: async ({ searchQuery }: { searchQuery: string }) => {
+      execute: async (rawArgs: any) => {
         try {
+          const args = parseToolArgs(rawArgs)
+          const searchQuery = args?.searchQuery || args?.query || ""
+
+          if (!searchQuery) {
+            return { success: false, message: "Search query is required to forget a memory." }
+          }
+
           const matching = await withDbRetry<{ id: string; content: string } | null>(() =>
             prisma.userMemory.findFirst({
               where: {
@@ -948,7 +1051,7 @@ export function createAiTools(userId: string) {
             message: `Successfully forgot memory: "${matching.content}"`,
           }
         } catch (error) {
-          console.error("forgetUserMemory tool error:", error)
+          // silent
           return { success: false, message: "Failed to forget user memory." }
         }
       },
@@ -959,8 +1062,11 @@ export function createAiTools(userId: string) {
       parameters: z.object({
         category: z.enum(["preference", "skill", "experience", "constraint", "general"]).optional().describe("Optional filter by category"),
       }),
-      execute: async ({ category }: { category?: string }) => {
+      execute: async (rawArgs: any) => {
         try {
+          const args = parseToolArgs(rawArgs)
+          const category = args?.category
+
           const whereClause: any = { userId }
           if (category) whereClause.category = category
 
@@ -971,6 +1077,10 @@ export function createAiTools(userId: string) {
             })
           )
 
+          const formattedList = memories.map((m, idx) =>
+            `${idx + 1}. [${m.category}] ${m.content}`
+          ).join("\n")
+
           return {
             success: true,
             count: memories.length,
@@ -980,9 +1090,12 @@ export function createAiTools(userId: string) {
               content: m.content,
               createdAt: m.createdAt,
             })),
+            message: memories.length === 0
+              ? "No saved user memories found."
+              : `Found **${memories.length}** saved preference${memories.length === 1 ? "" : "s"}:\n\n${formattedList}`,
           }
         } catch (error) {
-          console.error("getUserMemories tool error:", error)
+          // silent
           return { success: false, message: "Failed to fetch user memories." }
         }
       },
@@ -994,8 +1107,12 @@ export function createAiTools(userId: string) {
         query: z.string().describe("Target skills, job requirements, or technology to match (e.g. 'Go distributed systems, Kafka, Redis')"),
         requiredSkills: z.array(z.string()).optional().describe("Optional list of specific required skills to check"),
       }),
-      execute: async ({ query, requiredSkills }: { query: string; requiredSkills?: string[] }) => {
+      execute: async (rawArgs: any) => {
         try {
+          const args = parseToolArgs(rawArgs)
+          const query = args?.query || ""
+          const requiredSkills = Array.isArray(args?.requiredSkills) ? args.requiredSkills : undefined
+
           let graph = await getCachedKnowledgeGraph(userId)
 
           if (!graph) {
@@ -1019,9 +1136,10 @@ export function createAiTools(userId: string) {
             matchedSkills: matchResult.matchedSkills,
             missingSkills: matchResult.missingSkills,
             evidencePaths: matchResult.evidencePaths,
+            message: `Career Knowledge Graph analysis: **${matchResult.matchScore}% Match Score**.\n\n- **Matched Skills (${matchResult.matchedSkills.length}):** ${matchResult.matchedSkills.join(", ") || "None"}\n- **Missing Skills (${matchResult.missingSkills.length}):** ${matchResult.missingSkills.join(", ") || "None"}`,
           }
         } catch (error) {
-          console.error("queryCareerKnowledgeGraph error:", error)
+          // silent
           return { success: false, message: "Failed to query Career Knowledge Graph." }
         }
       },
@@ -1046,10 +1164,10 @@ export function createAiTools(userId: string) {
             nodeCount: graph.nodes.length,
             edgeCount: graph.edges.length,
             summary: graph.summary,
-            message: `Knowledge Graph synchronized: ${graph.nodes.length} nodes, ${graph.edges.length} relationships.`,
+            message: `Career Knowledge Graph synchronized: **${graph.nodes.length} nodes**, **${graph.edges.length} relationships**.`,
           }
         } catch (error) {
-          console.error("syncCareerKnowledgeGraph error:", error)
+          // silent
           return { success: false, message: "Failed to sync Career Knowledge Graph." }
         }
       },
@@ -1063,8 +1181,14 @@ export function createAiTools(userId: string) {
         content: z.string().describe("Detailed content of the note"),
         companyName: z.string().optional().describe("Optional company name to link this note to an existing application"),
       }),
-      execute: async ({ title, category, content, companyName }: { title: string; category: string; content: string; companyName?: string }) => {
+      execute: async (rawArgs: any) => {
         try {
+          const args = parseToolArgs(rawArgs)
+          const title = args?.title || "Interview Prep Note"
+          const category = args?.category || "Technical"
+          const content = args?.content || ""
+          const companyName = args?.companyName ? cleanCompanyName(args.companyName) : null
+
           let applicationId: string | null = null
           if (companyName) {
             const app = await withDbRetry(() =>
@@ -1095,10 +1219,10 @@ export function createAiTools(userId: string) {
             noteId: note.id,
             title: note.title,
             category: note.category,
-            message: `Saved prep note "${title}" under ${category}.`,
+            message: `Saved prep note "**${title}**" under *${category}*.`,
           }
         } catch (error) {
-          console.error("savePrepNote tool error:", error)
+          // silent
           return { success: false, message: "Failed to save prep note." }
         }
       },
@@ -1113,14 +1237,15 @@ export function createAiTools(userId: string) {
         improvements: z.array(z.string()).describe("Specific areas to improve"),
         sampleHighScoringAnswer: z.string().optional().describe("Exemplary model answer"),
       }),
-      execute: async ({ roleOrTopic, scoreOutOfTen, strengths, improvements, sampleHighScoringAnswer }: {
-        roleOrTopic: string
-        scoreOutOfTen: number
-        strengths: string[]
-        improvements: string[]
-        sampleHighScoringAnswer?: string
-      }) => {
+      execute: async (rawArgs: any) => {
         try {
+          const args = parseToolArgs(rawArgs)
+          const roleOrTopic = args?.roleOrTopic || "Technical Mock Interview"
+          const scoreOutOfTen = Math.min(Math.max(Number(args?.scoreOutOfTen) || 7, 1), 10)
+          const strengths: string[] = Array.isArray(args?.strengths) ? args.strengths : []
+          const improvements: string[] = Array.isArray(args?.improvements) ? args.improvements : []
+          const sampleHighScoringAnswer = args?.sampleHighScoringAnswer
+
           const content = `### Mock Interview Evaluation: ${roleOrTopic}\n\n**Score:** ${scoreOutOfTen}/10\n\n**Strengths:**\n${strengths.map((s) => `- ${s}`).join("\n")}\n\n**Areas for Improvement:**\n${improvements.map((i) => `- ${i}`).join("\n")}${sampleHighScoringAnswer ? `\n\n**Model Answer:**\n${sampleHighScoringAnswer}` : ""}`
           
           const note = await withDbRetry(() =>
@@ -1138,10 +1263,10 @@ export function createAiTools(userId: string) {
             success: true,
             score: scoreOutOfTen,
             noteId: note.id,
-            message: `Saved mock interview evaluation (${scoreOutOfTen}/10) to prep notes.`,
+            message: `Saved mock interview evaluation for **${roleOrTopic}** with score **${scoreOutOfTen}/10** to prep notes.`,
           }
         } catch (error) {
-          console.error("recordMockInterviewScore tool error:", error)
+          // silent
           return { success: false, message: "Failed to save mock interview score." }
         }
       },
@@ -1154,8 +1279,13 @@ export function createAiTools(userId: string) {
         jobTitle: z.string().describe("Target job title"),
         jobDescription: z.string().describe("Job description or requirements text"),
       }),
-      execute: async ({ companyName, jobTitle, jobDescription }: { companyName: string; jobTitle: string; jobDescription: string }) => {
+      execute: async (rawArgs: any) => {
         try {
+          const args = parseToolArgs(rawArgs)
+          const companyName = cleanCompanyName(args?.companyName || args?.company || "Company")
+          const jobTitle = cleanJobTitle(args?.jobTitle || args?.role || "Software Engineer")
+          const jobDescription = args?.jobDescription || args?.description || ""
+
           let graph = await getCachedKnowledgeGraph(userId)
           if (!graph) {
             const [resume, profile] = await Promise.all([
@@ -1177,10 +1307,10 @@ export function createAiTools(userId: string) {
             tailoredHighlights: matchResult.evidencePaths.slice(0, 5),
             matchedSkills: matchResult.matchedSkills,
             missingSkills: matchResult.missingSkills,
-            message: `Analyzed graph for ${companyName} (${jobTitle}) with ${matchResult.matchScore}% ATS match score.`,
+            message: `Analyzed resume alignment for **${companyName}** (${jobTitle}) with **${matchResult.matchScore}% ATS match score**. Found ${matchResult.matchedSkills.length} matching skills.`,
           }
         } catch (error) {
-          console.error("tailorResumeForJob tool error:", error)
+          // silent
           return { success: false, message: "Failed to generate tailored resume payload." }
         }
       },
@@ -1189,29 +1319,60 @@ export function createAiTools(userId: string) {
     researchCompanyIntel: tool({
       description: "Perform autonomous deep company intelligence research: store industry, tech stack, company background notes, and interview insights.",
       parameters: z.object({
-        companyName: z.string().describe("Target company name"),
+        companyName: z.string().optional().describe("Target company name (e.g. 'Stripe')"),
         industry: z.string().optional().describe("Industry or sector (e.g. Fintech, Cloud Infrastructure, AI)"),
         techStack: z.array(z.string()).optional().describe("Known engineering technologies used by the company"),
         interviewStyleNotes: z.string().optional().describe("Interview style notes e.g. 'Values system design and clean code'"),
         websiteUrl: z.string().optional().describe("Company website URL"),
       }),
-      execute: async ({
-        companyName,
-        industry,
-        techStack,
-        interviewStyleNotes,
-        websiteUrl,
-      }: {
-        companyName: string
-        industry?: string
-        techStack?: string[]
-        interviewStyleNotes?: string
-        websiteUrl?: string
-      }) => {
+      execute: async (rawArgs: any) => {
         try {
+          const args = parseToolArgs(rawArgs)
+          let finalCompany = cleanCompanyName(
+            args?.companyName ||
+            args?.company ||
+            args?.companyOrTitle ||
+            args?.name ||
+            ""
+          )
+
+          if (!finalCompany && args?.reason) {
+            const extracted = extractCompanyAndRole(args.reason)
+            if (extracted.company) finalCompany = extracted.company
+          }
+
+          // Fallback: If no company provided or generic, find from the user's latest application
+          if (!finalCompany) {
+            const latestApp = await withDbRetry(() =>
+              prisma.application.findFirst({
+                where: { userId },
+                orderBy: { updatedAt: "desc" },
+              })
+            )
+            if (latestApp?.companyName) {
+              finalCompany = latestApp.companyName
+            }
+          }
+
+          if (!finalCompany) {
+            return {
+              success: false,
+              message: "Company name is required to research intelligence.",
+            }
+          }
+
+          const industry = args?.industry || "Technology"
+          const techStack: string[] = Array.isArray(args?.techStack)
+            ? args.techStack
+            : typeof args?.techStack === "string"
+            ? args.techStack.split(",").map((s: string) => s.trim()).filter(Boolean)
+            : []
+          const interviewStyleNotes = args?.interviewStyleNotes || args?.notes || ""
+          const websiteUrl = args?.websiteUrl || args?.website || null
+
           const company = await withDbRetry(() =>
             prisma.company.upsert({
-              where: { userId_name: { userId, name: companyName } },
+              where: { userId_name: { userId, name: finalCompany } },
               update: {
                 industry: industry || undefined,
                 website: websiteUrl || undefined,
@@ -1219,7 +1380,7 @@ export function createAiTools(userId: string) {
               },
               create: {
                 userId,
-                name: companyName,
+                name: finalCompany,
                 industry: industry || null,
                 website: websiteUrl || null,
                 notes: interviewStyleNotes || null,
@@ -1227,13 +1388,13 @@ export function createAiTools(userId: string) {
             })
           )
 
-          const content = `### Company Intel: ${companyName}\n\n**Industry:** ${industry || "Technology"}\n${techStack && techStack.length > 0 ? `**Tech Stack:** ${techStack.join(", ")}\n` : ""}${interviewStyleNotes ? `\n**Interview & Culture Insights:**\n${interviewStyleNotes}` : ""}`
+          const content = `### Company Intel: ${finalCompany}\n\n**Industry:** ${industry}\n${techStack.length > 0 ? `**Tech Stack:** ${techStack.join(", ")}\n` : ""}${interviewStyleNotes ? `\n**Interview & Culture Insights:**\n${interviewStyleNotes}` : ""}`
           
           await withDbRetry(() =>
             prisma.prepNote.create({
               data: {
                 userId,
-                title: `Intel: ${companyName}`,
+                title: `Intel: ${finalCompany}`,
                 category: "Company Research",
                 content,
               },
@@ -1243,12 +1404,14 @@ export function createAiTools(userId: string) {
           return {
             success: true,
             companyId: company.id,
-            companyName: company.name,
-            industry: company.industry,
-            message: `Successfully researched and stored intelligence for ${companyName}.`,
+            companyName: finalCompany,
+            industry,
+            techStack,
+            interviewStyleNotes,
+            message: `Successfully researched and stored intelligence for ${finalCompany}. Industry: ${industry}.`,
           }
         } catch (error) {
-          console.error("researchCompanyIntel error:", error)
+          // silent
           return { success: false, message: "Failed to store company intel." }
         }
       },
@@ -1264,22 +1427,16 @@ export function createAiTools(userId: string) {
         subject: z.string().describe("Email subject line"),
         bodyText: z.string().describe("Body text of the cold email or follow-up note"),
       }),
-      execute: async ({
-        recipientEmail,
-        candidateName,
-        companyName,
-        jobTitle,
-        subject,
-        bodyText,
-      }: {
-        recipientEmail: string
-        candidateName: string
-        companyName: string
-        jobTitle: string
-        subject: string
-        bodyText: string
-      }) => {
+      execute: async (rawArgs: any) => {
         try {
+          const args = parseToolArgs(rawArgs)
+          const recipientEmail = args?.recipientEmail || "recruiter@example.com"
+          const candidateName = args?.candidateName || "Candidate"
+          const companyName = cleanCompanyName(args?.companyName || args?.company || "Company")
+          const jobTitle = cleanJobTitle(args?.jobTitle || args?.role || "Software Engineer")
+          const subject = args?.subject || `Application for ${jobTitle} - ${candidateName}`
+          const bodyText = args?.bodyText || args?.body || ""
+
           const html = formatOutreachEmailHtml({
             candidateName,
             companyName,
@@ -1307,11 +1464,11 @@ export function createAiTools(userId: string) {
             recipient: recipientEmail,
             simulated: Boolean(sendResult.simulated),
             message: sendResult.simulated
-              ? `[Development Mode] Simulated email delivery to ${recipientEmail} (${subject}).`
-              : `Successfully sent email to ${recipientEmail}.`,
+              ? `[Development Mode] Simulated email delivery to **${recipientEmail}** (${subject}).`
+              : `Successfully sent email to **${recipientEmail}**.`,
           }
         } catch (error) {
-          console.error("sendOutreachEmailViaResend error:", error)
+          // silent
           return { success: false, message: "Failed to dispatch outreach email." }
         }
       },
@@ -1330,27 +1487,20 @@ export function createAiTools(userId: string) {
           })
         ).describe("List of applications to import"),
       }),
-      execute: async ({
-        applications,
-      }: {
-        applications: Array<{
-          companyName: string
-          jobTitle: string
-          status?: "Saved" | "Applied" | "Assessment" | "Interview" | "Rejected" | "Offer"
-          source?: string
-          notes?: string
-        }>
-      }) => {
+      execute: async (rawArgs: any) => {
         try {
-          if (!applications || applications.length === 0) {
+          const args = parseToolArgs(rawArgs)
+          const applications = Array.isArray(args?.applications) ? args.applications : []
+
+          if (applications.length === 0) {
             return { success: false, message: "No applications provided for batch import." }
           }
 
           const created = await withDbRetry(async () => {
             const results = []
             for (const app of applications) {
-              const comp = (app.companyName || "").trim()
-              const title = (app.jobTitle || "").trim()
+              const comp = cleanCompanyName(app.companyName || app.company || "")
+              const title = cleanJobTitle(app.jobTitle || app.role || "")
               if (!comp || !title) continue
 
               const existing = await prisma.application.findFirst({
@@ -1407,10 +1557,10 @@ export function createAiTools(userId: string) {
               jobTitle: a.jobTitle,
               status: a.status,
             })),
-            message: `Successfully imported ${created.length} applications into your tracker.`,
+            message: `Successfully imported **${created.length}** applications into your tracker.`,
           }
         } catch (error) {
-          console.error("batchImportApplications error:", error)
+          // silent
           return { success: false, message: "Failed to batch import applications." }
         }
       },
@@ -1471,7 +1621,7 @@ export function createAiTools(userId: string) {
             message: `Successfully synced ${syncResult.count} applications to your Google Sheet!`,
           }
         } catch (error) {
-          console.error("syncToGoogleSheets tool error:", error)
+          // silent
           return { success: false, message: "Failed to execute Google Sheet synchronization." }
         }
       },

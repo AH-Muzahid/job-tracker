@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server"
+import { getInternalUserId } from "@/lib/auth"
+import { checkDistributedRateLimit, rateLimitResponse } from "@/lib/rate-limit"
 
 function splitIntoChunks(text: string, maxLen = 180): string[] {
   const clean = text.replace(/[*_#`]/g, "").trim()
   if (!clean) return []
 
-  // Split by sentence terminators (Bengali dari '।', periods, question marks, exclamation, newlines)
   const sentences = clean.split(/(?<=[।?!.\n])\s+/)
   const chunks: string[] = []
   let current = ""
@@ -15,7 +16,6 @@ function splitIntoChunks(text: string, maxLen = 180): string[] {
     } else {
       if (current) chunks.push(current)
       if (s.length > maxLen) {
-        // If a single sentence is super long, split by comma or space
         const words = s.split(/(?<=[, ])/)
         let sub = ""
         for (const w of words) {
@@ -38,6 +38,14 @@ function splitIntoChunks(text: string, maxLen = 180): string[] {
 }
 
 export async function GET(request: NextRequest) {
+  const userId = await getInternalUserId()
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
+  const rl = await checkDistributedRateLimit(`tts:${userId}`, 10, 60)
+  if (!rl.success) return rateLimitResponse(rl)
+
   const { searchParams } = new URL(request.url)
   const rawText = searchParams.get("text") || ""
   let lang = searchParams.get("lang") || "en"
@@ -46,7 +54,6 @@ export async function GET(request: NextRequest) {
     return new NextResponse("Text is required", { status: 400 })
   }
 
-  // Strip code blocks and markdown symbols for clean speech output
   const text = rawText
     .replace(/```[\s\S]*?```/g, "")
     .replace(/`([^`]+)`/g, "$1")
@@ -54,7 +61,6 @@ export async function GET(request: NextRequest) {
     .replace(/[*_#~>]/g, "")
     .trim()
 
-  // Auto-detect Bengali script
   const hasBengali = /[\u0980-\u09FF]/.test(text)
   if (hasBengali) {
     lang = "bn"
@@ -79,6 +85,7 @@ export async function GET(request: NextRequest) {
           "User-Agent":
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         },
+        signal: AbortSignal.timeout(5000),
       })
 
       if (res.ok) {
@@ -101,8 +108,7 @@ export async function GET(request: NextRequest) {
         "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800",
       },
     })
-  } catch (err: unknown) {
-    console.error("[TTS Generation Error]:", err)
+  } catch {
     return new NextResponse("Failed to generate speech audio", { status: 500 })
   }
 }
