@@ -1,68 +1,68 @@
 "use client";
 
-import {
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card";
+import Link from "next/link";
 import { DashboardCard } from "@/components/dashboard-card";
-import { BriefcaseIcon, Bot, CalendarIcon, AwardIcon } from "lucide-react";
 
-const items = [
-	{
-		title: "Applied to Senior Frontend Engineer at Stripe",
-		time: "About 2 hours ago",
-		icon: <BriefcaseIcon className="size-4" />,
-	},
-	{
-		title: "AI Analysis: 92% match for Vercel Dev role",
-		time: "This morning",
-		icon: <Bot className="size-4" />,
-	},
-	{
-		title: "Interview scheduled with Linear team",
-		time: "Yesterday",
-		icon: <CalendarIcon className="size-4" />,
-	},
-	{
-		title: "Weekly target reached: 10 applications sent",
-		time: "2 days ago",
-		icon: <AwardIcon className="size-4" />,
-	},
-] as const;
+type Application = {
+	id: string;
+	companyName: string;
+	jobTitle: string;
+	status: string;
+	applicationDate: string;
+};
 
-export function DashboardActivity() {
+function timeAgo(dateStr: string): string {
+	const now = Date.now();
+	const then = new Date(dateStr).getTime();
+	const diffMs = now - then;
+	const mins = Math.floor(diffMs / 60000);
+	if (mins < 1) return "Just now";
+	if (mins < 60) return `${mins}m ago`;
+	const hours = Math.floor(mins / 60);
+	if (hours < 24) return `${hours}h ago`;
+	const days = Math.floor(hours / 24);
+	if (days < 7) return `${days}d ago`;
+	return `${Math.floor(days / 7)}w ago`;
+}
+
+export function DashboardActivity({ recent }: { recent?: Application[] }) {
+	const items = recent ?? [];
+
 	return (
-		<DashboardCard className="gap-0">
-			<CardHeader className="px-5 pt-4 pb-4 border-b">
-				<CardTitle className="text-base font-semibold">Activity</CardTitle>
-				<CardDescription className="text-xs text-muted-foreground mt-1">
-					Latest updates in your career search.
-				</CardDescription>
-			</CardHeader>
-			<CardContent className="px-0">
-				<ul className="flex flex-col divide-y divide-border">
-					{items.map((item) => (
-						<li className="flex h-16 items-center gap-3 px-5" key={item.title}>
-							<span
-								aria-hidden="true"
-								className="flex size-7 shrink-0 items-center justify-center rounded-md border border-border bg-muted/40 [&_svg]:size-3.5"
-							>
-								{item.icon}
-							</span>
-							<div className="min-w-0 flex-1 space-y-0.5">
-								<p className="line-clamp-1 text-pretty text-foreground text-sm leading-snug">
-									{item.title}
-								</p>
-								<p className="text-muted-foreground text-xs">{item.time}</p>
-							</div>
-						</li>
-					))}
-				</ul>
-			</CardContent>
+		<DashboardCard className="gap-0 h-full">
+			<div className="flex items-center justify-between px-5 h-12 border-b border-border shrink-0">
+				<h3 className="text-sm font-semibold text-foreground">Recent Activity</h3>
+			</div>
+			<div className="px-5 py-2 flex-1">
+				{items.length > 0 ? (
+					<ul className="space-y-1">
+						{items.map((app) => (
+							<li key={app.id}>
+								<Link
+									href={`/applications/${app.id}`}
+									className="flex items-center justify-between py-2 rounded-md hover:bg-muted/50 transition-colors"
+								>
+									<div className="min-w-0 flex-1">
+										<p className="text-xs font-medium text-foreground truncate leading-snug">
+											{app.jobTitle}
+										</p>
+										<p className="text-[11px] text-muted-foreground truncate">
+											{app.companyName}
+										</p>
+									</div>
+									<span className="text-[11px] text-muted-foreground shrink-0 ml-3">
+										{timeAgo(app.applicationDate)}
+									</span>
+								</Link>
+							</li>
+						))}
+					</ul>
+				) : (
+					<div className="py-3">
+						<p className="text-xs text-muted-foreground">No activity yet</p>
+					</div>
+				)}
+			</div>
 		</DashboardCard>
 	);
 }
-
-

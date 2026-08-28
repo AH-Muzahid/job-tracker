@@ -1,14 +1,24 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useStats } from "@/lib/api";
-import { DashboardCommandZone } from "@/components/dashboard/DashboardCommandZone";
+import { DashboardQuickIntake } from "@/components/dashboard/DashboardQuickIntake";
+import { DashboardMessages } from "@/components/dashboard/DashboardMessages";
 import { BillingHealth } from "@/components/billing-health";
-import { ChannelSalesChart } from "@/components/channel-sales-chart";
 import { DashboardActivity } from "@/components/dashboard-activity";
 import { DashboardInvoices } from "@/components/dashboard-invoices";
-import { NetRevenueChart } from "@/components/net-revenue-chart";
 import { DashboardStats } from "@/components/stats";
 import { DecorIcon } from "@/components/decor-icon";
+
+const NetRevenueChart = dynamic(
+	() => import("@/components/net-revenue-chart").then((m) => m.NetRevenueChart),
+	{ ssr: false, loading: () => <div className="h-[200px] animate-pulse bg-muted/20" /> }
+);
+
+const ChannelSalesChart = dynamic(
+	() => import("@/components/channel-sales-chart").then((m) => m.ChannelSalesChart),
+	{ ssr: false, loading: () => <div className="h-[200px] animate-pulse bg-muted/20" /> }
+);
 
 export function Dashboard() {
 	const { data: stats } = useStats();
@@ -17,9 +27,12 @@ export function Dashboard() {
 		<div className="relative border border-border bg-border w-full max-w-full overflow-hidden">
 			<DecorIcon className="hidden md:block" position="top-left" />
 			<div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-border">
-				{/* Top Command Center: Instant JD Intake & AI Match */}
-				<div className="col-span-2 lg:col-span-4 flex flex-col h-full bg-background">
-					<DashboardCommandZone activePipeline={stats?.total} />
+				{/* 2-Column Top: Messages + Quick Intake */}
+				<div className="col-span-2 lg:col-span-2 flex flex-col h-full bg-background">
+					<DashboardMessages />
+				</div>
+				<div className="col-span-2 lg:col-span-2 flex flex-col h-full bg-background">
+					<DashboardQuickIntake />
 				</div>
 
 				{/* 4 Core Metrics */}
@@ -41,7 +54,7 @@ export function Dashboard() {
 					<BillingHealth followUps={stats?.followUpApps} />
 				</div>
 				<div className="col-span-2 lg:col-span-1 flex flex-col h-full bg-background">
-					<DashboardActivity />
+					<DashboardActivity recent={stats?.recent} />
 				</div>
 			</div>
 		</div>

@@ -1,6 +1,7 @@
 "use client"
 
 import { Suspense, useCallback, useMemo } from "react"
+import dynamic from "next/dynamic"
 import { useUser } from "@clerk/nextjs"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
@@ -13,7 +14,6 @@ import { DashboardCard } from "@/components/dashboard-card"
 import { Delta, DeltaIcon, DeltaValue } from "@/components/delta"
 import ViewSwitcher from "@/components/dashboard/ViewSwitcher"
 import FilterBar from "@/components/dashboard/FilterBar"
-import BoardView from "@/components/dashboard/BoardView"
 import ListView from "@/components/dashboard/ListView"
 import TableView from "@/components/dashboard/TableView"
 import ApplicationDetailModal from "@/components/dashboard/ApplicationDetailModal"
@@ -23,6 +23,11 @@ import { useApplications, useMoveApplication, useDeleteApplication } from "@/lib
 import { useUI } from "@/lib/store"
 import type { ViewMode, SortOption, DashboardFilters, Application } from "@/components/dashboard/types"
 import type { DropResult } from "@hello-pangea/dnd"
+
+const BoardView = dynamic(
+	() => import("@/components/dashboard/BoardView"),
+	{ ssr: false, loading: () => <div className="h-[400px] animate-pulse bg-muted/20" /> }
+)
 
 function ApplicationsContent() {
   const { isLoaded, isSignedIn } = useUser()
