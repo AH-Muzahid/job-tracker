@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getInternalUserId } from "@/lib/auth"
 import { ApplicationService } from "@/features/applications"
+import { MAX_PAGE_SIZE } from "@/features/applications/application.constants"
 
 export async function GET(req: NextRequest) {
   const userId = await getInternalUserId()
@@ -14,8 +15,8 @@ export async function GET(req: NextRequest) {
   const source = searchParams.get("source")
   const sort = searchParams.get("sort")
   const tag = searchParams.get("tag")
-  const page = parseInt(searchParams.get("page") || "1", 10)
-  const pageSize = parseInt(searchParams.get("pageSize") || "100", 10)
+  const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10))
+  const pageSize = Math.min(MAX_PAGE_SIZE, Math.max(1, parseInt(searchParams.get("pageSize") || "100", 10)))
 
   const result = await ApplicationService.listApplications(userId, {
     search,

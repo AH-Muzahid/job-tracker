@@ -31,7 +31,7 @@ export default function CalendarPage() {
     if (!isLoaded) return
     if (!isSignedIn) { router.push("/login"); return }
 
-    fetch("/api/applications?pageSize=500&sort=newest")
+    fetch("/api/applications?pageSize=100&sort=newest")
       .then((r) => r.json())
       .then((d) => setApplications(d.data || []))
       .finally(() => setLoading(false))

@@ -16,7 +16,7 @@ export function useApplications(filters: ApplicationQueryFilters) {
       if (filters.source) params.set("source", filters.source)
       if (filters.sort) params.set("sort", filters.sort)
       if (filters.tag) params.set("tag", filters.tag)
-      params.set("pageSize", "500")
+      params.set("pageSize", "100")
 
       const res = await fetch(`/api/applications?${params.toString()}`)
       if (!res.ok) throw new Error("Failed to load applications")
