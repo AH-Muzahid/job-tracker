@@ -67,7 +67,6 @@ export async function summarizeConversation(
       model: cascade[0].model,
       system: SUMMARY_SYSTEM_PROMPT,
       prompt: `Summarize this conversation in under ${summaryBudget} tokens:\n\n${middleText.slice(0, 8000)}`,
-      maxTokens: summaryBudget,
       temperature: 0.1,
     })
 
