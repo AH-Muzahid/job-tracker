@@ -20,5 +20,5 @@ export const VALID_SOURCES = [
 export type ValidStatus = (typeof VALID_STATUSES)[number]
 export type ValidSource = (typeof VALID_SOURCES)[number]
 
-export const DEFAULT_PAGE_SIZE = 100
-export const MAX_PAGE_SIZE = 500
+export const DEFAULT_PAGE_SIZE = 25
+export const MAX_PAGE_SIZE = 100

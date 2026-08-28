@@ -54,6 +54,7 @@ model Application {
   @@index([userId])
   @@index([companyId])
   @@index([userId, status])
+  @@index([userId, source])
   @@index([userId, applicationDate])
   @@index([userId, createdAt])
 }

@@ -38,8 +38,7 @@ export async function GET() {
           Authorization: `Bearer ${apiKey || "test"}`,
           "Content-Type": "application/json",
         },
-        // Quick 4 second timeout for local/remote proxy
-        signal: AbortSignal.timeout(4000),
+        signal: AbortSignal.timeout(3000),
       })
 
       if (res.ok) {
@@ -63,8 +62,8 @@ export async function GET() {
           }
         }
       }
-    } catch (err: unknown) {
-      console.warn("[Fetch Models Proxy Warn]:", err)
+    } catch {
+      // Custom endpoint unreachable — fall through to presets
     }
   }
 

@@ -198,6 +198,25 @@ describe("Autonomous AI Agent Tools Suite", () => {
       expect(prisma.application.delete).toHaveBeenCalledWith({ where: { id: "app-1" } })
     })
 
+    it("deleteApplication falls back to most recent application when generic reference like 'delete the application' is provided", async () => {
+      vi.mocked(prisma.application.findFirst).mockResolvedValueOnce({
+        id: "app-latest",
+        userId,
+        companyName: "Stripe",
+        jobTitle: "Junior Backend Engineer",
+      } as any)
+
+      vi.mocked(prisma.application.delete).mockResolvedValueOnce({ id: "app-latest" } as any)
+
+      const result = await (tools.deleteApplication as any).execute({
+        companyOrTitle: "delete the application",
+      })
+
+      expect(result.success).toBe(true)
+      expect(result.deletedCompany).toBe("Stripe")
+      expect(prisma.application.delete).toHaveBeenCalledWith({ where: { id: "app-latest" } })
+    })
+
     it("batchImportApplications imports multiple applications in a single run", async () => {
       vi.mocked(prisma.application.create)
         .mockResolvedValueOnce({ id: "app-1", companyName: "Google", jobTitle: "SRE", status: "Saved" } as any)
@@ -214,6 +233,33 @@ describe("Autonomous AI Agent Tools Suite", () => {
       expect(result.importedCount).toBe(2)
       expect(result.applications[0].companyName).toBe("Google")
       expect(result.applications[1].companyName).toBe("Apple")
+    })
+
+    it("getPipelineStats returns aggregated count and breakdown message", async () => {
+      vi.mocked(prisma.application.groupBy).mockResolvedValueOnce([
+        { status: "Applied", _count: 3 },
+        { status: "Interview", _count: 1 },
+      ] as any)
+
+      const result = await (tools.getPipelineStats as any).execute({})
+      expect(result.success).toBe(true)
+      expect(result.total).toBe(4)
+      expect(result.applied).toBe(3)
+      expect(result.interview).toBe(1)
+      expect(result.message).toContain("4")
+    })
+
+    it("listUserApplications returns formatted application list", async () => {
+      vi.mocked(prisma.application.findMany).mockResolvedValueOnce([
+        { id: "app-1", companyName: "Stripe", jobTitle: "Backend Engineer", status: "Applied", source: "LinkedIn", applicationDate: new Date(), updatedAt: new Date() },
+        { id: "app-2", companyName: "Figma", jobTitle: "Product Designer", status: "Interview", source: "Referral", applicationDate: new Date(), updatedAt: new Date() },
+      ] as any)
+
+      const result = await (tools.listUserApplications as any).execute({ limit: 5 })
+      expect(result.success).toBe(true)
+      expect(result.count).toBe(2)
+      expect(result.message).toContain("Stripe")
+      expect(result.message).toContain("Figma")
     })
   })
 
@@ -249,6 +295,34 @@ describe("Autonomous AI Agent Tools Suite", () => {
       expect(result.companyName).toBe("Netflix")
       expect(result.industry).toBe("Streaming & Cloud")
       expect(prisma.prepNote.create).toHaveBeenCalled()
+    })
+
+    it("researchCompanyIntel handles natural company name like 'Stripe's tech stack' and cleans it", async () => {
+      vi.mocked(prisma.company.upsert).mockResolvedValueOnce({
+        id: "comp-2",
+        userId,
+        name: "Stripe",
+        industry: "Fintech",
+        website: null,
+        notes: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        logoUrl: null,
+      })
+
+      vi.mocked(prisma.prepNote.create).mockResolvedValueOnce({
+        id: "note-2",
+        title: "Intel: Stripe",
+        category: "Company Research",
+      } as any)
+
+      const result = await (tools.researchCompanyIntel as any).execute({
+        company: "Stripe",
+        industry: "Fintech",
+      })
+
+      expect(result.success).toBe(true)
+      expect(result.companyName).toBe("Stripe")
     })
 
     it("sendOutreachEmailViaResend simulates safely without API key", async () => {
