@@ -154,7 +154,7 @@ export function useAIChat() {
           role: m.role,
           content: m.content,
           metadata: m.metadata,
-          toolInvocations: (m.metadata as any)?.toolInvocations || [],
+          toolInvocations: (m.metadata as Record<string, unknown> | undefined)?.toolInvocations || [],
         }))
       )
     } catch (err: unknown) {

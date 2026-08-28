@@ -1,5 +1,6 @@
 "use client"
 
+import { memo } from "react"
 import { ExternalLink, MoreHorizontal, Pencil, Trash2, ArrowRight, Calendar, Globe, Building2, MapPin, Sparkles } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -42,7 +43,7 @@ function getTagStyle(tagName: string) {
   return "bg-muted/60 text-muted-foreground border-border/80"
 }
 
-export default function BoardCard({ application, onClick, onEdit, onDelete, onMoveTo }: Props) {
+const BoardCard = memo(function BoardCard({ application, onClick, onEdit, onDelete, onMoveTo }: Props) {
   const initials = getInitials(application.companyName)
   const colorClass = getCompanyColor(application.companyName)
 
@@ -171,4 +172,6 @@ export default function BoardCard({ application, onClick, onEdit, onDelete, onMo
       </div>
     </div>
   )
-}
+})
+
+export default BoardCard

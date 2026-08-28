@@ -17,7 +17,7 @@ import MermaidDiagram from "./MermaidDiagram"
 import { type ToolInvocation } from "./AIChat"
 
 interface Props {
-  message: { id: string; role: string; content: string; toolInvocations?: ToolInvocation[] }
+  message: { id: string; role: string; content: string; reasoning?: string; toolInvocations?: ToolInvocation[] }
   isLast: boolean
   isStreaming: boolean
   onSuggestionClick?: (prompt: string) => void
@@ -41,45 +41,45 @@ function getContextualSuggestions(content: string): Suggestion[] {
 
   if (lower.includes("analysis") || lower.includes("match score") || lower.includes("requirements") || lower.includes("verdict")) {
     list.push({
-      icon: "📝",
+      icon: "",
       label: "Draft Tailored Cover Letter",
       prompt: "Write a customized cover letter for this role focusing on my relevant skills and projects.",
     })
     list.push({
-      icon: "🎯",
+      icon: "",
       label: "5 Interview Questions",
       prompt: "Give me 5 specific technical and behavioral interview questions tailored for this role.",
     })
   } else if (lower.includes("interview") || lower.includes("mock") || lower.includes("assessment")) {
     list.push({
-      icon: "💡",
+      icon: "",
       label: "Model STAR Answers",
       prompt: "Provide concise, high-scoring STAR method answers for each of these interview questions.",
     })
     list.push({
-      icon: "🎤",
+      icon: "",
       label: "Start Mock Interview",
       prompt: "Let's conduct a live interactive mock interview based on these questions.",
     })
   } else if (lower.includes("resume") || lower.includes("ats")) {
     list.push({
-      icon: "📄",
+      icon: "",
       label: "Optimize Resume Points",
       prompt: "Rewrite my project bullet points with quantifiable impact metrics for better ATS ranking.",
     })
     list.push({
-      icon: "🔍",
+      icon: "",
       label: "Identify Missing High-Priority Keywords",
       prompt: "Analyze this response and identify any key technical skills or keywords I should emphasize.",
     })
   } else {
     list.push({
-      icon: "💡",
+      icon: "",
       label: "Elaborate with detailed examples & metrics",
       prompt: "Can you elaborate further with concrete examples and quantifiable impact?",
     })
     list.push({
-      icon: "🚀",
+      icon: "",
       label: "What are the recommended action items?",
       prompt: "What are the recommended action items and next steps from here?",
     })
@@ -93,37 +93,38 @@ const FollowUpsList = React.memo(function FollowUpsList({
   items,
   onPick,
 }: {
-  items: Array<{ label?: string; prompt?: string; icon?: string } | string>
+  items: Array<Suggestion | string>
   onPick?: (prompt: string) => void
 }) {
   if (!items || items.length === 0) return null
 
   // Flatten and split if any item contains multiple questions, newlines, or bullets
-  const flattened: Array<{ label: string; prompt: string; icon?: string }> = []
+  const flattened: Array<{ label: string; prompt: string }> = []
 
   items.forEach((item) => {
     if (typeof item === "string") {
       const lines = item
         .split(/\r?\n+/)
-        .map((l) => l.replace(/^[\d+.\-•*#\s]+/, "").trim())
+        .map((l) => l.replace(/^[\d+.\-•*#\s\p{Emoji}\u2000-\u3300\ufe0f]+/gu, "").trim())
         .filter((l) => l.length > 0)
       lines.forEach((line) => {
         flattened.push({ label: line, prompt: line })
       })
     } else if (item && typeof item === "object") {
-      const label = (item.label || item.prompt || "").trim()
+      let label = (item.label || item.prompt || "").trim()
       const prompt = (item.prompt || item.label || "").trim()
+      label = label.replace(/^[\p{Emoji}\u2000-\u3300\ufe0f\s]+/gu, "").trim()
       if (label) {
         if (label.includes("\n")) {
           const lines = label
             .split(/\r?\n+/)
-            .map((l) => l.replace(/^[\d+.\-•*#\s]+/, "").trim())
+            .map((l) => l.replace(/^[\d+.\-•*#\s\p{Emoji}\u2000-\u3300\ufe0f]+/gu, "").trim())
             .filter((l) => l.length > 0)
           lines.forEach((line) => {
-            flattened.push({ label: line, prompt: line, icon: item.icon })
+            flattened.push({ label: line, prompt: line })
           })
         } else {
-          flattened.push({ label, prompt, icon: item.icon })
+          flattened.push({ label, prompt })
         }
       }
     }
@@ -144,24 +145,20 @@ const FollowUpsList = React.memo(function FollowUpsList({
             onClick={() => onPick?.(s.prompt)}
             className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-muted/40 px-3 py-1.5 text-left text-xs font-medium text-foreground transition-colors hover:bg-muted hover:border-border/80 cursor-pointer shadow-2xs active:scale-95"
           >
-            {s.icon ? (
-              <span className="text-xs">{s.icon}</span>
-            ) : (
-              <svg
-                width="11"
-                height="11"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="shrink-0 text-muted-foreground"
-              >
-                <path d="M9 10l-5 5 5 5" />
-                <path d="M20 4v7a4 4 0 0 1-4 4H4" />
-              </svg>
-            )}
+            <svg
+              width="11"
+              height="11"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="shrink-0 text-muted-foreground"
+            >
+              <path d="M5 12h14" />
+              <path d="m12 5 7 7-7 7" />
+            </svg>
             <span>{s.label}</span>
           </button>
         ))}
@@ -481,6 +478,13 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
           isUser && "relative pr-9" // Make room for the toggle button
         )}
       >
+        {/* Reasoning / Thought Process Accordion */}
+        {message.reasoning && (
+          <div className="mb-2">
+            <LoadingState reasoning={message.reasoning} isFinished={!isStreaming} />
+          </div>
+        )}
+
         {message.toolInvocations && message.toolInvocations.length > 0 && (
           <div className="mb-3">
             <AgenticProcessViewer
@@ -641,7 +645,7 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
           </>
         ) : isStreaming && (!message.toolInvocations || message.toolInvocations.length === 0) ? (
           <div className="py-2">
-            <LoadingState variant="Dots" />
+            <LoadingState reasoning={message.reasoning} isFinished={false} variant="Dots" />
           </div>
         ) : null}
       </div>

@@ -28,6 +28,7 @@ interface Message {
   id: string
   role: "user" | "assistant"
   content: string
+  reasoning?: string
   metadata?: Record<string, unknown>
   toolInvocations?: ToolInvocation[]
 }
@@ -333,6 +334,7 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
                   updated[lastIdx] = {
                     ...updated[lastIdx],
                     content: parsed.text,
+                    reasoning: parsed.reasoning,
                     toolInvocations: parsed.toolInvocations,
                   }
                 }
@@ -397,6 +399,7 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
               updated[lastIdx] = {
                 ...updated[lastIdx],
                 content: finalState.text,
+                reasoning: finalState.reasoning,
                 toolInvocations: finalState.toolInvocations,
               }
             }

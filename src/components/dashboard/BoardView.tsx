@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo } from "react"
+import { useMemo, useCallback } from "react"
 import { Badge } from "@/components/ui/badge"
 import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd"
 import { DecorIcon } from "@/components/decor-icon"
@@ -71,6 +71,35 @@ export default function BoardView({ applications, onSelect, onEdit, onDelete, on
   )
 }
 
+function DraggableCard({
+  application,
+  onSelect,
+  onEdit,
+  onDelete,
+  onMoveTo,
+}: {
+  application: Application
+  onSelect: (id: string) => void
+  onEdit: (id: string) => void
+  onDelete: (id: string) => void
+  onMoveTo: (id: string, status: string) => void
+}) {
+  const handleClick = useCallback(() => onSelect(application.id), [onSelect, application.id])
+  const handleEdit = useCallback(() => onEdit(application.id), [onEdit, application.id])
+  const handleDelete = useCallback(() => onDelete(application.id), [onDelete, application.id])
+  const handleMoveTo = useCallback((status: string) => onMoveTo(application.id, status), [onMoveTo, application.id])
+
+  return (
+    <BoardCard
+      application={application}
+      onClick={handleClick}
+      onEdit={handleEdit}
+      onDelete={handleDelete}
+      onMoveTo={handleMoveTo}
+    />
+  )
+}
+
 function BoardColumnCard({
   column,
   onSelect,
@@ -127,12 +156,12 @@ function BoardColumnCard({
                             : ""
                         }`}
                       >
-                        <BoardCard
+                        <DraggableCard
                           application={application}
-                          onClick={() => onSelect(application.id)}
-                          onEdit={() => onEdit(application.id)}
-                          onDelete={() => onDelete(application.id)}
-                          onMoveTo={(status) => onMoveTo(application.id, status)}
+                          onSelect={onSelect}
+                          onEdit={onEdit}
+                          onDelete={onDelete}
+                          onMoveTo={onMoveTo}
                         />
                       </div>
                   )}
