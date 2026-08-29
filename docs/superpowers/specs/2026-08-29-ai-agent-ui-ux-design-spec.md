@@ -28,13 +28,15 @@
 ## Design Sections
 
 ### 1. Split-Pane Layout & State Routing
-- Modify `/ai-assistant` page to render a 2-column flex or grid container:
-  - Column 1 (Left, 40% width): Chat feed, input dock, and model override selectors.
-  - Column 2 (Right, 60% width): `WorkspaceCanvas` component, which is always visible.
+- Modify `/ai-assistant` page to render a responsive multi-pane layout:
+  - **Desktop (>=1024px):** Renders a side-by-side 2-column layout (Left Column: Chat at 40% width; Right Column: `WorkspaceCanvas` at 60% width).
+  - **Mobile (<1024px):** Renders a single-column layout. A sleek top navigation bar lets the user toggle between `[Chat]` and `[Workspace]` panels.
+  - When a background execution run begins or a new document is generated while in the Mobile `[Chat]` view, a notification badge/dot is rendered on the `[Workspace]` tab button to guide the user.
 - Define a global or page-level context/state `WorkspaceState`:
   - `activeArtifact`: `{ content: string, type: 'email' | 'resume' | 'analysis', title: string, id: string } | null`
   - `activeRun`: `{ toolInvocations: ToolInvocation[], isStreaming: boolean }`
-- When a document code block (e.g. `language-outreach`, `language-analysis`, `language-suggestions`, or `language-mermaid`) is rendered in the stream, we intercept it in `ChatMessage.tsx` and route the payload to `activeArtifact` so it displays in the Canvas tab on the right instead of inline.
+  - `activeMobileTab`: `'chat' | 'workspace'`
+- When a document code block (e.g. `language-outreach`, `language-analysis`, `language-suggestions`, or `language-mermaid`) is rendered in the stream, we intercept it in `ChatMessage.tsx` and route the payload to `activeArtifact` so it displays in the Canvas tab on the right instead of inline. On mobile, we auto-route this and show the notification.
 
 ### 2. Canvas Tab (Artifacts Panel)
 - Displays full-screen markdown or plain text preview of the active document.
