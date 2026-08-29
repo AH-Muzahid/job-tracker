@@ -8,6 +8,7 @@ import {
   formatGraphForContext,
 } from "@/lib/ai/knowledge-graph"
 import { countTokens, trimToTokenBudget } from "./token-counter"
+import { sanitizePII } from "./pii-sanitizer"
 
 export type AIMode =
   | "profile"
@@ -226,7 +227,7 @@ export async function buildFullContext(userId: string, mode: AIMode): Promise<st
 
   parts.push(`User Identity:
 - Name: ${displayName}
-- Email: ${user?.email || "Not set"}
+- Email: ${user?.email ? sanitizePII(user.email) : "Not set"}
 - Profile Complete: ${hasProfile ? "Yes" : "No"}`)
 
   if (profile) {
@@ -239,9 +240,9 @@ export async function buildFullContext(userId: string, mode: AIMode): Promise<st
 - Current Status: ${profile.currentStatus || "Not set"}
 - Skills: ${profile.strengths || "Not set"}
 - Weaknesses: ${profile.weaknesses || "Not set"}
-- LinkedIn: ${profile.linkedInUrl || "Not set"}
-- GitHub: ${profile.githubUrl || "Not set"}
-- Portfolio: ${profile.portfolioUrl || "Not set"}`)
+- LinkedIn: ${profile.linkedInUrl ? sanitizePII(profile.linkedInUrl) : "Not set"}
+- GitHub: ${profile.githubUrl ? sanitizePII(profile.githubUrl) : "Not set"}
+- Portfolio: ${profile.portfolioUrl ? sanitizePII(profile.portfolioUrl) : "Not set"}`)
 
     if (profile.bestProjects) {
       const projects = profile.bestProjects as Array<{ name: string; stack: string; description: string }>
