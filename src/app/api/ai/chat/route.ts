@@ -6,7 +6,7 @@ import { getInternalUserId } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { invalidateCache } from "@/lib/redis"
 import { getUserAIConfig } from "@/lib/ai/config"
-import { buildFullContext, budgetConversationHistory, getMessageTokenCount } from "@/lib/ai/context-builder"
+import { buildFullContext, budgetConversationHistory } from "@/lib/ai/context-builder"
 import { classifyMode } from "@/lib/ai/mode-router"
 import { getSystemBase } from "@/lib/ai/prompts/system-base"
 import { getJdScanPrompt } from "@/lib/ai/prompts/jd-scan"
@@ -133,9 +133,6 @@ export async function POST(request: NextRequest) {
 
   // Enforce token budgeting on conversation history
   const budgetedMessages = budgetConversationHistory(rawFormatted, 16_000)
-
-  // Log token usage for monitoring
-  const tokenCount = getMessageTokenCount(budgetedMessages)
 
   // Prefix Caching optimization: Static instructions in System, Dynamic user context in initial system-note
   const systemBase = getSystemBase()
