@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma"
 import { invalidateCache } from "@/lib/redis"
 import { getUserAIConfig } from "@/lib/ai/config"
 import { buildFullContext, budgetConversationHistory } from "@/lib/ai/context-builder"
+import { summarizeConversation } from "@/lib/ai/conversation-summarizer"
 import { classifyMode } from "@/lib/ai/mode-router"
 import { getSystemBase } from "@/lib/ai/prompts/system-base"
 import { getJdScanPrompt } from "@/lib/ai/prompts/jd-scan"
@@ -131,8 +132,13 @@ export async function POST(request: NextRequest) {
     { role: "user" as const, content: message },
   ]
 
-  // Enforce token budgeting on conversation history
-  const budgetedMessages = budgetConversationHistory(rawFormatted, 16_000)
+  // Enforce token budgeting on conversation history (with summarization)
+  let budgetedMessages: Array<{ role: "user" | "assistant"; content: string }>
+  try {
+    budgetedMessages = await summarizeConversation(rawFormatted, 16_000, userId)
+  } catch {
+    budgetedMessages = budgetConversationHistory(rawFormatted, 16_000)
+  }
 
   // Prefix Caching optimization: Static instructions in System, Dynamic user context in initial system-note
   const systemBase = getSystemBase()
