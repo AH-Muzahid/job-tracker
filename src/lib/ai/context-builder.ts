@@ -9,6 +9,7 @@ import {
 } from "@/lib/ai/knowledge-graph"
 import { countTokens, trimToTokenBudget } from "./token-counter"
 import { sanitizePII } from "./pii-sanitizer"
+import { touchMemory } from "./memory-consolidator"
 
 export type AIMode =
   | "profile"
@@ -115,7 +116,7 @@ export async function buildFullContext(userId: string, mode: AIMode): Promise<st
           where: { userId },
           orderBy: { createdAt: "desc" },
           take: 15,
-          select: { category: true, content: true },
+          select: { id: true, category: true, content: true },
         }),
     needResume && !cachedResume
       ? prisma.resume.findFirst({
@@ -215,6 +216,9 @@ export async function buildFullContext(userId: string, mode: AIMode): Promise<st
   const userMemories = cachedMemories || dbMemories
   if (!cachedMemories && dbMemories && dbMemories.length > 0) {
     void setCachedJson(`user:memories:${userId}`, dbMemories, 3600)
+    for (const m of dbMemories) {
+      void touchMemory(m.id)
+    }
   }
 
   const defaultResume = cachedResume || dbResume

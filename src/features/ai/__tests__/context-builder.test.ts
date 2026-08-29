@@ -59,8 +59,9 @@ vi.mock("@/lib/prisma", () => ({
     },
     userMemory: {
       findMany: vi.fn().mockResolvedValue([
-        { category: "preference", content: "Prefers remote Golang & React roles" },
+        { id: "mem-1", category: "preference", content: "Prefers remote Golang & React roles" },
       ]),
+      update: vi.fn().mockResolvedValue({}),
     },
     weeklyGoal: {
       findFirst: vi.fn().mockResolvedValue({
