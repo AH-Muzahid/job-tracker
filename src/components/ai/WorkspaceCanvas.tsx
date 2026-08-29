@@ -3,15 +3,9 @@
 import React, { useState, useEffect } from "react"
 import { useWorkspace } from "./WorkspaceContext"
 import TerminalTab from "./TerminalTab"
+import CanvasTab from "./CanvasTab"
 
-// Dummy placeholders for Canvas and MiniBoard tabs to avoid compiler warnings
-function CanvasTab() {
-  return (
-    <div className="flex flex-col items-center justify-center min-h-[300px] text-muted-foreground text-xs font-sans">
-      <span>Canvas Tab Placeholder</span>
-    </div>
-  )
-}
+// Dummy placeholders for MiniBoard tabs to avoid compiler warnings
 
 function MiniBoardTab() {
   return (
@@ -37,10 +31,10 @@ export default function WorkspaceCanvas() {
       {/* Tab Navigation header */}
       <div className="h-10 border-b border-border flex items-center bg-muted/30 px-4 shrink-0 justify-between">
         <div className="flex gap-2">
-          {["canvas", "terminal", "board"].map((tab) => (
+          {(["canvas", "terminal", "board"] as const).map((tab) => (
             <button
               key={tab}
-              onClick={() => setActiveTab(tab as any)}
+              onClick={() => setActiveTab(tab)}
               className={`text-xs font-semibold px-3 py-1 rounded-none border-b-2 transition-all cursor-pointer ${
                 activeTab === tab
                   ? "border-primary text-foreground"
