@@ -3,8 +3,8 @@
 import { useEffect, useCallback } from "react"
 import { useUser } from "@clerk/nextjs"
 import { useRouter, useSearchParams } from "next/navigation"
-import { Skeleton } from "@/components/ui/skeleton"
 import AIChat from "@/components/ai/AIChat"
+import { WorkspaceProvider } from "@/components/ai/WorkspaceContext"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useAI } from "@/lib/store"
 
@@ -75,13 +75,15 @@ export default function AIAssistantPage() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-3.5rem)] w-full overflow-hidden">
-      {/* Main Chat area */}
-      <main role="main" aria-label="AI Conversation Workspace" className="flex-1 flex flex-col min-w-0 relative overflow-hidden bg-background">
-        <div className="flex-1 overflow-hidden relative">
-          <AIChat sessionId={activeChatId} onSessionCreated={handleSessionCreated} />
-        </div>
-      </main>
-    </div>
+    <WorkspaceProvider>
+      <div className="flex h-[calc(100vh-3.5rem)] w-full overflow-hidden">
+        {/* Main Chat area */}
+        <main role="main" aria-label="AI Conversation Workspace" className="flex-1 flex flex-col min-w-0 relative overflow-hidden bg-background">
+          <div className="flex-1 overflow-hidden relative">
+            <AIChat sessionId={activeChatId} onSessionCreated={handleSessionCreated} />
+          </div>
+        </main>
+      </div>
+    </WorkspaceProvider>
   )
 }
