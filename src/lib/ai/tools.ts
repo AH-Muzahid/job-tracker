@@ -12,6 +12,7 @@ import {
 } from "@/lib/ai/knowledge-graph"
 import { sendEmail, formatOutreachEmailHtml } from "@/lib/email"
 import { syncApplicationsToGoogleSheets, getGoogleSheetsConfig } from "@/lib/google-sheets"
+import { generateEmbedding, serializeEmbedding } from "./memory-search"
 
 function parseToolArgs(raw: any): Record<string, any> {
   if (!raw) return {}
@@ -990,12 +991,22 @@ export function createAiTools(userId: string) {
             }
           }
 
+          // Generate embedding for semantic search
+          let embedding: string | null = null
+          try {
+            const embeddingVector = await generateEmbedding(content)
+            embedding = serializeEmbedding(embeddingVector)
+          } catch {
+            // Embedding generation failed, continue without it
+          }
+
           const memory = await withDbRetry<{ id: string; category: string; content: string }>(() =>
             prisma.userMemory.create({
               data: {
                 userId,
                 category,
                 content,
+                embedding,
                 source: "chat",
               },
             })

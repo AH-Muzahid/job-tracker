@@ -276,6 +276,7 @@ model UserMemory {
   userId         String
   category       String   // preference | skill | experience | constraint | general
   content        String
+  embedding      String?  // Vector embedding as JSON string
   source         String?  @default("chat") // chat | manual | resume
   confidence     Float?   @default(1.0)
   lastAccessedAt DateTime?
