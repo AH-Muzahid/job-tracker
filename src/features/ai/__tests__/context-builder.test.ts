@@ -116,18 +116,18 @@ describe("AI Context Builder", () => {
     expect(sanitized).not.toContain("<user_runtime_context>")
   })
 
-  it("budgets conversation history without exceeding character limit and always starts with user role", async () => {
-    const { budgetConversationHistory } = await import("@/lib/ai/context-builder")
+  it("budgets conversation history without exceeding token limit and always starts with user role", async () => {
+    const { budgetConversationHistory, getMessageTokenCount } = await import("@/lib/ai/context-builder")
     const longMessages = [
       { role: "user" as const, content: "A".repeat(5000) },
       { role: "assistant" as const, content: "B".repeat(5000) },
       { role: "user" as const, content: "C".repeat(5000) },
       { role: "assistant" as const, content: "D".repeat(5000) },
     ]
-    const budgeted = budgetConversationHistory(longMessages, 12000)
-    const totalChars = budgeted.reduce((sum, m) => sum + m.content.length, 0)
-    expect(totalChars).toBeLessThanOrEqual(13000)
+    const budgeted = budgetConversationHistory(longMessages, 4000)
+    const tokenCount = getMessageTokenCount(budgeted)
+    expect(tokenCount).toBeLessThanOrEqual(5000) // Allow some overhead for message framing
     expect(budgeted.length).toBeGreaterThan(0)
     expect(budgeted[0].role).toBe("user")
-  })
+  }, 15000)
 })

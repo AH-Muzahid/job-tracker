@@ -7,6 +7,7 @@ import {
   buildCareerGraphFromText,
   formatGraphForContext,
 } from "@/lib/ai/knowledge-graph"
+import { countTokens, trimToTokenBudget } from "./token-counter"
 
 export type AIMode =
   | "profile"
@@ -45,34 +46,24 @@ export function sanitizeUntrustedContext(input: string): string {
 }
 
 /**
- * Enforce strict character/token budgeting on conversation history to prevent context overflow,
- * ensuring the resulting message array strictly starts with a "user" role for LLM API compatibility.
+ * Enforce strict token budgeting on conversation history.
+ * Uses js-tiktoken for accurate token counting instead of character estimation.
+ * Always keeps first user message and ensures history starts with user role.
  */
 export function budgetConversationHistory(
   messages: Array<{ role: "user" | "assistant"; content: string }>,
-  maxCharBudget: number = 24_000
+  maxTokens: number = 16_000
 ): Array<{ role: "user" | "assistant"; content: string }> {
-  let currentChars = 0
-  const budgeted: Array<{ role: "user" | "assistant"; content: string }> = []
+  return trimToTokenBudget(messages, maxTokens) as Array<{ role: "user" | "assistant"; content: string }>
+}
 
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const msg = messages[i]
-    const msgLen = msg.content.length
-
-    if (currentChars + msgLen > maxCharBudget && budgeted.length >= 2) {
-      break
-    }
-
-    budgeted.unshift(msg)
-    currentChars += msgLen
-  }
-
-  // Ensure history strictly starts with a "user" role for provider API compatibility (Anthropic / Gemini)
-  while (budgeted.length > 0 && budgeted[0].role !== "user") {
-    budgeted.shift()
-  }
-
-  return budgeted
+/**
+ * Get token count for a message array (for logging/debugging).
+ */
+export function getMessageTokenCount(
+  messages: Array<{ role: string; content: string }>
+): number {
+  return countTokens(messages.map((m) => m.content).join("\n"))
 }
 
 export async function buildFullContext(userId: string, mode: AIMode): Promise<string> {
