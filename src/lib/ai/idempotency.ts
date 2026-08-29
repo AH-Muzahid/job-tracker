@@ -25,7 +25,7 @@ export function generateIdempotencyKey(params: {
  */
 export async function checkIdempotency(
   key: string,
-  ttlSeconds: number = IDEMPOTENCY_TTL
+  ttlSeconds: number = IDEMPOTENCY_TTL // eslint-disable-line @typescript-eslint/no-unused-vars
 ): Promise<{ isDuplicate: boolean; existingResult?: unknown }> {
   const redis = getRedisClient()
   if (!redis) return { isDuplicate: false }
