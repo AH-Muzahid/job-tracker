@@ -5,7 +5,7 @@ import Link from "next/link"
 import { cn } from "@/lib/utils"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
-import { Bot, ChevronDown, ChevronUp, Copy, Check } from "lucide-react"
+import { Bot, ChevronDown, ChevronUp, Copy, Check, Pencil } from "lucide-react"
 import { toast } from "sonner"
 import AnalysisResult from "./AnalysisResult"
 import OutreachResult from "./OutreachResult"
@@ -23,6 +23,7 @@ interface Props {
   onSuggestionClick?: (prompt: string) => void
   onRetry?: (content?: string) => void
   onToolConfirm?: (toolName: string, args: Record<string, unknown>) => void
+  onEdit?: (messageId: string, newText: string) => void
 }
 
 interface Suggestion {
@@ -168,11 +169,13 @@ const FollowUpsList = React.memo(function FollowUpsList({
   )
 })
 
-export default function ChatMessage({ message, isLast, isStreaming, onSuggestionClick, onRetry, onToolConfirm }: Props) {
+export default function ChatMessage({ message, isLast, isStreaming, onSuggestionClick, onRetry, onToolConfirm, onEdit }: Props) {
   const isUser = message.role === "user"
   const isLongMessage = isUser && message.content && message.content.length > 250
   const [isExpanded, setIsExpanded] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
+  const [editText, setEditText] = useState(message.content)
   
   const hasEmbeddedSuggestions = Boolean(message.content && message.content.includes("```suggestions"))
   
@@ -525,7 +528,39 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
           </div>
         )}
 
-        {message.content ? (
+        {isEditing ? (
+          <div className="flex flex-col gap-2 w-full min-w-[240px]">
+            <textarea
+              value={editText}
+              onChange={(e) => setEditText(e.target.value)}
+              className="w-full bg-background border border-border rounded-lg p-2 text-xs text-foreground outline-none resize-y min-h-[60px] focus:border-foreground/35"
+              autoFocus
+            />
+            <div className="flex justify-end gap-1.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsEditing(false)
+                  setEditText(message.content)
+                }}
+                className="px-2.5 py-1 text-[10px] font-medium border border-border bg-background hover:bg-muted text-foreground transition-colors cursor-pointer rounded-sm active:scale-95"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={!editText.trim() || editText.trim() === message.content}
+                onClick={() => {
+                  setIsEditing(false)
+                  onEdit?.(message.id, editText.trim())
+                }}
+                className="px-2.5 py-1 text-[10px] font-medium bg-primary text-primary-foreground hover:bg-primary/95 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer rounded-sm active:scale-95"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        ) : message.content ? (
           <>
             <div className={cn(
               "transition-all duration-200 overflow-hidden relative",
@@ -580,6 +615,20 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
                   <Copy className="h-3 w-3" />
                   <span>Copy</span>
                 </button>
+                {onEdit && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsEditing(true)
+                      setEditText(message.content)
+                    }}
+                    className="inline-flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                    title="Edit message"
+                  >
+                    <Pencil className="h-3 w-3" />
+                    <span>Edit</span>
+                  </button>
+                )}
                 {onRetry && (
                   <button
                     type="button"

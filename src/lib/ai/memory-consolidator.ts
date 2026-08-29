@@ -85,13 +85,19 @@ export async function pruneStaleMemories(
     where: { userId, createdAt: { lt: cutoff } },
   })
 
-  const scored = memories.map((m) => ({ ...m, score: scoreMemory(m) }))
-  const stale = scored.filter((m) => m.score < threshold)
+  const scored = memories.map((m: {
+    id: string
+    confidence: number | null
+    accessCount: number
+    createdAt: Date
+    lastAccessedAt: Date | null
+  }) => ({ ...m, score: scoreMemory(m) }))
+  const stale = scored.filter((m: { score: number }) => m.score < threshold)
 
   if (stale.length === 0) return 0
 
   await prisma.userMemory.deleteMany({
-    where: { id: { in: stale.map((m) => m.id) } },
+    where: { id: { in: stale.map((m: { id: string }) => m.id) } },
   })
 
   return stale.length

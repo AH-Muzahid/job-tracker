@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  let body: { message?: string; sessionId?: string; mode?: string; model?: string; modelOverride?: string }
+  let body: { message?: string; sessionId?: string; mode?: string; model?: string; modelOverride?: string; retryUserMsgId?: string }
   try {
     body = await request.json()
   } catch {
@@ -74,6 +74,7 @@ export async function POST(request: NextRequest) {
     mode: forcedMode,
     model: modelParam,
     modelOverride: modelOverrideParam,
+    retryUserMsgId,
   } = body
   const modelOverride = modelOverrideParam || modelParam
 
@@ -107,22 +108,62 @@ export async function POST(request: NextRequest) {
       return new Response(JSON.stringify({ error: "Session not found" }), { status: 404 })
     }
     mode = (forcedMode || existing.mode || classifyMode(message)) as AIMode
+
+    if (retryUserMsgId) {
+      try {
+        const targetMsg = await prisma.chatMessage.findFirst({
+          where: { id: retryUserMsgId, sessionId },
+        })
+        if (targetMsg) {
+          await prisma.chatMessage.deleteMany({
+            where: {
+              sessionId,
+              createdAt: { gt: targetMsg.createdAt },
+            },
+          })
+          if (targetMsg.content !== message) {
+            await prisma.chatMessage.update({
+              where: { id: retryUserMsgId },
+              data: { content: message },
+            })
+          }
+        }
+      } catch {
+        // Safe fallback
+      }
+    }
+  }
+
+  let targetCreatedAt: Date | null = null
+  if (retryUserMsgId) {
+    try {
+      const msg = await prisma.chatMessage.findUnique({ where: { id: retryUserMsgId } })
+      if (msg) targetCreatedAt = msg.createdAt
+    } catch {
+      // Ignored
+    }
   }
 
   // 1. Fetch previous history and context concurrently
   const [historyRaw, context] = await Promise.all([
     prisma.chatMessage.findMany({
-      where: { sessionId, role: { in: ["user", "assistant"] } },
+      where: {
+        sessionId,
+        role: { in: ["user", "assistant"] },
+        ...(targetCreatedAt ? { createdAt: { lt: targetCreatedAt } } : {}),
+      },
       orderBy: { createdAt: "desc" },
       take: 16,
     }),
     buildFullContext(userId, mode),
   ])
 
-  // Save current user message asynchronously
-  void prisma.chatMessage.create({
-    data: { sessionId, role: "user", content: message, metadata: { mode } },
-  }).catch(() => {})
+  // Save current user message asynchronously if not retrying/editing
+  if (!retryUserMsgId) {
+    void prisma.chatMessage.create({
+      data: { sessionId, role: "user", content: message, metadata: { mode } },
+    }).catch(() => {})
+  }
 
   const history = historyRaw.reverse()
   const rawFormatted = [

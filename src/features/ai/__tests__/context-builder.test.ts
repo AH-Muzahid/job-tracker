@@ -119,11 +119,12 @@ describe("AI Context Builder", () => {
 
   it("budgets conversation history without exceeding token limit and always starts with user role", async () => {
     const { budgetConversationHistory, getMessageTokenCount } = await import("@/lib/ai/context-builder")
+    const sentence = "The quick brown fox jumps over the lazy dog. "
     const longMessages = [
-      { role: "user" as const, content: "A".repeat(5000) },
-      { role: "assistant" as const, content: "B".repeat(5000) },
-      { role: "user" as const, content: "C".repeat(5000) },
-      { role: "assistant" as const, content: "D".repeat(5000) },
+      { role: "user" as const, content: sentence.repeat(150) },
+      { role: "assistant" as const, content: sentence.repeat(150) },
+      { role: "user" as const, content: sentence.repeat(150) },
+      { role: "assistant" as const, content: sentence.repeat(150) },
     ]
     const budgeted = budgetConversationHistory(longMessages, 4000)
     const tokenCount = getMessageTokenCount(budgeted)

@@ -297,6 +297,7 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
           message: trimmed,
           mode: selectedMode,
           modelOverride,
+          retryUserMsgId: retryOptions?.retryUserMsgId,
         }),
         signal: controller.signal,
       })
@@ -485,6 +486,24 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
     }
   }
 
+  const handleEditMessage = (messageId: string, newContent: string) => {
+    if (isStreaming) return
+
+    const idx = messages.findIndex((m) => m.id === messageId)
+    if (idx !== -1 && messages[idx].role === "user") {
+      setMessages((prev) => {
+        const updated = [...prev]
+        updated[idx] = { ...updated[idx], content: newContent }
+        return updated
+      })
+
+      sendMessage(newContent, undefined, {
+        isRetry: true,
+        retryUserMsgId: messageId,
+      })
+    }
+  }
+
   return (
     <div className="flex flex-col h-full bg-background relative overflow-hidden">
       {!loading && !hasMessages ? (
@@ -596,6 +615,7 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
                     isStreaming={isStreaming && i === messages.length - 1}
                     onSuggestionClick={(prompt) => sendMessage(prompt)}
                     onRetry={handleRetry}
+                    onEdit={handleEditMessage}
                     onToolConfirm={(toolName, args) => {
                       const confirmMsg = `Please re-run ${toolName} with confirmed: true. Original args: ${JSON.stringify(args)}`
                       sendMessage(confirmMsg)
