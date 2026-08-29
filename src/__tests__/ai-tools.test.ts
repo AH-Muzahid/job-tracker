@@ -57,6 +57,11 @@ vi.mock("@/lib/prisma", () => {
   }
 })
 
+// Mock tool-registry to disable HITL confirmation in tests
+vi.mock("@/lib/ai/tool-registry", () => ({
+  requiresConfirmation: vi.fn(() => false),
+}))
+
 // Mock Redis cache functions
 vi.mock("@/lib/redis", () => ({
   getCachedData: vi.fn(async (_key, fetcher) => fetcher()),

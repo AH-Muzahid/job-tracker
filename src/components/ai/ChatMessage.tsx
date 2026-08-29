@@ -499,7 +499,7 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
                     <OutreachResult data={tool.result as Record<string, unknown>} />
                   </div>
                 )}
-                {tool.state === 'result' && (tool.result as Record<string, unknown>)?.requiresConfirmation && (
+                {tool.state === 'result' && Boolean((tool.result as Record<string, unknown>)?.requiresConfirmation) && (
                   <div className="mt-2 p-3 border border-amber-500/30 rounded-md bg-amber-500/5">
                     <p className="text-sm text-amber-600 dark:text-amber-400">
                       {(tool.result as Record<string, unknown>).message as string}

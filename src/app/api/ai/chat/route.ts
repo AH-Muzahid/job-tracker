@@ -133,7 +133,7 @@ export async function POST(request: NextRequest) {
   ]
 
   // Enforce token budgeting on conversation history (with summarization)
-  let budgetedMessages: Array<{ role: "user" | "assistant"; content: string }>
+  let budgetedMessages: Array<{ role: string; content: string }>
   try {
     budgetedMessages = await summarizeConversation(rawFormatted, 16_000, userId)
   } catch {
@@ -154,7 +154,7 @@ export async function POST(request: NextRequest) {
       role: "assistant" as const,
       content: "Context loaded. How can I assist you with your career workflow today?",
     },
-    ...budgetedMessages,
+    ...budgetedMessages.map((m) => ({ ...m, role: m.role as "user" | "assistant" | "system" })),
   ]
 
   const tools = createAiTools(userId)
