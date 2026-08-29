@@ -15,6 +15,7 @@ import StreamingText from "./StreamingText"
 import LoadingState from "./LoadingState"
 import MermaidDiagram from "./MermaidDiagram"
 import { type ToolInvocation } from "./AIChat"
+import HITLConfirmForm from "./HITLConfirmForm"
 
 interface Props {
   message: { id: string; role: string; content: string; reasoning?: string; toolInvocations?: ToolInvocation[] }
@@ -503,25 +504,13 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
                   </div>
                 )}
                 {tool.state === 'result' && Boolean((tool.result as Record<string, unknown>)?.requiresConfirmation) && (
-                  <div className="mt-2 p-3 border border-amber-500/30 rounded-md bg-amber-500/5">
-                    <p className="text-sm text-amber-600 dark:text-amber-400">
-                      {(tool.result as Record<string, unknown>).message as string}
-                    </p>
-                    <div className="flex gap-2 mt-2">
-                      <button
-                        onClick={() => onToolConfirm?.(tool.toolName, tool.args)}
-                        className="px-3 py-1 text-xs font-medium rounded-md bg-amber-600 text-white hover:bg-amber-700 cursor-pointer"
-                      >
-                        Confirm
-                      </button>
-                      <button
-                        onClick={() => {}}
-                        className="px-3 py-1 text-xs font-medium rounded-md bg-muted text-muted-foreground hover:bg-muted/80 cursor-pointer"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
+                  <HITLConfirmForm
+                    toolName={tool.toolName}
+                    args={tool.args || {}}
+                    message={(tool.result as Record<string, unknown>).message as string}
+                    onConfirm={(modifiedArgs) => onToolConfirm?.(tool.toolName, modifiedArgs)}
+                    onCancel={() => {}}
+                  />
                 )}
               </React.Fragment>
             ))}
