@@ -3,6 +3,8 @@ import { generateText, streamText } from "ai"
 import type { LanguageModelV4 } from "@ai-sdk/provider"
 import { getProvider, AIProviderConfig } from "./client"
 import { getUserAIConfig, getAllUserAIProfiles } from "./config"
+import { LoopDetector } from "./loop-detector"
+import { getToolRisk, ToolRisk } from "./tool-registry"
 
 export interface ResilientModelCandidate {
   id: string
@@ -285,6 +287,8 @@ export async function resilientStreamText(options: {
     throw new Error("No valid AI provider found. Please configure your API key in Settings.")
   }
 
+  const loopDetector = new LoopDetector({ repetitionThreshold: 3, timeWindowMs: 30_000 })
+
   let lastError: unknown = null
 
   for (const candidate of candidates) {
@@ -298,7 +302,25 @@ export async function resilientStreamText(options: {
         maxSteps: options.maxSteps ?? 5,
         onError: options.onError,
         onFinish: options.onFinish,
-        onStepFinish: options.onStepFinish,
+        onStepFinish: (event: any) => {
+          const { toolCalls } = event
+
+          if (toolCalls && toolCalls.length > 0) {
+            for (const tc of toolCalls) {
+              const isLoop = loopDetector.recordCall(tc.toolName, tc.args as Record<string, unknown>)
+              if (isLoop) {
+                console.warn(`[LoopDetector] Loop detected for tool: ${tc.toolName}`)
+              }
+
+              const risk = getToolRisk(tc.toolName)
+              if (risk === ToolRisk.DESTRUCTIVE || risk === ToolRisk.EXTERNAL) {
+                console.warn(`[ToolRisk] ${risk} tool called: ${tc.toolName}`)
+              }
+            }
+          }
+
+          return options.onStepFinish?.(event)
+        },
       })
 
       return {
