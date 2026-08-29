@@ -1,6 +1,5 @@
 import { generateText } from "ai"
 import { countMessageTokens, trimToTokenBudget } from "./token-counter"
-import { getUserAIConfig } from "./config"
 import { getFallbackModelCascade } from "./resilience"
 
 const SUMMARY_SYSTEM_PROMPT = `You are a conversation summarizer. Summarize the following conversation into a concise paragraph that preserves:
@@ -56,7 +55,6 @@ export async function summarizeConversation(
     .join("\n\n")
 
   try {
-    const config = await getUserAIConfig(userId)
     const cascade = await getFallbackModelCascade(userId)
 
     if (cascade.length === 0) {
@@ -67,7 +65,7 @@ export async function summarizeConversation(
       model: cascade[0].model,
       system: SUMMARY_SYSTEM_PROMPT,
       prompt: `Summarize this conversation in under ${summaryBudget} tokens:\n\n${middleText.slice(0, 8000)}`,
-      maxTokens: summaryBudget,
+      maxOutputTokens: summaryBudget,
       temperature: 0.1,
     })
 

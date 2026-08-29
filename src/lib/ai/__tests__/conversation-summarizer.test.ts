@@ -5,10 +5,6 @@ vi.mock("ai", () => ({
   generateText: vi.fn().mockResolvedValue({ text: "Summary of the conversation." }),
 }))
 
-vi.mock("@/lib/ai/config", () => ({
-  getUserAIConfig: vi.fn().mockResolvedValue({}),
-}))
-
 vi.mock("@/lib/ai/resilience", () => ({
   getFallbackModelCascade: vi.fn().mockResolvedValue([{ model: {}, name: "test" }]),
 }))
