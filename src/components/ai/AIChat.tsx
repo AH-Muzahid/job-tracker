@@ -122,7 +122,22 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
   
   const { pendingPrompt, setPendingPrompt, aiSidebarOpen } = useUI()
   const queryClient = useQueryClient()
-  const { activeMobileTab, setActiveMobileTab } = useWorkspace()
+  const { activeMobileTab, setActiveMobileTab, setToolInvocations, setIsStreaming: setWorkspaceIsStreaming } = useWorkspace()
+
+  // Sync isStreaming to workspace context
+  useEffect(() => {
+    setWorkspaceIsStreaming(isStreaming)
+  }, [isStreaming, setWorkspaceIsStreaming])
+
+  // Sync toolInvocations of the active (last) message to workspace context
+  useEffect(() => {
+    const lastMessage = messages[messages.length - 1]
+    if (lastMessage && lastMessage.role === "assistant" && lastMessage.toolInvocations) {
+      setToolInvocations(lastMessage.toolInvocations)
+    } else {
+      setToolInvocations([])
+    }
+  }, [messages, setToolInvocations])
 
   const hasMessages = messages.length > 0
 

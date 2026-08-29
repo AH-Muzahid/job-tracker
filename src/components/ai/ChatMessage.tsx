@@ -1,13 +1,13 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { Bot, ChevronDown, ChevronUp, Copy, Check, Pencil } from "lucide-react"
 import { toast } from "sonner"
-import AnalysisResult from "./AnalysisResult"
+import { useWorkspace } from "./WorkspaceContext"
 import OutreachResult from "./OutreachResult"
 import ToolChips from "./ToolChips"
 import AgenticProcessViewer from "./AgenticProcessViewer"
@@ -169,6 +169,313 @@ const FollowUpsList = React.memo(function FollowUpsList({
     </div>
   )
 })
+
+interface AnalysisData {
+  matchScore?: number | null
+  verdict?: string | null
+  confidence?: string | null
+  whyThisScore?: string[] | null
+  missingGaps?: {
+    missingKeywords?: string[]
+    missingTools?: string[]
+    missingProof?: string[]
+    stretchAreas?: string[]
+    fixableGaps?: string[]
+  } | null
+  scoreBreakdown?: {
+    dimension: string
+    score: number
+    max: number
+    notes: string
+  }[] | null
+  finalRecommendation?: string | null
+  redFlags?: string | null
+}
+
+interface OutreachData {
+  format?: string
+  subject?: string
+  body?: string
+  checklist?: string[]
+  recipientEmail?: string
+  applicationId?: string
+  companyName?: string
+  isEmailDraft?: boolean
+}
+
+interface ScoreBreakdownItem {
+  dimension: string
+  score: number
+  max: number
+  notes?: string
+}
+
+function formatAnalysisContent(rawData: Record<string, unknown>): string {
+  const data = rawData as unknown as AnalysisData
+  const lines: string[] = []
+  if (data.matchScore != null) {
+    lines.push(`MATCH SCORE: ${data.matchScore}%`)
+  }
+  if (data.verdict) {
+    lines.push(`VERDICT: ${data.verdict}`)
+  }
+  if (data.confidence) {
+    lines.push(`CONFIDENCE: ${data.confidence}`)
+  }
+  if (data.finalRecommendation) {
+    lines.push(`\nFINAL RECOMMENDATION:\n${data.finalRecommendation}`)
+  }
+  if (data.redFlags) {
+    lines.push(`\nRED FLAGS:\n${data.redFlags}`)
+  }
+  if (data.whyThisScore && data.whyThisScore.length > 0) {
+    lines.push(`\nKEY INSIGHTS:`)
+    data.whyThisScore.forEach((item: string) => {
+      lines.push(`• ${item}`)
+    })
+  }
+  if (data.scoreBreakdown && data.scoreBreakdown.length > 0) {
+    lines.push(`\nSCORE BREAKDOWN:`)
+    data.scoreBreakdown.forEach((item: ScoreBreakdownItem) => {
+      lines.push(`- ${item.dimension}: ${item.score}/${item.max} (${item.notes || ''})`)
+    })
+  }
+  if (data.missingGaps) {
+    const gaps = data.missingGaps
+    if (gaps.missingKeywords && gaps.missingKeywords.length > 0) {
+      lines.push(`\nMISSING KEYWORDS:\n${gaps.missingKeywords.join(", ")}`)
+    }
+    if (gaps.missingTools && gaps.missingTools.length > 0) {
+      lines.push(`\nMISSING TOOLS:\n${gaps.missingTools.join(", ")}`)
+    }
+  }
+  return lines.join("\n")
+}
+
+function extractStreamingJsonField(jsonStr: string, fieldName: string): string {
+  const regex = new RegExp(`"${fieldName}"\\s*:\\s*"((?:[^"\\\\]|\\\\.)*)"`, "i")
+  const match = jsonStr.match(regex)
+  if (match && match[1]) {
+    try {
+      return JSON.parse(`"${match[1]}"`) as string
+    } catch {
+      return match[1]
+    }
+  }
+  const partialRegex = new RegExp(`"${fieldName}"\\s*:\\s*"([^"]*)$`, "i")
+  const partialMatch = jsonStr.match(partialRegex)
+  if (partialMatch && partialMatch[1]) {
+    return partialMatch[1]
+  }
+  return ""
+}
+
+function extractStreamingJsonNumber(jsonStr: string, fieldName: string): number | null {
+  const regex = new RegExp(`"${fieldName}"\\s*:\\s*(\\d+)`, "i")
+  const match = jsonStr.match(regex)
+  if (match && match[1]) {
+    return parseInt(match[1], 10)
+  }
+  return null
+}
+
+function formatStreamingAnalysis(rawText: string): string {
+  const matchScore = extractStreamingJsonNumber(rawText, "matchScore")
+  const verdict = extractStreamingJsonField(rawText, "verdict")
+  const confidence = extractStreamingJsonField(rawText, "confidence")
+  const finalRec = extractStreamingJsonField(rawText, "finalRecommendation")
+  const redFlags = extractStreamingJsonField(rawText, "redFlags")
+
+  const lines: string[] = []
+  if (matchScore !== null) {
+    lines.push(`MATCH SCORE: ${matchScore}%`)
+  }
+  if (verdict) {
+    lines.push(`VERDICT: ${verdict}`)
+  }
+  if (confidence) {
+    lines.push(`CONFIDENCE: ${confidence}`)
+  }
+  if (finalRec) {
+    lines.push(`\nFINAL RECOMMENDATION:\n${finalRec}`)
+  }
+  if (redFlags) {
+    lines.push(`\nRED FLAGS:\n${redFlags}`)
+  }
+  return lines.join("\n")
+}
+
+function getAnalysisContent(rawText: string): string {
+  try {
+    const data = JSON.parse(rawText) as Record<string, unknown>
+    return formatAnalysisContent(data)
+  } catch {
+    return formatStreamingAnalysis(rawText)
+  }
+}
+
+function formatOutreachContent(rawData: Record<string, unknown>): string {
+  const data = rawData as unknown as OutreachData
+  const lines: string[] = []
+  if (data.recipientEmail) {
+    lines.push(`TO: ${data.recipientEmail}`)
+  }
+  if (data.subject) {
+    lines.push(`SUBJECT: ${data.subject}`)
+  }
+  if (data.companyName) {
+    lines.push(`COMPANY: ${data.companyName}`)
+  }
+  if (data.body) {
+    lines.push(`\nBODY:\n${data.body}`)
+  }
+  if (data.checklist && data.checklist.length > 0) {
+    lines.push(`\nCHECKLIST:`)
+    data.checklist.forEach((item: string) => {
+      lines.push(`[ ] ${item}`)
+    })
+  }
+  return lines.join("\n")
+}
+
+function formatStreamingOutreach(rawText: string): string {
+  const recipient = extractStreamingJsonField(rawText, "recipientEmail")
+  const subject = extractStreamingJsonField(rawText, "subject")
+  const company = extractStreamingJsonField(rawText, "companyName")
+  const body = extractStreamingJsonField(rawText, "body")
+
+  const lines: string[] = []
+  if (recipient) {
+    lines.push(`TO: ${recipient}`)
+  }
+  if (subject) {
+    lines.push(`SUBJECT: ${subject}`)
+  }
+  if (company) {
+    lines.push(`COMPANY: ${company}`)
+  }
+  if (body) {
+    lines.push(`\nBODY:\n${body}`)
+  }
+  return lines.join("\n")
+}
+
+function getOutreachContent(rawText: string): string {
+  try {
+    const data = JSON.parse(rawText) as Record<string, unknown>
+    return formatOutreachContent(data)
+  } catch {
+    return formatStreamingOutreach(rawText)
+  }
+}
+
+interface SuggestionItem {
+  label?: string
+  prompt?: string
+}
+
+function formatSuggestionsContent(data: unknown): string {
+  if (Array.isArray(data)) {
+    const formatted = data.map((item: unknown) => {
+      if (typeof item === "string") return `• ${item}`
+      if (item && typeof item === "object") {
+        const sugg = item as SuggestionItem
+        return `• ${sugg.label || sugg.prompt}`
+      }
+      return ""
+    }).filter(Boolean).join("\n")
+    return "SUGGESTIONS & FOLLOW-UPS:\n\n" + formatted
+  }
+  return JSON.stringify(data, null, 2)
+}
+
+function formatStreamingSuggestions(rawText: string): string {
+  try {
+    const data = JSON.parse(rawText) as unknown
+    return formatSuggestionsContent(data)
+  } catch {
+    const regex = /"([^"]+)"/g
+    let match
+    const suggestions: string[] = []
+    while ((match = regex.exec(rawText)) !== null) {
+      if (match[1] !== "suggestions" && !match[1].startsWith("[") && !match[1].endsWith("]")) {
+        suggestions.push(match[1])
+      }
+    }
+    if (suggestions.length > 0) {
+      return "SUGGESTIONS & FOLLOW-UPS:\n\n" + suggestions.map(s => `• ${s}`).join("\n")
+    }
+    return "Generating suggestions..."
+  }
+}
+
+function getSuggestionsContent(rawText: string): string {
+  return formatStreamingSuggestions(rawText)
+}
+
+interface PlaceholderProps {
+  title: string
+  description: string
+  onView: () => void
+}
+
+function ArtifactPlaceholder({ title, description, onView }: PlaceholderProps) {
+  return (
+    <div className="my-3 p-4 border border-border bg-muted/30 text-xs text-muted-foreground rounded-none space-y-3">
+      <div className="space-y-1">
+        <div className="font-semibold text-foreground">{title}</div>
+        <div>{description}</div>
+      </div>
+      <button
+        type="button"
+        onClick={onView}
+        className="px-3 py-1.5 text-xs font-medium border border-border bg-background hover:bg-muted text-foreground transition-colors cursor-pointer rounded-none animate-none"
+      >
+        View in Canvas
+      </button>
+    </div>
+  )
+}
+
+function WorkspaceArtifactRouter({ 
+  id, 
+  title, 
+  content, 
+  type, 
+  isLast,
+  isStreaming,
+  placeholderTitle,
+  placeholderDescription
+}: { 
+  id: string
+  title: string
+  content: string
+  type: "email" | "resume" | "analysis" | "general"
+  isLast: boolean
+  isStreaming: boolean
+  placeholderTitle: string
+  placeholderDescription: string
+}) {
+  const { setActiveArtifact } = useWorkspace()
+  
+  useEffect(() => {
+    if (isLast || isStreaming) {
+      setActiveArtifact({ id, title, content, type })
+    }
+  }, [id, title, content, type, isLast, isStreaming, setActiveArtifact])
+
+  const handleView = () => {
+    setActiveArtifact({ id, title, content, type })
+  }
+
+  return (
+    <ArtifactPlaceholder
+      title={placeholderTitle}
+      description={placeholderDescription}
+      onView={handleView}
+    />
+  )
+}
 
 export default function ChatMessage({ message, isLast, isStreaming, onSuggestionClick, onRetry, onToolConfirm, onEdit }: Props) {
   const isUser = message.role === "user"
@@ -378,28 +685,44 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
       }
       
       if (className === "language-analysis") {
-        try {
-          const data = JSON.parse(String(children))
-          return (
-            <div className="my-4 p-1 rounded-xl bg-gradient-to-br from-primary/10 via-secondary/20 to-background border border-primary/20 shadow-sm not-prose">
-              <AnalysisResult data={data} />
-            </div>
-          )
-        } catch {
-          return <code className={cn(className, isInline ? "text-primary bg-muted px-1.5 py-0.5 rounded text-xs font-mono font-medium" : "text-zinc-800 dark:text-zinc-100 font-mono text-xs")} {...props}>{children}</code>
-        }
+        const rawText = String(children)
+        const analysisContent = getAnalysisContent(rawText)
+        return (
+          <WorkspaceArtifactRouter
+            id={`${message.id}-analysis`}
+            title="Match Analysis"
+            content={analysisContent}
+            type="analysis"
+            isLast={isLast}
+            isStreaming={isStreaming}
+            placeholderTitle="Analysis routed to Workspace Canvas"
+            placeholderDescription={isStreaming ? "Generating and streaming analysis live..." : "This match analysis document is ready in your Workspace Canvas."}
+          />
+        )
       }
       if (className === "language-outreach") {
+        const rawText = String(children)
+        const outreachContent = getOutreachContent(rawText)
+        let subject = "Email Outreach Draft"
         try {
-          const data = JSON.parse(String(children))
-          return (
-            <div className="my-4 not-prose">
-              <OutreachResult data={data} />
-            </div>
-          )
+          const data = JSON.parse(rawText)
+          if (data.subject) subject = data.subject
         } catch {
-          return <code className={cn(className, isInline ? "text-primary bg-muted px-1.5 py-0.5 rounded text-xs font-mono font-medium" : "text-zinc-800 dark:text-zinc-100 font-mono text-xs")} {...props}>{children}</code>
+          const partialSubject = extractStreamingJsonField(rawText, "subject")
+          if (partialSubject) subject = partialSubject
         }
+        return (
+          <WorkspaceArtifactRouter
+            id={`${message.id}-outreach`}
+            title={subject}
+            content={outreachContent}
+            type="email"
+            isLast={isLast}
+            isStreaming={isStreaming}
+            placeholderTitle="Outreach Draft routed to Workspace Canvas"
+            placeholderDescription={isStreaming ? "Generating outreach template live..." : "This email outreach template is ready in your Workspace Canvas."}
+          />
+        )
       }
       if (className === "language-toolchips" || className === "language-tools") {
         try {
@@ -445,18 +768,24 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
         }
       }
       if (className === "language-suggestions") {
-        try {
-          const data = JSON.parse(String(children))
-          if (Array.isArray(data) && data.length > 0) {
-            return <FollowUpsList items={data} onPick={onSuggestionClick} />
-          }
-        } catch {
-          return null
-        }
+        const rawText = String(children)
+        const suggestionsContent = getSuggestionsContent(rawText)
+        return (
+          <WorkspaceArtifactRouter
+            id={`${message.id}-suggestions`}
+            title="Follow-up Suggestions"
+            content={suggestionsContent}
+            type="general"
+            isLast={isLast}
+            isStreaming={isStreaming}
+            placeholderTitle="Suggestions routed to Workspace Canvas"
+            placeholderDescription={isStreaming ? "Streaming follow-up questions live..." : "Suggested follow-ups are ready in your Workspace Canvas."}
+          />
+        )
       }
       return <code className={cn(className, isInline ? "text-primary bg-muted px-1.5 py-0.5 rounded text-xs font-mono font-medium" : "text-zinc-800 dark:text-zinc-100 font-mono text-xs")} {...props}>{children}</code>
     }
-  }), [onSuggestionClick, message.content])
+  }), [onSuggestionClick, message.id, message.content, isLast, isStreaming])
 
   const showAvatar = !isUser && (Boolean(message.content) || (message.toolInvocations && message.toolInvocations.length > 0))
 

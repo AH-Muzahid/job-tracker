@@ -5,15 +5,15 @@ import { DecorIcon } from "@/components/decor-icon"
 
 interface HITLConfirmFormProps {
   toolName: string
-  args: Record<string, any>
-  onConfirm: (args: Record<string, any>) => void
+  args: Record<string, unknown>
+  onConfirm: (args: Record<string, unknown>) => void
   onCancel: () => void
   message?: string
 }
 
 export default function HITLConfirmForm({ toolName, args, onConfirm, onCancel, message }: HITLConfirmFormProps) {
   // We keep a local state of edited arguments.
-  const [editedArgs, setEditedArgs] = useState<Record<string, any>>(() => {
+  const [editedArgs, setEditedArgs] = useState<Record<string, unknown>>(() => {
     return { ...args }
   })
 
@@ -102,7 +102,7 @@ export default function HITLConfirmForm({ toolName, args, onConfirm, onCancel, m
               id="hitl-to"
               type="email"
               required
-              value={editedArgs.recipientEmail || editedArgs.to || ""}
+              value={(editedArgs.recipientEmail as string) || (editedArgs.to as string) || ""}
               onChange={(e) => handleEmailChange("to", e.target.value)}
               className="w-full bg-background border border-border p-2 text-xs outline-none rounded-none focus:border-amber-500/50 text-foreground transition-colors"
             />
@@ -113,7 +113,7 @@ export default function HITLConfirmForm({ toolName, args, onConfirm, onCancel, m
               id="hitl-subject"
               type="text"
               required
-              value={editedArgs.subject || ""}
+              value={(editedArgs.subject as string) || ""}
               onChange={(e) => handleEmailChange("subject", e.target.value)}
               className="w-full bg-background border border-border p-2 text-xs outline-none rounded-none focus:border-amber-500/50 text-foreground transition-colors"
             />
@@ -123,7 +123,7 @@ export default function HITLConfirmForm({ toolName, args, onConfirm, onCancel, m
             <textarea
               id="hitl-body"
               required
-              value={editedArgs.bodyText || editedArgs.body || ""}
+              value={(editedArgs.bodyText as string) || (editedArgs.body as string) || ""}
               onChange={(e) => handleEmailChange("bodyText", e.target.value)}
               className="w-full bg-background border border-border p-2 text-xs min-h-[140px] outline-none rounded-none focus:border-amber-500/50 text-foreground transition-colors font-sans resize-y"
             />
@@ -137,7 +137,7 @@ export default function HITLConfirmForm({ toolName, args, onConfirm, onCancel, m
               id="hitl-company-or-title"
               type="text"
               required
-              value={editedArgs.companyOrTitle || ""}
+              value={(editedArgs.companyOrTitle as string) || ""}
               onChange={(e) => handleSimpleChange("companyOrTitle", e.target.value)}
               className="w-full bg-background border border-border p-2 text-xs outline-none rounded-none focus:border-amber-500/50 text-foreground transition-colors"
             />
@@ -156,10 +156,10 @@ export default function HITLConfirmForm({ toolName, args, onConfirm, onCancel, m
                   {isValComplex ? (
                     <div className="space-y-1">
                       <textarea
-                        id={inputId}
-                        defaultValue={JSON.stringify(val, null, 2)}
-                        onChange={(e) => handleComplexChange(key, e.target.value)}
-                        className="w-full bg-background border border-border p-2 text-xs font-mono min-h-[120px] outline-none rounded-none focus:border-amber-500/50 text-foreground transition-colors resize-y"
+                          id={inputId}
+                          defaultValue={JSON.stringify(val, null, 2)}
+                          onChange={(e) => handleComplexChange(key, e.target.value)}
+                          className="w-full bg-background border border-border p-2 text-xs font-mono min-h-[120px] outline-none rounded-none focus:border-amber-500/50 text-foreground transition-colors resize-y"
                       />
                       {jsonErrors[key] && (
                         <p className="text-[10px] text-destructive font-semibold font-mono">{jsonErrors[key]}</p>
@@ -169,7 +169,7 @@ export default function HITLConfirmForm({ toolName, args, onConfirm, onCancel, m
                     <input
                       id={inputId}
                       type="text"
-                      value={editedArgs[key] ?? ""}
+                      value={(editedArgs[key] as string) ?? ""}
                       onChange={(e) => handleSimpleChange(key, e.target.value)}
                       className="w-full bg-background border border-border p-2 text-xs outline-none rounded-none focus:border-amber-500/50 text-foreground transition-colors"
                     />
