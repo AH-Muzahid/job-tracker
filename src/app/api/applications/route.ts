@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getInternalUserId } from "@/lib/auth"
 import { ApplicationService } from "@/features/applications"
 import { MAX_PAGE_SIZE } from "@/features/applications/application.constants"
+import { checkIdempotency, storeResult, generateIdempotencyKey } from "@/lib/ai/idempotency"
 
 export async function GET(req: NextRequest) {
   const userId = await getInternalUserId()
@@ -37,12 +38,29 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
+  const idempotencyKey = req.headers.get("idempotency-key")
+  if (idempotencyKey) {
+    const { isDuplicate, existingResult } = await checkIdempotency(
+      generateIdempotencyKey({ userId, action: "create", resourceType: "application", bodyHash: idempotencyKey })
+    )
+    if (isDuplicate) {
+      return NextResponse.json(existingResult)
+    }
+  }
+
   try {
     const body = await req.json()
     const result = await ApplicationService.createApplication(userId, body)
 
     if ("error" in result) {
       return NextResponse.json({ error: result.error }, { status: result.status })
+    }
+
+    if (idempotencyKey) {
+      await storeResult(
+        generateIdempotencyKey({ userId, action: "create", resourceType: "application", bodyHash: idempotencyKey }),
+        result.data
+      )
     }
 
     return NextResponse.json(result.data, { status: result.status })
