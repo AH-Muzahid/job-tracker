@@ -2,6 +2,7 @@
 import { tool } from "ai"
 import { z } from "zod"
 import { prisma, withDbRetry } from "@/lib/prisma"
+import { requiresConfirmation } from "./tool-registry"
 import { invalidateCache } from "@/lib/redis"
 import {
   buildCareerGraphFromText,
@@ -415,10 +416,24 @@ export function createAiTools(userId: string) {
       description: "Delete or remove an application from the user's tracker by company name or job title.",
       parameters: z.object({
         companyOrTitle: z.string().optional().describe("Company name or job title of the application to remove (e.g. 'Stripe')"),
+        confirmed: z.boolean().optional().describe("Internal flag for HITL confirmation"),
       }),
       execute: async (rawArgs: any) => {
         try {
           const args = parseToolArgs(rawArgs)
+
+          // HITL confirmation check
+          if (requiresConfirmation("deleteApplication") && !args?.confirmed) {
+            const target = args?.companyOrTitle || "unknown"
+            return {
+              success: false,
+              requiresConfirmation: true,
+              message: `⚠️ Confirm deletion: Delete application for "${target}"? This cannot be undone.`,
+              toolName: "deleteApplication",
+              args,
+            }
+          }
+
           let companyOrTitle = (
             args?.companyOrTitle ||
             args?.companyName ||
@@ -1426,10 +1441,25 @@ export function createAiTools(userId: string) {
         jobTitle: z.string().describe("Target role title"),
         subject: z.string().describe("Email subject line"),
         bodyText: z.string().describe("Body text of the cold email or follow-up note"),
+        confirmed: z.boolean().optional().describe("Internal flag for HITL confirmation"),
       }),
       execute: async (rawArgs: any) => {
         try {
           const args = parseToolArgs(rawArgs)
+
+          // HITL confirmation check
+          if (requiresConfirmation("sendOutreachEmailViaResend") && !args?.confirmed) {
+            const recipient = args?.recipientEmail || "unknown"
+            const subject = args?.subject || "no subject"
+            return {
+              success: false,
+              requiresConfirmation: true,
+              message: `⚠️ Confirm send: Send email to "${recipient}" with subject "${subject}"?`,
+              toolName: "sendOutreachEmailViaResend",
+              args,
+            }
+          }
+
           const recipientEmail = args?.recipientEmail || "recruiter@example.com"
           const candidateName = args?.candidateName || "Candidate"
           const companyName = cleanCompanyName(args?.companyName || args?.company || "Company")
@@ -1486,10 +1516,24 @@ export function createAiTools(userId: string) {
             notes: z.string().optional(),
           })
         ).describe("List of applications to import"),
+        confirmed: z.boolean().optional().describe("Internal flag for HITL confirmation"),
       }),
       execute: async (rawArgs: any) => {
         try {
           const args = parseToolArgs(rawArgs)
+
+          // HITL confirmation check
+          if (requiresConfirmation("batchImportApplications") && !args?.confirmed) {
+            const count = Array.isArray(args?.applications) ? args.applications.length : 0
+            return {
+              success: false,
+              requiresConfirmation: true,
+              message: `⚠️ Confirm batch import: Import ${count} application(s)?`,
+              toolName: "batchImportApplications",
+              args,
+            }
+          }
+
           const applications = Array.isArray(args?.applications) ? args.applications : []
 
           if (applications.length === 0) {

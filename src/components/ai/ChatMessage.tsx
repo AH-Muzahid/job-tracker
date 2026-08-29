@@ -22,6 +22,7 @@ interface Props {
   isStreaming: boolean
   onSuggestionClick?: (prompt: string) => void
   onRetry?: (content?: string) => void
+  onToolConfirm?: (toolName: string, args: Record<string, unknown>) => void
 }
 
 interface Suggestion {
@@ -167,7 +168,7 @@ const FollowUpsList = React.memo(function FollowUpsList({
   )
 })
 
-export default function ChatMessage({ message, isLast, isStreaming, onSuggestionClick, onRetry }: Props) {
+export default function ChatMessage({ message, isLast, isStreaming, onSuggestionClick, onRetry, onToolConfirm }: Props) {
   const isUser = message.role === "user"
   const isLongMessage = isUser && message.content && message.content.length > 250
   const [isExpanded, setIsExpanded] = useState(false)
@@ -496,6 +497,27 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
                 {tool.state === 'result' && tool.toolName === 'draftOutreachEmail' && Boolean(tool.result) && (
                   <div className="my-2">
                     <OutreachResult data={tool.result as Record<string, unknown>} />
+                  </div>
+                )}
+                {tool.state === 'result' && (tool.result as Record<string, unknown>)?.requiresConfirmation && (
+                  <div className="mt-2 p-3 border border-amber-500/30 rounded-md bg-amber-500/5">
+                    <p className="text-sm text-amber-600 dark:text-amber-400">
+                      {(tool.result as Record<string, unknown>).message as string}
+                    </p>
+                    <div className="flex gap-2 mt-2">
+                      <button
+                        onClick={() => onToolConfirm?.(tool.toolName, tool.args)}
+                        className="px-3 py-1 text-xs font-medium rounded-md bg-amber-600 text-white hover:bg-amber-700 cursor-pointer"
+                      >
+                        Confirm
+                      </button>
+                      <button
+                        onClick={() => {}}
+                        className="px-3 py-1 text-xs font-medium rounded-md bg-muted text-muted-foreground hover:bg-muted/80 cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                    </div>
                   </div>
                 )}
               </React.Fragment>

@@ -596,6 +596,10 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
                     isStreaming={isStreaming && i === messages.length - 1}
                     onSuggestionClick={(prompt) => sendMessage(prompt)}
                     onRetry={handleRetry}
+                    onToolConfirm={(toolName, args) => {
+                      const confirmMsg = `Please re-run ${toolName} with confirmed: true. Original args: ${JSON.stringify(args)}`
+                      sendMessage(confirmMsg)
+                    }}
                   />
                 ))
               )}
