@@ -4,16 +4,7 @@ import React, { useState, useEffect } from "react"
 import { useWorkspace } from "./WorkspaceContext"
 import TerminalTab from "./TerminalTab"
 import CanvasTab from "./CanvasTab"
-
-// Dummy placeholders for MiniBoard tabs to avoid compiler warnings
-
-function MiniBoardTab() {
-  return (
-    <div className="flex flex-col items-center justify-center min-h-[300px] text-muted-foreground text-xs font-sans">
-      <span>Board Tab Placeholder</span>
-    </div>
-  )
-}
+import MiniBoardTab from "./MiniBoardTab"
 
 export default function WorkspaceCanvas() {
   const [activeTab, setActiveTab] = useState<"canvas" | "terminal" | "board">("terminal")
