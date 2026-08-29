@@ -21,6 +21,7 @@ import { getRecoveryPrompt } from "@/lib/ai/prompts/recovery"
 import { getGeneralPrompt } from "@/lib/ai/prompts/general"
 import { checkDistributedRateLimit, rateLimitResponse } from "@/lib/rate-limit"
 import { createAiTools } from "@/lib/ai/tools"
+import { filterToolsByMode } from "@/lib/ai/tool-router"
 import { generateHeuristicTitle, generateAndSaveSessionTitle } from "@/lib/ai/title-generator"
 import { resilientStreamText } from "@/lib/ai/resilience"
 import { logAITransaction } from "@/lib/ai/telemetry"
@@ -158,6 +159,7 @@ export async function POST(request: NextRequest) {
   ]
 
   const tools = createAiTools(userId)
+  const filteredTools = filterToolsByMode(tools, mode)
 
   try {
     const { result, modelUsed, providerUsed } = await resilientStreamText({
@@ -166,7 +168,7 @@ export async function POST(request: NextRequest) {
       system: systemPrompt,
       messages: messagesWithContext,
       temperature: 0.35,
-      tools,
+      tools: filteredTools,
       maxSteps: 5,
       onError: () => {},
       onFinish: async ({ text, usage, toolResults }: any) => {
