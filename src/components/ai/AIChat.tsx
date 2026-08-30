@@ -11,7 +11,7 @@ import { useUI, type AIMode } from "@/lib/store"
 import ModelSelector from "./ModelSelector"
 import { createDataStreamParser } from "@/lib/ai/stream-parser"
 import { useWorkspace } from "./WorkspaceContext"
-import WorkspaceCanvas from "./WorkspaceCanvas"
+import WorkspaceDrawer from "./WorkspaceDrawer"
 
 interface Props {
   sessionId: string | null
@@ -122,7 +122,7 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
   
   const { pendingPrompt, setPendingPrompt, aiSidebarOpen } = useUI()
   const queryClient = useQueryClient()
-  const { activeMobileTab, setActiveMobileTab, setToolInvocations, setIsStreaming: setWorkspaceIsStreaming } = useWorkspace()
+  const { setToolInvocations, setIsStreaming: setWorkspaceIsStreaming } = useWorkspace()
 
   // Sync isStreaming to workspace context
   useEffect(() => {
@@ -524,30 +524,12 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
 
   return (
     <div className="flex h-full w-full overflow-hidden bg-background">
-      {/* Mobile Tab Toggle Header */}
-      {!isSidebar && (
-        <div className="lg:hidden absolute top-0 left-0 right-0 h-10 border-b border-border bg-background flex z-20">
-          <button
-            onClick={() => setActiveMobileTab("chat")}
-            className={`flex-1 text-xs font-medium border-r border-border rounded-none ${activeMobileTab === "chat" ? "bg-muted text-foreground" : "text-muted-foreground"}`}
-          >
-            Chat
-          </button>
-          <button
-            onClick={() => setActiveMobileTab("workspace")}
-            className={`flex-1 text-xs font-medium rounded-none ${activeMobileTab === "workspace" ? "bg-muted text-foreground" : "text-muted-foreground"}`}
-          >
-            Workspace
-          </button>
-        </div>
-      )}
-
       {/* Chat Pane */}
       <div
         className={
           isSidebar
             ? "flex-1 flex flex-col h-full bg-background relative overflow-hidden"
-            : `flex-1 flex flex-col h-full relative ${activeMobileTab === "chat" ? "flex" : "hidden lg:flex"} lg:max-w-[40%] border-r border-border pt-10 lg:pt-0`
+            : "flex-1 flex flex-col h-full relative bg-background"
         }
       >
         {!loading && !hasMessages ? (
@@ -763,12 +745,8 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
         )}
       </div>
 
-      {/* Workspace Pane */}
-      {!isSidebar && (
-        <div className={`flex-1 h-full ${activeMobileTab === "workspace" ? "flex" : "hidden lg:flex"} lg:max-w-[60%] pt-10 lg:pt-0`}>
-          <WorkspaceCanvas />
-        </div>
-      )}
+      {/* Workspace Drawer (slides in from right) */}
+      {!isSidebar && <WorkspaceDrawer />}
     </div>
   )
 }
