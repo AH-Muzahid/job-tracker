@@ -16,12 +16,26 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json(cached)
   }
 
-  // 2. Fetch from Database
+  // 2. Fetch from Database (select only needed fields for speed)
   const session = await withDbRetry(() =>
     prisma.chatSession.findFirst({
       where: { id, userId },
-      include: {
-        messages: { orderBy: { createdAt: "asc" } },
+      select: {
+        id: true,
+        mode: true,
+        title: true,
+        createdAt: true,
+        updatedAt: true,
+        messages: {
+          orderBy: { createdAt: "asc" },
+          select: {
+            id: true,
+            role: true,
+            content: true,
+            metadata: true,
+            createdAt: true,
+          },
+        },
       },
     })
   )
