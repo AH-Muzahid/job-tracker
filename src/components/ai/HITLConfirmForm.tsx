@@ -12,12 +12,16 @@ interface HITLConfirmFormProps {
 }
 
 export default function HITLConfirmForm({ toolName, args, onConfirm, onCancel, message }: HITLConfirmFormProps) {
+  const [isCancelled, setIsCancelled] = useState(false)
+
   // We keep a local state of edited arguments.
   const [editedArgs, setEditedArgs] = useState<Record<string, unknown>>(() => {
     return { ...args }
   })
 
   const [jsonErrors, setJsonErrors] = useState<Record<string, string>>({})
+
+  if (isCancelled) return null
 
   const isEmail = toolName === "sendOutreachEmailViaResend"
   const isDelete = toolName === "deleteApplication"
@@ -190,7 +194,7 @@ export default function HITLConfirmForm({ toolName, args, onConfirm, onCancel, m
         </button>
         <button
           type="button"
-          onClick={onCancel}
+          onClick={() => setIsCancelled(true)}
           className="px-3 py-1.5 text-xs font-bold rounded-none bg-muted hover:bg-muted/80 text-muted-foreground cursor-pointer transition-all duration-150 active:scale-95"
         >
           Cancel
