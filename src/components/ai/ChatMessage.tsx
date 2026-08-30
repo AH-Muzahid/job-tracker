@@ -456,16 +456,18 @@ function WorkspaceArtifactRouter({
   placeholderTitle: string
   placeholderDescription: string
 }) {
-  const { setActiveArtifact } = useWorkspace()
+  const { setActiveArtifact, openDrawer } = useWorkspace()
   
   useEffect(() => {
     if (isLast || isStreaming) {
       setActiveArtifact({ id, title, content, type })
+      openDrawer()
     }
-  }, [id, title, content, type, isLast, isStreaming, setActiveArtifact])
+  }, [id, title, content, type, isLast, isStreaming, setActiveArtifact, openDrawer])
 
   const handleView = () => {
     setActiveArtifact({ id, title, content, type })
+    openDrawer()
   }
 
   return (
