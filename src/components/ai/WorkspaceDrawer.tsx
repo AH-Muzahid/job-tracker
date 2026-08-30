@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect } from "react"
 import { useWorkspace } from "./WorkspaceContext"
 import CanvasTab from "./CanvasTab"
 import { X } from "lucide-react"
@@ -7,22 +8,28 @@ import { X } from "lucide-react"
 export default function WorkspaceDrawer() {
   const { isDrawerOpen, closeDrawer, activeArtifact } = useWorkspace()
 
+  // Close on Escape key
+  useEffect(() => {
+    if (!isDrawerOpen) return
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") closeDrawer()
+    }
+    document.addEventListener("keydown", handleKeyDown)
+    return () => document.removeEventListener("keydown", handleKeyDown)
+  }, [isDrawerOpen, closeDrawer])
+
+  if (!isDrawerOpen) return null
+
   return (
     <>
-      {/* Overlay — visible on mobile when drawer is open */}
-      {isDrawerOpen && (
-        <div
-          className="fixed inset-0 bg-black/40 z-40 lg:hidden"
-          onClick={closeDrawer}
-        />
-      )}
+      {/* Overlay — clicking closes drawer */}
+      <div
+        className="fixed inset-0 bg-black/40 z-40"
+        onClick={closeDrawer}
+      />
 
       {/* Drawer Panel */}
-      <div
-        className={`fixed top-0 right-0 h-full z-50 bg-background border-l border-border shadow-xl transition-transform duration-300 ease-in-out ${
-          isDrawerOpen ? "translate-x-0" : "translate-x-full"
-        } w-full sm:w-[480px] lg:w-[560px]`}
-      >
+      <div className="fixed top-0 right-0 h-full w-full sm:w-[480px] lg:w-[560px] z-50 bg-background border-l border-border shadow-xl flex flex-col">
         {/* Header */}
         <div className="h-12 border-b border-border flex items-center justify-between px-4 shrink-0 bg-muted/30">
           <span className="text-xs font-semibold text-foreground uppercase tracking-wide">
@@ -37,7 +44,7 @@ export default function WorkspaceDrawer() {
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto h-[calc(100%-3rem)] p-4 bg-background">
+        <div className="flex-1 overflow-y-auto p-4 bg-background">
           <CanvasTab />
         </div>
       </div>
