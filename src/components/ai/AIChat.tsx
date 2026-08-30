@@ -141,7 +141,7 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
 
   const hasMessages = messages.length > 0
 
-  // React Query cached session messages (0ms memory cache on tab switch)
+  // React Query cached session messages — aggressive caching for speed
   const { data: sessionData, isLoading: isSessionLoading, error: sessionQueryError } = useQuery({
     queryKey: ["ai", "session", sessionId],
     queryFn: async () => {
@@ -151,8 +151,11 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
       return res.json()
     },
     enabled: Boolean(sessionId),
-    staleTime: 5 * 60 * 1000,
-    gcTime: 30 * 60 * 1000,
+    staleTime: 10 * 60 * 1000,
+    gcTime: 60 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    retry: 1,
   })
 
   useEffect(() => {

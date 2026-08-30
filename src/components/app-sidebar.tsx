@@ -58,7 +58,9 @@ export function AppSidebar() {
 			return [];
 		},
 		enabled: isAIAssistant && isLoaded && !!isSignedIn,
-		staleTime: 5 * 60 * 1000,
+		staleTime: 10 * 60 * 1000,
+		refetchOnWindowFocus: false,
+		refetchOnReconnect: false,
 	});
 
 	const deleteMutation = useMutation({

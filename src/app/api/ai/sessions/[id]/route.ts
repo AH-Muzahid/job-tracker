@@ -13,7 +13,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   // 1. Check Redis cache first (sub-15ms)
   const cached = await getCachedJson<Record<string, unknown>>(cacheKey)
   if (cached) {
-    return NextResponse.json(cached)
+    return NextResponse.json(cached, {
+      headers: {
+        "Cache-Control": "private, max-age=300, stale-while-revalidate=600",
+        "X-Cache": "HIT",
+      },
+    })
   }
 
   // 2. Fetch from Database (select only needed fields for speed)
@@ -45,7 +50,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   // 3. Cache for 1 hour
   void setCachedJson(cacheKey, session, 3600)
 
-  return NextResponse.json(session)
+  return NextResponse.json(session, {
+    headers: {
+      "Cache-Control": "private, max-age=300, stale-while-revalidate=600",
+      "X-Cache": "MISS",
+    },
+  })
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {

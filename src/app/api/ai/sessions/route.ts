@@ -13,7 +13,12 @@ export async function GET() {
   // 1. Check Redis cache first (sub-15ms)
   const cached = await getCachedJson<Record<string, unknown>[]>(cacheKey)
   if (cached) {
-    return NextResponse.json(cached)
+    return NextResponse.json(cached, {
+      headers: {
+        "Cache-Control": "private, max-age=60, stale-while-revalidate=120",
+        "X-Cache": "HIT",
+      },
+    })
   }
 
   const sessions = await withDbRetry(() =>
@@ -54,7 +59,12 @@ export async function GET() {
   // Cache formatted sessions for 1 hour
   void setCachedJson(cacheKey, formattedSessions, 3600)
 
-  return NextResponse.json(formattedSessions)
+  return NextResponse.json(formattedSessions, {
+    headers: {
+      "Cache-Control": "private, max-age=60, stale-while-revalidate=120",
+      "X-Cache": "MISS",
+    },
+  })
 }
 
 export async function POST(request: NextRequest) {

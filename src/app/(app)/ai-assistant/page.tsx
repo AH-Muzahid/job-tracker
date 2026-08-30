@@ -31,7 +31,9 @@ export default function AIAssistantPage() {
       return []
     },
     enabled: isLoaded && isSignedIn,
-    staleTime: 5 * 60 * 1000,
+    staleTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   })
 
   useEffect(() => {
