@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, useState } from "react"
+import { createContext, useContext, useState, useCallback } from "react"
 import { type ToolInvocation } from "./AIChat"
 
 export interface Artifact {
@@ -17,8 +17,9 @@ interface WorkspaceContextProps {
   setToolInvocations: (invs: ToolInvocation[]) => void
   isStreaming: boolean
   setIsStreaming: (val: boolean) => void
-  activeMobileTab: "chat" | "workspace"
-  setActiveMobileTab: (tab: "chat" | "workspace") => void
+  isDrawerOpen: boolean
+  openDrawer: () => void
+  closeDrawer: () => void
 }
 
 const WorkspaceContext = createContext<WorkspaceContextProps | undefined>(undefined)
@@ -30,15 +31,19 @@ const fallbackContext: WorkspaceContextProps = {
   setToolInvocations: () => {},
   isStreaming: false,
   setIsStreaming: () => {},
-  activeMobileTab: "chat",
-  setActiveMobileTab: () => {},
+  isDrawerOpen: false,
+  openDrawer: () => {},
+  closeDrawer: () => {},
 }
 
 export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   const [activeArtifact, setActiveArtifact] = useState<Artifact | null>(null)
   const [toolInvocations, setToolInvocations] = useState<ToolInvocation[]>([])
   const [isStreaming, setIsStreaming] = useState(false)
-  const [activeMobileTab, setActiveMobileTab] = useState<"chat" | "workspace">("chat")
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false)
+
+  const openDrawer = useCallback(() => setIsDrawerOpen(true), [])
+  const closeDrawer = useCallback(() => setIsDrawerOpen(false), [])
 
   return (
     <WorkspaceContext.Provider
@@ -49,8 +54,9 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
         setToolInvocations,
         isStreaming,
         setIsStreaming,
-        activeMobileTab,
-        setActiveMobileTab,
+        isDrawerOpen,
+        openDrawer,
+        closeDrawer,
       }}
     >
       {children}
