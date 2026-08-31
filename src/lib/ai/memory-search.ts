@@ -1,7 +1,9 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { prisma, withDbRetry } from "@/lib/prisma"
+import { Prisma } from "@prisma/client"
 import { cosineSimilarity } from "./cosine-similarity"
 
-interface MemorySearchResult {
+export interface MemorySearchResult {
   id: string
   category: string
   content: string
@@ -44,15 +46,56 @@ export function deserializeEmbedding(serialized: string): number[] {
   return JSON.parse(serialized)
 }
 
+/**
+ * Searches user memories using native PostgreSQL pgvector cosine distance (<=>)
+ * with graceful in-memory fallback for environments without pgvector extension.
+ */
 export async function searchUserMemories(
   userId: string,
   query: string,
   options: { limit?: number; threshold?: number; category?: string } = {}
 ): Promise<MemorySearchResult[]> {
   const { limit = 5, threshold = 0.3, category } = options
-
   const queryEmbedding = await generateEmbedding(query)
+  const vectorStr = `[${queryEmbedding.join(",")}]`
 
+  // 1. Attempt native database-level pgvector similarity search
+  try {
+    const rawResults = await withDbRetry<any[]>(() =>
+      prisma.$queryRaw<Array<{
+        id: string
+        category: string
+        content: string
+        similarity: number
+        createdAt: Date
+      }>>`
+        SELECT id, category, content, "createdAt",
+               (1 - (embedding::vector <=> ${vectorStr}::vector))::float AS similarity
+        FROM "UserMemory"
+        WHERE "userId" = ${userId}
+          AND embedding IS NOT NULL
+          ${category ? Prisma.sql`AND category = ${category}` : Prisma.empty}
+          AND (1 - (embedding::vector <=> ${vectorStr}::vector)) >= ${threshold}
+        ORDER BY (embedding::vector <=> ${vectorStr}::vector) ASC
+        LIMIT ${limit};
+      `
+    )
+
+    if (rawResults && Array.isArray(rawResults) && rawResults.length > 0) {
+      return rawResults.map((r) => ({
+        id: r.id,
+        category: r.category,
+        content: r.content,
+        similarity: Number(r.similarity),
+        createdAt: new Date(r.createdAt),
+      }))
+    }
+  } catch (pgError) {
+    // Database didn't have pgvector or raw query syntax error, fall through to in-memory cosine
+    console.warn("[pgvector fallback engaged]:", (pgError as Error)?.message || pgError)
+  }
+
+  // 2. Fallback: In-memory cosine similarity
   const whereClause: { userId: string; category?: string } = { userId }
   if (category) whereClause.category = category
 
@@ -118,7 +161,6 @@ export async function embedAndSaveMemory(
         category,
         content,
         embedding: serializedEmbedding,
-        source: "chat",
       },
     })
   )
