@@ -1,4 +1,5 @@
 "use client"
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { useState } from "react"
 import { 
@@ -6,7 +7,7 @@ import {
   Copy, 
   Check, 
   Edit3, 
-  Sparkles, 
+  Zap, 
   Globe, 
   Mail, 
   Link,
@@ -25,9 +26,35 @@ export default function ATSResumePreview({ data: initialData }: ATSResumePreview
   const [data, setData] = useState<TailoredResumeData>(initialData)
   const [isEditing, setIsEditing] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [downloading, setDownloading] = useState(false)
 
-  function handlePrint() {
-    window.print()
+  async function handleDownloadPdf() {
+    setDownloading(true)
+    try {
+      const res = await fetch("/api/resumes/download/preview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      })
+      if (!res.ok) throw new Error("Failed to generate vector PDF")
+      const blob = await res.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      const fileName = `${data.targetCompany ? `${data.targetCompany}-` : ""}Tailored-Resume.pdf`
+      a.download = fileName.replace(/[^a-zA-Z0-9-_.]/g, "_")
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+      toast.success("ATS Vector PDF downloaded successfully!")
+    } catch (err: any) {
+      console.warn("[PDF Download Fallback]:", err)
+      // Fallback to window print
+      window.print()
+    } finally {
+      setDownloading(false)
+    }
   }
 
   function handleCopyMarkdown() {
@@ -72,7 +99,7 @@ ${data.education.map(ed => `- **${ed.degree}**, ${ed.institution} (${ed.year || 
       <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-secondary/30 rounded-xl border border-border/80 print:hidden">
         <div className="flex items-center gap-2">
           <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 text-xs px-2 py-0.5 rounded-md font-semibold">
-            <Sparkles className="h-3 w-3 mr-1" />
+            <Zap className="h-3 w-3 mr-1" />
             {data.matchScore ? `${data.matchScore}% ATS Match` : "Tailored ATS Resume"}
           </Badge>
           {data.targetCompany && (
@@ -105,11 +132,12 @@ ${data.education.map(ed => `- **${ed.degree}**, ${ed.institution} (${ed.year || 
 
           <Button
             size="sm"
-            onClick={handlePrint}
+            onClick={handleDownloadPdf}
+            disabled={downloading}
             className="text-xs h-8 rounded-lg shadow-xs cursor-pointer bg-primary text-primary-foreground hover:bg-primary/90"
           >
             <Download className="h-3.5 w-3.5 mr-1" />
-            Download PDF
+            {downloading ? "Generating PDF..." : "Download PDF"}
           </Button>
         </div>
       </div>
