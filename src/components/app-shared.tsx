@@ -9,6 +9,7 @@ import {
 	BrainIcon,
 	FileTextIcon,
 	UserCircle2Icon,
+	CompassIcon,
 	SettingsIcon,
 	PlusCircleIcon,
 	HelpCircleIcon,
@@ -41,6 +42,11 @@ export const navGroups: SidebarNavGroup[] = [
 				title: "Applications",
 				path: "/applications",
 				icon: <BriefcaseIcon className="size-4" />,
+			},
+			{
+				title: "Job Discovery",
+				path: "/discovery",
+				icon: <CompassIcon className="size-4" />,
 			},
 			{
 				title: "Companies",

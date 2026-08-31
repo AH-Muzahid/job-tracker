@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useUser } from "@clerk/nextjs"
-import { Plus, Sparkles, Upload, Clipboard } from "lucide-react"
+import { Plus, BrainCircuit, Upload, Clipboard, Zap } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
 
@@ -192,6 +192,16 @@ export default function BentoCommandZone({ activePipeline, totalThisWeek = 0 }: 
               type="button"
               variant="outline"
               size="sm"
+              onClick={() => router.push("/discovery")}
+              className="h-7 text-xs font-mono text-zinc-400 hover:text-foreground border-border/80 bg-background/50 px-2.5 rounded-lg cursor-pointer"
+            >
+              <Zap className="h-3 w-3 mr-1 text-primary" />
+              Discover Jobs
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
               onClick={handlePasteClipboard}
               className="h-7 text-xs font-mono text-zinc-400 hover:text-foreground border-border/80 bg-background/50 px-2.5 rounded-lg cursor-pointer"
             >
@@ -251,7 +261,7 @@ export default function BentoCommandZone({ activePipeline, totalThisWeek = 0 }: 
                       : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                   }`}
                 >
-                  <Sparkles className="h-3 w-3 text-primary" />
+                  <BrainCircuit className="h-3 w-3 text-primary" />
                   AI Intake
                 </button>
 
