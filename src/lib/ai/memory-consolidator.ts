@@ -70,6 +70,35 @@ export async function touchMemory(memoryId: string): Promise<void> {
 }
 
 /**
+ * Automatically consolidates duplicate user memories in the database for a user.
+ */
+export async function consolidateUserMemories(userId: string): Promise<number> {
+  const memories = await prisma.userMemory.findMany({
+    where: { userId },
+    select: { id: true, content: true, category: true },
+  })
+
+  if (memories.length <= 1) return 0
+
+  const mergeGroups = findMergeableMemories(memories)
+  let mergedCount = 0
+
+  for (const group of mergeGroups) {
+    for (const { keep, merge } of group) {
+      try {
+        await prisma.userMemory.delete({ where: { id: merge } })
+        await touchMemory(keep)
+        mergedCount++
+      } catch (err) {
+        console.warn("[Memory Consolidation Warning]:", err)
+      }
+    }
+  }
+
+  return mergedCount
+}
+
+/**
  * Remove low-scoring memories below threshold.
  * Only prunes memories older than minAgeDays to avoid deleting new ones.
  */

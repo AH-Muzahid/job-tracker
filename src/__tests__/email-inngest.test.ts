@@ -1,8 +1,9 @@
 import { describe, it, expect } from "vitest"
 import { formatOutreachEmailHtml, sendEmail } from "@/lib/email"
 import { inngest } from "@/inngest/client"
-import { dailyJobHuntFunction } from "@/inngest/functions/daily-job-hunt"
+import { dailyJobHuntScheduler, dailyJobHuntFunction } from "@/inngest/functions/daily-job-hunt"
 import { weeklyGoalDigestFunction } from "@/inngest/functions/weekly-goal-digest"
+import { weeklyMemoryHygiene } from "@/inngest/functions/memory-decay-digest"
 
 describe("Email System", () => {
   it("formats outreach email HTML correctly", () => {
@@ -40,11 +41,16 @@ describe("Inngest Autonomous Functions", () => {
     expect(inngest.id).toBe("career-track-agent")
   })
 
-  it("registers daily job hunt background function", () => {
-    expect(dailyJobHuntFunction.id()).toBe("daily-job-hunt-agent")
+  it("registers daily job hunt background scheduler function", () => {
+    expect(dailyJobHuntScheduler.id()).toBe("daily-job-hunt-scheduler")
+    expect(dailyJobHuntFunction.id()).toBe("daily-job-hunt-scheduler")
   })
 
   it("registers weekly goal digest background function", () => {
     expect(weeklyGoalDigestFunction.id()).toBe("weekly-goal-digest-agent")
+  })
+
+  it("registers weekly memory hygiene function", () => {
+    expect(weeklyMemoryHygiene.id()).toBe("weekly-memory-hygiene")
   })
 })
