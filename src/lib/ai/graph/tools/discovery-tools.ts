@@ -2,6 +2,7 @@
 import { prisma, withDbRetry } from "@/lib/prisma"
 import { executeCreateApplication } from "./job-tools"
 import { toCanonical } from "@/lib/ai/knowledge-graph"
+import { getUserMacroOutcomes, type UserMacroOutcomes } from "@/lib/ai/learning-engine"
 
 export interface ExternalJobOpportunity {
   id: string
@@ -9,6 +10,7 @@ export interface ExternalJobOpportunity {
   company: string
   location: string
   url: string
+  sourceBoard: "remoteok" | "arbeitnow" | "adzuna" | "curated"
   tags: string[]
   salary?: string
   fitScore: number
@@ -16,55 +18,279 @@ export interface ExternalJobOpportunity {
   descriptionSnippet: string
 }
 
-const FALLBACK_OPPORTUNITIES = [
+export interface UnifiedRawJob {
+  id: string
+  title: string
+  company: string
+  location: string
+  url: string
+  sourceBoard: "remoteok" | "arbeitnow" | "adzuna" | "curated"
+  tags: string[]
+  salaryMin?: number
+  salaryMax?: number
+  salaryText?: string
+  description: string
+}
+
+const FALLBACK_OPPORTUNITIES: UnifiedRawJob[] = [
   {
     id: "fb_1",
-    position: "Senior Full Stack Engineer (React / Go)",
+    title: "Senior Full Stack Engineer (React / Go)",
     company: "Stripe",
     location: "Remote",
     url: "https://stripe.com/jobs",
+    sourceBoard: "curated",
     tags: ["react", "go", "typescript", "postgresql", "redis"],
-    salary_min: 160000,
-    salary_max: 210000,
+    salaryMin: 160000,
+    salaryMax: 210000,
     description: "Building next-generation global financial infrastructure using React, TypeScript, and Go microservices.",
   },
   {
     id: "fb_2",
-    position: "Senior Frontend Engineer (Next.js & Design Systems)",
+    title: "Senior Frontend Engineer (Next.js & Design Systems)",
     company: "Vercel",
     location: "Remote",
     url: "https://vercel.com/careers",
+    sourceBoard: "curated",
     tags: ["nextjs", "react", "typescript", "tailwind", "ui"],
-    salary_min: 150000,
-    salary_max: 195000,
+    salaryMin: 150000,
+    salaryMax: 195000,
     description: "Leading frontend engineering initiatives with Next.js App Router, Tailwind CSS, and performance optimization.",
   },
   {
     id: "fb_3",
-    position: "AI Systems & Backend Engineer",
+    title: "AI Systems & Backend Engineer",
     company: "Anthropic",
     location: "Remote / Hybrid",
     url: "https://anthropic.com/careers",
+    sourceBoard: "curated",
     tags: ["python", "typescript", "langgraph", "llm", "postgresql"],
-    salary_min: 180000,
-    salary_max: 240000,
+    salaryMin: 180000,
+    salaryMax: 240000,
     description: "Architecting autonomous AI agent pipelines, state machines, and high-reliability data platforms.",
   },
   {
     id: "fb_4",
-    position: "Staff Backend Engineer (Distributed Systems)",
+    title: "Staff Backend Engineer (Distributed Systems)",
     company: "Airbnb",
     location: "Remote",
     url: "https://airbnb.com/careers",
+    sourceBoard: "curated",
     tags: ["go", "kubernetes", "distributed-systems", "redis", "postgresql"],
-    salary_min: 190000,
-    salary_max: 250000,
+    salaryMin: 190000,
+    salaryMax: 250000,
     description: "Scaling distributed caching systems and booking engines handling hundreds of thousands of requests per second.",
   },
 ]
 
 /**
- * Searches external job opportunities and computes tailored Fit Scores against user profile & resume
+ * Normalizes company name for deduplication
+ */
+export function normalizeCompany(name: string): string {
+  if (!name) return ""
+  return name
+    .toLowerCase()
+    .replace(/\b(inc|incorporated|llc|ltd|limited|corp|corporation|gmbh|co|technologies|tech|solutions)\b/gi, "")
+    .replace(/[^a-z0-9]/g, "")
+    .trim()
+}
+
+/**
+ * Normalizes job title for deduplication
+ */
+export function normalizeTitle(title: string): string {
+  if (!title) return ""
+  return title
+    .toLowerCase()
+    .replace(/\(.*?\)|\[.*?\]/g, "") // Remove brackets e.g. (Remote), [Hybrid]
+    .replace(/[^a-z0-9]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+}
+
+/**
+ * Deduplicates raw jobs across multiple boards by normalized company and normalized title
+ */
+export function deduplicateJobs(jobs: UnifiedRawJob[]): UnifiedRawJob[] {
+  const seenMap = new Map<string, UnifiedRawJob>()
+
+  for (const job of jobs) {
+    const normCo = normalizeCompany(job.company)
+    const normTi = normalizeTitle(job.title)
+    const dedupKey = `${normCo}:${normTi}`
+
+    if (!seenMap.has(dedupKey)) {
+      seenMap.set(dedupKey, job)
+    } else {
+      // If duplicate exists, keep the one with richer metadata (e.g. salary or longer description)
+      const existing = seenMap.get(dedupKey)!
+      const existingWeight = (existing.salaryMin ? 2 : 0) + (existing.description?.length || 0)
+      const newWeight = (job.salaryMin ? 2 : 0) + (job.description?.length || 0)
+
+      if (newWeight > existingWeight) {
+        seenMap.set(dedupKey, job)
+      }
+    }
+  }
+
+  return Array.from(seenMap.values())
+}
+
+/**
+ * Fetches remote tech jobs from RemoteOK API
+ */
+async function fetchRemoteOkJobs(tagParam: string): Promise<UnifiedRawJob[]> {
+  try {
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 3500)
+
+    const res = await fetch(`https://remoteok.com/api?tag=${encodeURIComponent(tagParam)}`, {
+      signal: controller.signal,
+      headers: { "User-Agent": "CareerTrack-Discovery-Agent/1.0" },
+    })
+    clearTimeout(timeout)
+
+    if (!res.ok) return []
+    const data = await res.json()
+    if (!Array.isArray(data)) return []
+
+    return data
+      .filter((item) => item.position && item.company)
+      .map((item) => ({
+        id: String(item.id || item.url || `rok-${item.company}-${item.position}`),
+        title: String(item.position || ""),
+        company: String(item.company || ""),
+        location: String(item.location || "Remote"),
+        url: item.url || `https://remoteok.com/l/${item.id}`,
+        sourceBoard: "remoteok" as const,
+        tags: Array.isArray(item.tags) ? item.tags.map((t: string) => toCanonical(t)) : [],
+        salaryMin: item.salary_min ? Number(item.salary_min) : undefined,
+        salaryMax: item.salary_max ? Number(item.salary_max) : undefined,
+        description: String(item.description || "").replace(/<[^>]+>/g, " "),
+      }))
+  } catch {
+    return []
+  }
+}
+
+/**
+ * Fetches EU/Global tech jobs from Arbeitnow Public API (No key required)
+ */
+async function fetchArbeitnowJobs(searchQuery: string): Promise<UnifiedRawJob[]> {
+  try {
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 3500)
+
+    const url = searchQuery
+      ? `https://www.arbeitnow.com/api/job-board-api?search=${encodeURIComponent(searchQuery)}`
+      : `https://www.arbeitnow.com/api/job-board-api`
+
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: { "User-Agent": "CareerTrack-Discovery-Agent/1.0" },
+    })
+    clearTimeout(timeout)
+
+    if (!res.ok) return []
+    const data = await res.json()
+    if (!data || !Array.isArray(data.data)) return []
+
+    return data.data
+      .filter((item: any) => item.title && item.company_name)
+      .map((item: any) => ({
+        id: String(item.slug || `an-${item.company_name}-${item.title}`),
+        title: String(item.title || ""),
+        company: String(item.company_name || ""),
+        location: item.remote ? "Remote" : String(item.location || "Europe / Global"),
+        url: item.url || `https://www.arbeitnow.com/view/${item.slug}`,
+        sourceBoard: "arbeitnow" as const,
+        tags: Array.isArray(item.tags) ? item.tags.map((t: string) => toCanonical(t)) : [],
+        description: String(item.description || "").replace(/<[^>]+>/g, " "),
+      }))
+  } catch {
+    return []
+  }
+}
+
+/**
+ * Fetches local/hybrid tech jobs from Adzuna API if configured
+ */
+async function fetchAdzunaJobs(query: string, location?: string): Promise<UnifiedRawJob[]> {
+  const appId = process.env.ADZUNA_APP_ID
+  const appKey = process.env.ADZUNA_APP_KEY
+  if (!appId || !appKey) return []
+
+  try {
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 3500)
+
+    const country = "us"
+    const params = new URLSearchParams({
+      app_id: appId,
+      app_key: appKey,
+      what: query || "software engineer",
+      results_per_page: "10",
+      content_type: "application/json",
+    })
+    if (location) params.append("where", location)
+
+    const res = await fetch(`https://api.adzuna.com/v1/api/jobs/${country}/search/1?${params.toString()}`, {
+      signal: controller.signal,
+    })
+    clearTimeout(timeout)
+
+    if (!res.ok) return []
+    const data = await res.json()
+    if (!data || !Array.isArray(data.results)) return []
+
+    return data.results.map((item: any) => ({
+      id: String(item.id || `adz-${item.company?.display_name}-${item.title}`),
+      title: String(item.title || "").replace(/<\/?strong>/gi, ""),
+      company: String(item.company?.display_name || ""),
+      location: String(item.location?.display_name || location || "Local/Hybrid"),
+      url: item.redirect_url || "",
+      sourceBoard: "adzuna" as const,
+      tags: item.category?.tag ? [toCanonical(item.category.tag)] : [],
+      salaryMin: item.salary_min ? Math.round(item.salary_min) : undefined,
+      salaryMax: item.salary_max ? Math.round(item.salary_max) : undefined,
+      description: String(item.description || "").replace(/<[^>]+>/g, " "),
+    }))
+  } catch {
+    return []
+  }
+}
+
+/**
+ * Ingests jobs across all configured external job boards concurrently
+ */
+export async function fetchMultiBoardOpportunities(query: string, tagParam: string, location?: string): Promise<UnifiedRawJob[]> {
+  const [remoteOkResults, arbeitnowResults, adzunaResults] = await Promise.allSettled([
+    fetchRemoteOkJobs(tagParam),
+    fetchArbeitnowJobs(query),
+    fetchAdzunaJobs(query, location),
+  ])
+
+  const aggregated: UnifiedRawJob[] = []
+
+  if (remoteOkResults.status === "fulfilled" && Array.isArray(remoteOkResults.value)) {
+    aggregated.push(...remoteOkResults.value)
+  }
+  if (arbeitnowResults.status === "fulfilled" && Array.isArray(arbeitnowResults.value)) {
+    aggregated.push(...arbeitnowResults.value)
+  }
+  if (adzunaResults.status === "fulfilled" && Array.isArray(adzunaResults.value)) {
+    aggregated.push(...adzunaResults.value)
+  }
+
+  if (aggregated.length === 0) {
+    return FALLBACK_OPPORTUNITIES
+  }
+
+  return deduplicateJobs(aggregated)
+}
+
+/**
+ * Multi-Board Job Discovery Engine with Macro-Learned Adaptive Ranking
  */
 export async function executeSearchExternalJobs(
   userId: string,
@@ -84,10 +310,11 @@ export async function executeSearchExternalJobs(
   if (!userId) return { success: false, count: 0, query: "", opportunities: [], error: "Unauthorized" }
 
   try {
-    // 1. Fetch user profile & resume for deterministic skill matching
-    const [profile, resume] = await Promise.all([
+    // 1. Fetch user profile, resume & macro-learning outcomes concurrently
+    const [profile, resume, macroOutcomes] = await Promise.all([
       withDbRetry<any>(() => prisma.userProfile.findUnique({ where: { userId } })),
       withDbRetry<any>(() => prisma.resume.findFirst({ where: { userId, isDefault: true } })),
+      getUserMacroOutcomes(userId).catch(() => null),
     ])
 
     const userSkills = new Set<string>()
@@ -105,35 +332,18 @@ export async function executeSearchExternalJobs(
       })
     }
 
-    // 2. Fetch live jobs from RemoteOK (or fallback)
-    let rawJobs: any[] = []
-    try {
-      const controller = new AbortController()
-      const timeout = setTimeout(() => controller.abort(), 4000)
+    // Set of winning skills and roles from historical interview/offer outcomes
+    const winningSkills = new Set((macroOutcomes?.winningSkills || []).map((s) => toCanonical(s)))
+    const winningRoles = (macroOutcomes?.winningRoles || []).map((r) => r.toLowerCase())
+    const winningCompanies = new Set((macroOutcomes?.winningCompanies || []).map((c) => normalizeCompany(c)))
+    const penalizedSkills = new Set((macroOutcomes?.penalizedSkills || []).map((s) => toCanonical(s)))
 
-      const tagParam = input.tags?.[0] || input.query?.split(" ")[0] || "engineer"
-      const res = await fetch(`https://remoteok.com/api?tag=${encodeURIComponent(tagParam)}`, {
-        signal: controller.signal,
-        headers: { "User-Agent": "CareerTrack-Discovery-Agent/1.0" },
-      })
-      clearTimeout(timeout)
+    // 2. Fetch Multi-Board Jobs
+    const query = input.query || ""
+    const tagParam = input.tags?.[0] || input.query?.split(" ")[0] || "engineer"
+    const rawJobs = await fetchMultiBoardOpportunities(query, tagParam, input.location)
 
-      if (res.ok) {
-        const data = await res.json()
-        if (Array.isArray(data)) {
-          // Remove legal disclaimer object at index 0 if present
-          rawJobs = data.filter((item) => item.position && item.company)
-        }
-      }
-    } catch {
-      // Fallback
-    }
-
-    if (!rawJobs || rawJobs.length === 0) {
-      rawJobs = FALLBACK_OPPORTUNITIES
-    }
-
-    // 3. Filter and Calculate Fit Score
+    // 3. Filter and Calculate Adaptive Fit Score
     const searchTerms = [
       input.query?.toLowerCase(),
       ...(input.tags || []).map((t) => t.toLowerCase()),
@@ -142,7 +352,7 @@ export async function executeSearchExternalJobs(
     const scoredOpportunities: ExternalJobOpportunity[] = []
 
     for (const job of rawJobs) {
-      const position = String(job.position || "")
+      const position = String(job.title || "")
       const company = String(job.company || "")
       const location = String(job.location || "Remote")
       const tags = Array.isArray(job.tags) ? job.tags.map((t: string) => toCanonical(t)) : []
@@ -154,51 +364,85 @@ export async function executeSearchExternalJobs(
           (term) =>
             position.toLowerCase().includes(term) ||
             company.toLowerCase().includes(term) ||
-            tags.some((t: string) => t.includes(term))
+            tags.some((t: string) => t.includes(term)) ||
+            description.toLowerCase().includes(term)
         )
-        if (!matchesQuery && rawJobs !== FALLBACK_OPPORTUNITIES) {
+        if (!matchesQuery && job.sourceBoard !== "curated") {
           continue
         }
       }
 
-      // Calculate Match Score
+      // Calculate Skill Matching & Macro-Learned Boosts
       let matchedSkillCount = 0
       const matchedSkillNames: string[] = []
+      let winningBoost = 0
+      const matchedWinningSkills: string[] = []
 
       tags.forEach((tag: string) => {
         if (userSkills.has(tag)) {
           matchedSkillCount++
           matchedSkillNames.push(tag)
         }
+        if (winningSkills.has(tag)) {
+          winningBoost += 12
+          matchedWinningSkills.push(tag)
+        }
       })
 
       // Bonus if target role matches position
       let roleBonus = 0
       if (profile?.targetRoles?.some((tr: string) => position.toLowerCase().includes(tr.toLowerCase()))) {
-        roleBonus = 20
+        roleBonus += 15
+      }
+      if (winningRoles.some((wr) => position.toLowerCase().includes(wr))) {
+        roleBonus += 10
       }
 
-      const baseFit = Math.min(60, matchedSkillCount * 15)
-      const finalFitScore = Math.min(98, Math.max(45, baseFit + roleBonus + (job.salary_min ? 10 : 0)))
+      // Bonus if candidate previously won at this company
+      let companyBonus = 0
+      if (winningCompanies.has(normalizeCompany(company))) {
+        companyBonus += 10
+      }
 
+      // Penalty if job emphasizes recurring rejection gap skills
+      let penaltyDamp = 0
+      tags.forEach((tag: string) => {
+        if (penalizedSkills.has(tag)) {
+          penaltyDamp += 8
+        }
+      })
+
+      const baseFit = Math.min(50, matchedSkillCount * 12)
+      const salaryBonus = job.salaryMin ? 5 : 0
+      const rawScore = baseFit + roleBonus + winningBoost + companyBonus + salaryBonus - penaltyDamp
+      const finalFitScore = Math.min(99, Math.max(40, rawScore || 50))
+
+      // Synthesize transparent match rationale
       let matchRationale = ""
-      if (matchedSkillNames.length > 0) {
-        matchRationale = `Matched on core skills: ${matchedSkillNames.slice(0, 4).join(", ")}.`
+      if (matchedWinningSkills.length > 0) {
+        matchRationale = `High conversion match on proven skills (${matchedWinningSkills.slice(0, 3).join(", ")}).`
+      } else if (matchedSkillNames.length > 0) {
+        matchRationale = `Matched on core profile skills: ${matchedSkillNames.slice(0, 4).join(", ")}.`
+      } else if (roleBonus > 0) {
+        matchRationale = `Direct trajectory match for ${position.slice(0, 35)}.`
       } else {
-        matchRationale = `Matches target career trajectory in ${position.slice(0, 35)}.`
+        matchRationale = `Aligned with overall engineering competencies in ${position.slice(0, 35)}.`
       }
 
       let salaryDisplay: string | undefined = undefined
-      if (job.salary_min && job.salary_max) {
-        salaryDisplay = `$${Math.round(job.salary_min / 1000)}k - $${Math.round(job.salary_max / 1000)}k`
+      if (job.salaryMin && job.salaryMax) {
+        salaryDisplay = `$${Math.round(job.salaryMin / 1000)}k - $${Math.round(job.salaryMax / 1000)}k`
+      } else if (job.salaryText) {
+        salaryDisplay = job.salaryText
       }
 
       scoredOpportunities.push({
-        id: String(job.id || job.url || `${company}-${position}`),
+        id: job.id,
         title: position,
         company,
         location,
         url: job.url || `https://www.google.com/search?q=${encodeURIComponent(`${company} ${position}`)}`,
+        sourceBoard: job.sourceBoard,
         tags,
         salary: salaryDisplay,
         fitScore: finalFitScore,
@@ -207,15 +451,15 @@ export async function executeSearchExternalJobs(
       })
     }
 
-    // Sort by fit score descending
+    // Sort by adaptive fit score descending
     scoredOpportunities.sort((a, b) => b.fitScore - a.fitScore)
-    const limit = input.limit || 5
+    const limit = input.limit || 6
     const results = scoredOpportunities.slice(0, limit)
 
     return {
       success: true,
       count: results.length,
-      query: input.query || input.tags?.join(", ") || "Recommended Roles",
+      query: input.query || input.tags?.join(", ") || "Recommended Multi-Board Roles",
       opportunities: results,
     }
   } catch (error: any) {
@@ -248,7 +492,7 @@ export async function executeSaveJobOpportunityToTracker(
     input.notes,
     input.location ? `Location: ${input.location}` : null,
     input.salary ? `Salary: ${input.salary}` : null,
-    "Discovered via CareerTrack Autonomous Job Discovery Engine",
+    "Discovered via CareerTrack Autonomous Multi-Board Job Discovery Engine",
   ].filter(Boolean)
 
   return await executeCreateApplication(userId, {

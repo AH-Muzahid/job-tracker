@@ -3,17 +3,74 @@ import { describe, it, expect, vi, beforeEach } from "vitest"
 import {
   executeSearchExternalJobs,
   executeSaveJobOpportunityToTracker,
+  normalizeCompany,
+  normalizeTitle,
+  deduplicateJobs,
+  type UnifiedRawJob,
 } from "@/lib/ai/graph/tools/discovery-tools"
 import { prisma } from "@/lib/prisma"
+import * as learningEngine from "@/lib/ai/learning-engine"
 
-describe("Job Discovery Engine Tools", () => {
+describe("Multi-Board Job Discovery Engine Tools", () => {
   const testUserId = "user-discovery-test-123"
 
   beforeEach(() => {
     vi.clearAllMocks()
   })
 
-  it("fetches and scores external job opportunities against user profile & resume", async () => {
+  it("normalizes company names and job titles for deduplication", () => {
+    expect(normalizeCompany("Stripe, Inc.")).toBe("stripe")
+    expect(normalizeCompany("Vercel LLC")).toBe("vercel")
+    expect(normalizeCompany("Airbnb Technologies GmbH")).toBe("airbnb")
+
+    expect(normalizeTitle("Senior Backend Engineer (Remote)")).toBe("senior backend engineer")
+    expect(normalizeTitle("Fullstack Developer [Hybrid]")).toBe("fullstack developer")
+  })
+
+  it("deduplicates identical job postings across multiple boards", () => {
+    const rawJobs: UnifiedRawJob[] = [
+      {
+        id: "rok-1",
+        title: "Senior Backend Engineer (Go)",
+        company: "Stripe, Inc.",
+        location: "Remote",
+        url: "https://remoteok.com/l/123",
+        sourceBoard: "remoteok",
+        tags: ["go", "postgresql"],
+        salaryMin: 170000,
+        salaryMax: 220000,
+        description: "High performance Go systems at Stripe.",
+      },
+      {
+        id: "an-1",
+        title: "Senior Backend Engineer",
+        company: "Stripe",
+        location: "Remote",
+        url: "https://arbeitnow.com/view/stripe-go",
+        sourceBoard: "arbeitnow",
+        tags: ["go", "distributed-systems"],
+        description: "Short description.",
+      },
+      {
+        id: "rok-2",
+        title: "Lead AI Engineer",
+        company: "Anthropic",
+        location: "San Francisco",
+        url: "https://remoteok.com/l/456",
+        sourceBoard: "remoteok",
+        tags: ["python", "llm"],
+        description: "Leading frontier model tooling.",
+      },
+    ]
+
+    const deduped = deduplicateJobs(rawJobs)
+    expect(deduped).toHaveLength(2)
+    const stripeJob = deduped.find((j) => normalizeCompany(j.company) === "stripe")
+    expect(stripeJob).toBeDefined()
+    expect(stripeJob?.salaryMin).toBe(170000) // Retained richer metadata
+  })
+
+  it("fetches, scores, and ranks opportunities with macro-learning boosts", async () => {
     vi.spyOn((prisma as any).userProfile, "findUnique").mockResolvedValueOnce({
       userId: testUserId,
       strengths: "Go, React, TypeScript, PostgreSQL",
@@ -25,15 +82,31 @@ describe("Job Discovery Engine Tools", () => {
       textContent: "Built Go and React systems at scale with PostgreSQL.",
     })
 
+    vi.spyOn(learningEngine, "getUserMacroOutcomes").mockResolvedValueOnce({
+      totalApplications: 6,
+      statusCounts: { Interview: 2, Offer: 1, Rejected: 1, Saved: 0, Applied: 2 },
+      interviewCount: 2,
+      offerCount: 1,
+      rejectedCount: 1,
+      appliedCount: 2,
+      conversionRate: 75,
+      winningRoles: ["Staff Backend Engineer"],
+      winningCompanies: ["Stripe"],
+      winningSkills: ["go", "postgresql"],
+      penalizedSkills: ["php"],
+      averageTimeToInterviewDays: 8,
+    })
+
     const result = await executeSearchExternalJobs(testUserId, {
-      query: "React",
-      limit: 3,
+      query: "Go",
+      limit: 4,
     })
 
     expect(result.success).toBe(true)
     expect(result.opportunities.length).toBeGreaterThan(0)
     expect(result.opportunities[0].fitScore).toBeGreaterThanOrEqual(50)
     expect(result.opportunities[0].matchRationale).toBeDefined()
+    expect(result.opportunities[0].sourceBoard).toBeDefined()
   })
 
   it("saves discovered job opportunity directly into the user tracker", async () => {
@@ -45,7 +118,7 @@ describe("Job Discovery Engine Tools", () => {
       jobUrl: "https://stripe.com/jobs",
       source: "Discovery Engine",
       status: "Saved",
-      notes: "Location: Remote\nSalary: $160k - $210k\nDiscovered via CareerTrack Autonomous Job Discovery Engine",
+      notes: "Location: Remote\nSalary: $160k - $210k\nDiscovered via CareerTrack Autonomous Multi-Board Job Discovery Engine",
     }
 
     vi.spyOn((prisma as any).application, "create").mockResolvedValueOnce(mockCreatedApp)
