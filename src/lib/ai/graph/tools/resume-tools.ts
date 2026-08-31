@@ -6,6 +6,7 @@ import {
   getCachedKnowledgeGraph,
   saveKnowledgeGraph,
 } from "@/lib/ai/knowledge-graph"
+import { generateAdaptivePromptWeights } from "@/lib/ai/learning-engine"
 import type { TailoredResumeData } from "@/types/tailored-resume"
 
 export async function executeGetResumeDetails(userId: string, input: {
@@ -129,7 +130,7 @@ export async function executeTailorResumeForJob(
   }
 
   try {
-    const [baseResume, profile, user] = await Promise.all([
+    const [baseResume, profile, user, learningWeights] = await Promise.all([
       withDbRetry<any>(() =>
         prisma.resume.findFirst({
           where: {
@@ -140,6 +141,7 @@ export async function executeTailorResumeForJob(
       ),
       withDbRetry<any>(() => prisma.userProfile.findUnique({ where: { userId } })),
       withDbRetry<any>(() => prisma.user.findUnique({ where: { id: userId }, select: { name: true, email: true } })),
+      generateAdaptivePromptWeights(userId).catch(() => null),
     ])
 
     const targetCompany = input.companyName || "Target Company"
@@ -254,6 +256,13 @@ export async function executeTailorResumeForJob(
       title,
       downloadUrl,
       matchScore: matchResult.matchScore,
+      adaptiveLearningApplied: learningWeights
+        ? {
+            positiveBoostsCount: learningWeights.positiveBoosts.length,
+            negativePenaltiesCount: learningWeights.negativePenalties.length,
+            historicalConversionRate: learningWeights.overallConversionRate,
+          }
+        : undefined,
       tailoredHighlights: {
         targetRole,
         targetCompany,
