@@ -25,6 +25,9 @@ const TRACKER_PATTERNS = [
   /(?:add|create|save|track|record|update|change|mark|set)\s+(?:a\s+)?(?:new\s+)?(?:application|status|role|job)/i,
   /(?:in|to)\s+(?:applied|interview|assessment|saved|offer|rejected)\s+status/i,
   /update\s+status/i,
+  /delete|remove|dlt|hatamiye feli|soriye dite|delete koro|remove koro|dlt koro/i,
+  /delete\s+(this|that|the|er|tar)\s+(application|job|position|role)/i,
+  /this\s+application\s+(delete|remove)/i,
 ]
 
 const RESPONSE_PATTERNS = [

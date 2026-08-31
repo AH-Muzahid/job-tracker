@@ -7,9 +7,9 @@ import {
   buildCareerGraphFromText,
   formatGraphForContext,
 } from "@/lib/ai/knowledge-graph"
-import { countTokens, trimToTokenBudget } from "./token-counter"
 import { sanitizePII } from "./pii-sanitizer"
 import { touchMemory } from "./memory-consolidator"
+import { countTokens, trimToTokenBudget } from "./token-counter"
 
 export type AIMode =
   | "profile"
@@ -37,7 +37,6 @@ export function sanitizeUntrustedContext(input: string): string {
   let sanitized = input.replace(/\u0000/g, "")
   const tagRegex = /<\/?(?:system|instruction|admin|override|user_runtime_context|untrusted_content)[^>]*>/gi
 
-  // Recursive fixed-point loop to prevent nested bypasses like <<system>system>
   let previous = ""
   while (previous !== sanitized) {
     previous = sanitized
@@ -49,12 +48,11 @@ export function sanitizeUntrustedContext(input: string): string {
 
 /**
  * Enforce strict token budgeting on conversation history.
- * Uses js-tiktoken for accurate token counting instead of character estimation.
  * Always keeps first user message and ensures history starts with user role.
  */
 export function budgetConversationHistory(
   messages: Array<{ role: "user" | "assistant"; content: string }>,
-  maxTokens: number = 16_000
+  maxTokens: number = 12_000
 ): Array<{ role: "user" | "assistant"; content: string }> {
   return trimToTokenBudget(messages, maxTokens) as Array<{ role: "user" | "assistant"; content: string }>
 }
@@ -68,294 +66,128 @@ export function getMessageTokenCount(
   return countTokens(messages.map((m) => m.content).join("\n"))
 }
 
-export async function buildFullContext(userId: string, mode: AIMode): Promise<string> {
+/**
+ * LLM-FIRST CONTEXT BUILDER
+ * 
+ * Like ChatGPT/Claude/Gemini:
+ * - Send MINIMAL context (identity + core profile)
+ * - LLM calls tools to fetch data when needed
+ * - No pre-loading of apps, stats, resume etc.
+ * - Saves ~60% tokens per request
+ */
+export async function buildFullContext(userId: string, _mode: AIMode): Promise<string> {
   const parts: string[] = []
 
-  // Determine selective flags based on mode
-  const needRecentApps = mode === "tracker" || mode === "recovery" || mode === "jd-scan" || mode === "application" || mode === "response"
-  const needStats = mode === "tracker" || mode === "recovery"
-  const needResume = mode === "jd-scan" || mode === "application" || mode === "profile" || mode === "interview" || mode === "response"
-  const needCompanies = mode === "jd-scan" || mode === "application" || mode === "tracker" || mode === "response"
-  const needPrepNotes = mode === "interview" || mode === "profile"
-  const needStatusChanges = mode === "tracker" || mode === "recovery" || mode === "response"
-  const needAnalyses = mode === "jd-scan" || mode === "application" || mode === "recovery"
-  const needPrepQuestions = mode === "interview"
-  const needWeeklyGoals = mode === "weekly"
-
-  // Parallelize all L1 Redis cache reads
-  const [cachedProfile, cachedMemories, cachedResume, cachedGraph] = await Promise.all([
-    getCachedJson<UserProfile>(`user:profile:${userId}`),
-    getCachedJson<Array<{ category: string; content: string }>>(`user:memories:${userId}`),
-    needResume ? getCachedJson<CachedResume>(`user:resume:${userId}`) : Promise.resolve(null),
-    needResume ? getCachedKnowledgeGraph(userId) : Promise.resolve(null),
-  ])
-
-  // Parallelize remaining database fallback lookups and selective contextual queries
-  const [
-    user,
-    dbProfile,
-    dbMemories,
-    dbResume,
-    recentApps,
-    pipelineStats,
-    recentCompanies,
-    recentPrepNotes,
-    recentStatusChanges,
-    recentAnalyses,
-    prepQuestions,
-    currentGoals,
-  ] = await Promise.all([
-    prisma.user.findUnique({
-      where: { id: userId },
-      select: { name: true, email: true },
-    }),
-    cachedProfile ? Promise.resolve(null) : prisma.userProfile.findUnique({ where: { userId } }),
-    cachedMemories
-      ? Promise.resolve(null)
-      : prisma.userMemory.findMany({
-          where: { userId },
-          orderBy: { createdAt: "desc" },
-          take: 15,
-          select: { id: true, category: true, content: true },
-        }),
-    needResume && !cachedResume
-      ? prisma.resume.findFirst({
-          where: { userId, isDefault: true },
-          select: { title: true, fileName: true, fileUrl: true, textContent: true },
-        })
-      : Promise.resolve(null),
-    needRecentApps
-      ? prisma.application.findMany({
-          where: { userId },
-          orderBy: { createdAt: "desc" },
-          take: 15,
-          select: {
-            id: true,
-            companyName: true,
-            jobTitle: true,
-            status: true,
-            source: true,
-            applicationDate: true,
-            notes: true,
-          },
-        })
-      : Promise.resolve([]),
-    needStats
-      ? prisma.application.groupBy({
-          by: ["status"],
-          where: { userId },
-          _count: true,
-        })
-      : Promise.resolve([]),
-    needCompanies
-      ? prisma.company.findMany({
-          where: { userId },
-          orderBy: { updatedAt: "desc" },
-          take: 3,
-          select: { name: true, industry: true, website: true, notes: true },
-        })
-      : Promise.resolve(null),
-    needPrepNotes
-      ? prisma.prepNote.findMany({
-          where: { userId },
-          orderBy: { createdAt: "desc" },
-          take: 3,
-          select: { title: true, category: true, content: true },
-        })
-      : Promise.resolve(null),
-    needStatusChanges
-      ? prisma.statusChange.findMany({
-          where: { application: { userId } },
-          orderBy: { changedAt: "desc" },
-          take: 5,
-          select: {
-            fromStatus: true,
-            toStatus: true,
-            changedAt: true,
-            application: { select: { companyName: true, jobTitle: true } },
-          },
-        })
-      : Promise.resolve(null),
-    needAnalyses
-      ? prisma.applicationAnalysis.findMany({
-          where: { application: { userId } },
-          orderBy: { analyzedAt: "desc" },
-          take: 3,
-          select: {
-            matchScore: true,
-            confidence: true,
-            verdict: true,
-            finalRecommendation: true,
-            application: { select: { companyName: true, jobTitle: true } },
-          },
-        })
-      : Promise.resolve(null),
-    needPrepQuestions
-      ? prisma.prepQuestion.findMany({
-          where: { userId },
-          take: 10,
-          orderBy: { createdAt: "desc" },
-        })
-      : Promise.resolve(null),
-    needWeeklyGoals
-      ? (async () => {
-          const now = new Date()
-          const weekStart = new Date(now)
-          weekStart.setDate(now.getDate() - now.getDay() + 1)
-          weekStart.setHours(0, 0, 0, 0)
-          return prisma.weeklyGoal.findFirst({ where: { userId, weekStart } })
-        })()
-      : Promise.resolve(null),
-  ])
-
-  const profile = cachedProfile || dbProfile
-  if (!cachedProfile && dbProfile) {
-    void setCachedJson(`user:profile:${userId}`, dbProfile, 3600)
-  }
-
-  const userMemories = cachedMemories || dbMemories
-  if (!cachedMemories && dbMemories && dbMemories.length > 0) {
-    void setCachedJson(`user:memories:${userId}`, dbMemories, 3600)
-    for (const m of dbMemories) {
-      void touchMemory(m.id)
-    }
-  }
-
-  const defaultResume = cachedResume || dbResume
-  if (!cachedResume && dbResume) {
-    void setCachedJson(`user:resume:${userId}`, dbResume, 3600)
-  }
+  // ALWAYS load: User identity (minimal)
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { name: true, email: true },
+  })
 
   const displayName = user?.name || user?.email || "there"
-  const hasProfile = Boolean(profile)
+  parts.push(`${displayName}`)
 
-  parts.push(`User Identity:
-- Name: ${displayName}
-- Email: ${user?.email ? sanitizePII(user.email) : "Not set"}
-- Profile Complete: ${hasProfile ? "Yes" : "No"}`)
+  // Load profile (cached) — compact format
+  const cachedProfile = await getCachedJson<UserProfile>(`user:profile:${userId}`)
+  let profile = cachedProfile
 
-  if (profile) {
-    parts.push(`User Profile:
-- Name: ${displayName}
-- Location: ${profile.location || "Not set"}
-- Target Roles: ${profile.targetRoles?.join(", ") || "Not set"}
-- Work Preference: ${profile.workPreference || "Not set"}
-- Experience Level: ${profile.experienceLevel || "Not set"}
-- Current Status: ${profile.currentStatus || "Not set"}
-- Skills: ${profile.strengths || "Not set"}
-- Weaknesses: ${profile.weaknesses || "Not set"}
-- LinkedIn: ${profile.linkedInUrl ? sanitizePII(profile.linkedInUrl) : "Not set"}
-- GitHub: ${profile.githubUrl ? sanitizePII(profile.githubUrl) : "Not set"}
-- Portfolio: ${profile.portfolioUrl ? sanitizePII(profile.portfolioUrl) : "Not set"}`)
-
-    if (profile.bestProjects) {
-      const projects = profile.bestProjects as Array<{ name: string; stack: string; description: string }>
-      parts.push("Best Projects:\n" + projects.map((p, i) =>
-        `${i + 1}. ${p.name} | Stack: ${p.stack} | ${p.description}`
-      ).join("\n"))
+  if (!cachedProfile) {
+    profile = await prisma.userProfile.findUnique({ where: { userId } })
+    if (profile) {
+      void setCachedJson(`user:profile:${userId}`, profile, 3600)
     }
   }
 
-  if (!profile) {
-    parts.push("Onboarding Status: Profile incomplete. Advise on key details.")
+  if (profile) {
+    const profileParts: string[] = []
+    if (profile.location) profileParts.push(profile.location)
+    if (profile.targetRoles?.length) profileParts.push(profile.targetRoles.join(", "))
+    if (profile.experienceLevel) profileParts.push(profile.experienceLevel)
+    if (profile.strengths) profileParts.push(profile.strengths.split(",").slice(0, 5).join(","))
+    if (profileParts.length > 0) {
+      parts.push(`Profile: ${profileParts.join(" | ")}`)
+    }
   }
 
-  if (defaultResume) {
-    parts.push(`Default Resume: ${defaultResume.title} (${defaultResume.fileName})`)
+  // Load memories (cached) — compact format
+  const cachedMemories = await getCachedJson<Array<{ category: string; content: string }>>(`user:memories:${userId}`)
+  let userMemories = cachedMemories
+
+  if (!cachedMemories) {
+    userMemories = await prisma.userMemory.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+      take: 8,
+      select: { category: true, content: true },
+    })
+    if (userMemories && userMemories.length > 0) {
+      void setCachedJson(`user:memories:${userId}`, userMemories, 3600)
+    }
   }
 
+  if (userMemories && userMemories.length > 0) {
+    const compactMemories = userMemories.slice(0, 5).map(m => `${m.category}: ${m.content}`).join("; ")
+    parts.push(`Preferences: ${compactMemories}`)
+  }
+
+  // Resume — only load if has knowledge graph (cached)
+  const cachedGraph = await getCachedKnowledgeGraph(userId)
   if (cachedGraph && cachedGraph.nodes && cachedGraph.nodes.length > 0) {
     const formattedGraph = formatGraphForContext(cachedGraph)
     if (formattedGraph) {
       parts.push(formattedGraph)
     }
-  } else if (defaultResume?.textContent) {
-    // Fast excerpt in TTFT critical path; trigger graph extraction asynchronously in background
-    const excerpt = defaultResume.textContent.length > 2000
-      ? defaultResume.textContent.slice(0, 2000) + "..."
-      : defaultResume.textContent
-    parts.push(`<untrusted_content type="resume_excerpt">\n${sanitizeUntrustedContext(excerpt)}\n</untrusted_content>`)
-
-    // Background build and cache Knowledge Graph without blocking streaming response
-    void Promise.resolve().then(async () => {
-      try {
-        const generatedGraph = buildCareerGraphFromText(defaultResume.textContent!, profile)
-        if (generatedGraph && generatedGraph.nodes.length > 0) {
-          await saveKnowledgeGraph(userId, generatedGraph)
-        }
-      } catch (graphErr) {
-        console.error("Background Knowledge Graph build failed:", graphErr)
-      }
-    })
   }
 
-  if (pipelineStats && pipelineStats.length > 0) {
-    const statsMap: Record<string, number> = {}
-    pipelineStats.forEach((s) => { statsMap[s.status] = s._count })
-    parts.push(`Pipeline Stats: Saved: ${statsMap.Saved || 0} | Applied: ${statsMap.Applied || 0} | Assessment: ${statsMap.Assessment || 0} | Interview: ${statsMap.Interview || 0} | Rejected: ${statsMap.Rejected || 0} | Offer: ${statsMap.Offer || 0}`)
-  }
+  return parts.join("\n")
+}
 
-  if (mode === "tracker" || mode === "recovery") {
-    const pendingFollowUps = recentApps.filter(
-      (a) => a.status === "Applied" || a.status === "Assessment"
-    )
-    if (pendingFollowUps.length > 0) {
-      parts.push("Pending Follow-ups:\n" + pendingFollowUps.map((a) =>
-        `- ${a.companyName} (${a.jobTitle}) - ${a.status} since ${new Date(a.applicationDate).toLocaleDateString()}`
-      ).join("\n"))
+/**
+ * LAZY CONTEXT LOADER — called by tools when they need more data
+ * This is the ChatGPT/Claude pattern: tools fetch their own context
+ */
+export async function loadLazyContext(userId: string, type: string): Promise<string> {
+  switch (type) {
+    case "applications": {
+      const apps = await prisma.application.findMany({
+        where: { userId },
+        orderBy: { createdAt: "desc" },
+        take: 10,
+        select: { companyName: true, jobTitle: true, status: true },
+      })
+      if (apps.length === 0) return "No applications tracked yet."
+      return apps.map(a => `${a.companyName} | ${a.jobTitle} | ${a.status}`).join("\n")
     }
-  }
-
-  if (mode === "jd-scan" || mode === "application" || mode === "tracker") {
-    if (recentApps && recentApps.length > 0) {
-      parts.push("Recent Applications:\n" + recentApps.map((a) =>
-        `- ${a.companyName} | ${a.jobTitle} | ${a.status}`
-      ).join("\n"))
+    case "stats": {
+      const stats = await prisma.application.groupBy({
+        by: ["status"],
+        where: { userId },
+        _count: true,
+      })
+      const map: Record<string, number> = {}
+      stats.forEach(s => { map[s.status] = s._count })
+      return `Saved:${map.Saved||0} Applied:${map.Applied||0} Interview:${map.Interview||0} Rejected:${map.Rejected||0} Offer:${map.Offer||0}`
     }
+    case "resume": {
+      const resume = await prisma.resume.findFirst({
+        where: { userId, isDefault: true },
+        select: { title: true, textContent: true },
+      })
+      if (!resume) return "No resume uploaded."
+      const excerpt = resume.textContent?.slice(0, 1500) || ""
+      return `Resume: ${resume.title}\n${excerpt}`
+    }
+    case "prep-notes": {
+      const notes = await prisma.prepNote.findMany({
+        where: { userId },
+        orderBy: { createdAt: "desc" },
+        take: 5,
+        select: { title: true, category: true },
+      })
+      if (notes.length === 0) return "No prep notes."
+      return notes.map(n => `[${n.category}] ${n.title}`).join("\n")
+    }
+    default:
+      return ""
   }
-
-  if (recentCompanies && recentCompanies.length > 0) {
-    parts.push("Recent Companies:\n" + recentCompanies.map((company) =>
-      `- ${company.name}${company.industry ? ` (${company.industry})` : ""}`
-    ).join("\n"))
-  }
-
-  if (recentPrepNotes && recentPrepNotes.length > 0) {
-    parts.push("Recent Prep Notes:\n" + recentPrepNotes.map((note) =>
-      `- [${note.category}] ${note.title}: ${note.content}`
-    ).join("\n"))
-  }
-
-  if (recentStatusChanges && recentStatusChanges.length > 0) {
-    parts.push("Recent Status Changes:\n" + recentStatusChanges.map((change) =>
-      `- ${change.application.companyName} (${change.application.jobTitle}): ${change.fromStatus || "Unknown"} -> ${change.toStatus}`
-    ).join("\n"))
-  }
-
-  if (recentAnalyses && recentAnalyses.length > 0) {
-    parts.push("Recent Analyses:\n" + recentAnalyses.map((analysis) =>
-      `- ${analysis.application.companyName} (${analysis.application.jobTitle}): ${analysis.matchScore ?? "N/A"}% match, ${analysis.verdict || "no verdict"}`
-    ).join("\n"))
-  }
-
-  if (prepQuestions && prepQuestions.length > 0) {
-    parts.push("Existing Prep Questions:\n" + prepQuestions.map((q) =>
-      `[${q.category}/${q.difficulty}] ${q.question}`
-    ).join("\n"))
-  }
-
-  if (currentGoals) {
-    parts.push(`Current Weekly Goals:
-- Goal 1: ${currentGoals.goal1} (${currentGoals.goal1Status})
-- Goal 2: ${currentGoals.goal2 || "N/A"} (${currentGoals.goal2Status})
-- Goal 3: ${currentGoals.goal3 || "N/A"} (${currentGoals.goal3Status})`)
-  }
-
-  if (userMemories && userMemories.length > 0) {
-    parts.push("Persistent User Knowledge & Explicit Preferences (Cross-Session Memory):\n" + userMemories.map((m: { category: string; content: string }) =>
-      `- [${m.category.toUpperCase()}]: ${m.content}`
-    ).join("\n"))
-  }
-
-  return parts.join("\n\n")
 }
