@@ -83,7 +83,7 @@ export function useAgentGraph() {
                   ...prev,
                   plan: data.plan || prev.plan,
                 }))
-              } else if (event === "reflection") {
+              } else if (event === "reflection" || event === "reflector") {
                 setState((prev) => ({
                   ...prev,
                   currentStepIndex: data.currentStepIndex ?? prev.currentStepIndex,

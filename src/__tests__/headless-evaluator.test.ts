@@ -39,7 +39,7 @@ describe("Headless LangGraph Agent Evaluator", () => {
         plan: [{ id: "step-1", task: "Analyze applications", status: "completed" }],
       }),
     }
-    vi.mocked(buildCareerAgentGraph).mockReturnValueOnce(mockGraph as any)
+    vi.mocked(buildCareerAgentGraph).mockResolvedValueOnce(mockGraph as any)
 
     const result = await runHeadlessEvaluation(testUserId, "Generate daily briefing")
     expect(result.success).toBe(true)

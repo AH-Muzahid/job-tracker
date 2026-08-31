@@ -53,9 +53,21 @@ export function deserializeEmbedding(serialized: string): number[] {
 export async function searchUserMemories(
   userId: string,
   query: string,
-  options: { limit?: number; threshold?: number; category?: string } = {}
+  optionsOrLimit: { limit?: number; threshold?: number; category?: string } | number = {},
+  thresholdParam?: number
 ): Promise<MemorySearchResult[]> {
-  const { limit = 5, threshold = 0.3, category } = options
+  let limit = 5
+  let threshold = 0.3
+  let category: string | undefined
+
+  if (typeof optionsOrLimit === "number") {
+    limit = optionsOrLimit
+    threshold = thresholdParam ?? 0.3
+  } else if (optionsOrLimit && typeof optionsOrLimit === "object") {
+    limit = optionsOrLimit.limit ?? 5
+    threshold = optionsOrLimit.threshold ?? 0.3
+    category = optionsOrLimit.category
+  }
   const queryEmbedding = await generateEmbedding(query)
   const vectorStr = `[${queryEmbedding.join(",")}]`
 

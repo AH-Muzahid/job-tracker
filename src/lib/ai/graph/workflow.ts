@@ -4,14 +4,14 @@ import { createPlannerNode } from "./nodes/planner"
 import { createExecutorNode } from "./nodes/executor"
 import { createReflectionNode } from "./nodes/reflection"
 import { createResponderNode } from "./nodes/responder"
-import { memoryCheckpointer } from "./checkpointer"
+import { getGraphCheckpointer } from "./checkpointer"
 import { getLangChainChatModel } from "./llm"
 import type { AIProviderConfig } from "@/lib/ai/client"
 
 /**
- * Builds and compiles the LangGraph StateGraph instance
+ * Builds and compiles the LangGraph StateGraph instance with persistent checkpointer
  */
-export function buildCareerAgentGraph(aiConfig: AIProviderConfig) {
+export async function buildCareerAgentGraph(aiConfig: AIProviderConfig) {
   const model = getLangChainChatModel(aiConfig)
 
   const plannerNode = createPlannerNode(model)
@@ -22,14 +22,14 @@ export function buildCareerAgentGraph(aiConfig: AIProviderConfig) {
   const workflow = new StateGraph(AgentState)
     .addNode("planner", plannerNode)
     .addNode("executor", executorNode)
-    .addNode("reflection", reflectionNode)
+    .addNode("reflector", reflectionNode)
     .addNode("responder", responderNode)
 
     .addEdge(START, "planner")
     .addEdge("planner", "executor")
-    .addEdge("executor", "reflection")
+    .addEdge("executor", "reflector")
 
-    .addConditionalEdges("reflection", (state: AgentStateType) => {
+    .addConditionalEdges("reflector", (state: AgentStateType) => {
       // If reflection failed and needs retry on current step
       if (!state.reflection.passed) {
         return "executor"
@@ -46,7 +46,9 @@ export function buildCareerAgentGraph(aiConfig: AIProviderConfig) {
 
     .addEdge("responder", END)
 
+  const checkpointer = await getGraphCheckpointer()
+
   return workflow.compile({
-    checkpointer: memoryCheckpointer,
+    checkpointer,
   })
 }

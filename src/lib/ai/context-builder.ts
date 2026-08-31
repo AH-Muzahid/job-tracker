@@ -10,6 +10,14 @@ import {
 import { sanitizePII } from "./pii-sanitizer"
 import { touchMemory } from "./memory-consolidator"
 import { countTokens, trimToTokenBudget } from "./token-counter"
+import { searchUserMemories } from "./memory-search"
+import { getMacroLearningContext } from "./learning-engine"
+
+export {
+  saveKnowledgeGraph,
+  buildCareerGraphFromText,
+  touchMemory,
+}
 
 export type AIMode =
   | "profile"
@@ -22,7 +30,7 @@ export type AIMode =
   | "recovery"
   | "general"
 
-interface CachedResume {
+export interface CachedResume {
   title: string
   fileName: string
   fileUrl: string
@@ -67,79 +75,122 @@ export function getMessageTokenCount(
 }
 
 /**
- * LLM-FIRST CONTEXT BUILDER
- * 
- * Like ChatGPT/Claude/Gemini:
- * - Send MINIMAL context (identity + core profile)
- * - LLM calls tools to fetch data when needed
- * - No pre-loading of apps, stats, resume etc.
- * - Saves ~60% tokens per request
+ * Loads user profile with Redis caching
  */
-export async function buildFullContext(userId: string, _mode: AIMode): Promise<string> {
-  const parts: string[] = []
-
-  // ALWAYS load: User identity (minimal)
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { name: true, email: true },
-  })
-
-  const displayName = user?.name || user?.email || "there"
-  parts.push(`${displayName}`)
-
-  // Load profile (cached) — compact format
+export async function getCachedProfile(userId: string): Promise<UserProfile | null> {
   const cachedProfile = await getCachedJson<UserProfile>(`user:profile:${userId}`)
-  let profile = cachedProfile
+  if (cachedProfile) return cachedProfile
 
-  if (!cachedProfile) {
-    profile = await prisma.userProfile.findUnique({ where: { userId } })
-    if (profile) {
-      void setCachedJson(`user:profile:${userId}`, profile, 3600)
+  const profile = await prisma.userProfile.findUnique({ where: { userId } })
+  if (profile) {
+    void setCachedJson(`user:profile:${userId}`, profile, 3600)
+  }
+  return profile
+}
+
+/**
+ * LLM-FIRST CONTEXT BUILDER WITH PGVECTOR SEMANTIC MEMORY
+ * 
+ * 1. Profile & Knowledge Graph Context (in parallel)
+ * 2. Semantic Memory Search via pgvector (when currentMessage is provided)
+ * 3. Sanitized Context Assembly with PII scrubbing
+ */
+export async function buildFullContext(
+  userId: string,
+  modeOrMessage?: AIMode | string,
+  messageParam?: string
+): Promise<string> {
+  const knownModes = new Set<string>([
+    "profile",
+    "jd-scan",
+    "application",
+    "tracker",
+    "response",
+    "interview",
+    "weekly",
+    "recovery",
+    "general",
+  ])
+
+  let currentMessage: string | undefined
+  if (typeof modeOrMessage === "string") {
+    if (knownModes.has(modeOrMessage)) {
+      currentMessage = messageParam
+    } else {
+      currentMessage = modeOrMessage
     }
   }
 
+  // 1. Profile, Identity, Knowledge Graph & Macro Outcomes (parallelized)
+  const [user, profile, graph, macroContext] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true, email: true },
+    }),
+    getCachedProfile(userId),
+    getCachedKnowledgeGraph(userId),
+    getMacroLearningContext(userId).catch(() => ""),
+  ])
+
+  const displayName = user?.name || user?.email || "there"
+
+  // 2. Semantic Memory Search via pgvector
+  let relevantMemories: string[] = []
+  if (currentMessage && currentMessage.trim().length > 0) {
+    try {
+      const semanticResults = await searchUserMemories(userId, currentMessage, 3, 0.65)
+      relevantMemories = semanticResults.map((m) => `[${m.category}] ${m.content}`)
+    } catch (err) {
+      console.warn("[Semantic Memory Search Warning]:", err)
+    }
+  }
+
+  // Fallback to recent memories if no semantic results found or no currentMessage
+  if (relevantMemories.length === 0) {
+    const cachedMemories = await getCachedJson<Array<{ category: string; content: string }>>(`user:memories:${userId}`)
+    let userMemories = cachedMemories
+
+    if (!cachedMemories) {
+      userMemories = await prisma.userMemory.findMany({
+        where: { userId },
+        orderBy: { createdAt: "desc" },
+        take: 8,
+        select: { category: true, content: true },
+      })
+      if (userMemories && userMemories.length > 0) {
+        void setCachedJson(`user:memories:${userId}`, userMemories, 3600)
+      }
+    }
+
+    if (userMemories && userMemories.length > 0) {
+      relevantMemories = userMemories.slice(0, 5).map((m) => `[${m.category}] ${m.content}`)
+    }
+  }
+
+  // 3. Sanitized Context Assembly
+  const profileParts: string[] = []
   if (profile) {
-    const profileParts: string[] = []
     if (profile.location) profileParts.push(profile.location)
     if (profile.targetRoles?.length) profileParts.push(profile.targetRoles.join(", "))
     if (profile.experienceLevel) profileParts.push(profile.experienceLevel)
     if (profile.strengths) profileParts.push(profile.strengths.split(",").slice(0, 5).join(","))
-    if (profileParts.length > 0) {
-      parts.push(`Profile: ${profileParts.join(" | ")}`)
-    }
   }
 
-  // Load memories (cached) — compact format
-  const cachedMemories = await getCachedJson<Array<{ category: string; content: string }>>(`user:memories:${userId}`)
-  let userMemories = cachedMemories
-
-  if (!cachedMemories) {
-    userMemories = await prisma.userMemory.findMany({
-      where: { userId },
-      orderBy: { createdAt: "desc" },
-      take: 8,
-      select: { category: true, content: true },
-    })
-    if (userMemories && userMemories.length > 0) {
-      void setCachedJson(`user:memories:${userId}`, userMemories, 3600)
-    }
+  let formattedGraph = ""
+  if (graph && graph.nodes && graph.nodes.length > 0) {
+    formattedGraph = formatGraphForContext(graph)
   }
 
-  if (userMemories && userMemories.length > 0) {
-    const compactMemories = userMemories.slice(0, 5).map(m => `${m.category}: ${m.content}`).join("; ")
-    parts.push(`Preferences: ${compactMemories}`)
-  }
+  const contextSections = [
+    displayName,
+    profileParts.length > 0 ? `Profile: ${profileParts.join(" | ")}` : "",
+    profile?.targetRoles?.length ? `User Target: ${profile.targetRoles.join(", ")}` : "",
+    macroContext ? `Outcome Learning:\n${macroContext}` : "",
+    relevantMemories.length > 0 ? `Relevant Facts:\n${relevantMemories.join("\n")}` : "",
+    formattedGraph ? formattedGraph : "",
+  ].filter(Boolean)
 
-  // Resume — only load if has knowledge graph (cached)
-  const cachedGraph = await getCachedKnowledgeGraph(userId)
-  if (cachedGraph && cachedGraph.nodes && cachedGraph.nodes.length > 0) {
-    const formattedGraph = formatGraphForContext(cachedGraph)
-    if (formattedGraph) {
-      parts.push(formattedGraph)
-    }
-  }
-
-  return parts.join("\n")
+  return sanitizePII(contextSections.join("\n\n"))
 }
 
 /**
@@ -156,7 +207,7 @@ export async function loadLazyContext(userId: string, type: string): Promise<str
         select: { companyName: true, jobTitle: true, status: true },
       })
       if (apps.length === 0) return "No applications tracked yet."
-      return apps.map(a => `${a.companyName} | ${a.jobTitle} | ${a.status}`).join("\n")
+      return apps.map((a) => `${a.companyName} | ${a.jobTitle} | ${a.status}`).join("\n")
     }
     case "stats": {
       const stats = await prisma.application.groupBy({
@@ -165,8 +216,10 @@ export async function loadLazyContext(userId: string, type: string): Promise<str
         _count: true,
       })
       const map: Record<string, number> = {}
-      stats.forEach(s => { map[s.status] = s._count })
-      return `Saved:${map.Saved||0} Applied:${map.Applied||0} Interview:${map.Interview||0} Rejected:${map.Rejected||0} Offer:${map.Offer||0}`
+      stats.forEach((s) => {
+        map[s.status] = s._count
+      })
+      return `Saved:${map.Saved || 0} Applied:${map.Applied || 0} Interview:${map.Interview || 0} Rejected:${map.Rejected || 0} Offer:${map.Offer || 0}`
     }
     case "resume": {
       const resume = await prisma.resume.findFirst({
@@ -185,7 +238,7 @@ export async function loadLazyContext(userId: string, type: string): Promise<str
         select: { title: true, category: true },
       })
       if (notes.length === 0) return "No prep notes."
-      return notes.map(n => `[${n.category}] ${n.title}`).join("\n")
+      return notes.map((n) => `[${n.category}] ${n.title}`).join("\n")
     }
     default:
       return ""
