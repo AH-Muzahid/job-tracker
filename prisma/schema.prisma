@@ -28,6 +28,7 @@ model User {
   memories     UserMemory[]
   knowledgeGraph CareerKnowledgeGraph?
   interviewSessions InterviewSession[]
+  notifications Notification[]
 }
 
 model Application {
@@ -321,5 +322,21 @@ model InterviewSession {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([userId, createdAt])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  title     String
+  message   String   @db.Text
+  type      String   // "DAILY_HUNT" | "WEEKLY_DIGEST" | "FOLLOW_UP"
+  link      String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
   @@index([userId, createdAt])
 }

@@ -9,7 +9,8 @@ import { AppBreadcrumbs } from "@/components/app-breadcrumbs";
 import { navLinks } from "@/components/app-shared";
 import { CustomSidebarTrigger } from "@/components/custom-sidebar-trigger";
 import { NavUser } from "@/components/nav-user";
-import { SearchIcon, SunIcon, MoonIcon, BellIcon, Bot, Briefcase } from "lucide-react";
+import { SearchIcon, SunIcon, MoonIcon, Bot, Briefcase } from "lucide-react";
+import { NotificationCenter } from "@/components/notifications/NotificationCenter";
 import { useUI } from "@/lib/store";
 import Link from "next/link";
 
@@ -104,15 +105,7 @@ export function AppHeader() {
 					{dark ? <SunIcon className="size-4" /> : <MoonIcon className="size-4" />}
 				</Button>
 
-				<Button
-					aria-label="Notifications"
-					className="size-8 cursor-pointer relative"
-					size="icon"
-					variant="ghost"
-				>
-					<BellIcon className="size-4" />
-					<span className="absolute top-1.5 right-1.5 size-1.5 rounded-full bg-success" />
-				</Button>
+				<NotificationCenter />
 
 				<Separator
 					className="h-4 data-[orientation=vertical]:self-center"
