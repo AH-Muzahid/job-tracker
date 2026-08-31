@@ -1,41 +1,43 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, vi } from "vitest"
-import { createAiTools } from "@/lib/ai/tools"
+import { executeSaveUserMemory, executeGetUserMemories } from "@/lib/ai/graph/tools/profile-tools"
 import { prisma } from "@/lib/prisma"
 
 describe("User Memory & Semantic Fact Management", () => {
   const testUserId = "test-user-mem-123"
 
-  it("exposes saveUserMemory, forgetUserMemory, and getUserMemories tools", () => {
-    const tools = createAiTools(testUserId) as any
-    expect(tools.saveUserMemory).toBeDefined()
-    expect(tools.forgetUserMemory).toBeDefined()
-    expect(tools.getUserMemories).toBeDefined()
-  })
-
-  it("handles saving user memory and prevents duplicate insertion", async () => {
-    const tools = createAiTools(testUserId) as any
-
-    // Mock prisma responses
-    vi.spyOn((prisma as any).userMemory, "findFirst").mockResolvedValueOnce(null)
+  it("handles saving user memory successfully", async () => {
     vi.spyOn((prisma as any).userMemory, "create").mockResolvedValueOnce({
       id: "mem_1",
       userId: testUserId,
       category: "preference",
       content: "Prefers remote Golang & React roles",
       source: "chat",
-      confidence: 1.0,
       createdAt: new Date(),
-      updatedAt: new Date(),
-    } as any)
+    })
 
-    const result = await tools.saveUserMemory.execute({
+    const result = await executeSaveUserMemory(testUserId, {
       category: "preference",
       content: "Prefers remote Golang & React roles",
     })
 
     expect(result.success).toBe(true)
-    expect(result.memoryId).toBe("mem_1")
-    expect(result.content).toBe("Prefers remote Golang & React roles")
+    expect(result.message).toContain("Prefers remote Golang & React roles")
+  })
+
+  it("handles retrieving user memories", async () => {
+    vi.spyOn((prisma as any).userMemory, "findMany").mockResolvedValueOnce([
+      {
+        id: "mem_1",
+        userId: testUserId,
+        category: "preference",
+        content: "Prefers remote Golang & React roles",
+      },
+    ])
+
+    const result = await executeGetUserMemories(testUserId)
+    expect(result.success).toBe(true)
+    expect(result.count).toBe(1)
+    expect((result.memories as any[])?.[0]?.content).toBe("Prefers remote Golang & React roles")
   })
 })

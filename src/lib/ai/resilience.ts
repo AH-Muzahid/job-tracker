@@ -3,8 +3,17 @@ import { generateText, streamText } from "ai"
 import type { LanguageModelV4 } from "@ai-sdk/provider"
 import { getProvider, AIProviderConfig } from "./client"
 import { getUserAIConfig, getAllUserAIProfiles } from "./config"
-import { LoopDetector } from "./loop-detector"
 import { getToolRisk, ToolRisk } from "./tool-registry"
+
+class LoopDetector {
+  private calls = new Map<string, number>()
+  constructor(_options?: { repetitionThreshold?: number; timeWindowMs?: number }) {}
+  recordCall(name: string, _args: Record<string, unknown>): boolean {
+    const count = (this.calls.get(name) || 0) + 1
+    this.calls.set(name, count)
+    return count > 3
+  }
+}
 
 export interface ResilientModelCandidate {
   id: string

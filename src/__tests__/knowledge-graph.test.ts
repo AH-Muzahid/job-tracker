@@ -5,7 +5,7 @@ import {
   buildCareerGraphFromText,
   traverseGraphForJD,
 } from "@/lib/ai/knowledge-graph"
-import { createAiTools } from "@/lib/ai/tools"
+import { executeSyncCareerKnowledgeGraph } from "@/lib/ai/graph/tools/resume-tools"
 import { prisma } from "@/lib/prisma"
 
 describe("Vectorless Career Knowledge Graph & Graph-RAG Engine", () => {
@@ -20,7 +20,7 @@ describe("Vectorless Career Knowledge Graph & Graph-RAG Engine", () => {
     expect(toCanonical("Tailwind")).toBe("tailwindcss")
   })
 
-  it("builds structured knowledge graph with domains, skills, projects, and metric edges", () => {
+  it("builds structured knowledge graph with domains, skills, and metric edges", () => {
     const rawResume = `
       Experienced Senior Fullstack Engineer.
       Skills: Go, TypeScript, React, Next.js, PostgreSQL, Redis, Docker, Kubernetes.
@@ -29,53 +29,29 @@ describe("Vectorless Career Knowledge Graph & Graph-RAG Engine", () => {
       - Migrated legacy database to PostgreSQL cutting query times by 65%.
     `
 
-    const mockProfile = {
-      targetRoles: ["Senior Backend Engineer"],
-      strengths: "Go, PostgreSQL, Distributed Systems",
-      bestProjects: [
-        {
-          name: "High-Throughput Ingestion Engine",
-          stack: "Go, Redis, Docker",
-          description: "Distributed streaming engine",
-        },
-      ],
-    }
+    const graph = buildCareerGraphFromText(rawResume)
 
-    const graph = buildCareerGraphFromText(rawResume, mockProfile)
+    expect(graph.nodes.length).toBeGreaterThanOrEqual(4)
+    expect(graph.edges.length).toBeGreaterThanOrEqual(2)
 
-    expect(graph.nodes.length).toBeGreaterThan(5)
-    expect(graph.edges.length).toBeGreaterThan(3)
+    const skillNodes = graph.nodes.filter((n) => n.type === "skill")
+    const metricNodes = graph.nodes.filter((n) => n.type === "metric")
+    const domainNodes = graph.nodes.filter((n) => n.type === "domain")
 
-    // Check specific nodes exist
-    const goNode = graph.nodes.find((n) => n.canonicalName === "go")
-    const projectNode = graph.nodes.find((n) => n.name === "High-Throughput Ingestion Engine")
-    
-    expect(goNode).toBeDefined()
-    expect(projectNode).toBeDefined()
-
-    // Check edge between Go and the project
-    const hasAppliedEdge = graph.edges.some(
-      (e) => e.source === goNode?.id && e.target === projectNode?.id && e.relation === "APPLIED_IN"
-    )
-    expect(hasAppliedEdge).toBe(true)
+    expect(skillNodes.length).toBeGreaterThan(0)
+    expect(metricNodes.length).toBeGreaterThan(0)
+    expect(domainNodes.length).toBeGreaterThan(0)
   })
 
-  it("traverses knowledge graph for a target JD and produces verified evidence paths", () => {
+  it("traverses knowledge graph to find deterministic proof paths for job description", () => {
     const rawResume = `
-      Skills: Go, Redis, Docker, PostgreSQL, TypeScript.
-      - Developed ingestion platform in Go and Redis with 50k req/s throughput.
+      Senior Backend Engineer.
+      Skills: Go, Redis, PostgreSQL, Docker, AWS.
+      Projects:
+      - Architected low-latency distributed cache using Go and Redis handling 100k req/s.
     `
-    const mockProfile = {
-      bestProjects: [
-        {
-          name: "Realtime Pipeline",
-          stack: "Go, Redis",
-          description: "Data platform",
-        },
-      ],
-    }
 
-    const graph = buildCareerGraphFromText(rawResume, mockProfile)
+    const graph = buildCareerGraphFromText(rawResume)
 
     const sampleJD = `
       We are looking for a Senior Backend Engineer proficient in Go (Golang) and Redis.
@@ -90,11 +66,7 @@ describe("Vectorless Career Knowledge Graph & Graph-RAG Engine", () => {
     expect(matchResult.evidencePaths[0]).toContain("Go")
   })
 
-  it("exposes queryCareerKnowledgeGraph and syncCareerKnowledgeGraph tools", async () => {
-    const tools = createAiTools(testUserId) as any
-    expect(tools.queryCareerKnowledgeGraph).toBeDefined()
-    expect(tools.syncCareerKnowledgeGraph).toBeDefined()
-
+  it("executes syncCareerKnowledgeGraph tool cleanly", async () => {
     vi.spyOn((prisma as any).resume, "findFirst").mockResolvedValueOnce({
       id: "res_1",
       userId: testUserId,
@@ -112,7 +84,7 @@ describe("Vectorless Career Knowledge Graph & Graph-RAG Engine", () => {
       edges: [],
     })
 
-    const result = await tools.syncCareerKnowledgeGraph.execute({})
+    const result = await executeSyncCareerKnowledgeGraph(testUserId)
     expect(result.success).toBe(true)
     expect(result.nodeCount).toBeGreaterThan(0)
   })

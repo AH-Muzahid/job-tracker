@@ -9,7 +9,6 @@ import { Card } from "@/components/ui/card"
 import ChatMessage from "./ChatMessage"
 import { useUI, type AIMode } from "@/lib/store"
 import ModelSelector from "./ModelSelector"
-import { createDataStreamParser } from "@/lib/ai/stream-parser"
 import { useWorkspace } from "./WorkspaceContext"
 import WorkspaceDrawer from "./WorkspaceDrawer"
 
@@ -388,16 +387,13 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
       const controller = new AbortController()
       abortRef.current = controller
 
-      console.log(`[Chat] 4. Sending POST to /api/ai/chat`)
-      const res = await fetch("/api/ai/chat", {
+      console.log(`[Chat] 4. Sending POST to /api/agent/run`)
+      const res = await fetch("/api/agent/run", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           sessionId: currentSessionId,
           message: trimmed,
-          mode: selectedMode,
-          modelOverride,
-          retryUserMsgId: retryOptions?.retryUserMsgId,
         }),
         signal: controller.signal,
       })
@@ -419,47 +415,60 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
       console.log(`[Chat] 5. Response received, starting stream reader`)
       const reader = res.body?.getReader()
       const decoder = new TextDecoder()
-      const parser = createDataStreamParser()
 
       if (reader) {
-        let chunkCount = 0
+        let buffer = ""
+        let accumulatedText = ""
         try {
           while (true) {
             const { value, done: doneReading } = await reader.read()
             if (doneReading) break
             if (value) {
-              chunkCount++
-              const chunk = decoder.decode(value, { stream: true })
-              const parsed = parser.feed(chunk)
-              if (chunkCount === 1 || chunkCount % 10 === 0) {
-                console.log(`[Chat] 6. Stream chunk #${chunkCount} — text: ${parsed.text.length} chars, tools: ${parsed.toolInvocations.length}`)
-              }
-              setMessages((prev) => {
-                const updated = [...prev]
-                const lastIdx = updated.findIndex((m) => m.id === assistantMsgId)
-                if (lastIdx !== -1) {
-                  updated[lastIdx] = {
-                    ...updated[lastIdx],
-                    content: parsed.text,
-                    reasoning: parsed.reasoning,
-                    toolInvocations: parsed.toolInvocations,
-                  }
+              buffer += decoder.decode(value, { stream: true })
+              const lines = buffer.split("\n\n")
+              buffer = lines.pop() || ""
+
+              for (const block of lines) {
+                const matchEvent = block.match(/^event:\s*(.+)$/m)
+                const matchData = block.match(/^data:\s*(.+)$/m)
+
+                if (matchEvent && matchData) {
+                  const event = matchEvent[1].trim()
+                  try {
+                    const data = JSON.parse(matchData[1])
+                    if (event === "responder" && data.responseContent) {
+                      accumulatedText = data.responseContent
+                    } else if (event === "done" && data.state?.responseContent) {
+                      accumulatedText = data.state.responseContent
+                    }
+
+                    if (accumulatedText) {
+                      setMessages((prev) => {
+                        const updated = [...prev]
+                        const lastIdx = updated.findIndex((m) => m.id === assistantMsgId)
+                        if (lastIdx !== -1) {
+                          updated[lastIdx] = {
+                            ...updated[lastIdx],
+                            content: accumulatedText,
+                          }
+                        }
+                        return updated
+                      })
+                    }
+                  } catch {}
                 }
-                return updated
-              })
+              }
             }
           }
         } finally {
           reader.releaseLock()
         }
 
-        console.log(`[Chat] 7. Stream finished — ${chunkCount} chunks processed`)
-        const finalState = parser.finalize()
-        console.log(`[Chat] 7a. Finalized — text: ${finalState.text.length} chars, tools: ${finalState.toolInvocations.length}`)
+        console.log(`[Chat] 7. Stream finished successfully`)
 
-        // Always check backend session for persisted toolInvocations metadata
+        // Check backend session for persisted message
         try {
-          console.log(`[Chat] 8. Fetching session from DB for tool invocations`)
+          console.log(`[Chat] 8. Fetching session from DB`)
           const sessionRes = await fetch(`/api/ai/sessions/${currentSessionId}`)
           if (sessionRes.ok) {
             const sessionData = await sessionRes.json()
@@ -468,8 +477,6 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
               .pop()
 
             if (lastAsstMsg) {
-              const dbToolInvocations = lastAsstMsg.toolInvocations || lastAsstMsg.metadata?.toolInvocations || []
-              console.log(`[Chat] 8a. DB message found — id: ${lastAsstMsg.id}, toolInvocations: ${dbToolInvocations.length}`)
               setMessages((prev) => {
                 const updated = [...prev]
                 const lastIdx = updated.findIndex((m) => m.id === assistantMsgId)
@@ -477,41 +484,23 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
                   updated[lastIdx] = {
                     ...updated[lastIdx],
                     id: lastAsstMsg.id || updated[lastIdx].id,
-                    content: lastAsstMsg.content || finalState.text || updated[lastIdx].content,
-                    toolInvocations: dbToolInvocations.length > 0 ? dbToolInvocations : (finalState.toolInvocations || updated[lastIdx].toolInvocations || []),
+                    content: lastAsstMsg.content || accumulatedText || updated[lastIdx].content,
                   }
                 }
                 return updated
               })
-              return
             }
           }
-        } catch {
-          // Ignored
-        }
+        } catch {}
 
-        if (!finalState.text.trim() && (!finalState.toolInvocations || finalState.toolInvocations.length === 0)) {
+        if (!accumulatedText.trim()) {
           setMessages((prev) => {
             const updated = [...prev]
             const lastIdx = updated.findIndex((m) => m.id === assistantMsgId)
             if (lastIdx !== -1) {
               updated[lastIdx] = {
                 ...updated[lastIdx],
-                content: "⚠️ The model completed the request without text output. Please click retry or rephrase your request.",
-              }
-            }
-            return updated
-          })
-        } else {
-          setMessages((prev) => {
-            const updated = [...prev]
-            const lastIdx = updated.findIndex((m) => m.id === assistantMsgId)
-            if (lastIdx !== -1) {
-              updated[lastIdx] = {
-                ...updated[lastIdx],
-                content: finalState.text,
-                reasoning: finalState.reasoning,
-                toolInvocations: finalState.toolInvocations,
+                content: "The agent completed processing. Please check your dashboard or refresh session.",
               }
             }
             return updated
