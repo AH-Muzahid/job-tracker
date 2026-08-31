@@ -1,7 +1,7 @@
 "use client"
 
 import { memo } from "react"
-import { ExternalLink, MoreHorizontal, Pencil, Trash2, ArrowRight, Calendar, Globe, Building2, MapPin, Sparkles } from "lucide-react"
+import { ExternalLink, MoreHorizontal, Pencil, Trash2, ArrowRight, Calendar, Globe, Building2, MapPin, Zap } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {

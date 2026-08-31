@@ -3,7 +3,7 @@
 import Link from "next/link"
 import {
   Clock, ArrowRight, Target, TrendingUp,
-  Sparkles,
+  Zap,
 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -147,7 +147,7 @@ export default function ActivityFeed({
       <Card className="md:col-span-2 overflow-hidden">
         <CardContent className="p-5 space-y-4">
           <div className="flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-muted-foreground" />
+            <Zap className="h-4 w-4 text-muted-foreground" />
             <h3 className="text-sm font-semibold text-foreground">Insights</h3>
           </div>
 
@@ -226,7 +226,7 @@ export default function ActivityFeed({
             )}
             {topSource && (
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Sparkles className="h-3 w-3 shrink-0" />
+                <Zap className="h-3 w-3 shrink-0" />
                 <span>Top source: <span className="font-semibold text-foreground">{topSource.source}</span> ({topSource.count})</span>
               </div>
             )}

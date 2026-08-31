@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect } from "react"
-import { Brain, Trash2, Plus, Loader2, Sparkles, RefreshCw, UserCheck } from "lucide-react"
+import { Brain, Trash2, Plus, Loader2, BrainCircuit, RefreshCw, UserCheck } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -203,7 +203,7 @@ export function AIMemoryManager({ initialMemories, isLoading = false }: AIMemory
           </div>
         ) : memories.length === 0 ? (
           <div className="rounded-xl border border-dashed border-border/80 p-6 text-center text-muted-foreground space-y-2.5 bg-muted/20">
-            <Sparkles className="h-5 w-5 mx-auto text-muted-foreground/60" />
+            <BrainCircuit className="h-5 w-5 mx-auto text-muted-foreground/60" />
             <div className="space-y-0.5">
               <p className="text-xs font-semibold text-foreground">No explicit memories retained yet.</p>
               <p className="text-[11px] text-muted-foreground max-w-sm mx-auto">

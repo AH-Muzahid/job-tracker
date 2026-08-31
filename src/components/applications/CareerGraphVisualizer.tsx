@@ -1,7 +1,7 @@
 "use client"
 
 import React from "react"
-import { CheckCircle2, AlertCircle, GitBranch, ArrowRight, Layers, Sparkles } from "lucide-react"
+import { CheckCircle2, AlertCircle, GitBranch, ArrowRight, Layers, BrainCircuit } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
@@ -60,7 +60,7 @@ export function CareerGraphVisualizer({ graphMatch }: CareerGraphVisualizerProps
             </div>
           </div>
           <div className="col-span-2 sm:col-span-1 rounded-lg border bg-background/50 p-2.5 flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-indigo-500 shrink-0" />
+            <BrainCircuit className="h-4 w-4 text-indigo-500 shrink-0" />
             <div>
               <p className="text-[11px] text-muted-foreground font-medium">Graph Integrity</p>
               <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">100% Proven</p>

@@ -1,6 +1,6 @@
 "use client"
 
-import { Sparkles, Bot } from "lucide-react"
+import { BrainCircuit, Bot } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -28,7 +28,7 @@ export default function ApplicationAnalysisSection({ analysis, showAnalysis, ana
           disabled={analysisLoading}
           className="gap-1.5"
         >
-          <Sparkles className="h-3.5 w-3.5" />
+          <BrainCircuit className="h-3.5 w-3.5" />
           {analysisLoading ? "Analyzing..." : (analysis ? "Re-analyze" : "Analyze with AI")}
         </Button>
       </CardHeader>

@@ -8,7 +8,7 @@ import {
   Play,
   Pause,
   Square,
-  Sparkles,
+  BrainCircuit,
   Loader2,
   Award,
 } from "lucide-react"
@@ -265,7 +265,7 @@ export function ActiveInterviewRoom({
               </p>
               {isAiThinking && (
                 <span className="text-[10px] text-purple-600 dark:text-purple-400 bg-purple-500/10 px-1.5 py-0.2 rounded font-medium flex items-center gap-1">
-                  <Sparkles className="h-2.5 w-2.5 animate-spin" />
+                  <BrainCircuit className="h-2.5 w-2.5 animate-pulse" />
                   <span>Analyzing</span>
                 </span>
               )}

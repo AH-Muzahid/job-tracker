@@ -5,7 +5,7 @@ import {
   LayoutDashboard,
   Building2,
   Calendar,
-  Sparkles,
+  BrainCircuit,
   MessageSquare,
   FileText,
   User,
@@ -108,7 +108,7 @@ export function HeroDashboardMockup() {
               <nav className="space-y-0.5 text-xs">
                 <div className="flex items-center justify-between rounded-md px-2.5 py-1.5 text-muted-foreground hover:bg-muted/40 transition-colors">
                   <div className="flex items-center gap-2.5">
-                    <Sparkles className="size-3.5 text-primary" />
+                    <BrainCircuit className="size-3.5 text-primary" />
                     <span>AI Assistant</span>
                   </div>
                   <span className="size-1.5 rounded-full bg-primary" />
@@ -146,7 +146,7 @@ export function HeroDashboardMockup() {
               <span className="text-xs font-mono text-muted-foreground">Pipeline Status: Active</span>
             </div>
             <div className="flex items-center gap-1.5 h-8 px-3 rounded-md bg-foreground text-background text-xs font-semibold shadow-2xs">
-              <Sparkles className="size-3.5 text-primary-foreground fill-primary" />
+              <BrainCircuit className="size-3.5 text-primary-foreground fill-primary" />
               <span>Intake & Match with AI</span>
             </div>
           </div>

@@ -7,7 +7,7 @@ import {
   MicOff,
   Volume2,
   VolumeX,
-  Sparkles,
+  BrainCircuit,
   Award,
   CheckCircle2,
   AlertTriangle,
@@ -403,7 +403,7 @@ export function VoiceMockInterviewModal({
                   </>
                 ) : (
                   <>
-                    <Sparkles className="h-3.5 w-3.5" />
+                    <BrainCircuit className="h-3.5 w-3.5" />
                     <span>Grade My Answer</span>
                   </>
                 )}

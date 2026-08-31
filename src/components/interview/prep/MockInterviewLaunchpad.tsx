@@ -1,7 +1,7 @@
 "use client"
 
 import React from "react"
-import { Mic, CheckCircle2, Brain, Sparkles, ArrowRight } from "lucide-react"
+import { Mic, CheckCircle2, Brain, Zap, ArrowRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { DashboardCard } from "@/components/dashboard-card"
