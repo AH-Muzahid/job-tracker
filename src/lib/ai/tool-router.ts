@@ -2,40 +2,24 @@
 import type { AIMode } from "./context-builder"
 import { ToolRisk, TOOL_RISK_MAP } from "./tool-registry"
 
-const MODE_TOOL_CATEGORIES: Record<AIMode, ToolRisk[]> = {
-  tracker:     [ToolRisk.READ_ONLY, ToolRisk.LOW_MUTATION, ToolRisk.HIGH_MUTATION],
-  application: [ToolRisk.READ_ONLY, ToolRisk.LOW_MUTATION, ToolRisk.HIGH_MUTATION],
-  "jd-scan":   [ToolRisk.READ_ONLY, ToolRisk.LOW_MUTATION, ToolRisk.EXTERNAL],
-  interview:   [ToolRisk.READ_ONLY, ToolRisk.LOW_MUTATION],
-  weekly:      [ToolRisk.READ_ONLY, ToolRisk.LOW_MUTATION],
-  response:    [ToolRisk.READ_ONLY, ToolRisk.LOW_MUTATION],
-  recovery:    [ToolRisk.READ_ONLY, ToolRisk.LOW_MUTATION],
-  profile:     [ToolRisk.READ_ONLY, ToolRisk.LOW_MUTATION],
-  general:     [ToolRisk.READ_ONLY, ToolRisk.LOW_MUTATION],
-}
-
-const ALWAYS_EXPOSE: ToolRisk[] = [ToolRisk.READ_ONLY, ToolRisk.LOW_MUTATION]
-
-const MODE_SPECIFIC_TOOLS: Partial<Record<AIMode, string[]>> = {
-  tracker: ["createApplication", "updateApplicationStatus", "deleteApplication", "batchImportApplications", "syncToGoogleSheets"],
-  application: ["createApplication", "tailorResumeForJob", "draftOutreachEmail", "sendOutreachEmailViaResend"],
-  "jd-scan": ["scrapeJobLink", "researchCompanyIntel", "queryCareerKnowledgeGraph"],
-  interview: ["addPrepQuestions", "savePrepNote", "getPrepNotes", "recordMockInterviewScore"],
-  weekly: ["setWeeklyGoals"],
-  profile: ["syncCareerKnowledgeGraph"],
-}
+/**
+ * LLM-FIRST TOOL ROUTING
+ * 
+ * The LLM receives ALL tools and decides based on context.
+ * No regex-based hard filtering — the model is smart enough.
+ * 
+ * Safety guardrails:
+ * - DESTRUCTIVE tools (delete, forget) → requiresConfirmation: true (HITL)
+ * - EXTERNAL tools (email, scrape, sheets) → requiresConfirmation: true (HITL)
+ * - HIGH_MUTATION tools (create, update, batch) → exposed directly
+ * - READ_ONLY / LOW_MUTATION → always safe
+ */
 
 export function filterToolsByMode(
   tools: Record<string, any>,
-  mode: AIMode
+  _mode: AIMode
 ): Record<string, any> {
-  const allowedRisks = MODE_TOOL_CATEGORIES[mode] ?? ALWAYS_EXPOSE
-  const allowedSpecific = MODE_SPECIFIC_TOOLS[mode] ?? []
-
-  return Object.fromEntries(
-    Object.entries(tools).filter(([name]) => {
-      const risk = TOOL_RISK_MAP[name]?.risk ?? ToolRisk.LOW_MUTATION
-      return allowedRisks.includes(risk) || allowedSpecific.includes(name)
-    })
-  )
+  // Expose ALL tools — let the LLM decide based on context
+  // Confirmation guardrails handle safety for destructive operations
+  return tools
 }

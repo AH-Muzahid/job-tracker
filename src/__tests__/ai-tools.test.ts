@@ -222,6 +222,25 @@ describe("Autonomous AI Agent Tools Suite", () => {
       expect(prisma.application.delete).toHaveBeenCalledWith({ where: { id: "app-latest" } })
     })
 
+    it("deleteApplication extracts company name from reason if companyOrTitle is unknown/empty", async () => {
+      vi.mocked(prisma.application.findFirst).mockResolvedValueOnce({
+        id: "app-stripe",
+        userId,
+        companyName: "Stripe",
+        jobTitle: "Software Engineer",
+      } as any)
+
+      vi.mocked(prisma.application.delete).mockResolvedValueOnce({ id: "app-stripe" } as any)
+
+      const result = await (tools.deleteApplication as any).execute({
+        reason: "User explicitly requested to delete the application for Stripe.",
+      })
+
+      expect(result.success).toBe(true)
+      expect(result.deletedCompany).toBe("Stripe")
+      expect(prisma.application.delete).toHaveBeenCalledWith({ where: { id: "app-stripe" } })
+    })
+
     it("batchImportApplications imports multiple applications in a single run", async () => {
       vi.mocked(prisma.application.create)
         .mockResolvedValueOnce({ id: "app-1", companyName: "Google", jobTitle: "SRE", status: "Saved" } as any)
@@ -324,6 +343,33 @@ describe("Autonomous AI Agent Tools Suite", () => {
       const result = await (tools.researchCompanyIntel as any).execute({
         company: "Stripe",
         industry: "Fintech",
+      })
+
+      expect(result.success).toBe(true)
+      expect(result.companyName).toBe("Stripe")
+    })
+
+    it("researchCompanyIntel extracts company from reason field with natural language", async () => {
+      vi.mocked(prisma.company.upsert).mockResolvedValueOnce({
+        id: "comp-3",
+        userId,
+        name: "Stripe",
+        industry: "Technology",
+        website: null,
+        notes: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        logoUrl: null,
+      })
+
+      vi.mocked(prisma.prepNote.create).mockResolvedValueOnce({
+        id: "note-3",
+        title: "Intel: Stripe",
+        category: "Company Research",
+      } as any)
+
+      const result = await (tools.researchCompanyIntel as any).execute({
+        reason: "Stripe's tech stack and engineering culture",
       })
 
       expect(result.success).toBe(true)

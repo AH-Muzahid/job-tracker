@@ -293,6 +293,7 @@ export async function resilientStreamText(options: {
 
   for (const candidate of candidates) {
     try {
+      console.log(`[Stream] Trying provider: ${candidate.name} (${candidate.id})`)
       const result = (streamText as any)({
         model: candidate.model,
         system: options.system,
@@ -303,10 +304,11 @@ export async function resilientStreamText(options: {
         onError: options.onError,
         onFinish: options.onFinish,
         onStepFinish: (event: any) => {
-          const { toolCalls } = event
+          const { toolCalls, toolResults, text } = event
 
           if (toolCalls && toolCalls.length > 0) {
             for (const tc of toolCalls) {
+              console.log(`[Tool] Calling: ${tc.toolName}`, JSON.stringify(tc.args, null, 2))
               const isLoop = loopDetector.recordCall(tc.toolName, tc.args as Record<string, unknown>)
               if (isLoop) {
                 console.warn(`[LoopDetector] Loop detected for tool: ${tc.toolName}`)
@@ -319,10 +321,22 @@ export async function resilientStreamText(options: {
             }
           }
 
+          if (toolResults && toolResults.length > 0) {
+            for (const tr of toolResults) {
+              const resultStr = typeof tr.result === "string" ? tr.result : JSON.stringify(tr.result)
+              console.log(`[Tool] Result: ${tr.toolName} → ${resultStr?.slice(0, 200)}`)
+            }
+          }
+
+          if (text) {
+            console.log(`[Stream] Text generated: ${text.length} chars`)
+          }
+
           return options.onStepFinish?.(event)
         },
       })
 
+      console.log(`[Stream] Provider ${candidate.name} connected successfully`)
       return {
         result,
         modelUsed: candidate.id,

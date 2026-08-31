@@ -160,9 +160,10 @@ export async function POST(request: NextRequest) {
 
   // Save current user message asynchronously if not retrying/editing
   if (!retryUserMsgId) {
+    console.log(`[ChatAPI] Saving user message to DB`)
     void prisma.chatMessage.create({
       data: { sessionId, role: "user", content: message, metadata: { mode } },
-    }).catch(() => {})
+    }).then(() => console.log(`[ChatAPI] User message saved`)).catch(() => {})
   }
 
   const history = historyRaw.reverse()
@@ -199,10 +200,12 @@ export async function POST(request: NextRequest) {
     ...budgetedMessages.map((m) => ({ ...m, role: m.role as "user" | "assistant" | "system" })),
   ]
 
-  const tools = createAiTools(userId)
+  const tools = createAiTools(userId, sessionId)
   const filteredTools = filterToolsByMode(tools, mode)
 
   try {
+    console.log(`[ChatAPI] Starting stream — mode: ${mode}, model: ${modelOverride || "default"}`)
+    console.log(`[ChatAPI] Tools available: ${Object.keys(filteredTools).join(", ")}`)
     const { result, modelUsed, providerUsed } = await resilientStreamText({
       userId,
       preferredModelId: modelOverride,
@@ -213,9 +216,11 @@ export async function POST(request: NextRequest) {
       maxSteps: 5,
       onError: () => {},
       onFinish: async ({ text, usage, toolResults }: any) => {
+        console.log(`[ChatAPI] Stream finished — text: ${text?.length || 0} chars, toolResults: ${toolResults?.length || 0}, tokens: ${usage?.totalTokens || "?"}`)
 
         let finalText = text
         if (!finalText?.trim() && toolResults && toolResults.length > 0) {
+          console.log(`[ChatAPI] No text output — synthesizing from tool results`)
           finalText = toolResults
             .map((tr: any) => {
               const res = tr.result ?? tr.output ?? tr
@@ -253,6 +258,7 @@ export async function POST(request: NextRequest) {
                 },
               },
             })
+            console.log(`[ChatAPI] Message saved to DB — session: ${sessionId}, tools used: ${toolResults?.length || 0}`)
             // Generate and save a smart AI title in the background
             void generateAndSaveSessionTitle(sessionId, message, finalText)
 

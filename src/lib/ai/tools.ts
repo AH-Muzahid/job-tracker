@@ -53,6 +53,53 @@ function parseToolArgs(raw: any): Record<string, any> {
   return typeof current === "object" && current !== null ? current : {}
 }
 
+function extractCompanyFromText(text: string): string {
+  if (!text) return ""
+  // Clean punctuation but preserve spaces/alphanumerics
+  const clean = text.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, " ").replace(/\s+/g, " ").trim()
+
+  const patterns = [
+    /(?:delete|remove|dlt|cancel|drop|forget)\s+(?:the\s+)?(?:application\s+)?(?:for\s+)?([A-Za-z0-9\s&-]{2,25})/i,
+    /([A-Za-z0-9\s&-]{2,25})\s+(?:delete|remove|dlt|sorao|bad|hatao)\s+(?:koro|den|dite|felo)/i,
+  ]
+
+  for (const regex of patterns) {
+    const match = clean.match(regex)
+    if (match && match[1]) {
+      const candidate = match[1].trim()
+      const generic = ["it", "this", "that", "application", "job", "my"]
+      if (!generic.includes(candidate.toLowerCase())) {
+        return candidate
+      }
+    }
+  }
+  return ""
+}
+
+async function resolveHITLArgs(args: any, sessionId?: string): Promise<any> {
+  if (!sessionId) return args
+
+  try {
+    const lastMsg = await prisma.chatMessage.findFirst({
+      where: { sessionId, role: "user" },
+      orderBy: { createdAt: "desc" },
+    })
+
+    if (lastMsg && lastMsg.content.includes("Original args:")) {
+      const jsonMatch = lastMsg.content.match(/Original args:\s*(\{[\s\S]*?\})/)
+      if (jsonMatch) {
+        const originalArgs = JSON.parse(jsonMatch[1])
+        console.log(`[Tool] HITL confirmation detected. Extracted original args:`, JSON.stringify(originalArgs))
+        return { ...args, ...originalArgs }
+      }
+    }
+  } catch (err) {
+    console.error("[Tool] Failed to resolve HITL args:", err)
+  }
+
+  return args
+}
+
 function extractCompanyAndRole(rawStr: string): { company: string; title: string } {
   if (!rawStr) return { company: "", title: "" }
   let str = rawStr.replace(/\{[\s\S]*?"reason":\s*"|"\}|^\s*["']|["']\s*$/g, "").trim()
@@ -112,21 +159,14 @@ export function cleanJobTitle(title: string): string {
   return cleaned
 }
 
-export function createAiTools(userId: string) {
+export function createAiTools(userId: string, sessionId?: string) {
   return {
     updateApplicationStatus: tool({
-      description: "Update the status of an existing application (e.g. from Applied to Interview or Rejected) ONLY when the user explicitly asks to change or update status.",
+      description: "Update application status. Extract company/title from conversation context if not explicit.",
       parameters: z.object({
-        companyOrTitle: z.string().optional().describe("The company name or job title to find the application"),
-        company: z.string().optional().describe("Alias for companyOrTitle"),
-        companyName: z.string().optional().describe("Alias for companyOrTitle"),
-        jobTitle: z.string().optional().describe("Alias for companyOrTitle"),
-        title: z.string().optional().describe("Alias for companyOrTitle"),
-        role: z.string().optional().describe("Alias for companyOrTitle"),
-        newStatus: z.string().optional().describe("The new status: Saved, Applied, Assessment, Interview, Rejected, Offer"),
-        status: z.string().optional().describe("Alias for newStatus"),
-        reason: z.string().optional().describe("Reason or natural description of the status change"),
-        notes: z.string().optional().describe("Optional note or update reason"),
+        companyOrTitle: z.string().describe("Company name or job title"),
+        newStatus: z.string().describe("New status: Saved, Applied, Assessment, Interview, Rejected, Offer"),
+        notes: z.string().optional().describe("Optional note"),
       }),
       execute: async (rawArgs: any) => {
         try {
@@ -258,19 +298,13 @@ export function createAiTools(userId: string) {
     } as any),
 
     createApplication: tool({
-      description: "Create a new job application entry in the user's tracker when the user asks to add, save, log, track, or record an application.",
+      description: "Create a new job application. Extract company/title from conversation context if not explicit.",
       parameters: z.object({
-        companyName: z.string().optional().describe("The exact name of the company, e.g. 'Stripe', 'Google', 'Amazon'"),
-        company: z.string().optional().describe("Alias for companyName"),
-        jobTitle: z.string().optional().describe("The exact job title or role, e.g. 'Senior Backend Engineer', 'Frontend Developer'"),
-        title: z.string().optional().describe("Alias for jobTitle"),
-        role: z.string().optional().describe("Alias for jobTitle"),
-        position: z.string().optional().describe("Alias for jobTitle"),
-        status: z.string().optional().describe("The application status: Saved, Applied, Assessment, Interview, Rejected, Offer"),
-        reason: z.string().optional().describe("Reason or natural description of the application"),
-        jobUrl: z.string().optional().describe("Optional URL to the job listing"),
-        source: z.string().optional().describe("Source platform e.g. LinkedIn, Indeed, BDJobs"),
-        notes: z.string().optional().describe("Initial notes about the role"),
+        companyName: z.string().describe("Company name (e.g. 'Stripe', 'Google')"),
+        jobTitle: z.string().describe("Job title (e.g. 'Senior Backend Engineer')"),
+        status: z.string().optional().describe("Status: Saved, Applied, Assessment, Interview, Rejected, Offer"),
+        jobUrl: z.string().optional().describe("Job listing URL"),
+        notes: z.string().optional().describe("Notes about the role"),
       }),
       execute: async (rawArgs: any) => {
         try {
@@ -414,14 +448,47 @@ export function createAiTools(userId: string) {
     } as any),
 
     deleteApplication: tool({
-      description: "Delete or remove an application from the user's tracker by company name or job title.",
+      description: "Delete or remove an application from the user's tracker by company name or job title. You MUST extract the company name or job title from the conversation context. If the user says 'delete it' or 'delete koro', look at the previous messages to find which company they're referring to.",
       parameters: z.object({
-        companyOrTitle: z.string().optional().describe("Company name or job title of the application to remove (e.g. 'Stripe')"),
+        companyOrTitle: z.string().describe("Company name or job title of the application to remove. Extract from conversation context if not explicitly stated."),
         confirmed: z.boolean().optional().describe("Internal flag for HITL confirmation"),
       }),
       execute: async (rawArgs: any) => {
         try {
-          const args = parseToolArgs(rawArgs)
+          let args = parseToolArgs(rawArgs)
+          console.log("[Tool] deleteApplication args:", JSON.stringify(args))
+
+          // Resolve parameters from UI confirmation if present
+          args = await resolveHITLArgs(args, sessionId)
+
+          let companyOrTitle = (
+            args?.companyOrTitle ||
+            args?.companyName ||
+            args?.company ||
+            args?.jobTitle ||
+            args?.title ||
+            args?.role ||
+            ""
+          ).trim()
+
+          // Try extracting from reason or chat history if empty or unknown
+          if (!companyOrTitle || companyOrTitle.toLowerCase() === "unknown") {
+            if (args?.reason) {
+              companyOrTitle = extractCompanyFromText(args.reason)
+            }
+            if ((!companyOrTitle || companyOrTitle.toLowerCase() === "unknown") && sessionId) {
+              const lastMsg = await prisma.chatMessage.findFirst({
+                where: { sessionId, role: "user" },
+                orderBy: { createdAt: "desc" }
+              })
+              if (lastMsg) {
+                companyOrTitle = extractCompanyFromText(lastMsg.content)
+              }
+            }
+          }
+
+          companyOrTitle = cleanCompanyName(companyOrTitle)
+          args.companyOrTitle = companyOrTitle // Update args so HITL uses it
 
           // HITL confirmation check
           if (requiresConfirmation("deleteApplication") && !args?.confirmed) {
@@ -434,18 +501,6 @@ export function createAiTools(userId: string) {
               args,
             }
           }
-
-          let companyOrTitle = (
-            args?.companyOrTitle ||
-            args?.companyName ||
-            args?.company ||
-            args?.jobTitle ||
-            args?.title ||
-            args?.role ||
-            ""
-          ).trim()
-
-          companyOrTitle = cleanCompanyName(companyOrTitle)
 
           const genericPhrases = ["the application", "application", "this", "it", "that", "current", "latest", "recent", "job"]
           const isGeneric = !companyOrTitle || genericPhrases.includes(companyOrTitle.toLowerCase())
@@ -1362,9 +1417,22 @@ export function createAiTools(userId: string) {
             ""
           )
 
-          if (!finalCompany && args?.reason) {
-            const extracted = extractCompanyAndRole(args.reason)
-            if (extracted.company) finalCompany = extracted.company
+          // If still no company, try to extract from reason or query fields
+          if (!finalCompany) {
+            const searchStr = args?.reason || args?.query || args?.input || args?.text || ""
+            if (searchStr) {
+              const extracted = extractCompanyAndRole(searchStr)
+              if (extracted.company) {
+                finalCompany = extracted.company
+              } else {
+                // Try extracting company name from natural language like "Stripe's tech stack"
+                // Pattern: "Company's ..." or "Company ..."
+                const naturalMatch = searchStr.match(/^([A-Za-z0-9\s._&]+?)(?:'s?\s|[\s,]+(?:tech|engineering|culture|stack|interview|background|research|intel))/i)
+                if (naturalMatch && naturalMatch[1]) {
+                  finalCompany = cleanCompanyName(naturalMatch[1])
+                }
+              }
+            }
           }
 
           // Fallback: If no company provided or generic, find from the user's latest application
@@ -1456,11 +1524,12 @@ export function createAiTools(userId: string) {
       }),
       execute: async (rawArgs: any) => {
         try {
-          const args = parseToolArgs(rawArgs)
+          let args = parseToolArgs(rawArgs)
+          args = await resolveHITLArgs(args, sessionId)
 
           // HITL confirmation check
           if (requiresConfirmation("sendOutreachEmailViaResend") && !args?.confirmed) {
-            const recipient = args?.recipientEmail || "unknown"
+            const recipient = args?.recipientEmail || args?.to || "unknown"
             const subject = args?.subject || "no subject"
             return {
               success: false,
@@ -1471,7 +1540,7 @@ export function createAiTools(userId: string) {
             }
           }
 
-          const recipientEmail = args?.recipientEmail || "recruiter@example.com"
+          const recipientEmail = args?.recipientEmail || args?.to || "recruiter@example.com"
           const candidateName = args?.candidateName || "Candidate"
           const companyName = cleanCompanyName(args?.companyName || args?.company || "Company")
           const jobTitle = cleanJobTitle(args?.jobTitle || args?.role || "Software Engineer")
