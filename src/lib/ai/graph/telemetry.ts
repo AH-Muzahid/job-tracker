@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Langfuse } from "langfuse"
+import { CallbackHandler } from "@langfuse/langchain"
 
 let langfuseInstance: Langfuse | null = null
 
@@ -21,6 +22,30 @@ export function getLangfuseInstance(): Langfuse | null {
   }
 
   return langfuseInstance
+}
+
+/**
+ * Creates an official LangChain / LangGraph CallbackHandler for automated tracing
+ */
+export function createLangfuseCallbackHandler(params: {
+  userId: string
+  sessionId?: string
+  tags?: string[]
+  metadata?: Record<string, any>
+}): CallbackHandler | null {
+  const publicKey = process.env.LANGFUSE_PUBLIC_KEY
+  const secretKey = process.env.LANGFUSE_SECRET_KEY
+
+  if (!publicKey || !secretKey) {
+    return null
+  }
+
+  return new CallbackHandler({
+    userId: params.userId,
+    sessionId: params.sessionId,
+    tags: params.tags || ["production", "career-agent"],
+    traceMetadata: params.metadata,
+  })
 }
 
 /**
@@ -58,5 +83,45 @@ export async function trackGraphExecution(params: {
     })
   } catch (err) {
     console.warn("[Langfuse Telemetry Warning]:", err)
+  }
+}
+
+/**
+ * Attaches quantitative score / feedback to a trace in Langfuse
+ */
+export async function scoreTrace(params: {
+  traceId: string
+  name: string
+  value: number
+  comment?: string
+  dataType?: "NUMERIC" | "BOOLEAN"
+}) {
+  const langfuse = getLangfuseInstance()
+  if (!langfuse) return
+
+  try {
+    langfuse.score({
+      traceId: params.traceId,
+      name: params.name,
+      value: params.value,
+      comment: params.comment,
+      dataType: params.dataType || "NUMERIC",
+    })
+  } catch (err) {
+    console.warn("[Langfuse Score Warning]:", err)
+  }
+}
+
+/**
+ * Flushes pending traces to Langfuse (essential in serverless & Edge runtimes)
+ */
+export async function flushLangfuse(): Promise<void> {
+  const langfuse = getLangfuseInstance()
+  if (!langfuse) return
+
+  try {
+    await langfuse.flushAsync()
+  } catch (err) {
+    console.warn("[Langfuse Flush Warning]:", err)
   }
 }

@@ -1,3 +1,5 @@
+import { getLangfuseInstance } from "./graph/telemetry"
+
 export interface AITelemetryPayload {
   traceId: string
   userId: string
@@ -16,6 +18,7 @@ export interface AITelemetryPayload {
 
 /**
  * Structured AI event logger for monitoring throughput, latency, token consumption, and errors.
+ * Seamlessly emits standardized JSON and connects directly to Langfuse when configured.
  */
 export function logAITransaction(data: AITelemetryPayload) {
   const structuredLog = {
@@ -32,5 +35,40 @@ export function logAITransaction(data: AITelemetryPayload) {
     console.log(
       `[AI Telemetry] ${data.endpoint} | Model: ${data.model} | ${data.latencyMs}ms | Tokens: ${totalTokens} | Status: ${data.status}`
     )
+  }
+
+  // Connect to Langfuse for generation tracing
+  const langfuse = getLangfuseInstance()
+  if (langfuse) {
+    try {
+      const trace = langfuse.trace({
+        id: data.traceId,
+        name: data.endpoint,
+        userId: data.userId,
+        sessionId: data.sessionId,
+        metadata: {
+          provider: data.provider,
+          status: data.status,
+          toolCallsCount: data.toolCallsCount,
+        },
+      })
+
+      trace.generation({
+        name: `${data.endpoint}-generation`,
+        model: data.model,
+        usage: {
+          promptTokens: data.promptTokens,
+          completionTokens: data.completionTokens,
+          totalTokens: (data.promptTokens ?? 0) + (data.completionTokens ?? 0),
+        },
+        metadata: {
+          latencyMs: data.latencyMs,
+          ttftMs: data.ttftMs,
+          error: data.error,
+        },
+      })
+    } catch (err) {
+      console.warn("[Langfuse Telemetry Direct Log Warning]:", err)
+    }
   }
 }

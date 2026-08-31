@@ -7,7 +7,7 @@ import { getUserAIConfig } from "@/lib/ai/config"
 import { buildCareerAgentGraph } from "@/lib/ai/graph/workflow"
 import { HumanMessage } from "@langchain/core/messages"
 import { Command } from "@langchain/langgraph"
-import { trackGraphExecution } from "@/lib/ai/graph/telemetry"
+import { trackGraphExecution, createLangfuseCallbackHandler, flushLangfuse } from "@/lib/ai/graph/telemetry"
 import { prisma, withDbRetry } from "@/lib/prisma"
 
 export async function POST(request: NextRequest) {
@@ -68,17 +68,26 @@ export async function POST(request: NextRequest) {
     console.warn("[Session Upsert Warning]:", dbErr)
   }
 
-  const app = buildCareerAgentGraph(aiConfig)
-  const threadConfig = { configurable: { thread_id: sessionId } }
-
   const encoder = new TextEncoder()
   const stream = new ReadableStream({
     async start(controller) {
-      function sendEvent(event: string, data: any) {
-        controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`))
+      const sendEvent = (event: string, data: any) => {
+        try {
+          const payload = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`
+          controller.enqueue(encoder.encode(payload))
+        } catch {
+          // Stream might be closed by client
+        }
       }
 
       try {
+        const app = await buildCareerAgentGraph(aiConfig)
+        const threadConfig = {
+          configurable: {
+            thread_id: sessionId,
+          },
+        }
+
         let inputArg: any
 
         if (resumeAction) {
@@ -100,9 +109,17 @@ export async function POST(request: NextRequest) {
           }
         }
 
+        const langfuseHandler = createLangfuseCallbackHandler({
+          userId,
+          sessionId,
+          tags: ["chat-stream", "interactive-agent"],
+          metadata: { resumeAction: resumeAction || null },
+        })
+
         const events = await app.stream(inputArg, {
           ...threadConfig,
           streamMode: "updates",
+          ...(langfuseHandler ? { callbacks: [langfuseHandler] } : {}),
         })
 
         for await (const update of events) {
@@ -155,9 +172,11 @@ export async function POST(request: NextRequest) {
           })
         }
 
+        await flushLangfuse()
         controller.close()
       } catch (err: any) {
         sendEvent("error", { error: err?.message || "Graph execution error" })
+        await flushLangfuse()
         controller.close()
       }
     },

@@ -1,11 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { getUserAIConfig } from "@/lib/ai/config"
 import { buildCareerAgentGraph } from "@/lib/ai/graph/workflow"
+import { createLangfuseCallbackHandler, flushLangfuse } from "@/lib/ai/graph/telemetry"
 import { HumanMessage } from "@langchain/core/messages"
 
 /**
  * Executes the LangGraph agent state machine server-side (headless)
- * without an active HTTP stream. Ideal for background workers and Inngest jobs.
+ * without an active HTTP stream. Integrates Langfuse tracing and auto-flushing.
  */
 export async function runHeadlessEvaluation(
   userId: string,
@@ -20,9 +21,19 @@ export async function runHeadlessEvaluation(
       }
     }
 
-    const app = buildCareerAgentGraph(aiConfig)
+    const app = await buildCareerAgentGraph(aiConfig)
     const threadId = `bg-eval-${userId}-${Date.now()}`
-    const threadConfig = { configurable: { thread_id: threadId } }
+    const langfuseHandler = createLangfuseCallbackHandler({
+      userId,
+      sessionId: threadId,
+      tags: ["headless", "inngest", "background-briefing"],
+      metadata: { task: "headless-evaluation" },
+    })
+
+    const threadConfig = {
+      configurable: { thread_id: threadId },
+      ...(langfuseHandler ? { callbacks: [langfuseHandler] } : {}),
+    }
 
     const inputArg = {
       userId,
@@ -35,6 +46,7 @@ export async function runHeadlessEvaluation(
     }
 
     const finalState: any = await app.invoke(inputArg, threadConfig)
+    await flushLangfuse()
 
     return {
       success: true,
@@ -43,6 +55,7 @@ export async function runHeadlessEvaluation(
     }
   } catch (err: any) {
     console.error(`[Headless Evaluation Error] User ${userId}:`, err)
+    await flushLangfuse()
     return {
       success: false,
       content: `Headless evaluation encountered an error: ${err?.message || "Unknown error"}`,
