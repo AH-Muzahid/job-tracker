@@ -1,52 +1,18 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { ChevronDown, ChevronRight, BrainCircuit, Terminal } from "lucide-react";
+import { ChevronDown, ChevronRight, Loader2, CheckCircle2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { cn } from "@/lib/utils";
+import type { ToolInvocation } from "./AIChat";
 
-const chevron = Array.from({ length: 9 }, (_, i) => {
-  const r = Math.floor(i / 3),
-    c = i % 3;
-  return (c + Math.abs(r - 1)) * 90;
-});
-
-const ORBIT_ORDER = [0, 1, 2, 5, 8, 7, 6, 3];
-const orbit = Array.from({ length: 9 }, (_, i) => {
-  const k = ORBIT_ORDER.indexOf(i);
-  return k === -1 ? null : k * 110;
-});
-
-const PATTERNS: Record<string, { delays: (number | null)[]; dur: number; round: boolean }> = {
-  Drive: { delays: chevron, dur: 650, round: false },
-  Dots: { delays: chevron, dur: 650, round: true },
-  Orbit: { delays: orbit, dur: 950, round: false },
-};
-
-function LoaderGrid({
-  delays,
-  dur,
-  round,
-}: {
-  delays: (number | null)[];
-  dur: number;
-  round: boolean;
-}) {
-  return (
-    <span aria-hidden className="grid shrink-0 grid-cols-[repeat(3,4.5px)] gap-[2px]">
-      {delays.map((delay, index) => (
-        <span
-          key={index}
-          className={`size-[4.5px] bg-foreground/80 dark:bg-foreground ${round ? "rounded-full" : "rounded-[1px]"}`}
-          style={{
-            opacity: delay === null ? 0.1 : 0.25,
-            animation: delay === null ? "none" : `pixel-on ${dur}ms ease-in-out ${delay}ms infinite`,
-          }}
-        />
-      ))}
-    </span>
-  );
+interface LoadingStateProps {
+  label?: string;
+  reasoning?: string;
+  toolInvocations?: ToolInvocation[];
+  isFinished?: boolean;
+  className?: string;
 }
 
 function useElapsed(isFinished?: boolean) {
@@ -61,60 +27,87 @@ function useElapsed(isFinished?: boolean) {
   return { elapsed: timeStr, seconds: total };
 }
 
-function getDynamicStage(seconds: number): string {
-  if (seconds < 2.0) return "Analyzing query & context...";
-  if (seconds < 5.0) return "Inspecting career tracker & database...";
-  if (seconds < 9.0) return "Synthesizing agent action plan...";
-  if (seconds < 18.0) return "Evaluating parameters & safety gates...";
-  return "Executing deep reasoning...";
+function getToolLabel(toolName: string): string {
+  const labels: Record<string, string> = {
+    createApplication: "Saving application",
+    updateApplicationStatus: "Updating status",
+    deleteApplication: "Deleting application",
+    scrapeJobLink: "Scraping job listing",
+    researchCompanyIntel: "Researching company",
+    draftOutreachEmail: "Drafting email",
+    sendOutreachEmailViaResend: "Sending email",
+    getPipelineStats: "Calculating stats",
+    listUserApplications: "Fetching applications",
+    tailorResumeForJob: "Tailoring resume",
+    batchImportApplications: "Importing applications",
+    queryCareerKnowledgeGraph: "Querying knowledge graph",
+    syncCareerKnowledgeGraph: "Syncing knowledge graph",
+    saveUserMemory: "Saving memory",
+  };
+  return labels[toolName] || "Processing";
+}
+
+function getToolIcon(toolName: string): string {
+  const icons: Record<string, string> = {
+    createApplication: "+",
+    updateApplicationStatus: "~",
+    deleteApplication: "-",
+    scrapeJobLink: ">",
+    researchCompanyIntel: "*",
+    draftOutreachEmail: "@",
+    sendOutreachEmailViaResend: "@",
+    getPipelineStats: "#",
+    listUserApplications: ":",
+    tailorResumeForJob: "%",
+    batchImportApplications: "+",
+    queryCareerKnowledgeGraph: "?",
+    syncCareerKnowledgeGraph: "~",
+    saveUserMemory: "^",
+  };
+  return icons[toolName] || ".";
 }
 
 export default function LoadingState({
   label,
   reasoning,
+  toolInvocations = [],
   isFinished = false,
-  variant = "Dots",
   className = "",
-}: {
-  label?: string;
-  reasoning?: string;
-  isFinished?: boolean;
-  variant?: string;
-  className?: string;
-}) {
-  const { elapsed, seconds } = useElapsed(isFinished);
-  const [isThoughtOpen, setIsThoughtOpen] = useState(true);
-  const { delays, dur, round } = PATTERNS[variant] ?? PATTERNS.Dots;
+}: LoadingStateProps) {
+  const { elapsed } = useElapsed(isFinished);
+  const [isThoughtOpen, setIsThoughtOpen] = useState(false);
 
-  const dynamicStage = getDynamicStage(seconds);
-  const resolvedLabel = label || dynamicStage;
+  const hasToolCalls = toolInvocations.length > 0;
+  const runningTool = toolInvocations.find((t) => t.state === "call");
+  const completedTools = toolInvocations.filter((t) => t.state === "result");
 
   // If the model streams raw reasoning / thought tokens
   if (reasoning && reasoning.trim()) {
     return (
-      <div className={cn("w-full not-prose my-2 text-xs font-mono select-none", className)}>
+      <div className={cn("w-full not-prose my-1 text-xs select-none", className)}>
         <button
           type="button"
           onClick={() => setIsThoughtOpen(!isThoughtOpen)}
-          className="inline-flex items-center gap-2 py-1 px-2.5 -ml-2 rounded-md hover:bg-muted/70 transition-colors text-muted-foreground hover:text-foreground cursor-pointer group"
+          className="inline-flex items-center gap-1.5 py-0.5 px-1.5 -ml-1.5 rounded hover:bg-muted/50 transition-colors text-muted-foreground hover:text-foreground cursor-pointer group"
         >
-          <BrainCircuit className="h-3.5 w-3.5 text-purple-500 animate-pulse shrink-0" />
-          <span className="font-semibold text-[11.5px] text-foreground/90">
-            {isFinished ? `Thought for ${elapsed}` : `Thinking (${elapsed})`}
-          </span>
-          <span className="text-[10.5px] text-muted-foreground/70 hidden sm:inline">
-            • {isFinished ? "Reasoning complete" : "Streaming thoughts..."}
+          {isFinished ? (
+            <CheckCircle2 className="h-3 w-3 text-emerald-500 shrink-0" />
+          ) : (
+            <Loader2 className="h-3 w-3 animate-spin text-muted-foreground shrink-0" />
+          )}
+          <span className="font-medium text-[11px] text-foreground/80">
+            {isFinished ? `Thought for ${elapsed}` : `Thinking`}
           </span>
           {isThoughtOpen ? (
-            <ChevronDown className="h-3 w-3 text-muted-foreground/60 transition-transform group-hover:text-foreground" />
+            <ChevronDown className="h-3 w-3 text-muted-foreground/50" />
           ) : (
-            <ChevronRight className="h-3 w-3 text-muted-foreground/60 transition-transform group-hover:text-foreground" />
+            <ChevronRight className="h-3 w-3 text-muted-foreground/50" />
           )}
         </button>
 
         {isThoughtOpen && (
-          <div className="mt-1.5 pl-3 border-l-2 border-purple-500/30 py-1 space-y-1 text-muted-foreground/90 text-[11px] leading-relaxed max-h-[280px] overflow-y-auto font-sans">
-            <div className="prose prose-sm dark:prose-invert prose-p:my-1 prose-pre:my-1 max-w-none text-muted-foreground text-xs">
+          <div className="mt-1 ml-1 pl-2 border-l border-border/50 py-1 text-muted-foreground/80 text-[11px] leading-relaxed max-h-[200px] overflow-y-auto">
+            <div className="prose prose-xs dark:prose-invert prose-p:my-0.5 max-w-none text-muted-foreground">
               <ReactMarkdown remarkPlugins={[remarkGfm]}>
                 {reasoning}
               </ReactMarkdown>
@@ -125,35 +118,53 @@ export default function LoadingState({
     );
   }
 
-  // Live dynamic activity stage view while thinking or preparing tools
-  return (
-    <div role="status" className={cn("flex flex-col gap-1.5 py-1.5 select-none", className)}>
-      <div className="flex items-center gap-2.5">
-        <LoaderGrid delays={delays} dur={dur} round={round} />
-        <span
-          className="bg-clip-text text-[12.5px] font-medium text-transparent"
-          style={{
-            backgroundImage:
-              "linear-gradient(90deg, var(--color-ink-3, var(--muted-foreground, #71717a)) 20%, var(--color-ink, var(--foreground, #09090b)) 50%, var(--color-ink-3, var(--muted-foreground, #71717a)) 80%)",
-            backgroundSize: "200% 100%",
-            WebkitBackgroundClip: "text",
-            animation: "shimmer-text 1.6s linear infinite",
-          }}
-        >
-          {resolvedLabel}
-        </span>
-        <span className="font-mono text-[11.5px] text-muted-foreground/80 tabular-nums">
-          {elapsed}
-        </span>
-      </div>
+  // Tool calls in progress - show like OpenCode/terminal style
+  if (hasToolCalls) {
+    return (
+      <div className={cn("w-full not-prose my-1 text-[11px] font-mono select-none", className)}>
+        {toolInvocations.map((tool, idx) => {
+          const isRunning = tool.state === "call";
+          const isDone = tool.state === "result";
+          const label = getToolLabel(tool.toolName);
+          const icon = getToolIcon(tool.toolName);
 
-      {/* Dynamic step detail hint for long operations */}
-      {seconds >= 3.0 && (
-        <div className="flex items-center gap-1.5 pl-4 text-[11px] font-mono text-muted-foreground/60 animate-in fade-in duration-300">
-          <Terminal className="h-3 w-3 shrink-0" />
-          <span>Stage: {dynamicStage}</span>
-        </div>
-      )}
+          return (
+            <div key={tool.toolCallId || idx} className="flex items-center gap-1.5 py-0.5 text-muted-foreground/70">
+              <span className="text-muted-foreground/40 w-3 text-right shrink-0">
+                {isRunning ? (
+                  <Loader2 className="h-2.5 w-2.5 animate-spin text-amber-500" />
+                ) : (
+                  <span className="text-emerald-500">✓</span>
+                )}
+              </span>
+              <span className="text-muted-foreground/50 shrink-0">{icon}</span>
+              <span className={cn(
+                "truncate",
+                isRunning && "text-foreground/70",
+                isDone && "text-muted-foreground/50"
+              )}>
+                {label}
+              </span>
+              {isRunning && (
+                <span className="text-muted-foreground/40 tabular-nums shrink-0">{elapsed}</span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  // Default thinking state
+  return (
+    <div role="status" className={cn("flex items-center gap-1.5 py-0.5 select-none", className)}>
+      <Loader2 className="h-3 w-3 animate-spin text-muted-foreground shrink-0" />
+      <span className="text-[11px] font-medium text-foreground/70">
+        {label || "Thinking"}
+      </span>
+      <span className="text-[10px] text-muted-foreground/50 tabular-nums">
+        {elapsed}
+      </span>
     </div>
   );
 }

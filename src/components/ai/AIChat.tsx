@@ -13,6 +13,40 @@ import { createDataStreamParser } from "@/lib/ai/stream-parser"
 import { useWorkspace } from "./WorkspaceContext"
 import WorkspaceDrawer from "./WorkspaceDrawer"
 
+function generateSmartTitle(prompt: string): string {
+  const clean = prompt.trim().replace(/^["'`]|["'`]$/g, "")
+  const lower = clean.toLowerCase()
+
+  if (lower.includes("job description") || lower.startsWith("analyze this") || lower.includes("jd")) {
+    const compMatch = clean.match(/(?:at|for|company:?)\s+([A-Z][A-Za-z0-9\s&.-]{2,25})/i)
+    if (compMatch?.[1]) return `${compMatch[1].trim()} JD Review`
+    return "Job Description Review"
+  }
+
+  if (lower.includes("outreach") || lower.includes("cold email") || lower.includes("cover letter")) {
+    const compMatch = clean.match(/(?:for|to|at)\s+(?:the\s+)?([A-Z][A-Za-z0-9\s&.-]{2,25})/i)
+    if (compMatch?.[1]) return `${compMatch[1].trim()} Outreach`
+    return "Outreach Email Draft"
+  }
+
+  if (lower.includes("interview") || lower.includes("mock") || lower.includes("questions")) {
+    const compMatch = clean.match(/(?:for|at)\s+([A-Z][A-Za-z0-9\s&.-]{2,25})/i)
+    if (compMatch?.[1]) return `${compMatch[1].trim()} Interview Prep`
+    return "Interview Preparation"
+  }
+
+  if (lower.includes("resume") || lower.includes("cv")) return "Resume Review"
+  if (lower.includes("research") || lower.includes("company")) {
+    const compMatch = clean.match(/(?:research|about|on)\s+([A-Z][A-Za-z0-9\s&.-]{2,25})/i)
+    if (compMatch?.[1]) return `${compMatch[1].trim()} Research`
+    return "Company Research"
+  }
+  if (lower.includes("diagram") || lower.includes("architecture")) return "Architecture Diagram"
+
+  const words = clean.split(/\s+/).slice(0, 4).join(" ")
+  return words.length > 30 ? words.slice(0, 30) + "..." : words || "New Chat"
+}
+
 interface Props {
   sessionId: string | null
   onSessionCreated?: (id: string) => void
@@ -105,11 +139,27 @@ interface Props {
   isSidebar?: boolean
 }
 
+function dedupeMessages(msgs: Message[]): Message[] {
+  const seen = new Set<string>()
+  return msgs.filter((m) => {
+    if (seen.has(m.id)) return false
+    seen.add(m.id)
+    return true
+  })
+}
+
 export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props) {
-  const [messages, setMessages] = useState<Message[]>([])
+  const [messages, _setMessages] = useState<Message[]>([])
+  const setMessages = useCallback((updater: Message[] | ((prev: Message[]) => Message[])) => {
+    _setMessages((prev) => {
+      const next = typeof updater === "function" ? updater(prev) : updater
+      return dedupeMessages(next)
+    })
+  }, [])
   const [input, setInput] = useState("")
   const [loading, setLoading] = useState(!!sessionId)
   const [isStreaming, setIsStreaming] = useState(false)
+  const queuedMessageRef = useRef<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [showScrollBtn, setShowScrollBtn] = useState(false)
   const [activeMode, setActiveMode] = useState<AIMode | undefined>(undefined)
@@ -119,6 +169,7 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const abortRef = useRef<AbortController | null>(null)
   const createdSessionIdRef = useRef<string | null>(null)
+  const isStreamingRef = useRef(false)
   
   const { pendingPrompt, setPendingPrompt, aiSidebarOpen } = useUI()
   const queryClient = useQueryClient()
@@ -158,19 +209,26 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
     retry: 1,
   })
 
+  const loadedSessionIdRef = useRef<string | null>(null)
+
   useEffect(() => {
     if (!sessionId) {
       setLoading(false)
       setMessages([])
+      loadedSessionIdRef.current = null
       return
     }
 
     if (createdSessionIdRef.current === sessionId) {
       createdSessionIdRef.current = null
+      loadedSessionIdRef.current = sessionId
       return
     }
 
+    if (loadedSessionIdRef.current === sessionId) return
+
     if (sessionData) {
+      loadedSessionIdRef.current = sessionId
       const loadedMsgs = (sessionData?.messages || []).map(
         (m: { id: string; role: string; content: string; toolInvocations?: ToolInvocation[]; metadata?: { toolInvocations?: ToolInvocation[] } }) => ({
           ...m,
@@ -232,7 +290,7 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        title: firstMsgText.slice(0, 40),
+        title: generateSmartTitle(firstMsgText),
         mode: modeToUse || activeMode,
       }),
     })
@@ -249,11 +307,27 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
     retryOptions?: { isRetry?: boolean; retryUserMsgId?: string }
   ) {
     const trimmed = textToSend.trim()
-    if (!trimmed || isStreaming) return
+    if (!trimmed) return
+
+    console.log(`[Chat] 1. Message received: "${trimmed.slice(0, 50)}"`)
+
+    // Queue message if currently streaming (use ref for synchronous check)
+    if (isStreamingRef.current) {
+      console.log(`[Chat] 1a. Streaming active — queuing message`)
+      queuedMessageRef.current = trimmed
+      setInput("")
+      return
+    }
 
     const selectedMode = modeOverride || activeMode
-    const userMsgId = "temp-" + Date.now()
-    const assistantMsgId = "temp-asst-" + Date.now()
+    const msgId = Math.random().toString(36).slice(2, 11)
+    const userMsgId = "temp-" + msgId
+    const assistantMsgId = "temp-asst-" + msgId
+
+    // Set streaming ref immediately to prevent race condition
+    isStreamingRef.current = true
+    setIsStreaming(true)
+    console.log(`[Chat] 2. Streaming started, adding messages to state`)
 
     if (retryOptions?.isRetry) {
       setMessages((prev) => {
@@ -304,12 +378,17 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
     let currentSessionId = sessionId
     try {
       if (!currentSessionId) {
+        console.log(`[Chat] 3. No session — creating new session`)
         currentSessionId = await createNewSession(trimmed, selectedMode)
+        console.log(`[Chat] 3a. Session created: ${currentSessionId}`)
+      } else {
+        console.log(`[Chat] 3. Using existing session: ${currentSessionId}`)
       }
 
       const controller = new AbortController()
       abortRef.current = controller
 
+      console.log(`[Chat] 4. Sending POST to /api/ai/chat`)
       const res = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -337,18 +416,24 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
         throw new Error(errData.error || "Failed to send message")
       }
 
+      console.log(`[Chat] 5. Response received, starting stream reader`)
       const reader = res.body?.getReader()
       const decoder = new TextDecoder()
       const parser = createDataStreamParser()
 
       if (reader) {
+        let chunkCount = 0
         try {
           while (true) {
             const { value, done: doneReading } = await reader.read()
             if (doneReading) break
             if (value) {
+              chunkCount++
               const chunk = decoder.decode(value, { stream: true })
               const parsed = parser.feed(chunk)
+              if (chunkCount === 1 || chunkCount % 10 === 0) {
+                console.log(`[Chat] 6. Stream chunk #${chunkCount} — text: ${parsed.text.length} chars, tools: ${parsed.toolInvocations.length}`)
+              }
               setMessages((prev) => {
                 const updated = [...prev]
                 const lastIdx = updated.findIndex((m) => m.id === assistantMsgId)
@@ -368,10 +453,13 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
           reader.releaseLock()
         }
 
+        console.log(`[Chat] 7. Stream finished — ${chunkCount} chunks processed`)
         const finalState = parser.finalize()
+        console.log(`[Chat] 7a. Finalized — text: ${finalState.text.length} chars, tools: ${finalState.toolInvocations.length}`)
 
         // Always check backend session for persisted toolInvocations metadata
         try {
+          console.log(`[Chat] 8. Fetching session from DB for tool invocations`)
           const sessionRes = await fetch(`/api/ai/sessions/${currentSessionId}`)
           if (sessionRes.ok) {
             const sessionData = await sessionRes.json()
@@ -381,6 +469,7 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
 
             if (lastAsstMsg) {
               const dbToolInvocations = lastAsstMsg.toolInvocations || lastAsstMsg.metadata?.toolInvocations || []
+              console.log(`[Chat] 8a. DB message found — id: ${lastAsstMsg.id}, toolInvocations: ${dbToolInvocations.length}`)
               setMessages((prev) => {
                 const updated = [...prev]
                 const lastIdx = updated.findIndex((m) => m.id === assistantMsgId)
@@ -446,12 +535,22 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
         setMessages((prev) => prev.filter((m) => (retryOptions?.isRetry ? true : m.id !== userMsgId) && m.id !== assistantMsgId))
       }
     } finally {
+      console.log(`[Chat] 9. Streaming complete — cleaning up`)
       setIsStreaming(false)
+      isStreamingRef.current = false
       abortRef.current = null
       void queryClient.invalidateQueries({ queryKey: ["applications"] })
       void queryClient.invalidateQueries({ queryKey: ["stats"] })
       void queryClient.invalidateQueries({ queryKey: ["ai", "session", currentSessionId] })
       void queryClient.invalidateQueries({ queryKey: ["ai", "sessions"] })
+
+      // Send queued message if any
+      const queued = queuedMessageRef.current
+      if (queued) {
+        console.log(`[Chat] 10. Sending queued message: "${queued.slice(0, 30)}"`)
+        queuedMessageRef.current = null
+        setTimeout(() => sendMessage(queued), 100)
+      }
     }
   }
 
@@ -461,6 +560,7 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
       abortRef.current = null
     }
     setIsStreaming(false)
+    isStreamingRef.current = false
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -538,20 +638,6 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
         {!loading && !hasMessages ? (
           <div className="flex-1 flex flex-col items-center justify-center px-4 overflow-y-auto z-10 py-8">
             <div className="w-full max-w-2xl space-y-6">
-              {/* Clean Minimal Header */}
-              <div className="text-center space-y-2">
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-muted text-[11px] font-medium text-muted-foreground border border-border">
-                  <Bot className="h-3 w-3 text-purple-500" />
-                  <span>Career AI Assistant</span>
-                </div>
-                <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground">
-                  How can I assist your career search today?
-                </h1>
-                <p className="text-xs text-muted-foreground max-w-md mx-auto leading-relaxed">
-                  Scan job descriptions, draft tailored cover letters, practice mock interviews, or automatically update your pipeline.
-                </p>
-              </div>
-
               {/* Clean Minimal Input Dock */}
               <div className="relative">
                 <Card className="flex flex-col rounded-xl border border-border bg-card p-3 shadow-xs focus-within:border-foreground/40 transition-colors">
@@ -563,6 +649,7 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
                     placeholder="Ask a question, paste a job description, or type an update..."
                     className="w-full bg-transparent border-0 outline-none resize-none text-xs placeholder:text-muted-foreground/50 min-h-[64px] max-h-[180px] px-1 py-1 leading-relaxed"
                     rows={Math.min(6, Math.max(2, input.split('\n').length))}
+                    autoFocus
                   />
                   <div className="flex items-center justify-between pt-2 mt-1 border-t border-border/40">
                     <div className="flex items-center gap-1.5">
@@ -642,7 +729,10 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
                       message={msg}
                       isLast={i === messages.length - 1}
                       isStreaming={isStreaming && i === messages.length - 1}
-                      onSuggestionClick={(prompt) => sendMessage(prompt)}
+                      onSuggestionClick={(prompt) => {
+                        setInput(prompt)
+                        textareaRef.current?.focus()
+                      }}
                       onRetry={handleRetry}
                       onEdit={handleEditMessage}
                       onToolConfirm={(toolName, args) => {

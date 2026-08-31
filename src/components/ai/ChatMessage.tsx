@@ -658,16 +658,17 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
       >
         {/* Reasoning / Thought Process Accordion */}
         {message.reasoning && (
-          <div className="mb-2">
+          <div className="mb-1">
             <LoadingState reasoning={message.reasoning} isFinished={!isStreaming} />
           </div>
         )}
 
+        {/* Tool Calls - Terminal Style */}
         {message.toolInvocations && message.toolInvocations.length > 0 && (
-          <div className="mb-3">
-            <AgenticProcessViewer
+          <div className="mb-2">
+            <LoadingState
               toolInvocations={message.toolInvocations}
-              isStreaming={isStreaming}
+              isFinished={!isStreaming}
             />
             {message.toolInvocations.map((tool: ToolInvocation, idx: number) => (
               <React.Fragment key={idx}>
@@ -676,7 +677,7 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
                     <OutreachResult data={tool.result as Record<string, unknown>} />
                   </div>
                 )}
-                {tool.state === 'result' && Boolean((tool.result as Record<string, unknown>)?.requiresConfirmation) && (
+                {tool.state === 'result' && Boolean((tool.result as Record<string, unknown>)?.requiresConfirmation) && isLast && (
                   <HITLConfirmForm
                     toolName={tool.toolName}
                     args={tool.args || {}}
@@ -876,9 +877,13 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
               </div>
             )}
           </>
-        ) : isStreaming && (!message.toolInvocations || message.toolInvocations.length === 0) ? (
-          <div className="py-2">
-            <LoadingState reasoning={message.reasoning} isFinished={false} variant="Dots" />
+        ) : isStreaming ? (
+          <div className="py-1">
+            <LoadingState
+              reasoning={message.reasoning}
+              toolInvocations={message.toolInvocations}
+              isFinished={false}
+            />
           </div>
         ) : null}
       </div>

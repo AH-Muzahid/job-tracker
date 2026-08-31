@@ -58,9 +58,8 @@ export function AppSidebar() {
 			return [];
 		},
 		enabled: isAIAssistant && isLoaded && !!isSignedIn,
-		staleTime: 10 * 60 * 1000,
-		refetchOnWindowFocus: false,
-		refetchOnReconnect: false,
+		staleTime: 0,
+		refetchOnMount: true,
 	});
 
 	const deleteMutation = useMutation({
@@ -79,7 +78,7 @@ export function AppSidebar() {
 	});
 
 	const visibleSessions = sessions.filter(
-		(s) => s._count.messages > 0 && s.title !== "New Chat"
+		(s) => (s._count.messages > 0 && s.title !== "New Chat") || s.id === activeChatId
 	);
 
 	const filteredSessions = searchQuery.trim()
