@@ -637,7 +637,7 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
       }
       return <code className={cn(className, isInline ? "text-primary bg-muted px-1.5 py-0.5 rounded text-xs font-mono font-medium" : "text-zinc-800 dark:text-zinc-100 font-mono text-xs")} {...props}>{children}</code>
     }
-  }), [onSuggestionClick, message.id, message.content, isLast, isStreaming])
+  }), [onSuggestionClick])
 
   const showAvatar = !isUser && (Boolean(message.content) || (message.toolInvocations && message.toolInvocations.length > 0))
 

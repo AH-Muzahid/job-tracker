@@ -208,7 +208,6 @@ function getStepMetadata(inv: ToolInvocation): StepMeta {
 
 export default function AgenticProcessViewer({
   toolInvocations,
-  isStreaming: _isStreaming,
   className,
 }: AgenticProcessViewerProps) {
   const [isOpen, setIsOpen] = useState(true)
