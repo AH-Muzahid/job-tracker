@@ -194,7 +194,10 @@ export default function HITLConfirmForm({ toolName, args, onConfirm, onCancel, m
         </button>
         <button
           type="button"
-          onClick={() => setIsCancelled(true)}
+          onClick={() => {
+            setIsCancelled(true)
+            onCancel()
+          }}
           className="px-3 py-1.5 text-xs font-bold rounded-none bg-muted hover:bg-muted/80 text-muted-foreground cursor-pointer transition-all duration-150 active:scale-95"
         >
           Cancel

@@ -32,17 +32,23 @@ function getToolLabel(toolName: string): string {
     createApplication: "Saving application",
     updateApplicationStatus: "Updating status",
     deleteApplication: "Deleting application",
+    searchExternalJobs: "Searching job boards",
+    saveJobOpportunityToTracker: "Saving job opportunity",
     scrapeJobLink: "Scraping job listing",
     researchCompanyIntel: "Researching company",
     draftOutreachEmail: "Drafting email",
     sendOutreachEmailViaResend: "Sending email",
     getPipelineStats: "Calculating stats",
     listUserApplications: "Fetching applications",
+    searchApplications: "Searching applications",
     tailorResumeForJob: "Tailoring resume",
     batchImportApplications: "Importing applications",
     queryCareerKnowledgeGraph: "Querying knowledge graph",
     syncCareerKnowledgeGraph: "Syncing knowledge graph",
     saveUserMemory: "Saving memory",
+    searchUserMemories: "Searching memories",
+    getUserMemories: "Fetching memories",
+    createWeeklyGoal: "Setting weekly goal",
   };
   return labels[toolName] || "Processing";
 }
@@ -52,17 +58,23 @@ function getToolIcon(toolName: string): string {
     createApplication: "+",
     updateApplicationStatus: "~",
     deleteApplication: "-",
+    searchExternalJobs: "*",
+    saveJobOpportunityToTracker: "+",
     scrapeJobLink: ">",
     researchCompanyIntel: "*",
     draftOutreachEmail: "@",
     sendOutreachEmailViaResend: "@",
     getPipelineStats: "#",
     listUserApplications: ":",
+    searchApplications: ":",
     tailorResumeForJob: "%",
     batchImportApplications: "+",
     queryCareerKnowledgeGraph: "?",
     syncCareerKnowledgeGraph: "~",
     saveUserMemory: "^",
+    searchUserMemories: "^",
+    getUserMemories: "^",
+    createWeeklyGoal: "!",
   };
   return icons[toolName] || ".";
 }
@@ -78,8 +90,6 @@ export default function LoadingState({
   const [isThoughtOpen, setIsThoughtOpen] = useState(false);
 
   const hasToolCalls = toolInvocations.length > 0;
-  const runningTool = toolInvocations.find((t) => t.state === "call");
-  const completedTools = toolInvocations.filter((t) => t.state === "result");
 
   // If the model streams raw reasoning / thought tokens
   if (reasoning && reasoning.trim()) {

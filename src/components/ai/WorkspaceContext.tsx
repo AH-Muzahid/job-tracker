@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useCallback } from "react"
 import { type ToolInvocation } from "./AIChat"
+import type { AgentPlanStep } from "@/lib/ai/graph/state"
 
 export interface Artifact {
   id: string
@@ -15,6 +16,8 @@ interface WorkspaceContextProps {
   setActiveArtifact: (art: Artifact | null) => void
   toolInvocations: ToolInvocation[]
   setToolInvocations: (invs: ToolInvocation[]) => void
+  plan: AgentPlanStep[]
+  setPlan: (plan: AgentPlanStep[]) => void
   isStreaming: boolean
   setIsStreaming: (val: boolean) => void
   isDrawerOpen: boolean
@@ -29,6 +32,8 @@ const fallbackContext: WorkspaceContextProps = {
   setActiveArtifact: () => {},
   toolInvocations: [],
   setToolInvocations: () => {},
+  plan: [],
+  setPlan: () => {},
   isStreaming: false,
   setIsStreaming: () => {},
   isDrawerOpen: false,
@@ -39,6 +44,7 @@ const fallbackContext: WorkspaceContextProps = {
 export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   const [activeArtifact, setActiveArtifact] = useState<Artifact | null>(null)
   const [toolInvocations, setToolInvocations] = useState<ToolInvocation[]>([])
+  const [plan, setPlan] = useState<AgentPlanStep[]>([])
   const [isStreaming, setIsStreaming] = useState(false)
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
 
@@ -52,6 +58,8 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
         setActiveArtifact,
         toolInvocations,
         setToolInvocations,
+        plan,
+        setPlan,
         isStreaming,
         setIsStreaming,
         isDrawerOpen,

@@ -11,6 +11,7 @@ import { useUI, type AIMode } from "@/lib/store"
 import ModelSelector from "./ModelSelector"
 import { useWorkspace } from "./WorkspaceContext"
 import WorkspaceDrawer from "./WorkspaceDrawer"
+import type { AgentPlanStep } from "@/lib/ai/graph/state"
 
 function generateSmartTitle(prompt: string): string {
   const clean = prompt.trim().replace(/^["'`]|["'`]$/g, "")
@@ -64,8 +65,10 @@ interface Message {
   role: "user" | "assistant"
   content: string
   reasoning?: string
+  plan?: AgentPlanStep[]
   metadata?: Record<string, unknown>
   toolInvocations?: ToolInvocation[]
+  interruptData?: any
 }
 
 const STARTER_PROMPTS = [
@@ -172,22 +175,32 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
   
   const { pendingPrompt, setPendingPrompt, aiSidebarOpen } = useUI()
   const queryClient = useQueryClient()
-  const { setToolInvocations, setIsStreaming: setWorkspaceIsStreaming } = useWorkspace()
+  const { setToolInvocations, setPlan: setWorkspacePlan, setIsStreaming: setWorkspaceIsStreaming } = useWorkspace()
 
   // Sync isStreaming to workspace context
   useEffect(() => {
     setWorkspaceIsStreaming(isStreaming)
   }, [isStreaming, setWorkspaceIsStreaming])
 
-  // Sync toolInvocations of the active (last) message to workspace context
+  // Sync toolInvocations and plan of the active (last) message to workspace context
   useEffect(() => {
     const lastMessage = messages[messages.length - 1]
-    if (lastMessage && lastMessage.role === "assistant" && lastMessage.toolInvocations) {
-      setToolInvocations(lastMessage.toolInvocations)
+    if (lastMessage && lastMessage.role === "assistant") {
+      if (lastMessage.toolInvocations) {
+        setToolInvocations(lastMessage.toolInvocations)
+      } else {
+        setToolInvocations([])
+      }
+      if (lastMessage.plan) {
+        setWorkspacePlan(lastMessage.plan)
+      } else {
+        setWorkspacePlan([])
+      }
     } else {
       setToolInvocations([])
+      setWorkspacePlan([])
     }
-  }, [messages, setToolInvocations])
+  }, [messages, setToolInvocations, setWorkspacePlan])
 
   const hasMessages = messages.length > 0
 
@@ -419,6 +432,10 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
       if (reader) {
         let buffer = ""
         let accumulatedText = ""
+        let accumulatedPlan: AgentPlanStep[] = []
+        let accumulatedTools: ToolInvocation[] = []
+        let interruptPayload: any = null
+
         try {
           while (true) {
             const { value, done: doneReading } = await reader.read()
@@ -436,25 +453,56 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
                   const event = matchEvent[1].trim()
                   try {
                     const data = JSON.parse(matchData[1])
-                    if (event === "responder" && data.responseContent) {
+
+                    if (event === "planner" && data.plan) {
+                      accumulatedPlan = data.plan
+                    } else if (event === "executor") {
+                      if (data.plan) accumulatedPlan = data.plan
+                      if (data.toolName) {
+                        const existingIdx = accumulatedTools.findIndex((t) => t.toolCallId === data.toolCallId)
+                        if (existingIdx !== -1) {
+                          accumulatedTools[existingIdx] = {
+                            toolCallId: data.toolCallId,
+                            toolName: data.toolName,
+                            args: data.args || {},
+                            state: "result",
+                            result: data.result,
+                          }
+                        } else {
+                          accumulatedTools.push({
+                            toolCallId: data.toolCallId || String(Date.now()),
+                            toolName: data.toolName,
+                            args: data.args || {},
+                            state: data.result !== undefined ? "result" : "call",
+                            result: data.result,
+                          })
+                        }
+                      }
+                    } else if (event === "responder" && data.responseContent) {
                       accumulatedText = data.responseContent
-                    } else if (event === "done" && data.state?.responseContent) {
-                      accumulatedText = data.state.responseContent
+                    } else if (event === "interrupt") {
+                      interruptPayload = data.interrupts?.[0]?.value || data
+                    } else if (event === "done") {
+                      if (data.state?.responseContent) accumulatedText = data.state.responseContent
+                      if (data.state?.plan) accumulatedPlan = data.state.plan
+                    } else if (event === "error") {
+                      setError(data.error || "Graph execution error")
                     }
 
-                    if (accumulatedText) {
-                      setMessages((prev) => {
-                        const updated = [...prev]
-                        const lastIdx = updated.findIndex((m) => m.id === assistantMsgId)
-                        if (lastIdx !== -1) {
-                          updated[lastIdx] = {
-                            ...updated[lastIdx],
-                            content: accumulatedText,
-                          }
+                    setMessages((prev) => {
+                      const updated = [...prev]
+                      const lastIdx = updated.findIndex((m) => m.id === assistantMsgId)
+                      if (lastIdx !== -1) {
+                        updated[lastIdx] = {
+                          ...updated[lastIdx],
+                          content: accumulatedText,
+                          plan: accumulatedPlan.length > 0 ? accumulatedPlan : updated[lastIdx].plan,
+                          toolInvocations: accumulatedTools.length > 0 ? [...accumulatedTools] : updated[lastIdx].toolInvocations,
+                          interruptData: interruptPayload,
                         }
-                        return updated
-                      })
-                    }
+                      }
+                      return updated
+                    })
                   } catch {}
                 }
               }
@@ -614,6 +662,149 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
     }
   }
 
+  const handleToolConfirm = useCallback(
+    async (
+      toolName: string,
+      args: Record<string, unknown>,
+      action: "APPROVE" | "REJECT" = "APPROVE"
+    ) => {
+      const currentSessionId = sessionId || createdSessionIdRef.current
+      if (!currentSessionId) return
+
+      const msgId = Math.random().toString(36).slice(2, 11)
+      const assistantMsgId = "temp-asst-" + msgId
+
+      isStreamingRef.current = true
+      setIsStreaming(true)
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: assistantMsgId,
+          role: "assistant",
+          content: "",
+          toolInvocations: [],
+        },
+      ])
+
+      try {
+        const controller = new AbortController()
+        abortRef.current = controller
+
+        const res = await fetch("/api/agent/run", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sessionId: currentSessionId,
+            resumeAction: action,
+            resumePayload: args,
+          }),
+          signal: controller.signal,
+        })
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}))
+          throw new Error(errData.error || "Failed to resume action")
+        }
+
+        const reader = res.body?.getReader()
+        const decoder = new TextDecoder()
+        if (reader) {
+          let buffer = ""
+          let accumulatedText = ""
+          let accumulatedPlan: AgentPlanStep[] = []
+          let accumulatedTools: ToolInvocation[] = []
+          let interruptPayload: any = null
+
+          try {
+            while (true) {
+              const { value, done: doneReading } = await reader.read()
+              if (doneReading) break
+              if (value) {
+                buffer += decoder.decode(value, { stream: true })
+                const lines = buffer.split("\n\n")
+                buffer = lines.pop() || ""
+
+                for (const block of lines) {
+                  const matchEvent = block.match(/^event:\s*(.+)$/m)
+                  const matchData = block.match(/^data:\s*(.+)$/m)
+
+                  if (matchEvent && matchData) {
+                    const event = matchEvent[1].trim()
+                    try {
+                      const data = JSON.parse(matchData[1])
+
+                      if (event === "planner" && data.plan) {
+                        accumulatedPlan = data.plan
+                      } else if (event === "executor") {
+                        if (data.plan) accumulatedPlan = data.plan
+                        if (data.toolName) {
+                          const existingIdx = accumulatedTools.findIndex((t) => t.toolCallId === data.toolCallId)
+                          if (existingIdx !== -1) {
+                            accumulatedTools[existingIdx] = {
+                              toolCallId: data.toolCallId,
+                              toolName: data.toolName,
+                              args: data.args || {},
+                              state: "result",
+                              result: data.result,
+                            }
+                          } else {
+                            accumulatedTools.push({
+                              toolCallId: data.toolCallId || String(Date.now()),
+                              toolName: data.toolName,
+                              args: data.args || {},
+                              state: data.result !== undefined ? "result" : "call",
+                              result: data.result,
+                            })
+                          }
+                        }
+                      } else if (event === "responder" && data.responseContent) {
+                        accumulatedText = data.responseContent
+                      } else if (event === "interrupt") {
+                        interruptPayload = data.interrupts?.[0]?.value || data
+                      } else if (event === "done") {
+                        if (data.state?.responseContent) accumulatedText = data.state.responseContent
+                        if (data.state?.plan) accumulatedPlan = data.state.plan
+                      } else if (event === "error") {
+                        setError(data.error || "Graph execution error")
+                      }
+
+                      setMessages((prev) => {
+                        const updated = [...prev]
+                        const lastIdx = updated.findIndex((m) => m.id === assistantMsgId)
+                        if (lastIdx !== -1) {
+                          updated[lastIdx] = {
+                            ...updated[lastIdx],
+                            content: accumulatedText,
+                            plan: accumulatedPlan.length > 0 ? accumulatedPlan : updated[lastIdx].plan,
+                            toolInvocations: accumulatedTools.length > 0 ? [...accumulatedTools] : updated[lastIdx].toolInvocations,
+                            interruptData: interruptPayload,
+                          }
+                        }
+                        return updated
+                      })
+                    } catch {}
+                  }
+                }
+              }
+            }
+          } finally {
+            reader.releaseLock()
+          }
+        }
+      } catch (err: any) {
+        setError(err?.message || "Failed to resume action")
+      } finally {
+        isStreamingRef.current = false
+        setIsStreaming(false)
+        abortRef.current = null
+        void queryClient.invalidateQueries({ queryKey: ["applications"] })
+        void queryClient.invalidateQueries({ queryKey: ["stats"] })
+      }
+    },
+    [sessionId, queryClient]
+  )
+
   return (
     <div className="flex h-full w-full overflow-hidden bg-background">
       {/* Chat Pane */}
@@ -724,10 +915,7 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
                       }}
                       onRetry={handleRetry}
                       onEdit={handleEditMessage}
-                      onToolConfirm={(toolName, args) => {
-                        const confirmMsg = `Please re-run ${toolName} with confirmed: true. Original args: ${JSON.stringify(args)}`
-                        sendMessage(confirmMsg)
-                      }}
+                      onToolConfirm={handleToolConfirm}
                     />
                   ))
                 )}

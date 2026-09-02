@@ -79,6 +79,27 @@ function getStepMetadata(inv: ToolInvocation): StepMeta {
         diff: { del: 1 },
       }
     }
+    case "searchExternalJobs":
+    case "searchJobsAcrossBoards": {
+      const query = String(args?.query || args?.keywords || "Multi-Board Search")
+      return {
+        verb: isExecuting ? "Aggregating" : "Discovered",
+        techBadge: { text: "DISCOVERY", color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20" },
+        target: `${query}`,
+        detail: isExecuting ? "querying RemoteOK, Arbeitnow, Adzuna..." : "cross-board opportunities",
+      }
+    }
+    case "saveJobOpportunityToTracker": {
+      const title = String(args?.jobTitle || "Opportunity")
+      const company = String(args?.companyName || "Company")
+      return {
+        verb: isExecuting ? "Tracking" : "Tracked",
+        techBadge: { text: "BOARD", color: "text-teal-400 bg-teal-500/10 border-teal-500/20" },
+        target: `${company} • ${title}`,
+        detail: isExecuting ? "adding to pipeline..." : "+1 pipeline opportunity",
+        diff: { add: 1 },
+      }
+    }
     case "scrapeJobLink": {
       const url = String(args?.url || "")
       const domain = url.replace(/^https?:\/\//, "").split("/")[0] || "job page"
@@ -116,13 +137,25 @@ function getStepMetadata(inv: ToolInvocation): StepMeta {
         detail: isExecuting ? "optimizing bullet points..." : "+ATS impact metrics",
       }
     }
+    case "searchUserMemories":
+    case "getUserMemories":
     case "saveUserMemory": {
-      const key = String(args?.key || "memory")
+      const key = String(args?.key || args?.query || "memory")
       return {
-        verb: isExecuting ? "Memorizing" : "Memorized",
-        techBadge: { text: "MEM", color: "text-teal-400 bg-teal-500/10 border-teal-500/20" },
-        target: `User Context • ${key}`,
-        detail: isExecuting ? "saving preference..." : "stored across sessions",
+        verb: isExecuting ? "Retrieving" : "Synchronized",
+        techBadge: { text: "PGVECTOR", color: "text-violet-400 bg-violet-500/10 border-violet-500/20" },
+        target: `Semantic Context • ${key}`,
+        detail: isExecuting ? "pgvector cosine search..." : "relevant user context",
+      }
+    }
+    case "createWeeklyGoal": {
+      const target = String(args?.targetApplicationsCount ? `${args.targetApplicationsCount} Applications` : "Weekly Goal")
+      return {
+        verb: isExecuting ? "Setting" : "Set",
+        techBadge: { text: "GOAL", color: "text-amber-400 bg-amber-500/10 border-amber-500/20" },
+        target: `Goal • ${target}`,
+        detail: isExecuting ? "scheduling target..." : "committed weekly milestone",
+        diff: { add: 1 },
       }
     }
     case "batchImportApplications": {
@@ -152,7 +185,8 @@ function getStepMetadata(inv: ToolInvocation): StepMeta {
         detail: isExecuting ? "aggregating metrics..." : "pipeline summary",
       }
     }
-    case "listUserApplications": {
+    case "listUserApplications":
+    case "searchApplications": {
       const status = args?.status ? String(args.status) : "Active"
       return {
         verb: isExecuting ? "Fetching" : "Retrieved",
@@ -321,7 +355,7 @@ export default function AgenticProcessViewer({
                     ) : null}
 
                     {/* Quick navigation link for application changes */}
-                    {(inv.toolName === "createApplication" || inv.toolName === "updateApplicationStatus") && (
+                    {(inv.toolName === "createApplication" || inv.toolName === "updateApplicationStatus" || inv.toolName === "saveJobOpportunityToTracker") && (
                       <div className="pt-1 border-t border-border/40 flex justify-end">
                         <Link
                           href="/applications"

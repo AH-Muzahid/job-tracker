@@ -16,14 +16,23 @@ import LoadingState from "./LoadingState"
 import MermaidDiagram from "./MermaidDiagram"
 import { type ToolInvocation } from "./AIChat"
 import HITLConfirmForm from "./HITLConfirmForm"
+import type { AgentPlanStep } from "@/lib/ai/graph/state"
 
 interface Props {
-  message: { id: string; role: string; content: string; reasoning?: string; toolInvocations?: ToolInvocation[] }
+  message: {
+    id: string
+    role: string
+    content: string
+    reasoning?: string
+    plan?: AgentPlanStep[]
+    toolInvocations?: ToolInvocation[]
+    interruptData?: any
+  }
   isLast: boolean
   isStreaming: boolean
   onSuggestionClick?: (prompt: string) => void
   onRetry?: (content?: string) => void
-  onToolConfirm?: (toolName: string, args: Record<string, unknown>) => void
+  onToolConfirm?: (toolName: string, args: Record<string, unknown>, action?: "APPROVE" | "REJECT") => void
   onEdit?: (messageId: string, newText: string) => void
 }
 
@@ -663,6 +672,40 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
           </div>
         )}
 
+        {/* Multi-Step Execution Plan */}
+        {message.plan && message.plan.length > 0 && (
+          <div className="my-2 p-2.5 bg-muted/30 border border-border font-sans text-xs space-y-1.5 not-prose">
+            <div className="text-[10px] font-mono font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between border-b border-border/50 pb-1">
+              <span>Agent Execution Plan ({message.plan.filter((p) => p.status === "completed").length}/{message.plan.length})</span>
+              {isStreaming && <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />}
+            </div>
+            <div className="space-y-1 pt-0.5">
+              {message.plan.map((step, idx) => (
+                <div key={step.id || idx} className="flex items-center gap-2 text-[11px]">
+                  <span className="font-mono text-muted-foreground text-[10px] w-4 shrink-0">{idx + 1}.</span>
+                  <span className={cn(
+                    "flex-1 truncate",
+                    step.status === "completed" && "text-muted-foreground line-through opacity-75",
+                    (step.status === "in_progress" || (step.status as string) === "running") && "text-foreground font-semibold",
+                    step.status === "pending" && "text-muted-foreground/70"
+                  )}>
+                    {step.task || step.toolName || "Executing Step"}
+                  </span>
+                  <span className={cn(
+                    "text-[9px] font-mono px-1.5 py-0.2 rounded uppercase shrink-0 font-medium",
+                    step.status === "completed" && "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20",
+                    (step.status === "in_progress" || (step.status as string) === "running") && "bg-amber-500/10 text-amber-500 border border-amber-500/20 animate-pulse",
+                    step.status === "failed" && "bg-rose-500/10 text-rose-500 border border-rose-500/20",
+                    step.status === "pending" && "bg-muted text-muted-foreground border border-border"
+                  )}>
+                    {step.status}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Tool Calls - Terminal Style */}
         {message.toolInvocations && message.toolInvocations.length > 0 && (
           <div className="mb-2">
@@ -682,12 +725,37 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
                     toolName={tool.toolName}
                     args={tool.args || {}}
                     message={(tool.result as Record<string, unknown>).message as string}
-                    onConfirm={(modifiedArgs) => onToolConfirm?.(tool.toolName, modifiedArgs)}
-                    onCancel={() => {}}
+                    onConfirm={(modifiedArgs: Record<string, unknown>) => onToolConfirm?.(tool.toolName, modifiedArgs, "APPROVE")}
+                    onCancel={() => onToolConfirm?.(tool.toolName, {}, "REJECT")}
                   />
                 )}
               </React.Fragment>
             ))}
+          </div>
+        )}
+
+        {/* Human-in-the-Loop Interrupt Form from LangGraph */}
+        {message.interruptData && isLast && (
+          <div className="my-2">
+            <HITLConfirmForm
+              toolName={message.interruptData.toolName || message.interruptData.action || "confirm_action"}
+              args={message.interruptData.args || message.interruptData.input || {}}
+              message={message.interruptData.message || "The agent requires your confirmation before proceeding with this action."}
+              onConfirm={(modifiedArgs: Record<string, unknown>) =>
+                onToolConfirm?.(
+                  message.interruptData.toolName || message.interruptData.action || "confirm_action",
+                  modifiedArgs,
+                  "APPROVE"
+                )
+              }
+              onCancel={() =>
+                onToolConfirm?.(
+                  message.interruptData.toolName || message.interruptData.action || "confirm_action",
+                  {},
+                  "REJECT"
+                )
+              }
+            />
           </div>
         )}
 

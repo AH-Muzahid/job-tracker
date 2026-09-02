@@ -147,6 +147,16 @@ function formatToolInvocations(invocations: ToolInvocation[]): { rows: ToolChipR
       label = "Read Job Link";
       chip = typeof inv.args?.url === "string" ? inv.args.url.replace(/^https?:\/\//, "").slice(0, 24) : "job link";
       detail.push({ text: "Extracted job description & company requirements" });
+    } else if (inv.toolName === "searchExternalJobs" || inv.toolName === "searchJobsAcrossBoards") {
+      icon = "search";
+      label = "Discover Jobs";
+      chip = String(inv.args?.query || inv.args?.keywords || "Multi-Board Search");
+      detail.push({ text: "✓ Aggregated remote & global roles from RemoteOK, Arbeitnow, Adzuna", tone: "add" });
+    } else if (inv.toolName === "saveJobOpportunityToTracker") {
+      icon = "write";
+      label = "Save Opportunity";
+      chip = String(inv.args?.companyName || "Pipeline");
+      detail.push({ text: "+ Tracked opportunity in applications pipeline", tone: "add" });
     } else if (inv.toolName === "createApplication" || inv.toolName === "updateApplicationStatus") {
       icon = "write";
       label = inv.toolName === "createApplication" ? "Create Application" : "Update Status";
@@ -167,6 +177,16 @@ function formatToolInvocations(invocations: ToolInvocation[]): { rows: ToolChipR
       label = "Tailor Resume";
       chip = "Resume_Tailored.md";
       detail.push({ text: "+ Injected quantifiable ATS keywords & impact metrics", tone: "add" });
+    } else if (inv.toolName === "searchUserMemories" || inv.toolName === "getUserMemories" || inv.toolName === "saveUserMemory") {
+      icon = "read";
+      label = "Memory Search";
+      chip = "pgvector Index";
+      detail.push({ text: "✓ Retrieved semantic profile memories & preferences" });
+    } else if (inv.toolName === "createWeeklyGoal") {
+      icon = "write";
+      label = "Weekly Goal";
+      chip = String(inv.args?.targetApplicationsCount ? `${inv.args.targetApplicationsCount} Apps Target` : "Weekly Milestone");
+      detail.push({ text: "+ Scheduled weekly goal target", tone: "add" });
     } else {
       detail.push({ text: inv.state === "result" ? "✓ Task execution completed" : "Running tool in background..." });
     }
