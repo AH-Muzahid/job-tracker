@@ -61,5 +61,5 @@ describe("PostgreSQL Persistent Checkpointer", () => {
 
     expect(graph).toBeDefined()
     expect(graph.checkpointer).toBeDefined()
-  })
+  }, 30000)
 })

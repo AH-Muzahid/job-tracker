@@ -12,30 +12,52 @@ export interface MemorySearchResult {
 }
 
 export async function generateEmbedding(text: string): Promise<number[]> {
-  const apiKey = process.env.OPENAI_API_KEY
-  if (!apiKey) {
-    throw new Error("OPENAI_API_KEY is required for embedding generation")
+  // 1. Check for OpenAI API Key
+  const openaiKey = process.env.OPENAI_API_KEY
+  if (openaiKey) {
+    const response = await fetch("https://api.openai.com/v1/embeddings", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${openaiKey}`,
+      },
+      body: JSON.stringify({
+        input: text,
+        model: "text-embedding-3-small",
+        dimensions: 1536,
+      }),
+    })
+
+    if (response.ok) {
+      const data = await response.json()
+      return data.data[0].embedding
+    }
   }
 
-  const response = await fetch("https://api.openai.com/v1/embeddings", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      input: text,
-      model: "text-embedding-3-small",
-      dimensions: 1536,
-    }),
-  })
+  // 2. Check for Google Gemini API Key (100% FREE via text-embedding-004)
+  const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY
+  if (geminiKey) {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${geminiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "models/text-embedding-004",
+          content: { parts: [{ text }] },
+        }),
+      }
+    )
 
-  if (!response.ok) {
-    throw new Error(`Failed to generate embedding: ${response.statusText}`)
+    if (response.ok) {
+      const data = await response.json()
+      if (data.embedding?.values) {
+        return data.embedding.values
+      }
+    }
   }
 
-  const data = await response.json()
-  return data.data[0].embedding
+  throw new Error("No valid embedding provider key (OPENAI_API_KEY or GEMINI_API_KEY) found.")
 }
 
 export function serializeEmbedding(embedding: number[]): string {
@@ -68,46 +90,54 @@ export async function searchUserMemories(
     threshold = optionsOrLimit.threshold ?? 0.3
     category = optionsOrLimit.category
   }
-  const queryEmbedding = await generateEmbedding(query)
-  const vectorStr = `[${queryEmbedding.join(",")}]`
 
-  // 1. Attempt native database-level pgvector similarity search
+  let queryEmbedding: number[] | null = null
   try {
-    const rawResults = await withDbRetry<any[]>(() =>
-      prisma.$queryRaw<Array<{
-        id: string
-        category: string
-        content: string
-        similarity: number
-        createdAt: Date
-      }>>`
-        SELECT id, category, content, "createdAt",
-               (1 - (embedding::vector <=> ${vectorStr}::vector))::float AS similarity
-        FROM "UserMemory"
-        WHERE "userId" = ${userId}
-          AND embedding IS NOT NULL
-          ${category ? Prisma.sql`AND category = ${category}` : Prisma.empty}
-          AND (1 - (embedding::vector <=> ${vectorStr}::vector)) >= ${threshold}
-        ORDER BY (embedding::vector <=> ${vectorStr}::vector) ASC
-        LIMIT ${limit};
-      `
-    )
-
-    if (rawResults && Array.isArray(rawResults) && rawResults.length > 0) {
-      return rawResults.map((r) => ({
-        id: r.id,
-        category: r.category,
-        content: r.content,
-        similarity: Number(r.similarity),
-        createdAt: new Date(r.createdAt),
-      }))
-    }
-  } catch (pgError) {
-    // Database didn't have pgvector or raw query syntax error, fall through to in-memory cosine
-    console.warn("[pgvector fallback engaged]:", (pgError as Error)?.message || pgError)
+    queryEmbedding = await generateEmbedding(query)
+  } catch (err) {
+    console.warn("[Embedding Generation Skipped/Unavailable]:", (err as Error)?.message || err)
   }
 
-  // 2. Fallback: In-memory cosine similarity
+  // 1. Attempt native database-level pgvector similarity search if embedding is available
+  if (queryEmbedding && Array.isArray(queryEmbedding) && queryEmbedding.length > 0) {
+    const vectorStr = `[${queryEmbedding.join(",")}]`
+    try {
+      const rawResults = await withDbRetry<any[]>(() =>
+        prisma.$queryRaw<Array<{
+          id: string
+          category: string
+          content: string
+          similarity: number
+          createdAt: Date
+        }>>`
+          SELECT id, category, content, "createdAt",
+                 (1 - (embedding::vector <=> ${vectorStr}::vector))::float AS similarity
+          FROM "UserMemory"
+          WHERE "userId" = ${userId}
+            AND embedding IS NOT NULL
+            ${category ? Prisma.sql`AND category = ${category}` : Prisma.empty}
+            AND (1 - (embedding::vector <=> ${vectorStr}::vector)) >= ${threshold}
+          ORDER BY (embedding::vector <=> ${vectorStr}::vector) ASC
+          LIMIT ${limit};
+        `
+      )
+
+      if (rawResults && Array.isArray(rawResults) && rawResults.length > 0) {
+        return rawResults.map((r) => ({
+          id: r.id,
+          category: r.category,
+          content: r.content,
+          similarity: Number(r.similarity),
+          createdAt: new Date(r.createdAt),
+        }))
+      }
+    } catch (pgError) {
+      // Database didn't have pgvector or raw query syntax error, fall through to in-memory cosine
+      console.warn("[pgvector fallback engaged]:", (pgError as Error)?.message || pgError)
+    }
+  }
+
+  // 2. Fallback: In-memory cosine similarity or Recent Memory lookup
   const whereClause: { userId: string; category?: string } = { userId }
   if (category) whereClause.category = category
 
@@ -120,6 +150,8 @@ export async function searchUserMemories(
   }>>(() =>
     prisma.userMemory.findMany({
       where: whereClause,
+      orderBy: { createdAt: "desc" },
+      take: queryEmbedding ? 50 : limit,
       select: {
         id: true,
         category: true,
@@ -129,6 +161,17 @@ export async function searchUserMemories(
       },
     })
   )
+
+  // If no query embedding was generated, return recent memories directly
+  if (!queryEmbedding) {
+    return memories.slice(0, limit).map((m) => ({
+      id: m.id,
+      category: m.category,
+      content: m.content,
+      similarity: 1.0,
+      createdAt: m.createdAt,
+    }))
+  }
 
   const results: MemorySearchResult[] = []
 
@@ -163,8 +206,13 @@ export async function embedAndSaveMemory(
   content: string,
   category: string
 ): Promise<{ id: string; category: string; content: string }> {
-  const embedding = await generateEmbedding(content)
-  const serializedEmbedding = serializeEmbedding(embedding)
+  let serializedEmbedding: string | null = null
+  try {
+    const embedding = await generateEmbedding(content)
+    serializedEmbedding = serializeEmbedding(embedding)
+  } catch (err) {
+    console.warn("[Save Memory Embedding skipped]:", (err as Error)?.message || err)
+  }
 
   const memory = await withDbRetry<{ id: string; category: string; content: string }>(() =>
     prisma.userMemory.create({
