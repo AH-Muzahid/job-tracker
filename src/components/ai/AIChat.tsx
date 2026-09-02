@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { Send, Square, FileText, Briefcase, Target, MessageSquare, ArrowDown, Plus, Bot, RotateCcw } from "lucide-react"
+import { Send, Square, FileText, Briefcase, Target, MessageSquare, ArrowDown, Plus, RotateCcw } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -68,7 +68,7 @@ interface Message {
   plan?: AgentPlanStep[]
   metadata?: Record<string, unknown>
   toolInvocations?: ToolInvocation[]
-  interruptData?: any
+  interruptData?: Record<string, unknown> | null
 }
 
 const STARTER_PROMPTS = [
@@ -256,7 +256,7 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
         setError(sessionQueryError instanceof Error ? sessionQueryError.message : "Error loading chat")
       }
     }
-  }, [sessionId, sessionData, isSessionLoading, sessionQueryError])
+  }, [sessionId, sessionData, isSessionLoading, sessionQueryError, setMessages])
 
   useEffect(() => {
     // Only consume pendingPrompt if we are the visible instance
@@ -433,8 +433,8 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
         let buffer = ""
         let accumulatedText = ""
         let accumulatedPlan: AgentPlanStep[] = []
-        let accumulatedTools: ToolInvocation[] = []
-        let interruptPayload: any = null
+        const accumulatedTools: ToolInvocation[] = []
+        let interruptPayload: Record<string, unknown> | null = null
 
         try {
           while (true) {
@@ -713,8 +713,8 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
           let buffer = ""
           let accumulatedText = ""
           let accumulatedPlan: AgentPlanStep[] = []
-          let accumulatedTools: ToolInvocation[] = []
-          let interruptPayload: any = null
+          const accumulatedTools: ToolInvocation[] = []
+          let interruptPayload: Record<string, unknown> | null = null
 
           try {
             while (true) {
@@ -792,8 +792,8 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
             reader.releaseLock()
           }
         }
-      } catch (err: any) {
-        setError(err?.message || "Failed to resume action")
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : "Failed to resume action")
       } finally {
         isStreamingRef.current = false
         setIsStreaming(false)
@@ -802,7 +802,7 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
         void queryClient.invalidateQueries({ queryKey: ["stats"] })
       }
     },
-    [sessionId, queryClient]
+    [sessionId, queryClient, setMessages]
   )
 
   return (

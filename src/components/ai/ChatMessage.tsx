@@ -10,7 +10,6 @@ import { toast } from "sonner"
 import AnalysisResult from "./AnalysisResult"
 import OutreachResult from "./OutreachResult"
 import ToolChips from "./ToolChips"
-import AgenticProcessViewer from "./AgenticProcessViewer"
 import StreamingText from "./StreamingText"
 import LoadingState from "./LoadingState"
 import MermaidDiagram from "./MermaidDiagram"
@@ -26,7 +25,7 @@ interface Props {
     reasoning?: string
     plan?: AgentPlanStep[]
     toolInvocations?: ToolInvocation[]
-    interruptData?: any
+    interruptData?: Record<string, unknown> | null
   }
   isLast: boolean
   isStreaming: boolean
@@ -738,19 +737,19 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
         {message.interruptData && isLast && (
           <div className="my-2">
             <HITLConfirmForm
-              toolName={message.interruptData.toolName || message.interruptData.action || "confirm_action"}
-              args={message.interruptData.args || message.interruptData.input || {}}
-              message={message.interruptData.message || "The agent requires your confirmation before proceeding with this action."}
+              toolName={String(message.interruptData.toolName || message.interruptData.action || "confirm_action")}
+              args={(message.interruptData.args || message.interruptData.input || {}) as Record<string, unknown>}
+              message={String(message.interruptData.message || "The agent requires your confirmation before proceeding with this action.")}
               onConfirm={(modifiedArgs: Record<string, unknown>) =>
                 onToolConfirm?.(
-                  message.interruptData.toolName || message.interruptData.action || "confirm_action",
+                  String(message.interruptData?.toolName || message.interruptData?.action || "confirm_action"),
                   modifiedArgs,
                   "APPROVE"
                 )
               }
               onCancel={() =>
                 onToolConfirm?.(
-                  message.interruptData.toolName || message.interruptData.action || "confirm_action",
+                  String(message.interruptData?.toolName || message.interruptData?.action || "confirm_action"),
                   {},
                   "REJECT"
                 )
