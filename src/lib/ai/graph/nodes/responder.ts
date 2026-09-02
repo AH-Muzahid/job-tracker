@@ -2,6 +2,7 @@
 import { SystemMessage, HumanMessage, AIMessage } from "@langchain/core/messages"
 import type { AgentStateType } from "../state"
 import type { BaseChatModel } from "@langchain/core/language_models/chat_models"
+import { getCachedSessionSummary } from "@/lib/ai/conversation-summarizer"
 
 const RESPONDER_SYSTEM_PROMPT = `You are CareerTrack AI, the elite career and job application assistant.
 Review the user's initial goal, the executed plan, and the tool results.
@@ -13,7 +14,7 @@ Never use sparkle icons or generic AI filler. Maintain a professional, clean ton
 
 export function createResponderNode(model: BaseChatModel) {
   return async (state: AgentStateType): Promise<Partial<AgentStateType>> => {
-    const { goal, plan } = state
+    const { goal, plan, sessionId } = state
 
     const planSummary = (plan || [])
       .map(
@@ -22,11 +23,14 @@ export function createResponderNode(model: BaseChatModel) {
       )
       .join("\n")
 
+    const sessionSummary = sessionId ? await getCachedSessionSummary(sessionId).catch(() => null) : null
+    const summaryHeader = sessionSummary ? `Prior Conversation Summary:\n${sessionSummary}\n\n` : ""
+
     try {
       const response = await model.invoke([
         new SystemMessage(RESPONDER_SYSTEM_PROMPT),
         new HumanMessage(
-          `User Goal: ${goal}\n\nExecution Plan & Outcomes:\n${planSummary}\n\nPlease provide the final response to the user.`
+          `${summaryHeader}User Goal: ${goal}\n\nExecution Plan & Outcomes:\n${planSummary}\n\nPlease provide the final response to the user.`
         ),
       ])
 

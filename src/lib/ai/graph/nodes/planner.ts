@@ -2,6 +2,7 @@
 import { SystemMessage, HumanMessage } from "@langchain/core/messages"
 import type { AgentStateType, AgentPlanStep } from "../state"
 import type { BaseChatModel } from "@langchain/core/language_models/chat_models"
+import { getCachedSessionSummary } from "@/lib/ai/conversation-summarizer"
 
 const PLANNER_SYSTEM_PROMPT = `You are the CareerTrack AI Master Planner.
 Your job is to analyze the user's career/job tracking request and generate a structured step-by-step execution plan.
@@ -46,11 +47,16 @@ export function createPlannerNode(model: BaseChatModel) {
       .find((m) => m._getType() === "human" || (m as any).role === "user")
 
     const userText = lastUserMessage ? String(lastUserMessage.content) : state.goal || ""
+    const sessionSummary = state.sessionId ? await getCachedSessionSummary(state.sessionId).catch(() => null) : null
+
+    const promptText = sessionSummary
+      ? `Previous Session Context Summary:\n${sessionSummary}\n\nCurrent User Request: "${userText}"`
+      : `User Request: "${userText}"`
 
     try {
       const response = await model.invoke([
         new SystemMessage(PLANNER_SYSTEM_PROMPT),
-        new HumanMessage(`User Request: "${userText}"`),
+        new HumanMessage(promptText),
       ])
 
       const content = String(response.content)

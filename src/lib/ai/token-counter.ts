@@ -37,6 +37,9 @@ export function trimToTokenBudget(
 ): Array<{ role: string; content: string }> {
   if (messages.length === 0) return []
 
+  const total = countMessageTokens(messages)
+  if (total <= maxTokens) return [...messages]
+
   const firstMessage = messages[0]
   const rest = messages.slice(1)
 
@@ -53,12 +56,12 @@ export function trimToTokenBudget(
     kept.unshift(rest[i])
   }
 
-  const result = [firstMessage, ...kept]
-
-  // Ensure history starts with a user role message for API compatibility
-  while (result.length > 1 && result[1].role !== "user") {
-    result.splice(1, 1)
+  // If middle messages were trimmed, ensure the trimmed sequence doesn't start with an orphan assistant turn
+  if (kept.length < rest.length) {
+    while (kept.length > 1 && kept[0].role !== "user" && kept[0].role !== "system") {
+      kept.shift()
+    }
   }
 
-  return result
+  return [firstMessage, ...kept]
 }

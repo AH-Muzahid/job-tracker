@@ -43,7 +43,7 @@ describe("trimToTokenBudget", () => {
       { role: "assistant", content: "Hello" },
     ]
     const result = trimToTokenBudget(messages, 10_000)
-    expect(result).toHaveLength(1)
+    expect(result).toHaveLength(2)
   })
 
   it("always keeps first message", () => {

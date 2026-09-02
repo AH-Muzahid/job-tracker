@@ -12,11 +12,19 @@ import { touchMemory } from "./memory-consolidator"
 import { countTokens, trimToTokenBudget } from "./token-counter"
 import { searchUserMemories } from "./memory-search"
 import { getMacroLearningContext } from "./learning-engine"
+import {
+  getCachedSessionSummary,
+  buildOptimizedConversationHistory,
+  triggerBackgroundSummarize,
+} from "./conversation-summarizer"
 
 export {
   saveKnowledgeGraph,
   buildCareerGraphFromText,
   touchMemory,
+  getCachedSessionSummary,
+  buildOptimizedConversationHistory,
+  triggerBackgroundSummarize,
 }
 
 export type AIMode =
@@ -98,7 +106,8 @@ export async function getCachedProfile(userId: string): Promise<UserProfile | nu
 export async function buildFullContext(
   userId: string,
   modeOrMessage?: AIMode | string,
-  messageParam?: string
+  messageParam?: string,
+  sessionId?: string
 ): Promise<string> {
   const knownModes = new Set<string>([
     "profile",
@@ -121,8 +130,8 @@ export async function buildFullContext(
     }
   }
 
-  // 1. Profile, Identity, Knowledge Graph & Macro Outcomes (parallelized)
-  const [user, profile, graph, macroContext] = await Promise.all([
+  // 1. Profile, Identity, Knowledge Graph, Macro Outcomes & Session Summary (parallelized)
+  const [user, profile, graph, macroContext, sessionSummary] = await Promise.all([
     prisma.user.findUnique({
       where: { id: userId },
       select: { name: true, email: true },
@@ -130,6 +139,7 @@ export async function buildFullContext(
     getCachedProfile(userId),
     getCachedKnowledgeGraph(userId),
     getMacroLearningContext(userId).catch(() => ""),
+    sessionId ? getCachedSessionSummary(sessionId).catch(() => null) : Promise.resolve(null),
   ])
 
   const displayName = user?.name || user?.email || "there"
@@ -186,6 +196,7 @@ export async function buildFullContext(
     profileParts.length > 0 ? `Profile: ${profileParts.join(" | ")}` : "",
     profile?.targetRoles?.length ? `User Target: ${profile.targetRoles.join(", ")}` : "",
     macroContext ? `Outcome Learning:\n${macroContext}` : "",
+    sessionSummary ? `Previous Conversation Context:\n${sessionSummary}` : "",
     relevantMemories.length > 0 ? `Relevant Facts:\n${relevantMemories.join("\n")}` : "",
     formattedGraph ? formattedGraph : "",
   ].filter(Boolean)
