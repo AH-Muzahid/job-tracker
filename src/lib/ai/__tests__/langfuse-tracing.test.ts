@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 import {
   getLangfuseInstance,
   createLangfuseCallbackHandler,
+  buildTraceTagsAndMetadata,
   trackGraphExecution,
   scoreTrace,
   flushLangfuse,
@@ -35,19 +36,37 @@ describe("Langfuse AI Observability & Tracing Suite", () => {
     expect(instance).toBeNull()
   })
 
-  it("initializes CallbackHandler when Langfuse credentials are present", () => {
+  it("initializes CallbackHandler with dynamic tags when credentials are present", () => {
     process.env.LANGFUSE_PUBLIC_KEY = "pk-lf-test-12345"
     process.env.LANGFUSE_SECRET_KEY = "sk-lf-test-67890"
 
     const handler = createLangfuseCallbackHandler({
       userId: "user-test",
       sessionId: "session-test",
-      tags: ["test-tag"],
-      metadata: { env: "vitest" },
+      category: "job_discovery",
+      tags: ["multi-board"],
+      metadata: { boardCount: 3 },
     })
 
     expect(handler).not.toBeNull()
     expect(handler?.name).toBeDefined()
+  })
+
+  it("builds consistent dynamic trace tags and structured metadata", () => {
+    const { tags, metadata } = buildTraceTagsAndMetadata({
+      category: "ats_resume_tailor",
+      userId: "usr_99",
+      sessionId: "sess_99",
+      additionalTags: ["custom_tag"],
+      additionalMetadata: { matchScore: 92 },
+    })
+
+    expect(tags).toContain("career-track")
+    expect(tags).toContain("ats_resume_tailor")
+    expect(tags).toContain("custom_tag")
+    expect(metadata.userId).toBe("usr_99")
+    expect(metadata.taskCategory).toBe("ats_resume_tailor")
+    expect(metadata.matchScore).toBe(92)
   })
 
   it("safely handles trackGraphExecution, scoreTrace, and flushLangfuse when Langfuse is disabled or enabled", async () => {
@@ -75,7 +94,7 @@ describe("Langfuse AI Observability & Tracing Suite", () => {
       })
     ).resolves.not.toThrow()
 
-    await expect(flushLangfuse()).resolves.not.toThrow()
+    await expect(flushLangfuse(1500)).resolves.not.toThrow()
   })
 
   it("logs structured AI transactions safely", () => {
