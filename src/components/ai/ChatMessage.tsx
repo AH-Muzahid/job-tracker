@@ -639,7 +639,12 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
     }
   }), [onSuggestionClick, message.content])
 
-  const showAvatar = !isUser && (Boolean(message.content) || (message.toolInvocations && message.toolInvocations.length > 0))
+  const showAvatar =
+    !isUser &&
+    (Boolean(message.content) ||
+      (message.toolInvocations && message.toolInvocations.length > 0) ||
+      (message.plan && message.plan.length > 0) ||
+      Boolean(message.interruptData))
 
   return (
     <div className={cn("flex gap-3 w-full group", isUser ? "justify-end" : "justify-start")}>
