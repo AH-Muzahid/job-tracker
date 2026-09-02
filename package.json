@@ -44,6 +44,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "framer-motion": "^12.42.2",
+    "googleapis": "^178.0.0",
     "inngest": "^4.18.1",
     "js-tiktoken": "^1.0.21",
     "langfuse": "^3.38.20",

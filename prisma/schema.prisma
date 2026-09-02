@@ -29,6 +29,7 @@ model User {
   knowledgeGraph CareerKnowledgeGraph?
   interviewSessions InterviewSession[]
   notifications Notification[]
+  connectedAccount ConnectedAccount?
 }
 
 model Application {
@@ -340,3 +341,22 @@ model Notification {
   @@index([userId, isRead])
   @@index([userId, createdAt])
 }
+
+model ConnectedAccount {
+  id           String   @id @default(uuid())
+  userId       String   @unique
+  provider     String   // "google" | "microsoft"
+  email        String
+  accessToken  String   @db.Text
+  refreshToken String   @db.Text
+  expiresAt    DateTime
+  historyId    String?  // For Gmail history sync
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([provider, email])
+}
+
