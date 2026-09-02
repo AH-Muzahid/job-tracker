@@ -109,6 +109,30 @@ describe("Multi-Board Job Discovery Engine Tools", () => {
     expect(result.opportunities[0].sourceBoard).toBeDefined()
   })
 
+  it("successfully finds jobs with tokenized queries like 'Full stack developer'", async () => {
+    vi.spyOn((prisma as any).userProfile, "findUnique").mockResolvedValueOnce({
+      userId: testUserId,
+      strengths: "React, TypeScript, Node.js",
+      targetRoles: ["Full Stack Developer"],
+    })
+    vi.spyOn((prisma as any).resume, "findFirst").mockResolvedValueOnce({
+      userId: testUserId,
+      isDefault: true,
+      textContent: "Full stack web developer with Next.js and Go experience.",
+    })
+
+    const result = await executeSearchExternalJobs(testUserId, {
+      query: "Full stack developer",
+      limit: 6,
+    })
+
+    expect(result.success).toBe(true)
+    expect(result.opportunities.length).toBeGreaterThan(0)
+    const titles = result.opportunities.map((o) => o.title.toLowerCase())
+    const hasFullStackMatch = titles.some((t) => t.includes("full stack") || t.includes("fullstack"))
+    expect(hasFullStackMatch).toBe(true)
+  })
+
   it("saves discovered job opportunity directly into the user tracker", async () => {
     const mockCreatedApp = {
       id: "app-discovered-1",
@@ -137,3 +161,4 @@ describe("Multi-Board Job Discovery Engine Tools", () => {
     expect(result.message).toContain("Stripe")
   })
 })
+

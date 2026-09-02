@@ -18,19 +18,19 @@ export default function DiscoveryPage() {
 
   if (!isLoaded || !isSignedIn) {
     return (
-      <div className="p-6 max-w-7xl mx-auto animate-pulse space-y-6">
-        <div className="h-28 rounded-xl bg-muted/40" />
+      <div className="w-full animate-pulse space-y-6">
+        <div className="h-32 rounded-xl bg-muted/40" />
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="h-52 rounded-xl bg-muted/30" />
-          <div className="h-52 rounded-xl bg-muted/30" />
-          <div className="h-52 rounded-xl bg-muted/30" />
+          <div className="h-56 rounded-xl bg-muted/30" />
+          <div className="h-56 rounded-xl bg-muted/30" />
+          <div className="h-56 rounded-xl bg-muted/30" />
         </div>
       </div>
     )
   }
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
+    <div className="w-full space-y-6">
       <JobDiscoveryHub />
     </div>
   )

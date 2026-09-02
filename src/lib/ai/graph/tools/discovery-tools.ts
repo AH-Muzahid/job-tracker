@@ -32,7 +32,7 @@ export interface UnifiedRawJob {
   description: string
 }
 
-const FALLBACK_OPPORTUNITIES: UnifiedRawJob[] = [
+export const FALLBACK_OPPORTUNITIES: UnifiedRawJob[] = [
   {
     id: "fb_1",
     title: "Senior Full Stack Engineer (React / Go)",
@@ -40,7 +40,7 @@ const FALLBACK_OPPORTUNITIES: UnifiedRawJob[] = [
     location: "Remote",
     url: "https://stripe.com/jobs",
     sourceBoard: "curated",
-    tags: ["react", "go", "typescript", "postgresql", "redis"],
+    tags: ["react", "go", "typescript", "postgresql", "redis", "fullstack", "developer"],
     salaryMin: 160000,
     salaryMax: 210000,
     description: "Building next-generation global financial infrastructure using React, TypeScript, and Go microservices.",
@@ -52,7 +52,7 @@ const FALLBACK_OPPORTUNITIES: UnifiedRawJob[] = [
     location: "Remote",
     url: "https://vercel.com/careers",
     sourceBoard: "curated",
-    tags: ["nextjs", "react", "typescript", "tailwind", "ui"],
+    tags: ["nextjs", "react", "typescript", "tailwind", "ui", "frontend", "developer"],
     salaryMin: 150000,
     salaryMax: 195000,
     description: "Leading frontend engineering initiatives with Next.js App Router, Tailwind CSS, and performance optimization.",
@@ -64,7 +64,7 @@ const FALLBACK_OPPORTUNITIES: UnifiedRawJob[] = [
     location: "Remote / Hybrid",
     url: "https://anthropic.com/careers",
     sourceBoard: "curated",
-    tags: ["python", "typescript", "langgraph", "llm", "postgresql"],
+    tags: ["python", "typescript", "langgraph", "llm", "postgresql", "backend", "ai", "engineer"],
     salaryMin: 180000,
     salaryMax: 240000,
     description: "Architecting autonomous AI agent pipelines, state machines, and high-reliability data platforms.",
@@ -76,10 +76,58 @@ const FALLBACK_OPPORTUNITIES: UnifiedRawJob[] = [
     location: "Remote",
     url: "https://airbnb.com/careers",
     sourceBoard: "curated",
-    tags: ["go", "kubernetes", "distributed-systems", "redis", "postgresql"],
+    tags: ["go", "kubernetes", "distributed-systems", "redis", "postgresql", "backend", "engineer"],
     salaryMin: 190000,
     salaryMax: 250000,
     description: "Scaling distributed caching systems and booking engines handling hundreds of thousands of requests per second.",
+  },
+  {
+    id: "fb_5",
+    title: "Full Stack Developer (Next.js & Node.js)",
+    company: "Supabase",
+    location: "Remote (Global)",
+    url: "https://supabase.com/careers",
+    sourceBoard: "curated",
+    tags: ["typescript", "react", "nextjs", "postgresql", "fullstack", "developer"],
+    salaryMin: 145000,
+    salaryMax: 190000,
+    description: "Building open source Firebase alternative tools, realtime Postgres sync, and cloud developer dashboards.",
+  },
+  {
+    id: "fb_6",
+    title: "Full Stack Product Engineer",
+    company: "Linear",
+    location: "Remote",
+    url: "https://linear.app/careers",
+    sourceBoard: "curated",
+    tags: ["react", "typescript", "graphql", "node", "fullstack", "engineer"],
+    salaryMin: 165000,
+    salaryMax: 215000,
+    description: "Crafting world-class, ultra-fast issue tracking and project management software with high attention to UI details.",
+  },
+  {
+    id: "fb_7",
+    title: "Senior Python & ML Infrastructure Engineer",
+    company: "OpenAI",
+    location: "Remote / San Francisco",
+    url: "https://openai.com/careers",
+    sourceBoard: "curated",
+    tags: ["python", "pytorch", "kubernetes", "ai", "backend", "engineer"],
+    salaryMin: 200000,
+    salaryMax: 290000,
+    description: "Developing scalable distributed training and inference platforms powering modern generative AI models.",
+  },
+  {
+    id: "fb_8",
+    title: "Lead Frontend Engineer (React / TypeScript)",
+    company: "Figma",
+    location: "Remote",
+    url: "https://figma.com/careers",
+    sourceBoard: "curated",
+    tags: ["react", "typescript", "webgl", "wasm", "frontend", "ui"],
+    salaryMin: 175000,
+    salaryMax: 230000,
+    description: "Pushing the boundaries of web capabilities with high performance collaborative design canvas and web tooling.",
   },
 ]
 
@@ -137,14 +185,94 @@ export function deduplicateJobs(jobs: UnifiedRawJob[]): UnifiedRawJob[] {
 }
 
 /**
+ * Maps arbitrary search terms or tags to RemoteOK compatible tag slugs
+ */
+export function mapToRemoteOkTag(tagOrQuery: string): string {
+  const clean = (tagOrQuery || "").toLowerCase().trim()
+  if (clean.includes("react")) return "react"
+  if (clean.includes("front")) return "frontend"
+  if (clean.includes("back")) return "backend"
+  if (clean.includes("full") || clean.includes("stack")) return "fullstack"
+  if (clean.includes("python")) return "python"
+  if (clean.includes("go") || clean.includes("golang")) return "golang"
+  if (clean.includes("type") || clean.includes("script") || clean.includes("js")) return "javascript"
+  if (clean.includes("next")) return "nextjs"
+  if (clean.includes("ai") || clean.includes("ml") || clean.includes("machine")) return "ai"
+  if (clean.includes("node")) return "nodejs"
+  if (clean.includes("remote")) return "remote"
+  if (clean.includes("devops") || clean.includes("cloud")) return "devops"
+  return "dev"
+}
+
+/**
+ * Extracts and expands search tokens including synonyms
+ */
+export function extractSearchTokens(query?: string, tags?: string[]): string[] {
+  const tokens = new Set<string>()
+  const rawTerms = [query || "", ...(tags || [])]
+
+  for (const raw of rawTerms) {
+    if (!raw.trim()) continue
+    const words = raw
+      .toLowerCase()
+      .replace(/[^a-z0-9+#.-]/g, " ")
+      .split(/\s+/)
+
+    for (const w of words) {
+      if (w.length <= 1 && w !== "c") continue
+      if (["and", "the", "for", "with", "all", "job", "jobs", "in", "of"].includes(w)) continue
+      tokens.add(w)
+
+      // Common developer synonyms & variants
+      if (w === "developer" || w === "dev") {
+        tokens.add("engineer")
+        tokens.add("developer")
+      }
+      if (w === "engineer") {
+        tokens.add("developer")
+        tokens.add("engineer")
+      }
+      if (w === "fullstack" || w === "full-stack") {
+        tokens.add("full")
+        tokens.add("stack")
+        tokens.add("fullstack")
+      }
+      if (w === "full" || w === "stack") {
+        tokens.add("fullstack")
+        tokens.add("full")
+        tokens.add("stack")
+      }
+      if (w === "frontend" || w === "front-end") {
+        tokens.add("frontend")
+        tokens.add("react")
+        tokens.add("ui")
+      }
+      if (w === "backend" || w === "back-end") {
+        tokens.add("backend")
+        tokens.add("node")
+        tokens.add("api")
+      }
+      if (w === "ai" || w === "ml") {
+        tokens.add("ai")
+        tokens.add("ml")
+        tokens.add("llm")
+      }
+    }
+  }
+
+  return Array.from(tokens)
+}
+
+/**
  * Fetches remote tech jobs from RemoteOK API
  */
 async function fetchRemoteOkJobs(tagParam: string): Promise<UnifiedRawJob[]> {
   try {
+    const remoteOkTag = mapToRemoteOkTag(tagParam)
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), 3500)
 
-    const res = await fetch(`https://remoteok.com/api?tag=${encodeURIComponent(tagParam)}`, {
+    const res = await fetch(`https://remoteok.com/api?tag=${encodeURIComponent(remoteOkTag)}`, {
       signal: controller.signal,
       headers: { "User-Agent": "CareerTrack-Discovery-Agent/1.0" },
     })
@@ -261,7 +389,7 @@ async function fetchAdzunaJobs(query: string, location?: string): Promise<Unifie
 }
 
 /**
- * Ingests jobs across all configured external job boards concurrently
+ * Ingests jobs across all configured external job boards concurrently and merges with curated opportunities
  */
 export async function fetchMultiBoardOpportunities(query: string, tagParam: string, location?: string): Promise<UnifiedRawJob[]> {
   const [remoteOkResults, arbeitnowResults, adzunaResults] = await Promise.allSettled([
@@ -282,9 +410,8 @@ export async function fetchMultiBoardOpportunities(query: string, tagParam: stri
     aggregated.push(...adzunaResults.value)
   }
 
-  if (aggregated.length === 0) {
-    return FALLBACK_OPPORTUNITIES
-  }
+  // Always blend with curated fallback opportunities to guarantee rich results
+  aggregated.push(...FALLBACK_OPPORTUNITIES)
 
   return deduplicateJobs(aggregated)
 }
@@ -340,14 +467,11 @@ export async function executeSearchExternalJobs(
 
     // 2. Fetch Multi-Board Jobs
     const query = input.query || ""
-    const tagParam = input.tags?.[0] || input.query?.split(" ")[0] || "engineer"
+    const tagParam = input.tags?.[0] || input.query || "dev"
     const rawJobs = await fetchMultiBoardOpportunities(query, tagParam, input.location)
 
-    // 3. Filter and Calculate Adaptive Fit Score
-    const searchTerms = [
-      input.query?.toLowerCase(),
-      ...(input.tags || []).map((t) => t.toLowerCase()),
-    ].filter(Boolean) as string[]
+    // 3. Extract search tokens for resilient query matching
+    const searchTokens = extractSearchTokens(input.query, input.tags)
 
     const scoredOpportunities: ExternalJobOpportunity[] = []
 
@@ -358,16 +482,11 @@ export async function executeSearchExternalJobs(
       const tags = Array.isArray(job.tags) ? job.tags.map((t: string) => toCanonical(t)) : []
       const description = String(job.description || "").replace(/<[^>]+>/g, " ")
 
-      // Filter by search terms if supplied
-      if (searchTerms.length > 0) {
-        const matchesQuery = searchTerms.some(
-          (term) =>
-            position.toLowerCase().includes(term) ||
-            company.toLowerCase().includes(term) ||
-            tags.some((t: string) => t.includes(term)) ||
-            description.toLowerCase().includes(term)
-        )
-        if (!matchesQuery && job.sourceBoard !== "curated") {
+      // Filter by search tokens if supplied
+      if (searchTokens.length > 0) {
+        const targetText = `${position} ${company} ${tags.join(" ")} ${description}`.toLowerCase()
+        const hasMatch = searchTokens.some((token) => targetText.includes(token))
+        if (!hasMatch) {
           continue
         }
       }
@@ -415,7 +534,7 @@ export async function executeSearchExternalJobs(
       const baseFit = Math.min(50, matchedSkillCount * 12)
       const salaryBonus = job.salaryMin ? 5 : 0
       const rawScore = baseFit + roleBonus + winningBoost + companyBonus + salaryBonus - penaltyDamp
-      const finalFitScore = Math.min(99, Math.max(40, rawScore || 50))
+      const finalFitScore = Math.min(99, Math.max(45, rawScore || 55))
 
       // Synthesize transparent match rationale
       let matchRationale = ""
@@ -453,7 +572,7 @@ export async function executeSearchExternalJobs(
 
     // Sort by adaptive fit score descending
     scoredOpportunities.sort((a, b) => b.fitScore - a.fitScore)
-    const limit = input.limit || 6
+    const limit = input.limit || 12
     const results = scoredOpportunities.slice(0, limit)
 
     return {
