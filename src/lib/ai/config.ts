@@ -112,7 +112,11 @@ async function saveRawMultiConfig(userId: string, multiConfig: StoredMultiAIConf
 /**
  * Returns the currently active AIProviderConfig for making LLM calls.
  */
-export async function getUserAIConfig(userId: string, profileId?: string): Promise<AIProviderConfig | null> {
+export async function getUserAIConfig(
+  userId: string,
+  profileId?: string,
+  options?: { requireUserKey?: boolean }
+): Promise<AIProviderConfig | null> {
   const multi = await getRawMultiConfig(userId)
   if (multi && multi.profiles && multi.profiles.length > 0) {
     const target = profileId
@@ -129,7 +133,12 @@ export async function getUserAIConfig(userId: string, profileId?: string): Promi
     }
   }
 
-  // System environment variables fallback
+  // If this heavy feature strictly requires the user's personal BYOK key
+  if (options?.requireUserKey) {
+    return null
+  }
+
+  // System environment variables fallback for lightweight/system tasks
   if (process.env.OPENAI_API_KEY) {
     return {
       providerType: "openai",

@@ -9,6 +9,7 @@ import { HumanMessage } from "@langchain/core/messages"
 import { Command } from "@langchain/langgraph"
 import { trackGraphExecution, createLangfuseCallbackHandler, flushLangfuse } from "@/lib/ai/graph/telemetry"
 import { prisma, withDbRetry } from "@/lib/prisma"
+import { triggerBackgroundSummarize } from "@/lib/ai/conversation-summarizer"
 
 export async function POST(request: NextRequest) {
   const userId = await getInternalUserId()
@@ -16,10 +17,13 @@ export async function POST(request: NextRequest) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 })
   }
 
-  const aiConfig = await getUserAIConfig(userId)
+  const aiConfig = await getUserAIConfig(userId, undefined, { requireUserKey: true })
   if (!aiConfig) {
     return new Response(
-      JSON.stringify({ error: "AI provider not configured. Please add your API key in Settings." }),
+      JSON.stringify({
+        error: "AI key required. Please add your personal AI API key (Google Gemini, Groq, or OpenAI) in Settings > AI Configuration.",
+        code: "AI_KEY_REQUIRED",
+      }),
       { status: 400 }
     )
   }
@@ -162,6 +166,18 @@ export async function POST(request: NextRequest) {
                   },
                 })
               )
+
+              // Asynchronously check & trigger background summarizer if threshold reached
+              void (async () => {
+                try {
+                  const messageCount = await prisma.chatMessage.count({ where: { sessionId } })
+                  if (messageCount >= 8 && messageCount % 4 === 0) {
+                    await triggerBackgroundSummarize(sessionId, userId)
+                  }
+                } catch (summaryTriggerErr) {
+                  console.warn("[Background Summarizer Trigger Warning]:", summaryTriggerErr)
+                }
+              })()
             } catch (saveErr) {
               console.warn("[Save Assistant Msg Warning]:", saveErr)
             }

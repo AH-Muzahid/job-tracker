@@ -21,9 +21,15 @@ export async function POST(request: NextRequest) {
     return rateLimitResponse(rateCheck)
   }
 
-  const aiConfig = await getUserAIConfig(userId)
+  const aiConfig = await getUserAIConfig(userId, undefined, { requireUserKey: true })
   if (!aiConfig) {
-    return NextResponse.json({ error: "AI provider not configured" }, { status: 400 })
+    return NextResponse.json(
+      {
+        error: "AI key required. Please configure your personal AI API key in Settings > AI Configuration.",
+        code: "AI_KEY_REQUIRED",
+      },
+      { status: 400 }
+    )
   }
 
   try {
