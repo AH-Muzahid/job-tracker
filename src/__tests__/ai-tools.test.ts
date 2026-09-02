@@ -48,6 +48,12 @@ vi.mock("@/lib/prisma", () => {
       findMany: vi.fn(),
       findFirst: vi.fn(),
     },
+    connectedAccount: {
+      findUnique: vi.fn().mockResolvedValue(null),
+      upsert: vi.fn(),
+      update: vi.fn(),
+      deleteMany: vi.fn(),
+    },
   }
   return {
     prisma: mockPrisma,

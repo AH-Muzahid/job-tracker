@@ -12,6 +12,7 @@ import { AccountInfoCard } from "@/components/settings/AccountInfoCard"
 import { PreferencesCard } from "@/components/settings/PreferencesCard"
 import { DataManagementCard } from "@/components/settings/DataManagementCard"
 import { GoogleSheetsIntegrationCard, type GoogleSheetsConfigData } from "@/components/settings/GoogleSheetsIntegrationCard"
+import { GoogleAccountCard } from "@/components/settings/GoogleAccountCard"
 import { AIConfigCard, type AIProfile } from "@/components/settings/AIConfigCard"
 import { AIMemoryManager } from "@/components/settings/AIMemoryManager"
 
@@ -98,6 +99,9 @@ export default function SettingsPage() {
         initialConfig={bundle?.googleSheets || null}
         isLoading={loadingBundle}
       />
+
+      {/* Personal Gmail OAuth Account Integration */}
+      <GoogleAccountCard />
 
       {/* Multi-Profile AI Keys Management */}
       <AIConfigCard
