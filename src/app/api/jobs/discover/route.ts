@@ -3,10 +3,15 @@ export const dynamic = "force-dynamic"
 
 import { NextRequest, NextResponse } from "next/server"
 import { getInternalUserId } from "@/lib/auth"
+import { prisma, withDbRetry } from "@/lib/prisma"
 import {
-  executeSearchExternalJobs,
   executeSaveJobOpportunityToTracker,
 } from "@/lib/ai/graph/tools/discovery-tools"
+import {
+  getNextBatchReleaseTime,
+  getCurrentBatchStartTime,
+  processUserJobBatch,
+} from "@/inngest/functions/batch-job-pipeline"
 import { ResponseUtil } from "@/lib/api-response"
 
 export async function GET(request: NextRequest) {
@@ -16,24 +21,123 @@ export async function GET(request: NextRequest) {
   }
 
   const { searchParams } = new URL(request.url)
-  const query = searchParams.get("query") || undefined
-  const location = searchParams.get("location") || undefined
-  const tags = searchParams.get("tags") ? searchParams.get("tags")!.split(",") : undefined
-  const limit = parseInt(searchParams.get("limit") || "8", 10)
+  const query = searchParams.get("query")?.toLowerCase().trim() || ""
+  const forceRefresh = searchParams.get("refresh") === "true"
 
   try {
-    const result = await executeSearchExternalJobs(userId, {
-      query,
-      location,
-      tags,
-      limit,
-    })
+    const now = new Date()
+    const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000)
 
-    if (!result.success) {
-      return NextResponse.json(ResponseUtil.error(result.error || "Failed to discover jobs"), { status: 500 })
+    // If explicit forceRefresh is requested, seed immediately
+    if (forceRefresh) {
+      await processUserJobBatch(userId, { forceImmediatePublish: true, notify: false })
     }
 
-    return NextResponse.json(ResponseUtil.success(result))
+    // Query all published jobs within the 24-hour rolling window OR saved jobs directly
+    let rawJobs = await withDbRetry(() =>
+      prisma.discoveredJob.findMany({
+        where: {
+          userId,
+          OR: [
+            {
+              status: "PUBLISHED",
+              publishedAt: { gte: twentyFourHoursAgo },
+            },
+            {
+              isSaved: true,
+            },
+          ],
+        },
+        orderBy: [
+          { publishedAt: "desc" },
+          { fitScore: "desc" },
+        ],
+        take: 60,
+      })
+    )
+
+    // If user has zero active jobs, seed their initial batch (cold-start recovery)
+    if (rawJobs.length === 0 && !forceRefresh) {
+      await processUserJobBatch(userId, { forceImmediatePublish: true, notify: false })
+      rawJobs = await withDbRetry(() =>
+        prisma.discoveredJob.findMany({
+          where: {
+            userId,
+            status: "PUBLISHED",
+            publishedAt: { gte: twentyFourHoursAgo },
+          },
+          orderBy: [
+            { publishedAt: "desc" },
+            { fitScore: "desc" },
+          ],
+          take: 60,
+        })
+      )
+    }
+
+    // Transform jobs into UI-ready opportunity format with batch age metadata
+    const opportunities = rawJobs.map((job) => {
+      const publishedAt = job.publishedAt || job.createdAt
+      const ageHours = (now.getTime() - publishedAt.getTime()) / (1000 * 60 * 60)
+
+      let batchSlot: "just-in" | "earlier-today" | "yesterday" = "just-in"
+      let batchLabel = "Just In (<6h)"
+
+      if (ageHours > 12) {
+        batchSlot = "yesterday"
+        batchLabel = "12-24h Ago"
+      } else if (ageHours > 6) {
+        batchSlot = "earlier-today"
+        batchLabel = "6-12h Ago"
+      }
+
+      return {
+        id: job.id,
+        title: job.title,
+        company: job.company,
+        location: job.location,
+        url: job.url,
+        sourceBoard: job.sourceBoard as any,
+        tags: job.tags || [],
+        salary: job.salary || undefined,
+        fitScore: job.fitScore,
+        matchRationale: job.matchRationale || "",
+        descriptionSnippet: job.description || "",
+        batchId: job.batchId,
+        batchSlot,
+        batchLabel,
+        publishedAt: publishedAt.toISOString(),
+        isSaved: job.isSaved,
+      }
+    })
+
+    // Filter by search query if provided
+    const filteredOpportunities = query
+      ? opportunities.filter((job) => {
+          const matchTarget = `${job.title} ${job.company} ${job.location} ${job.tags.join(" ")}`.toLowerCase()
+          return matchTarget.includes(query)
+        })
+      : opportunities
+
+    const nextBatchAt = getNextBatchReleaseTime(now).toISOString()
+    const currentBatchStartedAt = getCurrentBatchStartTime(now).toISOString()
+
+    const batchSummary = {
+      justIn: opportunities.filter((j) => j.batchSlot === "just-in").length,
+      earlierToday: opportunities.filter((j) => j.batchSlot === "earlier-today").length,
+      yesterday: opportunities.filter((j) => j.batchSlot === "yesterday").length,
+      totalActive: opportunities.length,
+    }
+
+    return NextResponse.json(
+      ResponseUtil.success({
+        count: filteredOpportunities.length,
+        nextBatchAt,
+        currentBatchStartedAt,
+        batchSummary,
+        opportunities: filteredOpportunities,
+      })
+    )
   } catch (error: any) {
     return NextResponse.json(ResponseUtil.error(error?.message || "Internal server error"), { status: 500 })
   }
@@ -50,11 +154,12 @@ export async function POST(request: NextRequest) {
     const { action } = body
 
     if (action === "save") {
-      const { companyName, jobTitle, jobUrl, location, salary, notes } = body
+      const { jobId, companyName, jobTitle, jobUrl, location, salary, notes } = body
       if (!companyName || !jobTitle) {
         return NextResponse.json(ResponseUtil.error("companyName and jobTitle are required"), { status: 400 })
       }
 
+      // 1. Create tracker application record
       const saveResult = await executeSaveJobOpportunityToTracker(userId, {
         companyName,
         jobTitle,
@@ -68,20 +173,41 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(ResponseUtil.error(saveResult.error || "Failed to save job"), { status: 500 })
       }
 
+      // 2. Mark DiscoveredJob as isSaved: true (protected from rolling 24h archival)
+      if (jobId) {
+        await withDbRetry(() =>
+          prisma.discoveredJob.updateMany({
+            where: {
+              id: jobId,
+              userId,
+            },
+            data: { isSaved: true },
+          })
+        ).catch((err) => console.warn("[DiscoveredJob save mark error]:", err))
+      } else {
+        await withDbRetry(() =>
+          prisma.discoveredJob.updateMany({
+            where: {
+              userId,
+              company: companyName,
+              title: jobTitle,
+            },
+            data: { isSaved: true },
+          })
+        ).catch((err) => console.warn("[DiscoveredJob save mark error]:", err))
+      }
+
       return NextResponse.json(ResponseUtil.success(saveResult))
     }
 
-    // Default: Search via POST body
-    const { query, location, tags, limit } = body
-    const searchResult = await executeSearchExternalJobs(userId, {
-      query,
-      location,
-      tags,
-      limit: limit || 8,
-    })
+    if (action === "refresh") {
+      const result = await processUserJobBatch(userId, { forceImmediatePublish: true, notify: false })
+      return NextResponse.json(ResponseUtil.success(result))
+    }
 
-    return NextResponse.json(ResponseUtil.success(searchResult))
+    return NextResponse.json(ResponseUtil.error("Invalid action", 400), { status: 400 })
   } catch (error: any) {
     return NextResponse.json(ResponseUtil.error(error?.message || "Internal server error"), { status: 500 })
   }
 }
+

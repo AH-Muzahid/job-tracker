@@ -2,7 +2,7 @@
 import { prisma, withDbRetry } from "@/lib/prisma"
 import { executeCreateApplication } from "./job-tools"
 import { toCanonical } from "@/lib/ai/knowledge-graph"
-import { getUserMacroOutcomes, type UserMacroOutcomes } from "@/lib/ai/learning-engine"
+import { getUserMacroOutcomes } from "@/lib/ai/learning-engine"
 
 export interface ExternalJobOpportunity {
   id: string
@@ -10,12 +10,17 @@ export interface ExternalJobOpportunity {
   company: string
   location: string
   url: string
-  sourceBoard: "remoteok" | "arbeitnow" | "adzuna" | "curated"
+  sourceBoard: "remoteok" | "arbeitnow" | "adzuna" | "curated" | "linkedin"
   tags: string[]
   salary?: string
   fitScore: number
   matchRationale: string
   descriptionSnippet: string
+  batchSlot?: "just-in" | "earlier-today" | "yesterday"
+  batchLabel?: string
+  batchId?: string
+  publishedAt?: string
+  isSaved?: boolean
 }
 
 export interface UnifiedRawJob {
@@ -24,7 +29,7 @@ export interface UnifiedRawJob {
   company: string
   location: string
   url: string
-  sourceBoard: "remoteok" | "arbeitnow" | "adzuna" | "curated"
+  sourceBoard: "remoteok" | "arbeitnow" | "adzuna" | "curated" | "linkedin"
   tags: string[]
   salaryMin?: number
   salaryMax?: number
@@ -128,6 +133,54 @@ export const FALLBACK_OPPORTUNITIES: UnifiedRawJob[] = [
     salaryMin: 175000,
     salaryMax: 230000,
     description: "Pushing the boundaries of web capabilities with high performance collaborative design canvas and web tooling.",
+  },
+  {
+    id: "fb_li_1",
+    title: "Senior Full Stack Software Engineer (React / Node.js)",
+    company: "Brain Station 23",
+    location: "Dhaka, Bangladesh / Hybrid",
+    url: "https://www.linkedin.com/jobs/view/brain-station-23",
+    sourceBoard: "linkedin",
+    tags: ["react", "node", "typescript", "postgresql", "docker", "fullstack", "developer"],
+    salaryMin: 35000,
+    salaryMax: 60000,
+    description: "Leading enterprise web application development with React, Node.js, and cloud architectures for global fintech and telecom clients.",
+  },
+  {
+    id: "fb_li_2",
+    title: "Lead Frontend Engineer (Next.js & TypeScript)",
+    company: "ShopUp",
+    location: "Dhaka, Bangladesh / Remote",
+    url: "https://www.linkedin.com/jobs/view/shopup-frontend",
+    sourceBoard: "linkedin",
+    tags: ["react", "nextjs", "typescript", "tailwind", "frontend", "engineer"],
+    salaryMin: 35000,
+    salaryMax: 55000,
+    description: "Architecting high-scale B2B commerce platforms, micro-frontends, and responsive merchant dashboards.",
+  },
+  {
+    id: "fb_li_3",
+    title: "Backend Engineer (Go & Distributed Systems)",
+    company: "bKash",
+    location: "Dhaka, Bangladesh",
+    url: "https://www.linkedin.com/jobs/view/bkash-backend-engineer",
+    sourceBoard: "linkedin",
+    tags: ["go", "kubernetes", "kafka", "postgresql", "redis", "backend", "engineer"],
+    salaryMin: 40000,
+    salaryMax: 65000,
+    description: "Building high-throughput mobile financial services infrastructure, real-time ledger settlement, and microservices.",
+  },
+  {
+    id: "fb_li_4",
+    title: "Staff Software Engineer (React, Python, Cloud)",
+    company: "Optimizely",
+    location: "Dhaka, Bangladesh / Hybrid",
+    url: "https://www.linkedin.com/jobs/view/optimizely-staff-engineer",
+    sourceBoard: "linkedin",
+    tags: ["react", "python", "aws", "docker", "microservices", "fullstack", "engineer"],
+    salaryMin: 50000,
+    salaryMax: 80000,
+    description: "Engineering experimentation and digital experience platform features used by Fortune 500 enterprises globally.",
   },
 ]
 
@@ -389,13 +442,75 @@ async function fetchAdzunaJobs(query: string, location?: string): Promise<Unifie
 }
 
 /**
+ * Fetches live LinkedIn, Indeed & Local/Regional jobs using JSearch API (RapidAPI Aggregator)
+ * If RAPIDAPI_KEY is configured, scrapes LinkedIn jobs for local countries (e.g. Bangladesh, US, UK, Remote)
+ */
+async function fetchLinkedInAndLocalJobs(query: string, location?: string): Promise<UnifiedRawJob[]> {
+  const rapidApiKey = process.env.RAPIDAPI_KEY || process.env.JSEARCH_API_KEY
+  if (!rapidApiKey) return []
+
+  try {
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 4000)
+
+    const searchTarget = location
+      ? `${query || "software engineer"} in ${location}`
+      : query || "software engineer"
+
+    const params = new URLSearchParams({
+      query: searchTarget,
+      page: "1",
+      num_pages: "1",
+    })
+
+    const res = await fetch(`https://jsearch.p.rapidapi.com/search?${params.toString()}`, {
+      signal: controller.signal,
+      headers: {
+        "X-RapidAPI-Key": rapidApiKey,
+        "X-RapidAPI-Host": "jsearch.p.rapidapi.com",
+      },
+    })
+    clearTimeout(timeout)
+
+    if (!res.ok) return []
+    const data = await res.json()
+    if (!data || !Array.isArray(data.data)) return []
+
+    return data.data.map((item: any) => {
+      const isRemote = Boolean(item.job_is_remote)
+      const city = item.job_city ? String(item.job_city) : ""
+      const country = item.job_country ? String(item.job_country) : ""
+      const loc = isRemote ? "Remote" : [city, country].filter(Boolean).join(", ") || (location || "Local")
+
+      return {
+        id: String(item.job_id || `li-${item.employer_name}-${item.job_title}`),
+        title: String(item.job_title || ""),
+        company: String(item.employer_name || ""),
+        location: loc,
+        url: item.job_apply_link || item.job_google_link || "https://www.linkedin.com/jobs",
+        sourceBoard: "linkedin" as const,
+        tags: Array.isArray(item.job_required_skills)
+          ? item.job_required_skills.map((s: string) => toCanonical(s))
+          : [],
+        salaryMin: item.job_min_salary ? Math.round(item.job_min_salary) : undefined,
+        salaryMax: item.job_max_salary ? Math.round(item.job_max_salary) : undefined,
+        description: String(item.job_description || "").slice(0, 1000).replace(/<[^>]+>/g, " "),
+      }
+    })
+  } catch {
+    return []
+  }
+}
+
+/**
  * Ingests jobs across all configured external job boards concurrently and merges with curated opportunities
  */
 export async function fetchMultiBoardOpportunities(query: string, tagParam: string, location?: string): Promise<UnifiedRawJob[]> {
-  const [remoteOkResults, arbeitnowResults, adzunaResults] = await Promise.allSettled([
+  const [remoteOkResults, arbeitnowResults, adzunaResults, linkedInResults] = await Promise.allSettled([
     fetchRemoteOkJobs(tagParam),
     fetchArbeitnowJobs(query),
     fetchAdzunaJobs(query, location),
+    fetchLinkedInAndLocalJobs(query, location),
   ])
 
   const aggregated: UnifiedRawJob[] = []
@@ -408,6 +523,9 @@ export async function fetchMultiBoardOpportunities(query: string, tagParam: stri
   }
   if (adzunaResults.status === "fulfilled" && Array.isArray(adzunaResults.value)) {
     aggregated.push(...adzunaResults.value)
+  }
+  if (linkedInResults.status === "fulfilled" && Array.isArray(linkedInResults.value)) {
+    aggregated.push(...linkedInResults.value)
   }
 
   // Always blend with curated fallback opportunities to guarantee rich results
@@ -465,24 +583,32 @@ export async function executeSearchExternalJobs(
     const winningCompanies = new Set((macroOutcomes?.winningCompanies || []).map((c) => normalizeCompany(c)))
     const penalizedSkills = new Set((macroOutcomes?.penalizedSkills || []).map((s) => toCanonical(s)))
 
-    // 2. Fetch Multi-Board Jobs
-    const query = input.query || ""
-    const tagParam = input.tags?.[0] || input.query || "dev"
-    const rawJobs = await fetchMultiBoardOpportunities(query, tagParam, input.location)
+    // 2. Derive targeted query, tags, and location dynamically from User Profile & Resume
+    const primaryTargetRole = profile?.targetRoles?.[0] || ""
+    const primarySkill = Array.from(userSkills)[0] || "developer"
+    const userLocation = profile?.location || undefined
 
-    // 3. Extract search tokens for resilient query matching
-    const searchTokens = extractSearchTokens(input.query, input.tags)
+    const query = input.query || primaryTargetRole || primarySkill
+    const tagParam = input.tags?.[0] || primarySkill || "dev"
+    const location = input.location || userLocation
+
+    // Fetch multi-board opportunities matching the user's specific target role & location
+    const rawJobs = await fetchMultiBoardOpportunities(query, tagParam, location)
+
+    // 3. Extract search tokens for query matching (applied strictly only if user explicitly searched)
+    const isExplicitSearch = Boolean(input.query || (input.tags && input.tags.length > 0))
+    const searchTokens = isExplicitSearch ? extractSearchTokens(input.query, input.tags) : []
 
     const scoredOpportunities: ExternalJobOpportunity[] = []
 
     for (const job of rawJobs) {
       const position = String(job.title || "")
       const company = String(job.company || "")
-      const location = String(job.location || "Remote")
+      const jobLocation = String(job.location || "Remote")
       const tags = Array.isArray(job.tags) ? job.tags.map((t: string) => toCanonical(t)) : []
       const description = String(job.description || "").replace(/<[^>]+>/g, " ")
 
-      // Filter by search tokens if supplied
+      // Filter by search tokens if explicit query/tags supplied
       if (searchTokens.length > 0) {
         const targetText = `${position} ${company} ${tags.join(" ")} ${description}`.toLowerCase()
         const hasMatch = searchTokens.some((token) => targetText.includes(token))
@@ -531,9 +657,23 @@ export async function executeSearchExternalJobs(
         }
       })
 
+      // Bonus if location matches user's preferred location (e.g. Bangladesh, Dhaka, Remote)
+      let locationBonus = 0
+      if (userLocation) {
+        const locLower = jobLocation.toLowerCase()
+        const userLocLower = userLocation.toLowerCase()
+        if (
+          locLower.includes(userLocLower) ||
+          userLocLower.includes(locLower) ||
+          (userLocLower.includes("remote") && locLower.includes("remote"))
+        ) {
+          locationBonus += 8
+        }
+      }
+
       const baseFit = Math.min(50, matchedSkillCount * 12)
       const salaryBonus = job.salaryMin ? 5 : 0
-      const rawScore = baseFit + roleBonus + winningBoost + companyBonus + salaryBonus - penaltyDamp
+      const rawScore = baseFit + roleBonus + winningBoost + companyBonus + salaryBonus + locationBonus - penaltyDamp
       const finalFitScore = Math.min(99, Math.max(45, rawScore || 55))
 
       // Synthesize transparent match rationale
@@ -548,6 +688,10 @@ export async function executeSearchExternalJobs(
         matchRationale = `Aligned with overall engineering competencies in ${position.slice(0, 35)}.`
       }
 
+      if (locationBonus > 0 && userLocation) {
+        matchRationale += ` Aligns with preferred location (${userLocation}).`
+      }
+
       let salaryDisplay: string | undefined = undefined
       if (job.salaryMin && job.salaryMax) {
         salaryDisplay = `$${Math.round(job.salaryMin / 1000)}k - $${Math.round(job.salaryMax / 1000)}k`
@@ -559,7 +703,7 @@ export async function executeSearchExternalJobs(
         id: job.id,
         title: position,
         company,
-        location,
+        location: jobLocation,
         url: job.url || `https://www.google.com/search?q=${encodeURIComponent(`${company} ${position}`)}`,
         sourceBoard: job.sourceBoard,
         tags,
