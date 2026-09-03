@@ -132,6 +132,7 @@ export function DiscoveryPage() {
 
   const saveMutation = useMutation({
     mutationFn: async (job: ExternalJobOpportunity) => {
+      const isApplied = job.appliedStatus === "Applied"
       const res = await fetch("/api/jobs/discover", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -143,6 +144,7 @@ export function DiscoveryPage() {
           jobUrl: job.url,
           location: job.location,
           salary: job.salary,
+          status: isApplied ? "Applied" : "Saved",
           notes: `Fit Score: ${job.fitScore}%\n${job.matchRationale}`,
         }),
       })
@@ -152,10 +154,35 @@ export function DiscoveryPage() {
     onSuccess: (_, job) => {
       setSavedJobs((prev) => new Set(prev).add(job.id))
       queryClient.invalidateQueries({ queryKey: ["applications"] })
-      toast.success(`"${job.title}" saved to your Tracker!`)
+      queryClient.invalidateQueries({ queryKey: ["discovery"] })
+      toast.success(
+        job.appliedStatus === "Applied"
+          ? `"${job.title}" tracked as Applied!`
+          : `"${job.title}" saved to your Tracker!`
+      )
     },
     onError: (err: Error) => toast.error(err?.message || "Failed to save"),
   })
+
+  const handleApplyClick = useCallback(
+    (job: ExternalJobOpportunity) => {
+      if (job.appliedStatus) return
+      toast.info(`Opening external application for ${job.company}`, {
+        description: "Did you apply? Track this application directly in your Tracker.",
+        duration: 9000,
+        action: {
+          label: "Track as Applied",
+          onClick: () => {
+            saveMutation.mutate({
+              ...job,
+              appliedStatus: "Applied",
+            } as ExternalJobOpportunity)
+          },
+        },
+      })
+    },
+    [saveMutation]
+  )
 
   const forceRefreshMutation = useMutation({
     mutationFn: async () => {
@@ -346,6 +373,7 @@ export function DiscoveryPage() {
             onSave={(job) => saveMutation.mutate(job)}
             onDismiss={(job) => dismissMutation.mutate(job)}
             dismissingJobId={dismissMutation.variables?.id || null}
+            onApplyClick={handleApplyClick}
             onClearAll={() => {
               setSearchQuery("")
               setFilters({ source: "", location: "", minScore: "", batchSlot: "", tags: [], hideApplied: false })

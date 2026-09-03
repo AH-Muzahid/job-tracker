@@ -21,6 +21,7 @@ interface DiscoveryJobRowProps {
   onToggle: () => void
   onSave: () => void
   onDismiss?: () => void
+  onApplyClick?: () => void
 }
 
 export function DiscoveryJobRow({
@@ -32,6 +33,7 @@ export function DiscoveryJobRow({
   onToggle,
   onSave,
   onDismiss,
+  onApplyClick,
 }: DiscoveryJobRowProps) {
   const sourceBadge = getSourceBadge(job.sourceBoard)
 
@@ -232,7 +234,10 @@ export function DiscoveryJobRow({
                   href={job.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  onClick={(e) => e.stopPropagation()}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onApplyClick?.()
+                  }}
                   className="inline-flex items-center justify-center gap-1 h-8 px-3 rounded-none border border-border text-xs text-muted-foreground hover:text-foreground font-medium transition-colors flex-1 sm:flex-initial"
                 >
                   <span>View on {sourceBadge.label}</span>

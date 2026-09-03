@@ -6,6 +6,7 @@ import {
   normalizeCompany,
   normalizeTitle,
   deduplicateJobs,
+  detectJobWorkMode,
   type UnifiedRawJob,
 } from "@/lib/ai/graph/tools/discovery-tools"
 import { prisma } from "@/lib/prisma"
@@ -213,6 +214,39 @@ describe("Multi-Board Job Discovery Engine Tools", () => {
       const loc = job.location.toLowerCase()
       const isRemote = loc.includes("remote") || loc.includes("anywhere")
       expect(isRemote).toBe(true)
+    }
+  })
+
+  it("gracefully falls back to high-fit remote roles when candidate specifies onsite in a city with zero direct openings", async () => {
+    vi.spyOn((prisma as any).userProfile, "findUnique").mockResolvedValueOnce({
+      userId: testUserId,
+      strengths: "React, Node.js, Go",
+      targetRoles: ["Full Stack Developer"],
+      workPreference: "onsite",
+      location: "Sylhet, Bangladesh", // A city with no direct fallback onsite jobs
+    })
+    vi.spyOn((prisma as any).resume, "findFirst").mockResolvedValueOnce({
+      userId: testUserId,
+      isDefault: true,
+      textContent: "Senior full stack engineer experienced with React and Go.",
+    })
+
+    const result = await executeSearchExternalJobs(testUserId, {
+      limit: 10,
+    })
+
+    expect(result.success).toBe(true)
+    expect(result.opportunities.length).toBeGreaterThan(0)
+    // Every job returned must be remote (no distant on-site jobs from other cities)
+    for (const job of result.opportunities) {
+      const mode = detectJobWorkMode({
+        location: job.location,
+        title: job.title,
+        description: job.descriptionSnippet,
+        sourceBoard: job.sourceBoard,
+      })
+      expect(mode).toBe("remote")
+      expect(job.matchRationale.toLowerCase()).toContain("remote")
     }
   })
 })

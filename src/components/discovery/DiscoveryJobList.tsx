@@ -17,6 +17,7 @@ interface DiscoveryJobListProps {
   onSave: (job: ExternalJobOpportunity) => void
   onDismiss?: (job: ExternalJobOpportunity) => void
   dismissingJobId?: string | null
+  onApplyClick?: (job: ExternalJobOpportunity) => void
   onClearAll: () => void
   onRefetch: () => void
   searchQuery: string
@@ -24,7 +25,7 @@ interface DiscoveryJobListProps {
 
 export function DiscoveryJobList({
   opportunities, isLoading, expandedRowId, savedJobs, saveMutation,
-  onToggleExpand, onSave, onDismiss, dismissingJobId, onClearAll, onRefetch, searchQuery,
+  onToggleExpand, onSave, onDismiss, dismissingJobId, onApplyClick, onClearAll, onRefetch, searchQuery,
 }: DiscoveryJobListProps) {
   if (isLoading) {
     return (
@@ -99,6 +100,7 @@ export function DiscoveryJobList({
             onToggle={() => onToggleExpand(job.id)}
             onSave={() => onSave(job)}
             onDismiss={onDismiss ? () => onDismiss(job) : undefined}
+            onApplyClick={onApplyClick ? () => onApplyClick(job) : undefined}
           />
         ))}
       </div>

@@ -242,7 +242,8 @@ export function deduplicateJobs(jobs: UnifiedRawJob[]): UnifiedRawJob[] {
 /**
  * Detects whether a job is Remote, Hybrid, or On-site from its metadata
  */
-export function detectJobWorkMode(job: { location?: string; title?: string; description?: string }): "remote" | "hybrid" | "onsite" {
+export function detectJobWorkMode(job: { location?: string; title?: string; description?: string; sourceBoard?: string }): "remote" | "hybrid" | "onsite" {
+  if (job.sourceBoard === "remoteok") return "remote"
   const locTitle = `${job.location || ""} ${job.title || ""}`.toLowerCase()
   if (locTitle.includes("hybrid")) return "hybrid"
   if (locTitle.includes("remote") || locTitle.includes("work from anywhere") || locTitle.includes("telecommute") || locTitle.includes("anywhere")) {
@@ -261,10 +262,22 @@ export function detectJobWorkMode(job: { location?: string; title?: string; desc
 /**
  * Checks if a job's location matches the user's preferred location (city or country)
  */
-export function checkLocationMatch(jobLocation?: string, userLocation?: string): boolean {
+export function checkLocationMatch(
+  jobLocation?: string,
+  userLocation?: string,
+  options?: { strictCity?: boolean }
+): boolean {
   if (!userLocation || !jobLocation) return false
-  const userTokens = userLocation.toLowerCase().split(/[,/|\s-]+/).filter((t) => t.length > 2)
   const jobLower = jobLocation.toLowerCase()
+  const userParts = userLocation.split(",").map((s) => s.trim().toLowerCase()).filter(Boolean)
+
+  if (options?.strictCity && userParts.length > 1) {
+    // City is the first part (e.g. "Sylhet" in "Sylhet, Bangladesh")
+    const userCity = userParts[0]
+    return jobLower.includes(userCity)
+  }
+
+  const userTokens = userLocation.toLowerCase().split(/[,/|\s-]+/).filter((t) => t.length > 2)
   return userTokens.some((token) => jobLower.includes(token))
 }
 
@@ -713,8 +726,11 @@ export async function executeSearchExternalJobs(
       // Eliminates non-viable jobs before scoring so the feed contains zero junk
       // =========================================================================
 
-      const jobWorkMode = detectJobWorkMode({ location: jobLocation, title: position, description })
+      const jobWorkMode = detectJobWorkMode({ location: jobLocation, title: position, description, sourceBoard: job.sourceBoard })
       const isLocationMatch = userLocation ? checkLocationMatch(jobLocation, userLocation) : false
+      const isStrictCityMatch = userLocation
+        ? checkLocationMatch(jobLocation, userLocation, { strictCity: true })
+        : false
 
       if (!isExplicitSearch) {
         // Gate 1A: Remote-only candidate will NEVER see on-site or hybrid jobs
@@ -728,13 +744,13 @@ export async function executeSearchExternalJobs(
           continue
         }
 
-        // Gate 1B: On-site candidate in city X will NEVER see on-site jobs in city Y
-        if (userWorkPreference === "onsite" && jobWorkMode === "onsite" && !isLocationMatch && userLocation) {
+        // Gate 1B: On-site candidate in city X will NEVER see on-site or hybrid jobs in city Y
+        if (userWorkPreference === "onsite" && (jobWorkMode === "onsite" || jobWorkMode === "hybrid") && !isStrictCityMatch && userLocation) {
           continue
         }
 
-        // Gate 1C: Hybrid candidate in city X will NEVER see hybrid/on-site jobs in city Y
-        if (userWorkPreference === "hybrid" && jobWorkMode === "hybrid" && !isLocationMatch && userLocation) {
+        // Gate 1C: Hybrid candidate in city X will NEVER see hybrid or on-site jobs in city Y
+        if (userWorkPreference === "hybrid" && (jobWorkMode === "hybrid" || jobWorkMode === "onsite") && !isStrictCityMatch && userLocation) {
           continue
         }
 
@@ -765,10 +781,10 @@ export async function executeSearchExternalJobs(
           locationRationale = `Local Hybrid in ${userLocation}`
         }
       } else if (userWorkPreference === "onsite") {
-        if (isLocationMatch && jobWorkMode === "onsite") {
+        if (isStrictCityMatch && jobWorkMode === "onsite") {
           locationScore = 30
           locationRationale = `Direct Local On-site match in ${userLocation}`
-        } else if (isLocationMatch && jobWorkMode === "hybrid") {
+        } else if (isStrictCityMatch && jobWorkMode === "hybrid") {
           locationScore = 26
           locationRationale = `Local Hybrid match in ${userLocation}`
         } else if (jobWorkMode === "remote") {
@@ -776,10 +792,10 @@ export async function executeSearchExternalJobs(
           locationRationale = "Remote work option (flexible alternative)"
         }
       } else if (userWorkPreference === "hybrid") {
-        if (isLocationMatch && jobWorkMode === "hybrid") {
+        if (isStrictCityMatch && jobWorkMode === "hybrid") {
           locationScore = 30
           locationRationale = `Direct Local Hybrid match in ${userLocation}`
-        } else if (isLocationMatch && jobWorkMode === "onsite") {
+        } else if (isStrictCityMatch && jobWorkMode === "onsite") {
           locationScore = 26
           locationRationale = `Local On-site in ${userLocation}`
         } else if (jobWorkMode === "remote") {
@@ -886,6 +902,41 @@ export async function executeSearchExternalJobs(
         matchRationale,
         descriptionSnippet: description.slice(0, 220) + "...",
       })
+    }
+
+    // Graceful Recovery: If strict local filter yielded 0 results, unlock high-fit Remote roles
+    if (scoredOpportunities.length === 0 && (userWorkPreference === "onsite" || userWorkPreference === "hybrid")) {
+      for (const job of rawJobs) {
+        const jobLocation = job.location || "Remote"
+        const position = job.title || "Software Engineer"
+        const company = job.company || "Innovative Tech"
+        const description = job.description || ""
+        const tags = job.tags || []
+        const jobWorkMode = detectJobWorkMode({ location: jobLocation, title: position, description, sourceBoard: job.sourceBoard })
+
+        // Only include Remote roles that are not geo-disqualified for the candidate
+        if (jobWorkMode === "remote" && !isGeoDisqualified({ location: jobLocation, title: position, description }, userLocation)) {
+          let matchedCount = 0
+          tags.forEach((t: string) => {
+            if (userSkills.has(t)) matchedCount++
+          })
+          const fallbackFitScore = Math.min(84, Math.max(62, 60 + matchedCount * 6))
+
+          scoredOpportunities.push({
+            id: job.id,
+            title: position,
+            company,
+            location: jobLocation,
+            url: job.url || `https://www.google.com/search?q=${encodeURIComponent(`${company} ${position}`)}`,
+            sourceBoard: job.sourceBoard,
+            tags,
+            salary: job.salaryText || undefined,
+            fitScore: fallbackFitScore,
+            matchRationale: `Remote Backup: No direct local ${userWorkPreference} roles currently found in ${userLocation || "your area"}. Matched on ${matchedCount > 0 ? "your core skills" : "relevant tech stack"}.`,
+            descriptionSnippet: description.slice(0, 220) + "...",
+          })
+        }
+      }
     }
 
     // Sort by adaptive fit score descending
