@@ -1,0 +1,34 @@
+export interface ExternalJobOpportunity {
+  id: string
+  title: string
+  company: string
+  location: string
+  url: string
+  sourceBoard: "remoteok" | "arbeitnow" | "adzuna" | "curated" | "linkedin"
+  tags: string[]
+  salary?: string
+  fitScore: number
+  matchRationale: string
+  descriptionSnippet: string
+  batchSlot?: "just-in" | "earlier-today" | "yesterday"
+  batchLabel?: string
+  batchId?: string
+  publishedAt?: string
+  isSaved?: boolean
+  appliedStatus?: string | null
+  applicationId?: string | null
+}
+
+export interface UnifiedRawJob {
+  id: string
+  title: string
+  company: string
+  location: string
+  url: string
+  sourceBoard: "remoteok" | "arbeitnow" | "adzuna" | "curated" | "linkedin"
+  tags: string[]
+  salaryMin?: number
+  salaryMax?: number
+  salaryText?: string
+  description: string
+}

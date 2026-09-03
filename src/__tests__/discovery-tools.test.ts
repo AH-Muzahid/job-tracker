@@ -11,12 +11,63 @@ import {
 } from "@/lib/ai/graph/tools/discovery-tools"
 import { prisma } from "@/lib/prisma"
 import * as learningEngine from "@/lib/ai/learning-engine"
+import * as scrapers from "@/lib/discovery/scrapers"
+
+const TEST_FIXTURE_JOBS: UnifiedRawJob[] = [
+  {
+    id: "test-1",
+    title: "Senior Full Stack Engineer (React / Go)",
+    company: "Stripe",
+    location: "Remote",
+    url: "https://stripe.com/jobs",
+    sourceBoard: "remoteok",
+    tags: ["react", "go", "typescript", "postgresql", "fullstack", "developer"],
+    salaryMin: 160000,
+    salaryMax: 210000,
+    description: "Building global financial infrastructure with React, Go, and PostgreSQL.",
+  },
+  {
+    id: "test-2",
+    title: "Full Stack Developer",
+    company: "bKash",
+    location: "Dhaka, Bangladesh",
+    url: "https://bkash.com/careers",
+    sourceBoard: "linkedin",
+    tags: ["go", "react", "postgresql", "fullstack", "developer"],
+    salaryMin: 40000,
+    salaryMax: 65000,
+    description: "Onsite fintech engineering in Dhaka with Go and React microservices.",
+  },
+  {
+    id: "test-3",
+    title: "Lead Frontend Engineer",
+    company: "Brain Station 23",
+    location: "Dhaka, Bangladesh / Hybrid",
+    url: "https://brainstation-23.com",
+    sourceBoard: "linkedin",
+    tags: ["react", "nextjs", "typescript"],
+    salaryMin: 35000,
+    salaryMax: 60000,
+    description: "Hybrid engineering in Dhaka.",
+  },
+  {
+    id: "test-4",
+    title: "Backend Engineer",
+    company: "Berlin Tech",
+    location: "Berlin, Germany",
+    url: "https://berlin.tech",
+    sourceBoard: "arbeitnow",
+    tags: ["go", "kubernetes"],
+    description: "Onsite Berlin role.",
+  },
+]
 
 describe("Multi-Board Job Discovery Engine Tools", () => {
   const testUserId = "user-discovery-test-123"
 
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.spyOn(scrapers, "fetchMultiBoardOpportunities").mockResolvedValue(TEST_FIXTURE_JOBS)
   })
 
   it("normalizes company names and job titles for deduplication", () => {
