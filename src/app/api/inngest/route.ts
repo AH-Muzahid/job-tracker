@@ -5,6 +5,7 @@ import { weeklyGoalDigestFunction } from "@/inngest/functions/weekly-goal-digest
 import { weeklyMemoryHygiene } from "@/inngest/functions/memory-decay-digest"
 import { summarizeChatSessionFunction } from "@/inngest/functions/chat-summarizer"
 import { inboxSyncScheduler } from "@/inngest/functions/inbox-sync"
+import { batchJobReleaseScheduler, processUserJobBatchWorker } from "@/inngest/functions/batch-job-pipeline"
 
 export const { GET, POST, PUT } = serve({
   client: inngest,
@@ -15,6 +16,8 @@ export const { GET, POST, PUT } = serve({
     weeklyMemoryHygiene,
     summarizeChatSessionFunction,
     inboxSyncScheduler,
+    batchJobReleaseScheduler,
+    processUserJobBatchWorker,
   ],
 })
 

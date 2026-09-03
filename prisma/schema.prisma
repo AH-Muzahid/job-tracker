@@ -30,6 +30,7 @@ model User {
   interviewSessions InterviewSession[]
   notifications Notification[]
   connectedAccount ConnectedAccount?
+  discoveredJobs DiscoveredJob[]
 }
 
 model Application {
@@ -359,4 +360,35 @@ model ConnectedAccount {
   @@index([userId])
   @@index([provider, email])
 }
+
+model DiscoveredJob {
+  id             String    @id @default(uuid())
+  userId         String
+  sourceBoard    String
+  externalId     String?
+  title          String
+  company        String
+  location       String
+  url            String
+  salary         String?
+  salaryMin      Int?
+  salaryMax      Int?
+  tags           String[]
+  description    String?   @db.Text
+  fitScore       Int
+  matchRationale String?
+  status         String    @default("STAGED") // "STAGED" | "PUBLISHED" | "ARCHIVED"
+  batchId        String
+  isSaved        Boolean   @default(false)
+  publishedAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status, publishedAt])
+  @@index([userId, isSaved])
+  @@index([userId, batchId])
+}
+
 

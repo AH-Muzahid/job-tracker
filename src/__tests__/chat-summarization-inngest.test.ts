@@ -73,7 +73,7 @@ describe("Inngest Asynchronous Conversation Summarization Suite", () => {
     vi.mocked(prisma.chatMessage.findMany).mockResolvedValueOnce(mockMessages as any)
 
     vi.spyOn(resilience, "getFallbackModelCascade").mockResolvedValueOnce([
-      { model: {} as any, name: "gemini-2.5-flash" },
+      { model: {} as any, name: "gemini-2.5-flash", id: "gemini-flash", providerType: "google" },
     ])
 
     const mockStep = {
