@@ -1,6 +1,6 @@
 "use client"
 
-import { Briefcase, RefreshCw } from "lucide-react"
+import { Briefcase, RefreshCw, Sliders } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { DecorIcon } from "@/components/decor-icon"
 import { DiscoveryJobRow } from "./DiscoveryJobRow"
@@ -20,12 +20,13 @@ interface DiscoveryJobListProps {
   onApplyClick?: (job: ExternalJobOpportunity) => void
   onClearAll: () => void
   onRefetch: () => void
+  onOpenPreferences?: () => void
   searchQuery: string
 }
 
 export function DiscoveryJobList({
   opportunities, isLoading, expandedRowId, savedJobs, saveMutation,
-  onToggleExpand, onSave, onDismiss, dismissingJobId, onApplyClick, onClearAll, onRefetch, searchQuery,
+  onToggleExpand, onSave, onDismiss, dismissingJobId, onApplyClick, onClearAll, onRefetch, onOpenPreferences, searchQuery,
 }: DiscoveryJobListProps) {
   if (isLoading) {
     return (
@@ -73,8 +74,19 @@ export function DiscoveryJobList({
             <Button key={kw} variant="outline" size="sm" onClick={onClearAll} className="h-7 text-xs px-2.5 rounded-none cursor-pointer">{kw}</Button>
           ))}
         </div>
-        <div className="mt-6 flex items-center justify-center gap-3">
-          <Button variant="default" size="sm" onClick={onClearAll} className="text-xs px-4 cursor-pointer rounded-none">Browse All Roles</Button>
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+          {onOpenPreferences && (
+            <Button
+              variant="default"
+              size="sm"
+              onClick={onOpenPreferences}
+              className="text-xs px-3.5 cursor-pointer rounded-none gap-1.5"
+            >
+              <Sliders className="size-3.5" />
+              Edit Criteria
+            </Button>
+          )}
+          <Button variant="outline" size="sm" onClick={onClearAll} className="text-xs px-4 cursor-pointer rounded-none">Browse All Roles</Button>
           <Button variant="outline" size="sm" onClick={onRefetch} className="text-xs px-3 cursor-pointer rounded-none">
             <RefreshCw className="size-3.5 mr-1" />Refresh Feed
           </Button>

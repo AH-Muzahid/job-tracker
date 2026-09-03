@@ -126,17 +126,24 @@ export function DiscoveryBatchTimer({
 
       {/* Middle Row: Active Personalization Criteria Pill */}
       <div className="mt-3.5 pt-3 border-t border-border/70 flex flex-wrap items-center justify-between gap-2 text-xs">
-        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-muted-foreground">
-          <span className="font-mono text-[10px] uppercase tracking-wider text-foreground font-semibold flex items-center gap-1">
+        <div
+          onClick={onOpenPreferences}
+          className={cn(
+            "flex flex-wrap items-center gap-1.5 sm:gap-2 text-muted-foreground",
+            onOpenPreferences && "cursor-pointer group"
+          )}
+          title="Click to edit discovery criteria"
+        >
+          <span className="font-mono text-[10px] uppercase tracking-wider text-foreground font-semibold flex items-center gap-1 group-hover:text-primary transition-colors">
             <Target className="size-3 text-primary" /> Active Intent:
           </span>
 
-          <span className="inline-flex items-center gap-1 font-medium text-foreground bg-background px-2 py-0.5 border border-border">
+          <span className="inline-flex items-center gap-1 font-medium text-foreground bg-background px-2 py-0.5 border border-border group-hover:border-primary/50 transition-colors">
             <Briefcase className="size-3 text-muted-foreground" />
             {preferences?.targetRoles?.[0] || "All Tech Roles"}
           </span>
 
-          <span className="inline-flex items-center gap-1.5 font-medium text-foreground bg-background px-2 py-0.5 border border-border capitalize">
+          <span className="inline-flex items-center gap-1.5 font-medium text-foreground bg-background px-2 py-0.5 border border-border capitalize group-hover:border-primary/50 transition-colors">
             <span
               className={cn(
                 "size-1.5 rounded-full",
@@ -150,7 +157,7 @@ export function DiscoveryBatchTimer({
           </span>
 
           {preferences?.location && (
-            <span className="inline-flex items-center gap-1 font-medium text-foreground bg-background px-2 py-0.5 border border-border">
+            <span className="inline-flex items-center gap-1 font-medium text-foreground bg-background px-2 py-0.5 border border-border group-hover:border-primary/50 transition-colors">
               <MapPin className="size-3 text-muted-foreground" />
               {preferences.location}
             </span>

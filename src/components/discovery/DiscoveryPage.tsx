@@ -379,6 +379,7 @@ export function DiscoveryPage() {
               setFilters({ source: "", location: "", minScore: "", batchSlot: "", tags: [], hideApplied: false })
             }}
             onRefetch={() => refetch()}
+            onOpenPreferences={() => setPreferencesModalOpen(true)}
             searchQuery={searchQuery}
           />
         </div>

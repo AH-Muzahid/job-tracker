@@ -137,7 +137,7 @@ export function DiscoveryPreferencesModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto rounded-none border border-border bg-card p-5 sm:p-6 shadow-xl relative">
+      <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto rounded-none border border-border bg-card p-5 sm:p-6 shadow-xl">
         <DecorIcon position="top-right" />
         <DecorIcon position="bottom-left" />
 
