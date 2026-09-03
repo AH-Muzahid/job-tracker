@@ -33,10 +33,15 @@ export async function withDbRetry<T>(fn: () => Promise<T>, retries = 2): Promise
         code === "P1001" ||
         code === "P1002" ||
         code === "P1017" ||
+        code === "P2024" ||
         name === "PrismaClientInitializationError" ||
         name === "PrismaClientUnknownRequestError" ||
         msg.includes("Engine is not yet connected") ||
         msg.includes("Can't reach database") ||
+        msg.includes("EMAXCONNSESSION") ||
+        msg.includes("max clients reached") ||
+        msg.includes("connection pool") ||
+        msg.includes("connection limit") ||
         msg.includes("ECONNRESET") ||
         msg.includes("ETIMEDOUT")
 
