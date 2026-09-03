@@ -276,4 +276,23 @@ describe("Google OAuth & Gmail Integration Suite", () => {
       expect(mockRedisDel).toHaveBeenCalledWith("account:connected:user-456")
     })
   })
+
+  describe("OAuth State Token Resilience", () => {
+    it("safely generates and decrypts tamper-proof state tokens without Redis dependence", () => {
+      const statePayload = JSON.stringify({
+        userId: "user-456",
+        origin: "http://localhost:3000",
+        nonce: "test-nonce-abc",
+        ts: Date.now(),
+      })
+      const encryptedState = cryptoHelper.encryptToken(statePayload)
+      expect(encryptedState).not.toBe(statePayload)
+
+      const decrypted = cryptoHelper.decryptToken(encryptedState)
+      const parsed = JSON.parse(decrypted)
+      expect(parsed.userId).toBe("user-456")
+      expect(parsed.origin).toBe("http://localhost:3000")
+      expect(Date.now() - parsed.ts).toBeLessThan(1000)
+    })
+  })
 })
