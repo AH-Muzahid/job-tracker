@@ -19,6 +19,8 @@ import { DiscoveryFilterSidebar } from "./DiscoveryFilterSidebar"
 import { DiscoverySortDropdown } from "./DiscoverySortDropdown"
 import { DiscoveryJobList } from "./DiscoveryJobList"
 import { DiscoveryBatchTimer } from "./DiscoveryBatchTimer"
+import { DiscoveryPreferencesModal } from "./DiscoveryPreferencesModal"
+import { useUserProfile } from "@/lib/api"
 import type { DiscoveryFilters, SortOption, BatchSummary } from "./types"
 import type { ExternalJobOpportunity } from "@/lib/ai/graph/tools/discovery-tools"
 
@@ -42,7 +44,11 @@ export function DiscoveryPage() {
   const [sortBy, setSortBy] = useState<SortOption>("score-desc")
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null)
   const [savedJobs, setSavedJobs] = useState<Set<string>>(new Set())
+  const [preferencesModalOpen, setPreferencesModalOpen] = useState(false)
   const queryClient = useQueryClient()
+
+  // Fetch active user profile search preferences
+  const { data: userProfile, refetch: refetchProfile } = useUserProfile()
 
   // Fetch 24-hour rolling window opportunities (instant client-side search without network flooding)
   const { data, isLoading, isRefetching, refetch } = useQuery({
@@ -190,6 +196,8 @@ export function DiscoveryPage() {
         onSelectSlot={(slot) => setFilters((prev) => ({ ...prev, batchSlot: slot }))}
         onForceRefresh={() => forceRefreshMutation.mutate()}
         isRefreshing={forceRefreshMutation.isPending || isRefetching}
+        preferences={userProfile}
+        onOpenPreferences={() => setPreferencesModalOpen(true)}
       />
 
       {/* Stat Row */}
@@ -286,6 +294,17 @@ export function DiscoveryPage() {
           />
         </div>
       </div>
+
+      {/* 1-Click Search Intent & Preferences Modal */}
+      <DiscoveryPreferencesModal
+        open={preferencesModalOpen}
+        onOpenChange={setPreferencesModalOpen}
+        currentPreferences={userProfile}
+        onSaved={() => {
+          refetchProfile()
+          forceRefreshMutation.mutate()
+        }}
+      />
     </div>
   )
 }

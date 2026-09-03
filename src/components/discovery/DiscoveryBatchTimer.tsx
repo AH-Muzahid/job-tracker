@@ -1,11 +1,12 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Clock, Layers, Zap, RefreshCw, Compass } from "lucide-react"
+import { Clock, Layers, Zap, RefreshCw, Compass, Target, Briefcase, MapPin, Sliders } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { DecorIcon } from "@/components/decor-icon"
 import { cn } from "@/lib/utils"
 import type { BatchSlot, BatchSummary } from "./types"
+import type { UserPreferencesPayload } from "./DiscoveryPreferencesModal"
 
 interface DiscoveryBatchTimerProps {
   nextBatchAt?: string
@@ -14,6 +15,8 @@ interface DiscoveryBatchTimerProps {
   onSelectSlot: (slot: BatchSlot) => void
   onForceRefresh?: () => void
   isRefreshing?: boolean
+  preferences?: UserPreferencesPayload
+  onOpenPreferences?: () => void
 }
 
 export function DiscoveryBatchTimer({
@@ -23,6 +26,8 @@ export function DiscoveryBatchTimer({
   onSelectSlot,
   onForceRefresh,
   isRefreshing = false,
+  preferences,
+  onOpenPreferences,
 }: DiscoveryBatchTimerProps) {
   const [timeLeft, setTimeLeft] = useState<{ hours: number; minutes: number; seconds: number }>({
     hours: 0,
@@ -113,8 +118,55 @@ export function DiscoveryBatchTimer({
         </div>
       </div>
 
+      {/* Middle Row: Active Personalization Criteria Pill */}
+      <div className="mt-3.5 pt-3 border-t border-border/70 flex flex-wrap items-center justify-between gap-2 text-xs">
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-muted-foreground">
+          <span className="font-mono text-[10px] uppercase tracking-wider text-foreground font-semibold flex items-center gap-1">
+            <Target className="size-3 text-primary" /> Active Intent:
+          </span>
+
+          <span className="inline-flex items-center gap-1 font-medium text-foreground bg-background px-2 py-0.5 border border-border">
+            <Briefcase className="size-3 text-muted-foreground" />
+            {preferences?.targetRoles?.[0] || "All Tech Roles"}
+          </span>
+
+          <span className="inline-flex items-center gap-1.5 font-medium text-foreground bg-background px-2 py-0.5 border border-border capitalize">
+            <span
+              className={cn(
+                "size-1.5 rounded-full",
+                preferences?.workPreference === "remote" && "bg-emerald-500",
+                preferences?.workPreference === "hybrid" && "bg-sky-500",
+                preferences?.workPreference === "onsite" && "bg-amber-500",
+                (!preferences?.workPreference || preferences?.workPreference === "open") && "bg-primary"
+              )}
+            />
+            {preferences?.workPreference ? `${preferences.workPreference} only` : "Open to any"}
+          </span>
+
+          {preferences?.location && (
+            <span className="inline-flex items-center gap-1 font-medium text-foreground bg-background px-2 py-0.5 border border-border">
+              <MapPin className="size-3 text-muted-foreground" />
+              {preferences.location}
+            </span>
+          )}
+        </div>
+
+        {onOpenPreferences && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={onOpenPreferences}
+            className="h-6 text-[11px] font-mono gap-1 text-primary hover:text-primary hover:bg-primary/10 rounded-none cursor-pointer px-2"
+          >
+            <Sliders className="size-3" />
+            <span>Edit Criteria</span>
+          </Button>
+        )}
+      </div>
+
       {/* Bottom Row: Batch Segment Navigation Tabs */}
-      <div className="mt-3.5 pt-3 border-t border-border/80 flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
+      <div className="mt-3 pt-3 border-t border-border/80 flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
         <span className="text-[11px] font-medium text-muted-foreground mr-0.5 sm:mr-1 shrink-0 flex items-center gap-1">
           <Layers className="size-3 text-primary" />
           Batch:
