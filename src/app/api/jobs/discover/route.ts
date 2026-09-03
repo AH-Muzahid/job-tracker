@@ -79,8 +79,16 @@ export async function GET(request: NextRequest) {
         prisma.discoveredJob.findMany({
           where: {
             userId,
-            status: "PUBLISHED",
-            publishedAt: { gte: twentyFourHoursAgo },
+            status: { not: "DISMISSED" },
+            OR: [
+              {
+                status: "PUBLISHED",
+                publishedAt: { gte: twentyFourHoursAgo },
+              },
+              {
+                isSaved: true,
+              },
+            ],
           },
           orderBy: [
             { publishedAt: "desc" },

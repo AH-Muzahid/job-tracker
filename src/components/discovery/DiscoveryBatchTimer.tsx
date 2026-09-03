@@ -36,13 +36,19 @@ export function DiscoveryBatchTimer({
   })
 
   useEffect(() => {
-    if (!nextBatchAt) return
-
     const calculateTimeRemaining = () => {
-      const targetTime = new Date(nextBatchAt).getTime()
-      const now = Date.now()
-      const diff = Math.max(0, targetTime - now)
+      const now = new Date()
+      let targetTime: number
 
+      if (nextBatchAt && !isNaN(new Date(nextBatchAt).getTime()) && new Date(nextBatchAt).getTime() > now.getTime()) {
+        targetTime = new Date(nextBatchAt).getTime()
+      } else {
+        // Compute upcoming 6-hour UTC release slot (00:00, 06:00, 12:00, 18:00 UTC)
+        const currentIntervalHour = Math.floor(now.getUTCHours() / 6) * 6
+        targetTime = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), currentIntervalHour + 6, 0, 0, 0)
+      }
+
+      const diff = Math.max(0, targetTime - now.getTime())
       const hours = Math.floor(diff / (1000 * 60 * 60))
       const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
       const seconds = Math.floor((diff % (1000 * 60)) / 1000)
