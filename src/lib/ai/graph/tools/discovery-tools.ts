@@ -241,9 +241,16 @@ export function deduplicateJobs(jobs: UnifiedRawJob[]): UnifiedRawJob[] {
  * Detects whether a job is Remote, Hybrid, or On-site from its metadata
  */
 export function detectJobWorkMode(job: { location?: string; title?: string; description?: string }): "remote" | "hybrid" | "onsite" {
-  const text = `${job.location || ""} ${job.title || ""} ${job.description || ""}`.toLowerCase()
-  if (text.includes("hybrid")) return "hybrid"
-  if (text.includes("remote") || text.includes("work from anywhere") || text.includes("telecommute") || text.includes("global")) {
+  const locTitle = `${job.location || ""} ${job.title || ""}`.toLowerCase()
+  if (locTitle.includes("hybrid")) return "hybrid"
+  if (locTitle.includes("remote") || locTitle.includes("work from anywhere") || locTitle.includes("telecommute") || locTitle.includes("anywhere")) {
+    return "remote"
+  }
+
+  // Check description with strict boundary keywords
+  const desc = (job.description || "").toLowerCase()
+  if (desc.includes("hybrid work") || desc.includes("hybrid schedule") || desc.includes("hybrid role")) return "hybrid"
+  if (desc.includes("100% remote") || desc.includes("fully remote") || desc.includes("work from home") || desc.includes("remote-first") || desc.includes("remote eligible")) {
     return "remote"
   }
   return "onsite"
@@ -257,6 +264,46 @@ export function checkLocationMatch(jobLocation?: string, userLocation?: string):
   const userTokens = userLocation.toLowerCase().split(/[,/|\s-]+/).filter((t) => t.length > 2)
   const jobLower = jobLocation.toLowerCase()
   return userTokens.some((token) => jobLower.includes(token))
+}
+
+/**
+ * Checks if a remote job has restrictive geographic constraints (e.g. US Only, UK Only)
+ * that disqualify a candidate living in a different country/region
+ */
+export function isGeoDisqualified(job: { location?: string; title?: string; description?: string }, userLocation?: string): boolean {
+  if (!userLocation) return false
+  const userLocLower = userLocation.toLowerCase()
+  const text = `${job.location || ""} ${job.title || ""} ${job.description || ""}`.toLowerCase()
+
+  // If candidate is outside US / North America
+  const isCandidateOutsideUS = !userLocLower.includes("united states") && !userLocLower.includes("usa") && !userLocLower.includes("us")
+  if (isCandidateOutsideUS) {
+    if (
+      text.includes("us only") ||
+      text.includes("u.s. only") ||
+      text.includes("must be based in the us") ||
+      text.includes("must reside in the us") ||
+      text.includes("us citizenship required") ||
+      text.includes("us work authorization required") ||
+      text.includes("us residents only")
+    ) {
+      return true
+    }
+  }
+
+  // If candidate is outside UK / Europe
+  const isCandidateOutsideUK = !userLocLower.includes("uk") && !userLocLower.includes("united kingdom") && !userLocLower.includes("london")
+  if (isCandidateOutsideUK) {
+    if (
+      text.includes("uk only") ||
+      text.includes("must reside in the uk") ||
+      text.includes("right to work in the uk")
+    ) {
+      return true
+    }
+  }
+
+  return false
 }
 
 /**
@@ -660,73 +707,98 @@ export async function executeSearchExternalJobs(
       }
 
       // =========================================================================
-      // HIERARCHICAL FIT SCORING:
-      // TIER 1 (HIGHEST PRIORITY): Location & Work Preference Alignment (up to 45 pts)
-      // TIER 2 (SECOND PRIORITY): Skill Match & Macro-Learning (up to 35 pts)
-      // TIER 3 (THIRD PRIORITY): Targeted Role & Company Trajectory (up to 20 pts)
+      // STAGE 1: HARD DISQUALIFICATION GATE (Strict Elimination)
+      // Eliminates non-viable jobs before scoring so the feed contains zero junk
       // =========================================================================
-
-      // TIER 1: Work Mode & Location Alignment
-      let tier1LocationScore = 0
-      let tier1Rationale = ""
 
       const jobWorkMode = detectJobWorkMode({ location: jobLocation, title: position, description })
       const isLocationMatch = userLocation ? checkLocationMatch(jobLocation, userLocation) : false
 
-      if (userWorkPreference === "remote") {
-        if (jobWorkMode === "remote") {
-          tier1LocationScore = 45
-          tier1Rationale = "100% Remote match for your Remote preference"
-        } else if (jobWorkMode === "hybrid") {
-          tier1LocationScore = isLocationMatch ? 15 : 0
-          tier1Rationale = isLocationMatch ? `Hybrid in ${userLocation} (partial remote)` : "Hybrid outside your location"
-        } else {
-          tier1LocationScore = -25
-          tier1Rationale = "On-site role (mismatch with your Remote preference)"
+      if (!isExplicitSearch) {
+        // Gate 1A: Remote-only candidate will NEVER see on-site or hybrid jobs
+        const locTitle = `${jobLocation} ${position}`.toLowerCase()
+        const isLocOrTitleRemote =
+          locTitle.includes("remote") ||
+          locTitle.includes("anywhere") ||
+          locTitle.includes("telecommute") ||
+          locTitle.includes("distributed")
+        if (userWorkPreference === "remote" && (!isLocOrTitleRemote || jobWorkMode !== "remote")) {
+          continue
         }
-      } else if (userWorkPreference === "onsite") {
-        if (isLocationMatch && jobWorkMode === "onsite") {
-          tier1LocationScore = 45
-          tier1Rationale = `Direct Local On-site match in ${userLocation}`
-        } else if (isLocationMatch && jobWorkMode === "hybrid") {
-          tier1LocationScore = 35
-          tier1Rationale = `Local Hybrid match in ${userLocation}`
-        } else if (jobWorkMode === "remote") {
-          tier1LocationScore = 15
-          tier1Rationale = "Remote work option (acceptable fallback for On-site)"
-        } else {
-          tier1LocationScore = -30
-          tier1Rationale = `On-site in ${jobLocation} (outside ${userLocation})`
+
+        // Gate 1B: On-site candidate in city X will NEVER see on-site jobs in city Y
+        if (userWorkPreference === "onsite" && jobWorkMode === "onsite" && !isLocationMatch && userLocation) {
+          continue
         }
-      } else if (userWorkPreference === "hybrid") {
-        if (isLocationMatch && jobWorkMode === "hybrid") {
-          tier1LocationScore = 45
-          tier1Rationale = `Direct Local Hybrid match in ${userLocation}`
-        } else if (isLocationMatch && jobWorkMode === "onsite") {
-          tier1LocationScore = 35
-          tier1Rationale = `Local On-site in ${userLocation}`
-        } else if (jobWorkMode === "remote") {
-          tier1LocationScore = 25
-          tier1Rationale = "Remote work flexibility (alternative to Hybrid)"
-        } else {
-          tier1LocationScore = -25
-          tier1Rationale = `Hybrid/On-site in ${jobLocation} (outside ${userLocation})`
+
+        // Gate 1C: Hybrid candidate in city X will NEVER see hybrid/on-site jobs in city Y
+        if (userWorkPreference === "hybrid" && jobWorkMode === "hybrid" && !isLocationMatch && userLocation) {
+          continue
         }
-      } else {
-        // "open" or unspecified
-        if (jobWorkMode === "remote") {
-          tier1LocationScore = 35
-          tier1Rationale = "Remote work opportunity"
-        } else if (isLocationMatch) {
-          tier1LocationScore = 40
-          tier1Rationale = `Local opportunity in ${userLocation}`
-        } else {
-          tier1LocationScore = 15
-          tier1Rationale = `Location: ${jobLocation}`
+
+        // Gate 1D: International candidates will NEVER see US-only or UK-only restricted remote jobs
+        if (jobWorkMode === "remote" && isGeoDisqualified({ location: jobLocation, title: position, description }, userLocation)) {
+          continue
         }
       }
 
-      // TIER 2: Skill Match & Macro-Learned Boosts (up to 35 pts)
+      // =========================================================================
+      // STAGE 2: MULTI-FACTOR FIT SCORING (Scale: 50% - 99%)
+      // 1. Location & Work Arrangement (up to 30 pts)
+      // 2. Skill Alignment & Macro-Learning (up to 40 pts)
+      // 3. Targeted Role & Career Trajectory (up to 20 pts)
+      // 4. Compensation & Trust Signal (up to 10 pts)
+      // =========================================================================
+
+      // Factor 1: Location & Work Mode Fit (up to 30 pts)
+      let locationScore = 0
+      let locationRationale = ""
+
+      if (userWorkPreference === "remote") {
+        if (jobWorkMode === "remote") {
+          locationScore = 30
+          locationRationale = "100% Remote match for your Remote preference"
+        } else if (isLocationMatch) {
+          locationScore = 20
+          locationRationale = `Local Hybrid in ${userLocation}`
+        }
+      } else if (userWorkPreference === "onsite") {
+        if (isLocationMatch && jobWorkMode === "onsite") {
+          locationScore = 30
+          locationRationale = `Direct Local On-site match in ${userLocation}`
+        } else if (isLocationMatch && jobWorkMode === "hybrid") {
+          locationScore = 26
+          locationRationale = `Local Hybrid match in ${userLocation}`
+        } else if (jobWorkMode === "remote") {
+          locationScore = 15
+          locationRationale = "Remote work option (flexible alternative)"
+        }
+      } else if (userWorkPreference === "hybrid") {
+        if (isLocationMatch && jobWorkMode === "hybrid") {
+          locationScore = 30
+          locationRationale = `Direct Local Hybrid match in ${userLocation}`
+        } else if (isLocationMatch && jobWorkMode === "onsite") {
+          locationScore = 26
+          locationRationale = `Local On-site in ${userLocation}`
+        } else if (jobWorkMode === "remote") {
+          locationScore = 20
+          locationRationale = "Remote flexibility (alternative to Hybrid)"
+        }
+      } else {
+        // "open" or unspecified
+        if (isLocationMatch) {
+          locationScore = 30
+          locationRationale = `Local opportunity in ${userLocation}`
+        } else if (jobWorkMode === "remote") {
+          locationScore = 28
+          locationRationale = "Global Remote opportunity"
+        } else {
+          locationScore = 15
+          locationRationale = `Location: ${jobLocation}`
+        }
+      }
+
+      // Factor 2: Skill Match & Macro-Learned Boosts (up to 40 pts)
       let matchedSkillCount = 0
       const matchedSkillNames: string[] = []
       let winningBoost = 0
@@ -738,30 +810,34 @@ export async function executeSearchExternalJobs(
           matchedSkillNames.push(tag)
         }
         if (winningSkills.has(tag)) {
-          winningBoost += 10
+          winningBoost += 12
           matchedWinningSkills.push(tag)
         }
       })
 
-      const baseSkillScore = Math.min(25, matchedSkillCount * 7)
-      const tier2SkillScore = baseSkillScore + Math.min(10, winningBoost)
+      const baseSkillScore = Math.min(28, matchedSkillCount * 8)
+      const skillScore = baseSkillScore + Math.min(12, winningBoost)
 
-      // TIER 3: Targeted Role Match & Company Trajectory (up to 20 pts)
-      let tier3RoleScore = 0
+      // Factor 3: Targeted Role & Trajectory (up to 20 pts)
+      let roleScore = 0
       let roleRationale = ""
       if (profile?.targetRoles?.some((tr: string) => position.toLowerCase().includes(tr.toLowerCase()))) {
-        tier3RoleScore += 15
-        roleRationale = `Target role match for ${position}`
+        roleScore += 15
+        roleRationale = `Direct match for ${position}`
       } else if (winningRoles.some((wr) => position.toLowerCase().includes(wr))) {
-        tier3RoleScore += 10
+        roleScore += 10
         roleRationale = `Proven career trajectory in ${position}`
       }
 
       if (winningCompanies.has(normalizeCompany(company))) {
-        tier3RoleScore += 5
+        roleScore += 5
       }
 
-      // Penalties & Salary
+      // Factor 4: Compensation & Trust (up to 10 pts)
+      const salaryBonus = job.salaryMin ? 5 : 0
+      const sourceBonus = job.sourceBoard === "linkedin" || job.sourceBoard === "curated" ? 5 : 0
+
+      // Recurring Rejection Penalties
       let penaltyDamp = 0
       tags.forEach((tag: string) => {
         if (penalizedSkills.has(tag)) {
@@ -769,19 +845,16 @@ export async function executeSearchExternalJobs(
         }
       })
 
-      const salaryBonus = job.salaryMin ? 5 : 0
+      const rawScore = locationScore + skillScore + roleScore + salaryBonus + sourceBonus - penaltyDamp
+      const finalFitScore = Math.min(99, Math.max(50, rawScore || 55))
 
-      // Compute hierarchical fit score
-      const rawScore = tier1LocationScore + tier2SkillScore + tier3RoleScore + salaryBonus - penaltyDamp
-      const finalFitScore = Math.min(99, Math.max(30, rawScore || 50))
-
-      // Synthesize transparent match rationale (Location / Work Preference First!)
+      // Transparent Match Rationale
       const rationaleSegments: string[] = []
-      if (tier1Rationale) {
-        rationaleSegments.push(tier1Rationale)
+      if (locationRationale) {
+        rationaleSegments.push(locationRationale)
       }
       if (matchedWinningSkills.length > 0) {
-        rationaleSegments.push(`High-conversion skills: ${matchedWinningSkills.slice(0, 3).join(", ")}`)
+        rationaleSegments.push(`High conversion skills: ${matchedWinningSkills.slice(0, 3).join(", ")}`)
       } else if (matchedSkillNames.length > 0) {
         rationaleSegments.push(`Skills: ${matchedSkillNames.slice(0, 4).join(", ")}`)
       }

@@ -187,5 +187,33 @@ describe("Multi-Board Job Discovery Engine Tools", () => {
     expect(topJob.fitScore).toBeGreaterThanOrEqual(70)
     expect(topJob.matchRationale.toLowerCase()).toContain("dhaka")
   })
+
+  it("strictly eliminates onsite jobs when candidate specifies remote only", async () => {
+    vi.spyOn((prisma as any).userProfile, "findUnique").mockResolvedValueOnce({
+      userId: testUserId,
+      strengths: "React, TypeScript",
+      targetRoles: ["Frontend Engineer"],
+      workPreference: "remote",
+      location: "Dhaka, Bangladesh",
+    })
+    vi.spyOn((prisma as any).resume, "findFirst").mockResolvedValueOnce({
+      userId: testUserId,
+      isDefault: true,
+      textContent: "React and frontend developer.",
+    })
+
+    const result = await executeSearchExternalJobs(testUserId, {
+      limit: 10,
+    })
+
+    expect(result.success).toBe(true)
+    expect(result.opportunities.length).toBeGreaterThan(0)
+    // Every single job must be remote or hybrid-remote
+    for (const job of result.opportunities) {
+      const loc = job.location.toLowerCase()
+      const isRemote = loc.includes("remote") || loc.includes("anywhere")
+      expect(isRemote).toBe(true)
+    }
+  })
 })
 
