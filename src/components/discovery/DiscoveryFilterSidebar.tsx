@@ -70,16 +70,17 @@ export function DiscoveryFilterSidebar({
           />
         </div>
 
-        {/* Location */}
+        {/* Work Mode / Location */}
         <div>
-          <label className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/80 mb-2 block">Location</label>
+          <label className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/80 mb-2 block">Work Mode</label>
           <RadioGroup
             value={filters.location}
             onChange={(v) => update({ location: v as DiscoveryFilters["location"] })}
             options={[
-              { value: "", label: "All Locations" },
-              { value: "remote", label: "Remote" },
-              { value: "hybrid", label: "Hybrid / On-site" },
+              { value: "", label: "All Modes" },
+              { value: "remote", label: "Remote", dot: "bg-emerald-500" },
+              { value: "hybrid", label: "Hybrid", dot: "bg-sky-500" },
+              { value: "onsite", label: "On-site", dot: "bg-amber-500" },
             ]}
           />
         </div>

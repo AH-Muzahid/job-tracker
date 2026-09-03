@@ -160,5 +160,32 @@ describe("Multi-Board Job Discovery Engine Tools", () => {
     expect(result.applicationId).toBe("app-discovered-1")
     expect(result.message).toContain("Stripe")
   })
+
+  it("prioritizes local onsite jobs when user prefers onsite in specific location", async () => {
+    vi.spyOn((prisma as any).userProfile, "findUnique").mockResolvedValueOnce({
+      userId: testUserId,
+      strengths: "React, Node.js, TypeScript",
+      targetRoles: ["Full Stack Software Engineer"],
+      workPreference: "onsite",
+      location: "Dhaka, Bangladesh",
+    })
+    vi.spyOn((prisma as any).resume, "findFirst").mockResolvedValueOnce({
+      userId: testUserId,
+      isDefault: true,
+      textContent: "React and Node.js full stack developer located in Dhaka.",
+    })
+
+    const result = await executeSearchExternalJobs(testUserId, {
+      limit: 5,
+    })
+
+    expect(result.success).toBe(true)
+    expect(result.opportunities.length).toBeGreaterThan(0)
+    // Top job should be local Dhaka opportunity
+    const topJob = result.opportunities[0]
+    expect(topJob.location.toLowerCase()).toContain("dhaka")
+    expect(topJob.fitScore).toBeGreaterThanOrEqual(70)
+    expect(topJob.matchRationale.toLowerCase()).toContain("dhaka")
+  })
 })
 

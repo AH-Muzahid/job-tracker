@@ -86,8 +86,11 @@ export function DiscoveryPage() {
       if (filters.source && job.sourceBoard !== filters.source) return false
       if (filters.location) {
         const loc = job.location.toLowerCase()
-        if (filters.location === "remote" && !loc.includes("remote")) return false
-        if (filters.location === "hybrid" && loc.includes("remote") && !loc.includes("hybrid")) return false
+        const isRemote = loc.includes("remote") || loc.includes("anywhere")
+        const isHybrid = loc.includes("hybrid")
+        if (filters.location === "remote" && !isRemote) return false
+        if (filters.location === "hybrid" && !isHybrid) return false
+        if (filters.location === "onsite" && (isRemote || isHybrid)) return false
       }
       if (filters.minScore) {
         const min = parseInt(filters.minScore)

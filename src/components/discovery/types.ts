@@ -2,7 +2,7 @@ export type BatchSlot = "" | "just-in" | "earlier-today" | "yesterday"
 
 export interface DiscoveryFilters {
   source: "" | "remoteok" | "arbeitnow" | "adzuna" | "curated" | "linkedin"
-  location: "" | "remote" | "hybrid"
+  location: "" | "remote" | "hybrid" | "onsite"
   minScore: "" | "85" | "70" | "0"
   batchSlot?: BatchSlot
   tags: string[]
