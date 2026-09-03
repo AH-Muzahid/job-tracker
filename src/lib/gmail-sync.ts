@@ -152,10 +152,13 @@ export async function matchMessageToApplication(
       return app
     }
 
-    // Subject match (e.g. "Google Interview" or "Frontend Engineer @ Google")
+    // Subject or snippet match (e.g. "Google Interview" or "Frontend Engineer @ Google")
     if (
       subject.toLowerCase().includes(compName) ||
-      (app.jobTitle && subject.toLowerCase().includes(app.jobTitle.toLowerCase()))
+      snippet.toLowerCase().includes(compName) ||
+      (app.jobTitle &&
+        (subject.toLowerCase().includes(app.jobTitle.toLowerCase()) ||
+          snippet.toLowerCase().includes(app.jobTitle.toLowerCase())))
     ) {
       return app
     }

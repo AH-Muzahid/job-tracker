@@ -7,8 +7,8 @@ import { getToolRisk, ToolRisk } from "./tool-registry"
 
 class LoopDetector {
   private calls = new Map<string, number>()
-  constructor(_options?: { repetitionThreshold?: number; timeWindowMs?: number }) {}
-  recordCall(name: string, _args: Record<string, unknown>): boolean {
+  constructor() {}
+  recordCall(name: string): boolean {
     const count = (this.calls.get(name) || 0) + 1
     this.calls.set(name, count)
     return count > 3

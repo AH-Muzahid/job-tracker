@@ -66,7 +66,6 @@ import {
   exchangeGoogleAuthCode,
   getAuthenticatedGmailClient,
   sendGmailMessage,
-  getConnectedGoogleAccount,
   disconnectGoogleAccount,
 } from "@/lib/gmail"
 

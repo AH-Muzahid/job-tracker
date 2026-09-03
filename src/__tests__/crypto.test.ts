@@ -38,7 +38,7 @@ describe("AES-256-GCM Cryptographic Security Suite", () => {
   it("detects authentication tag tampering and fails securely", () => {
     const originalToken = "super_secret_payload"
     const encrypted = encryptToken(originalToken)
-    const [iv, authTag, ciphertext] = encrypted.split(":")
+    const [iv, , ciphertext] = encrypted.split(":")
 
     // Tamper with auth tag
     const tamperedTag = "00".repeat(16)

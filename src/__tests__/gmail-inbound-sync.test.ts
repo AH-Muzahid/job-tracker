@@ -231,7 +231,7 @@ describe("Inbound Gmail Sync & Recruiter Reply Detection Suite", () => {
       ] as any)
 
       const mockStep = {
-        run: vi.fn(async (stepName: string, fn: () => any) => {
+        run: vi.fn(async (stepName: string) => {
           if (stepName === "fetch-connected-google-accounts") {
             return [{ userId: "user-a" }, { userId: "user-b" }]
           }
