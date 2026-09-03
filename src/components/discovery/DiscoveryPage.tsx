@@ -391,6 +391,7 @@ export function DiscoveryPage() {
         onOpenChange={setPreferencesModalOpen}
         currentPreferences={userProfile}
         onSaved={() => {
+          queryClient.invalidateQueries({ queryKey: ["user-profile"] })
           refetchProfile()
           forceRefreshMutation.mutate()
         }}
