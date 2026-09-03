@@ -24,15 +24,17 @@ import { DecorIcon } from "@/components/decor-icon"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 
+export interface UserPreferencesPayload {
+  workPreference?: string | null
+  location?: string | null
+  targetRoles?: string[]
+  experienceLevel?: string | null
+}
+
 interface DiscoveryPreferencesModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  currentPreferences?: {
-    workPreference?: string | null
-    location?: string | null
-    targetRoles?: string[]
-    experienceLevel?: string | null
-  } | null
+  currentPreferences?: UserPreferencesPayload | null
   onSaved?: () => void
 }
 
