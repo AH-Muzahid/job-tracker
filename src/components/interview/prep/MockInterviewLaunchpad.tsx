@@ -1,12 +1,9 @@
 "use client"
 
 import React from "react"
-import { Mic, CheckCircle2, Brain, Zap, ArrowRight } from "lucide-react"
+import { Mic, CheckCircle2, Brain, ArrowRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { DashboardCard } from "@/components/dashboard-card"
 import { DecorIcon } from "@/components/decor-icon"
-import { Badge } from "@/components/ui/badge"
 
 interface MockInterviewLaunchpadProps {
   onStartCustom: () => void

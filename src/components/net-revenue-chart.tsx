@@ -2,7 +2,7 @@
 
 import { useId } from "react";
 import type * as React from "react";
-import { Bar, BarChart, XAxis, ResponsiveContainer } from "recharts";
+import { Bar, BarChart, XAxis } from "recharts";
 import {
 	CardContent,
 	CardDescription,

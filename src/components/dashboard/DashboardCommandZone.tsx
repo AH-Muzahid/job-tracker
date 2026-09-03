@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useUser } from "@clerk/nextjs";
 import { Bot, Plus, Upload, Clipboard, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -14,8 +13,8 @@ import { ManualEntryMode } from "./command-zone/ManualEntryMode";
 
 type Mode = "scan" | "upload" | "manual";
 
-export function DashboardCommandZone({ activePipeline = 0 }: { activePipeline?: number }) {
-	const { user } = useUser();
+export function DashboardCommandZone({ activePipeline }: { activePipeline?: number } = {}) {
+	void activePipeline;
 	const router = useRouter();
 	const [mode, setMode] = useState<Mode>("scan");
 

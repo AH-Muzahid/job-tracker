@@ -60,7 +60,7 @@ describe("conversation-summarizer unit suite", () => {
     })
 
     it("always preserves first message", async () => {
-      const messages = Array.from({ length: 8 }, (_, i) => ({
+      const messages = Array.from({ length: 8 }, () => ({
         role: "user",
         content: "Message with enough tokens to matter. ".repeat(10),
       }))

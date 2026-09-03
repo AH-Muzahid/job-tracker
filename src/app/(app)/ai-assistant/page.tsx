@@ -23,7 +23,7 @@ export default function AIAssistantPage() {
   const queryClient = useQueryClient()
   const { activeChatId, setActiveChatId } = useAI()
 
-  const { isLoading: loading } = useQuery({
+  useQuery({
     queryKey: ["ai", "sessions"],
     queryFn: async () => {
       const res = await fetch("/api/ai/sessions")

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { inngest } from "../client"
 import { prisma, withDbRetry } from "@/lib/prisma"
 import { runHeadlessEvaluation } from "@/lib/ai/graph/headless"

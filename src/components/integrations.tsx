@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import { DecorIcon } from "@/components/decor-icon";
 import { FullWidthDivider } from "@/components/full-width-divider";
 import { motion } from "framer-motion";
-import { Layers, ArrowRight } from "lucide-react";
+import { Layers } from "lucide-react";
 
 interface FeatureItem {
 	title: string;

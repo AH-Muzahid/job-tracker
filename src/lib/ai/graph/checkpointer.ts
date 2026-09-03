@@ -33,7 +33,7 @@ export async function getGraphCheckpointer(): Promise<PostgresSaver> {
  */
 export async function persistGraphSessionState(
   sessionId: string,
-  _state: {
+  state?: {
     plan?: any
     currentStepIndex?: number
     goal?: string
@@ -41,6 +41,7 @@ export async function persistGraphSessionState(
   }
 ) {
   if (!sessionId) return
+  void state
   try {
     // Save state snapshot into ChatSession metadata if needed
     await prisma.chatSession.update({

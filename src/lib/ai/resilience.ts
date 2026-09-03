@@ -7,11 +7,15 @@ import { getToolRisk, ToolRisk } from "./tool-registry"
 
 class LoopDetector {
   private calls = new Map<string, number>()
-  constructor(_options?: { repetitionThreshold?: number; timeWindowMs?: number }) {}
-  recordCall(name: string, _args?: Record<string, unknown>): boolean {
+  private threshold: number
+  constructor(options?: { repetitionThreshold?: number; timeWindowMs?: number }) {
+    this.threshold = options?.repetitionThreshold ?? 3
+  }
+  recordCall(name: string, args?: Record<string, unknown>): boolean {
+    void args
     const count = (this.calls.get(name) || 0) + 1
     this.calls.set(name, count)
-    return count > 3
+    return count > this.threshold
   }
 }
 

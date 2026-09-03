@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { createPortal } from "react-dom";
 import {
   LogOut,
   Check,
@@ -16,13 +15,11 @@ import {
   PanelLeftClose,
   UserPlus,
   Trash2,
-  Briefcase,
   Brain,
   Bot,
   FileText,
 } from "lucide-react";
 import GlideMenu from "@/components/primitives/GlideMenu";
-import { useClerk } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 
 /* ─────────────────────────────────────────────────────────
@@ -72,8 +69,6 @@ export function IconUserAdd({ size = 18, className = "" }: { size?: number; clas
  * compact workspace switcher, primary navigation, searchable
  * chat history, and a collapse that preserves icon alignment.
  * ───────────────────────────────────────────────────────── */
-
-const DEFAULT_WORKSPACE = { key: "careertrack", name: "CareerTrack AI", monogram: "C" };
 
 const DEFAULT_NAV_ITEMS = [
   { key: "prep", label: "Interview Prep", href: "/interview-prep", icon: <Brain size={18} /> },
@@ -191,94 +186,6 @@ function RailButton({
   );
 }
 
-function WorkspaceMenu({
-  position,
-  workspace,
-  onClose,
-  onSignOut,
-  onNavigate,
-}: {
-  position: { top: number; left: number };
-  workspace: { name: string; monogram: string };
-  onClose: () => void;
-  onSignOut: () => void;
-  onNavigate: (path: string) => void;
-}) {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted || typeof document === "undefined") return null;
-
-  return createPortal(
-    <div
-      data-workspace-menu
-      className="fixed z-50 w-64 rounded-[14px] bg-surface p-1.5 shadow-overlay border border-line"
-      style={{
-        top: position.top,
-        left: position.left,
-        animation: "pop-in 180ms cubic-bezier(0.23,1,0.32,1) both",
-        transformOrigin: "top left",
-      }}
-    >
-      <GlideMenu
-        rowSelector="[data-menu-row]"
-        className="flex flex-col gap-px"
-        highlightClassName="inset-x-0 rounded-[8px] bg-hover-2"
-      >
-        <button
-          data-menu-row
-          type="button"
-          onClick={onClose}
-          className="relative z-10 flex h-10 w-full items-center gap-1.5 rounded-[8px] px-2 text-left cursor-pointer"
-        >
-          <span className="flex size-6 shrink-0 items-center justify-center rounded-[7px] bg-ink text-[11px] font-semibold text-surface">
-            {workspace.monogram}
-          </span>
-          <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium text-ink">{workspace.name}</span>
-          <span className="shrink-0 text-ink"><IconCheckmark1Small size={18} /></span>
-        </button>
-        <div className="my-1 h-px bg-line" />
-        {[
-          { label: "New chat", icon: <IconPlusMedium size={16} />, action: () => onNavigate("new-chat") },
-          { label: "Workspace settings", icon: <IconSettingsGear1 size={16} />, action: () => onNavigate("/settings") },
-          { label: "Interview Prep", icon: <Brain size={16} />, action: () => onNavigate("/interview-prep") },
-          { label: "Job Applications", icon: <Briefcase size={16} />, action: () => onNavigate("/applications") },
-        ].map((item) => (
-          <button
-            key={item.label}
-            data-menu-row
-            type="button"
-            onClick={() => {
-              onClose();
-              item.action();
-            }}
-            className="relative z-10 flex h-9 w-full items-center gap-1.5 rounded-[8px] px-2 text-left cursor-pointer"
-          >
-            <span className="flex size-5 shrink-0 items-center justify-center text-ink-2">{item.icon}</span>
-            <span className="min-w-0 flex-1 truncate text-[13.5px] text-ink">{item.label}</span>
-          </button>
-        ))}
-        <div className="my-1 h-px bg-line" />
-        <button
-          data-menu-row
-          type="button"
-          onClick={() => {
-            onClose();
-            onSignOut();
-          }}
-          className="relative z-10 flex h-9 w-full items-center gap-1.5 rounded-[8px] px-2 text-left cursor-pointer text-destructive"
-        >
-          <span className="flex size-5 shrink-0 items-center justify-center"><IconArrowBoxLeft size={16} /></span>
-          <span className="min-w-0 flex-1 truncate text-[13.5px]">Sign out</span>
-        </button>
-      </GlideMenu>
-    </div>,
-    document.body,
-  );
-}
-
 export default function SidebarNav({
   activeTitle,
   activeId,
@@ -295,11 +202,8 @@ export default function SidebarNav({
   recents = DEFAULT_RECENTS,
   collapsed: controlledCollapsed,
   onToggleCollapse,
-  workspaceName = DEFAULT_WORKSPACE.name,
-  workspaceMonogram = DEFAULT_WORKSPACE.monogram,
 }: SidebarNavProps) {
   const router = useRouter();
-  const { signOut } = useClerk();
   const [internalCollapsed, setInternalCollapsed] = useState(false);
   const isCollapsed = controlledCollapsed !== undefined ? controlledCollapsed : internalCollapsed;
 
@@ -321,11 +225,8 @@ export default function SidebarNav({
   };
 
   const [demoActiveTitle, setDemoActiveTitle] = useState<string | null>(null);
-  const [workspaceOpen, setWorkspaceOpen] = useState(false);
-  const [workspacePosition, setWorkspacePosition] = useState({ top: 0, left: 0 });
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const workspaceButtonRef = useRef<HTMLButtonElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
   const selectedTitle = activeTitle === undefined ? demoActiveTitle : activeTitle;
@@ -334,24 +235,11 @@ export default function SidebarNav({
   );
 
   useEffect(() => {
-    if (!workspaceOpen) return;
-    const close = (event: PointerEvent) => {
-      const target = event.target as Element;
-      if (!target.closest("[data-workspace-trigger]") && !target.closest("[data-workspace-menu]")) {
-        setWorkspaceOpen(false);
-      }
-    };
-    document.addEventListener("pointerdown", close);
-    return () => document.removeEventListener("pointerdown", close);
-  }, [workspaceOpen]);
-
-  useEffect(() => {
     if (searchOpen) searchRef.current?.focus();
   }, [searchOpen]);
 
   const collapse = () => {
     setCollapsed(true);
-    setWorkspaceOpen(false);
     setSearchOpen(false);
     setQuery("");
   };

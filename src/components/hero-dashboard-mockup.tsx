@@ -10,19 +10,9 @@ import {
   FileText,
   User,
   Settings,
-  Plus,
-  HelpCircle,
   Search,
-  Command,
-  Sun,
-  Moon,
   Bell,
-  ArrowUpRight,
   TrendingUp,
-  SlidersHorizontal,
-  FolderGit2,
-  ExternalLink,
-  ChevronRight,
   Bot,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
@@ -221,7 +211,7 @@ export function HeroDashboardMockup() {
                   { day: "Fri", h: "60%" },
                   { day: "Sat", h: "28%" },
                   { day: "Sun", h: "50%" },
-                ].map((item, idx) => (
+                ].map((item) => (
                   <div key={item.day} className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end group">
                     <div
                       style={{ height: item.h }}

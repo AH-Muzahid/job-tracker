@@ -5,7 +5,6 @@ import {
   serializeEmbedding,
   deserializeEmbedding,
   searchUserMemories,
-  generateEmbedding,
 } from "../memory-search"
 import { prisma } from "@/lib/prisma"
 
