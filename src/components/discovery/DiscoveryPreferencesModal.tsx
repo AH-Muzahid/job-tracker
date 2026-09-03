@@ -111,58 +111,60 @@ export function DiscoveryPreferencesModal({
   const workModes = [
     {
       id: "remote" as const,
-      label: "Remote Only",
-      desc: "Worldwide & regional remote opportunities",
+      label: "Remote",
+      shortDesc: "Worldwide & remote",
       dot: "bg-emerald-500",
     },
     {
       id: "hybrid" as const,
-      label: "Hybrid Preferred",
-      desc: "Flexible in-office and remote blend",
+      label: "Hybrid",
+      shortDesc: "In-office + remote",
       dot: "bg-sky-500",
     },
     {
       id: "onsite" as const,
-      label: "On-site Only",
-      desc: "Physical office in your target city",
+      label: "On-site",
+      shortDesc: "Target city only",
       dot: "bg-amber-500",
     },
     {
       id: "open" as const,
       label: "Open to Any",
-      desc: "Show both remote and local opportunities",
+      shortDesc: "Remote & local",
       dot: "bg-primary",
     },
   ]
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto rounded-none border border-border bg-card p-5 sm:p-6 shadow-xl">
+      <DialogContent className="sm:max-w-xl rounded-none border border-border bg-card p-5 sm:p-6 shadow-2xl overflow-hidden">
         <DecorIcon position="top-right" />
         <DecorIcon position="bottom-left" />
 
-        <DialogHeader className="space-y-1.5 text-left mb-4">
+        <DialogHeader className="space-y-1 text-left mb-3">
           <div className="flex items-center gap-2">
             <div className="flex size-7 items-center justify-center rounded-none bg-primary/10 text-primary border border-primary/20">
-              <Sliders className="size-4" />
+              <Sliders className="size-3.5" />
             </div>
-            <DialogTitle className="text-base sm:text-lg font-bold tracking-tight text-foreground">
-              Discovery Intent & Criteria
-            </DialogTitle>
+            <div>
+              <DialogTitle className="text-base font-bold tracking-tight text-foreground">
+                Discovery Intent &amp; Criteria
+              </DialogTitle>
+              <DialogDescription className="text-xs text-muted-foreground">
+                Configure your non-negotiable filters and 6-hour scraper sync parameters.
+              </DialogDescription>
+            </div>
           </div>
-          <DialogDescription className="text-xs text-muted-foreground leading-relaxed">
-            Configure your non-negotiable preferences. The Two-Stage Discovery Engine uses this as a hard disqualification gate and scoring foundation.
-          </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSave} className="space-y-4">
-          {/* Work Mode Selector */}
-          <div className="space-y-2">
-            <Label className="text-xs font-mono uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+        <form onSubmit={handleSave} className="space-y-3.5">
+          {/* Work Arrangement Selector (Compact 4-Column Grid) */}
+          <div className="space-y-1.5">
+            <Label className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
               <Radio className="size-3 text-primary" />
-              Work Arrangement (Highest Priority)
+              Work Arrangement (Hard Filter)
             </Label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
               {workModes.map((mode) => {
                 const isSelected = workPreference === mode.id
                 return (
@@ -171,21 +173,21 @@ export function DiscoveryPreferencesModal({
                     type="button"
                     onClick={() => setWorkPreference(mode.id)}
                     className={cn(
-                      "flex flex-col text-left p-2.5 border transition-all cursor-pointer rounded-none relative",
+                      "flex flex-col text-left p-2 border transition-all cursor-pointer rounded-none relative",
                       isSelected
-                        ? "border-primary bg-primary/5 ring-1 ring-primary/40 text-foreground"
+                        ? "border-primary bg-primary/10 ring-1 ring-primary/40 text-foreground"
                         : "border-border bg-background hover:bg-muted/40 text-muted-foreground hover:text-foreground"
                     )}
                   >
-                    <div className="flex items-center justify-between w-full mb-1">
-                      <div className="flex items-center gap-2">
-                        <span className={cn("size-2 rounded-full", mode.dot)} />
-                        <span className="text-xs font-semibold text-foreground">{mode.label}</span>
+                    <div className="flex items-center justify-between w-full mb-0.5">
+                      <div className="flex items-center gap-1.5">
+                        <span className={cn("size-1.5 rounded-full", mode.dot)} />
+                        <span className="text-[11px] font-semibold text-foreground leading-none">{mode.label}</span>
                       </div>
-                      {isSelected && <Check className="size-3.5 text-primary" />}
+                      {isSelected && <Check className="size-3 text-primary" />}
                     </div>
-                    <span className="text-[11px] text-muted-foreground/80 leading-tight">
-                      {mode.desc}
+                    <span className="text-[10px] text-muted-foreground leading-tight line-clamp-1">
+                      {mode.shortDesc}
                     </span>
                   </button>
                 )
@@ -193,70 +195,99 @@ export function DiscoveryPreferencesModal({
             </div>
           </div>
 
-          {/* Location & City */}
-          <div className="space-y-1.5">
-            <Label className="text-xs font-mono uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-              <MapPin className="size-3 text-primary" />
-              Target City / Location (Required for On-site & Hybrid)
-            </Label>
-            <Input
-              value={locationInput}
-              onChange={(e) => setLocationInput(e.target.value)}
-              placeholder="e.g. Dhaka, Bangladesh or Berlin, Germany"
-              className="text-xs h-9 rounded-none bg-background"
-            />
-            <p className="text-[11px] text-muted-foreground">
-              On-site jobs outside this location will be strictly eliminated from your feed.
-            </p>
+          {/* 2-Column Row: Target Location + Seniority */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                <MapPin className="size-3 text-primary" />
+                Target City / Location
+              </Label>
+              <Input
+                value={locationInput}
+                onChange={(e) => setLocationInput(e.target.value)}
+                placeholder="e.g. Dhaka, Bangladesh"
+                className="text-xs h-8 rounded-none bg-background border-border"
+              />
+              <p className="text-[10px] text-muted-foreground">
+                Required for on-site &amp; hybrid roles.
+              </p>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                <Target className="size-3 text-primary" />
+                Seniority Level
+              </Label>
+              <Select value={experienceLevel} onValueChange={(val) => setExperienceLevel(val)}>
+                <SelectTrigger className="text-xs h-8 rounded-none bg-background border-border cursor-pointer">
+                  <SelectValue placeholder="Select level" />
+                </SelectTrigger>
+                <SelectContent className="rounded-none z-[200]">
+                  <SelectItem value="Entry" className="cursor-pointer text-xs">Entry Level (0-1 yrs)</SelectItem>
+                  <SelectItem value="Junior" className="cursor-pointer text-xs">Junior (1-2 yrs)</SelectItem>
+                  <SelectItem value="Mid" className="cursor-pointer text-xs">Mid-Level (2-5 yrs)</SelectItem>
+                  <SelectItem value="Senior" className="cursor-pointer text-xs">Senior (5-8 yrs)</SelectItem>
+                  <SelectItem value="Lead" className="cursor-pointer text-xs">Lead / Staff (8+ yrs)</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-[10px] text-muted-foreground">
+                Matches expected role seniority.
+              </p>
+            </div>
           </div>
 
-          {/* Target Roles */}
-          <div className="space-y-1.5">
-            <Label className="text-xs font-mono uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-              <Briefcase className="size-3 text-primary" />
-              Target Role Titles (Comma-separated)
-            </Label>
+          {/* Target Role Titles + Quick Add Chips */}
+          <div className="space-y-1">
+            <div className="flex items-center justify-between">
+              <Label className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                <Briefcase className="size-3 text-primary" />
+                Target Role Titles
+              </Label>
+              <span className="text-[10px] font-mono text-muted-foreground">comma-separated</span>
+            </div>
             <Input
               value={targetRolesInput}
               onChange={(e) => setTargetRolesInput(e.target.value)}
               placeholder="e.g. Full Stack Developer, Frontend Engineer, React Developer"
-              className="text-xs h-9 rounded-none bg-background"
+              className="text-xs h-8 rounded-none bg-background border-border"
             />
-          </div>
-
-          {/* Experience Level */}
-          <div className="space-y-1.5">
-            <Label className="text-xs font-mono uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-              <Target className="size-3 text-primary" />
-              Seniority / Experience Level
-            </Label>
-            <Select value={experienceLevel} onValueChange={(val) => setExperienceLevel(val)}>
-              <SelectTrigger className="text-xs h-9 rounded-none bg-background">
-                <SelectValue placeholder="Select experience level" />
-              </SelectTrigger>
-              <SelectContent className="rounded-none">
-                <SelectItem value="Junior">Junior (0 - 2 years)</SelectItem>
-                <SelectItem value="Mid">Mid-Level (2 - 5 years)</SelectItem>
-                <SelectItem value="Senior">Senior (5+ years)</SelectItem>
-                <SelectItem value="Lead">Lead / Principal (8+ years)</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="flex flex-wrap items-center gap-1 pt-0.5">
+              <span className="text-[10px] font-mono text-muted-foreground mr-0.5">Quick add:</span>
+              {["Full Stack", "Frontend", "Backend", "React", "Node.js", "AI Engineer"].map((role) => (
+                <button
+                  key={role}
+                  type="button"
+                  onClick={() => {
+                    const current = targetRolesInput.split(",").map((s) => s.trim()).filter(Boolean)
+                    if (!current.some((c) => c.toLowerCase() === role.toLowerCase())) {
+                      setTargetRolesInput(current.length > 0 ? `${targetRolesInput}, ${role}` : role)
+                    }
+                  }}
+                  className="text-[10px] px-1.5 py-0.5 border border-border/80 bg-muted/40 hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer rounded-none transition-colors"
+                >
+                  +{role}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Blueprint Note */}
-          <div className="p-2.5 border border-primary/20 bg-primary/5 text-[11px] text-muted-foreground leading-relaxed">
-            <span className="font-semibold text-foreground">Direct Pipeline Impact:</span> Saving updates your permanent User Profile and triggers a personalized 6-hour scraper sync across LinkedIn, RemoteOK, and multi-board feeds.
+          <div className="p-2 border border-primary/20 bg-primary/5 text-[11px] text-muted-foreground leading-snug flex items-center gap-2">
+            <div className="size-1.5 rounded-full bg-primary shrink-0" />
+            <p>
+              <span className="font-semibold text-foreground">Direct Pipeline Impact:</span> Updates your User Profile and immediately re-evaluates the feed against your new criteria.
+            </p>
           </div>
 
-          {/* Modal Actions (Sticky Docked Footer) */}
-          <div className="sticky -bottom-5 sm:-bottom-6 -mx-5 sm:-mx-6 mt-6 p-3 sm:p-4 border-t border-border bg-card/95 backdrop-blur-sm flex items-center justify-end gap-2 z-20">
+          {/* Modal Actions */}
+          <div className="pt-3 border-t border-border flex items-center justify-end gap-2">
             <Button
               type="button"
               variant="outline"
               size="sm"
               onClick={() => onOpenChange(false)}
               disabled={isSaving}
-              className="h-8 text-xs rounded-none cursor-pointer"
+              className="h-8 text-xs rounded-none cursor-pointer border-border"
             >
               Cancel
             </Button>
