@@ -21,6 +21,8 @@ export interface ExternalJobOpportunity {
   batchId?: string
   publishedAt?: string
   isSaved?: boolean
+  appliedStatus?: string | null
+  applicationId?: string | null
 }
 
 export interface UnifiedRawJob {

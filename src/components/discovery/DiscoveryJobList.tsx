@@ -15,6 +15,8 @@ interface DiscoveryJobListProps {
   saveMutation: UseMutationResult<unknown, Error, ExternalJobOpportunity>
   onToggleExpand: (id: string) => void
   onSave: (job: ExternalJobOpportunity) => void
+  onDismiss?: (job: ExternalJobOpportunity) => void
+  dismissingJobId?: string | null
   onClearAll: () => void
   onRefetch: () => void
   searchQuery: string
@@ -22,7 +24,7 @@ interface DiscoveryJobListProps {
 
 export function DiscoveryJobList({
   opportunities, isLoading, expandedRowId, savedJobs, saveMutation,
-  onToggleExpand, onSave, onClearAll, onRefetch, searchQuery,
+  onToggleExpand, onSave, onDismiss, dismissingJobId, onClearAll, onRefetch, searchQuery,
 }: DiscoveryJobListProps) {
   if (isLoading) {
     return (
@@ -93,8 +95,10 @@ export function DiscoveryJobList({
             isExpanded={expandedRowId === job.id}
             isSaved={savedJobs.has(job.id)}
             isSaving={saveMutation.isPending && saveMutation.variables?.id === job.id}
+            isDismissing={dismissingJobId === job.id}
             onToggle={() => onToggleExpand(job.id)}
             onSave={() => onSave(job)}
+            onDismiss={onDismiss ? () => onDismiss(job) : undefined}
           />
         ))}
       </div>

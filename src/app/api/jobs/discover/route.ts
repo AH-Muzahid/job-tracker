@@ -6,6 +6,8 @@ import { getInternalUserId } from "@/lib/auth"
 import { prisma, withDbRetry } from "@/lib/prisma"
 import {
   executeSaveJobOpportunityToTracker,
+  normalizeCompany,
+  normalizeTitle,
 } from "@/lib/ai/graph/tools/discovery-tools"
 import {
   getNextBatchReleaseTime,
@@ -33,11 +35,25 @@ export async function GET(request: NextRequest) {
       await processUserJobBatch(userId, { forceImmediatePublish: true, notify: false })
     }
 
-    // Query all published jobs within the 24-hour rolling window OR saved jobs directly
+    // Query user's existing tracker applications to detect already-applied roles
+    const userApplications = await withDbRetry(() =>
+      prisma.application.findMany({
+        where: { userId },
+        select: { id: true, companyName: true, jobTitle: true, status: true },
+      })
+    )
+    const appMap = new Map<string, { id: string; status: string }>()
+    for (const app of userApplications) {
+      const key = `${normalizeCompany(app.companyName)}:${normalizeTitle(app.jobTitle)}`
+      appMap.set(key, { id: app.id, status: app.status })
+    }
+
+    // Query all published jobs within the 24-hour rolling window OR saved jobs directly (excluding DISMISSED)
     let rawJobs = await withDbRetry(() =>
       prisma.discoveredJob.findMany({
         where: {
           userId,
+          status: { not: "DISMISSED" },
           OR: [
             {
               status: "PUBLISHED",
@@ -91,6 +107,9 @@ export async function GET(request: NextRequest) {
         batchLabel = "6-12h Ago"
       }
 
+      const dedupKey = `${normalizeCompany(job.company)}:${normalizeTitle(job.title)}`
+      const existingApp = appMap.get(dedupKey)
+
       return {
         id: job.id,
         title: job.title,
@@ -108,6 +127,8 @@ export async function GET(request: NextRequest) {
         batchLabel,
         publishedAt: publishedAt.toISOString(),
         isSaved: job.isSaved,
+        appliedStatus: existingApp?.status || null,
+        applicationId: existingApp?.id || null,
       }
     })
 
@@ -203,6 +224,46 @@ export async function POST(request: NextRequest) {
     if (action === "refresh") {
       const result = await processUserJobBatch(userId, { forceImmediatePublish: true, notify: false })
       return NextResponse.json(ResponseUtil.success(result))
+    }
+
+    if (action === "dismiss") {
+      const { jobId, companyName, jobTitle } = body
+      if (jobId) {
+        await withDbRetry(() =>
+          prisma.discoveredJob.updateMany({
+            where: { id: jobId, userId },
+            data: { status: "DISMISSED" },
+          })
+        )
+      } else if (companyName && jobTitle) {
+        await withDbRetry(() =>
+          prisma.discoveredJob.updateMany({
+            where: { userId, company: companyName, title: jobTitle },
+            data: { status: "DISMISSED" },
+          })
+        )
+      }
+      return NextResponse.json(ResponseUtil.success({ dismissed: true }))
+    }
+
+    if (action === "undismiss") {
+      const { jobId, companyName, jobTitle } = body
+      if (jobId) {
+        await withDbRetry(() =>
+          prisma.discoveredJob.updateMany({
+            where: { id: jobId, userId },
+            data: { status: "PUBLISHED" },
+          })
+        )
+      } else if (companyName && jobTitle) {
+        await withDbRetry(() =>
+          prisma.discoveredJob.updateMany({
+            where: { userId, company: companyName, title: jobTitle },
+            data: { status: "PUBLISHED" },
+          })
+        )
+      }
+      return NextResponse.json(ResponseUtil.success({ restored: true }))
     }
 
     return NextResponse.json(ResponseUtil.error("Invalid action", 400), { status: 400 })

@@ -61,7 +61,10 @@ export async function processUserJobBatch(
         prisma.discoveredJob.findMany({
           where: {
             userId,
-            batchId,
+            OR: [
+              { batchId },
+              { status: "DISMISSED" },
+            ],
           },
           select: {
             title: true,

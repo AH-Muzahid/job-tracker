@@ -4,7 +4,7 @@ import { useEffect, useCallback } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   BrainCircuit, BookmarkPlus, Check, ExternalLink, MapPin,
-  DollarSign, Zap, Globe, RefreshCw, X, Clock,
+  DollarSign, Zap, Globe, RefreshCw, X, Clock, EyeOff,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { DecorIcon } from "@/components/decor-icon"
@@ -17,11 +17,22 @@ interface DiscoveryJobRowProps {
   isExpanded: boolean
   isSaved: boolean
   isSaving: boolean
+  isDismissing?: boolean
   onToggle: () => void
   onSave: () => void
+  onDismiss?: () => void
 }
 
-export function DiscoveryJobRow({ job, isExpanded, isSaved, isSaving, onToggle, onSave }: DiscoveryJobRowProps) {
+export function DiscoveryJobRow({
+  job,
+  isExpanded,
+  isSaved,
+  isSaving,
+  isDismissing = false,
+  onToggle,
+  onSave,
+  onDismiss,
+}: DiscoveryJobRowProps) {
   const sourceBadge = getSourceBadge(job.sourceBoard)
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
@@ -82,6 +93,12 @@ export function DiscoveryJobRow({ job, isExpanded, isSaved, isSaving, onToggle, 
 
             {/* Mobile-only badges displayed on second line */}
             <div className="flex sm:hidden items-center gap-1.5 mt-0.5">
+              {job.appliedStatus && (
+                <span className="inline-flex items-center gap-0.5 px-1 py-0.2 rounded-none text-[9px] font-medium bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+                  <Check className="size-2" />
+                  Applied
+                </span>
+              )}
               {job.batchSlot && (
                 <span className={cn("inline-flex items-center gap-0.5 px-1 py-0.2 rounded-none text-[9px] font-medium border", getBatchSlotBadge(job.batchSlot).color)}>
                   <Clock className="size-2" />
@@ -98,6 +115,12 @@ export function DiscoveryJobRow({ job, isExpanded, isSaved, isSaving, onToggle, 
 
         {/* Desktop-only badges aligned to right */}
         <div className="hidden sm:flex items-center gap-2 shrink-0">
+          {job.appliedStatus && (
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-none text-[10px] font-medium bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+              <Check className="size-2.5" />
+              <span>Applied ({job.appliedStatus})</span>
+            </span>
+          )}
           {job.batchSlot && (
             <span className={cn("inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-none text-[10px] font-medium border", getBatchSlotBadge(job.batchSlot).color)}>
               <Clock className="size-2.5" />
@@ -112,6 +135,20 @@ export function DiscoveryJobRow({ job, isExpanded, isSaved, isSaving, onToggle, 
             <Globe className="size-2.5" />
             {sourceBadge.label}
           </span>
+          {onDismiss && !isExpanded && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                onDismiss()
+              }}
+              disabled={isDismissing}
+              title="Dismiss this job from feed"
+              className="size-6 inline-flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors rounded-none cursor-pointer ml-1"
+            >
+              <EyeOff className="size-3" />
+            </button>
+          )}
         </div>
 
         {!isExpanded && (
@@ -168,21 +205,29 @@ export function DiscoveryJobRow({ job, isExpanded, isSaved, isSaving, onToggle, 
 
               {/* Actions */}
               <div className="flex flex-wrap items-center gap-2 pt-1">
-                <Button
-                  size="sm"
-                  variant={isSaved ? "secondary" : "default"}
-                  disabled={isSaved || isSaving}
-                  onClick={(e) => { e.stopPropagation(); onSave() }}
-                  className="h-8 text-xs gap-1.5 cursor-pointer font-medium rounded-none flex-1 sm:flex-initial"
-                >
-                  {isSaved ? (
-                    <><Check className="size-3.5 text-emerald-500" /><span>Saved</span></>
-                  ) : isSaving ? (
-                    <><RefreshCw className="size-3.5 animate-spin" /><span>Saving...</span></>
-                  ) : (
-                    <><BookmarkPlus className="size-3.5" /><span>Save to Tracker</span></>
-                  )}
-                </Button>
+                {job.appliedStatus ? (
+                  <div className="inline-flex items-center gap-1.5 h-8 px-3 text-xs bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 font-medium">
+                    <Check className="size-3.5" />
+                    <span>Already in Tracker ({job.appliedStatus})</span>
+                  </div>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant={isSaved ? "secondary" : "default"}
+                    disabled={isSaved || isSaving}
+                    onClick={(e) => { e.stopPropagation(); onSave() }}
+                    className="h-8 text-xs gap-1.5 cursor-pointer font-medium rounded-none flex-1 sm:flex-initial"
+                  >
+                    {isSaved ? (
+                      <><Check className="size-3.5 text-emerald-500" /><span>Saved</span></>
+                    ) : isSaving ? (
+                      <><RefreshCw className="size-3.5 animate-spin" /><span>Saving...</span></>
+                    ) : (
+                      <><BookmarkPlus className="size-3.5" /><span>Save to Tracker</span></>
+                    )}
+                  </Button>
+                )}
+
                 <a
                   href={job.url}
                   target="_blank"
@@ -193,6 +238,24 @@ export function DiscoveryJobRow({ job, isExpanded, isSaved, isSaving, onToggle, 
                   <span>View on {sourceBadge.label}</span>
                   <ExternalLink className="size-3" />
                 </a>
+
+                {onDismiss && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={isDismissing}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onDismiss()
+                    }}
+                    className="h-8 text-xs gap-1 cursor-pointer text-muted-foreground hover:text-destructive hover:border-destructive/40 hover:bg-destructive/10 rounded-none"
+                  >
+                    <EyeOff className="size-3.5" />
+                    <span>Dismiss</span>
+                  </Button>
+                )}
+
                 <button
                   type="button"
                   onClick={(e) => { e.stopPropagation(); onToggle() }}

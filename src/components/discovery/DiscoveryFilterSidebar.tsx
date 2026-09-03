@@ -18,7 +18,7 @@ export function DiscoveryFilterSidebar({
   className,
   hideDecor = false,
 }: DiscoveryFilterSidebarProps) {
-  const hasFilters = filters.source || filters.location || filters.minScore || filters.batchSlot || filters.tags.length > 0
+  const hasFilters = filters.source || filters.location || filters.minScore || filters.batchSlot || filters.tags.length > 0 || !!filters.hideApplied
 
   const update = (patch: Partial<DiscoveryFilters>) => {
     onFilterChange({ ...filters, ...patch })
@@ -30,7 +30,7 @@ export function DiscoveryFilterSidebar({
   }
 
   const clearAll = () => {
-    onFilterChange({ source: "", location: "", minScore: "", batchSlot: "", tags: [] })
+    onFilterChange({ source: "", location: "", minScore: "", batchSlot: "", tags: [], hideApplied: false })
   }
 
   return (
@@ -98,6 +98,20 @@ export function DiscoveryFilterSidebar({
               { value: "0", label: "Below 70%", dot: "bg-amber-500" },
             ]}
           />
+        </div>
+
+        {/* Tracker Cross-Check */}
+        <div>
+          <label className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/80 mb-2 block">Tracker Status</label>
+          <label className="flex items-center gap-2 cursor-pointer text-xs select-none">
+            <input
+              type="checkbox"
+              checked={!!filters.hideApplied}
+              onChange={(e) => update({ hideApplied: e.target.checked })}
+              className="rounded-none border-border size-3.5 text-primary accent-primary cursor-pointer"
+            />
+            <span className="text-xs text-muted-foreground hover:text-foreground">Hide already applied</span>
+          </label>
         </div>
 
         {/* Tech Tags */}

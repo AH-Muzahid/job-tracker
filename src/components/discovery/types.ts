@@ -6,6 +6,7 @@ export interface DiscoveryFilters {
   minScore: "" | "85" | "70" | "0"
   batchSlot?: BatchSlot
   tags: string[]
+  hideApplied?: boolean
 }
 
 export interface BatchSummary {

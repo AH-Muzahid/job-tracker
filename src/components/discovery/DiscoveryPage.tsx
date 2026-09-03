@@ -40,10 +40,12 @@ export function DiscoveryPage() {
     minScore: "",
     batchSlot: "",
     tags: [],
+    hideApplied: false,
   })
   const [sortBy, setSortBy] = useState<SortOption>("score-desc")
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null)
   const [savedJobs, setSavedJobs] = useState<Set<string>>(new Set())
+  const [dismissedJobIds, setDismissedJobIds] = useState<Set<string>>(new Set())
   const [preferencesModalOpen, setPreferencesModalOpen] = useState(false)
   const queryClient = useQueryClient()
 
@@ -77,13 +79,16 @@ export function DiscoveryPage() {
     }
   }, [data?.opportunities])
 
-  const allOpportunities = useMemo(() => data?.opportunities || [], [data?.opportunities])
+  const allOpportunities = useMemo(() => {
+    return (data?.opportunities || []).filter((opp) => !dismissedJobIds.has(opp.id))
+  }, [data?.opportunities, dismissedJobIds])
 
   // Sub-millisecond instant in-memory filtering across search query and multi-criteria
   const filteredOpportunities = useMemo(() => {
     const q = searchQuery.trim().toLowerCase()
 
     return allOpportunities.filter((job) => {
+      if (filters.hideApplied && job.appliedStatus) return false
       if (q) {
         const target = `${job.title} ${job.company} ${job.location} ${(job.tags || []).join(" ")}`.toLowerCase()
         if (!target.includes(q)) return false
@@ -169,12 +174,66 @@ export function DiscoveryPage() {
     onError: (err: Error) => toast.error(err?.message || "Failed to sync fresh batch"),
   })
 
+  const dismissMutation = useMutation({
+    mutationFn: async (job: ExternalJobOpportunity) => {
+      const res = await fetch("/api/jobs/discover", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "dismiss",
+          jobId: job.id,
+          companyName: job.company,
+          jobTitle: job.title,
+        }),
+      })
+      if (!res.ok) throw new Error("Failed to dismiss job")
+      return res.json()
+    },
+    onMutate: (job) => {
+      setDismissedJobIds((prev) => new Set(prev).add(job.id))
+    },
+    onSuccess: (_, job) => {
+      toast(`"${job.title}" hidden from your feed`, {
+        action: {
+          label: "Undo",
+          onClick: async () => {
+            setDismissedJobIds((prev) => {
+              const next = new Set(prev)
+              next.delete(job.id)
+              return next
+            })
+            await fetch("/api/jobs/discover", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                action: "undismiss",
+                jobId: job.id,
+                companyName: job.company,
+                jobTitle: job.title,
+              }),
+            }).catch(() => {})
+            queryClient.invalidateQueries({ queryKey: ["discovery"] })
+          },
+        },
+      })
+    },
+    onError: (err: Error, job) => {
+      setDismissedJobIds((prev) => {
+        const next = new Set(prev)
+        next.delete(job.id)
+        return next
+      })
+      toast.error(err?.message || "Failed to dismiss job")
+    },
+  })
+
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
   const activeFiltersCount =
     (filters.source ? 1 : 0) +
     (filters.location ? 1 : 0) +
     (filters.minScore ? 1 : 0) +
     (filters.batchSlot ? 1 : 0) +
+    (filters.hideApplied ? 1 : 0) +
     filters.tags.length
 
   const handleSearchSubmit = (e: React.FormEvent) => {
@@ -285,9 +344,11 @@ export function DiscoveryPage() {
             saveMutation={saveMutation}
             onToggleExpand={handleToggleExpand}
             onSave={(job) => saveMutation.mutate(job)}
+            onDismiss={(job) => dismissMutation.mutate(job)}
+            dismissingJobId={dismissMutation.variables?.id || null}
             onClearAll={() => {
               setSearchQuery("")
-              setFilters({ source: "", location: "", minScore: "", batchSlot: "", tags: [] })
+              setFilters({ source: "", location: "", minScore: "", batchSlot: "", tags: [], hideApplied: false })
             }}
             onRefetch={() => refetch()}
             searchQuery={searchQuery}
