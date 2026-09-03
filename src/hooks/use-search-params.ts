@@ -24,13 +24,14 @@ export function useSearchParams(): [Params, (params: Params) => void] {
 
   const setParams = useCallback((newParams: Params) => {
     const url = new URL(window.location.href)
+    const nextSearch = new URLSearchParams()
     for (const [key, value] of Object.entries(newParams)) {
       if (value) {
-        url.searchParams.set(key, value)
-      } else {
-        url.searchParams.delete(key)
+        nextSearch.set(key, value)
       }
     }
+    const query = nextSearch.toString()
+    url.search = query ? `?${query}` : ""
     window.history.pushState({}, "", url.toString())
     window.dispatchEvent(new PopStateEvent("popstate"))
   }, [])

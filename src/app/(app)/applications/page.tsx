@@ -71,7 +71,7 @@ function ApplicationsContent() {
   }, [urlParams, setUrlParams])
 
   const clearFilters = useCallback(() => {
-    setUrlParams({ view: urlParams.view || "board" })
+    setUrlParams(urlParams.view ? { view: urlParams.view } : {})
   }, [urlParams.view, setUrlParams])
 
   const setView = useCallback((v: ViewMode) => {

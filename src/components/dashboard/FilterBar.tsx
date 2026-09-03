@@ -84,6 +84,7 @@ export default function FilterBar({
 
       {hasFilters && (
         <button
+          type="button"
           onClick={onClearAll}
           className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors cursor-pointer"
         >
