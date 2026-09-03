@@ -54,6 +54,22 @@ export async function processUserJobBatch(
 
   let stagedCount = 0
 
+  // If forceImmediatePublish is requested, wake up any non-dismissed dormant jobs immediately
+  if (options.forceImmediatePublish) {
+    await withDbRetry(() =>
+      prisma.discoveredJob.updateMany({
+        where: {
+          userId,
+          status: { in: ["STAGED", "ARCHIVED"] },
+        },
+        data: {
+          status: "PUBLISHED",
+          publishedAt: now,
+        },
+      })
+    )
+  }
+
   // 2. Stage new jobs using single bulk lookup & createMany (P0 optimization: N+1 elimination)
   if (opportunities.length > 0) {
     const existingJobs =
@@ -61,10 +77,7 @@ export async function processUserJobBatch(
         prisma.discoveredJob.findMany({
           where: {
             userId,
-            OR: [
-              { batchId },
-              { status: "DISMISSED" },
-            ],
+            status: { in: ["PUBLISHED", "DISMISSED"] },
           },
           select: {
             title: true,

@@ -138,13 +138,7 @@ export async function executeSearchExternalJobs(
 
       if (!isExplicitSearch) {
         // Gate 1A: Remote-only candidate will NEVER see on-site or hybrid jobs
-        const locTitle = `${jobLocation} ${position}`.toLowerCase()
-        const isLocOrTitleRemote =
-          locTitle.includes("remote") ||
-          locTitle.includes("anywhere") ||
-          locTitle.includes("telecommute") ||
-          locTitle.includes("distributed")
-        if (userWorkPreference === "remote" && (!isLocOrTitleRemote || jobWorkMode !== "remote")) {
+        if (userWorkPreference === "remote" && jobWorkMode !== "remote") {
           continue
         }
 
