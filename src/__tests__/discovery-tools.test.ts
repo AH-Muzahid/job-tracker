@@ -217,13 +217,13 @@ describe("Multi-Board Job Discovery Engine Tools", () => {
     }
   })
 
-  it("gracefully falls back to high-fit remote roles when candidate specifies onsite in a city with zero direct openings", async () => {
+  it("shows Dhaka tech hub onsite jobs to candidates located anywhere in Bangladesh (e.g. Sylhet, Chittagong)", async () => {
     vi.spyOn((prisma as any).userProfile, "findUnique").mockResolvedValueOnce({
       userId: testUserId,
       strengths: "React, Node.js, Go",
       targetRoles: ["Full Stack Developer"],
       workPreference: "onsite",
-      location: "Sylhet, Bangladesh", // A city with no direct fallback onsite jobs
+      location: "Sylhet, Bangladesh",
     })
     vi.spyOn((prisma as any).resume, "findFirst").mockResolvedValueOnce({
       userId: testUserId,
@@ -237,16 +237,21 @@ describe("Multi-Board Job Discovery Engine Tools", () => {
 
     expect(result.success).toBe(true)
     expect(result.opportunities.length).toBeGreaterThan(0)
-    // Every job returned must be remote (no distant on-site jobs from other cities)
+    // Should include Dhaka Tech Hub opportunities (e.g. bKash)
+    const dhakaJob = result.opportunities.find((j) => j.location.toLowerCase().includes("dhaka"))
+    expect(dhakaJob).toBeDefined()
+    expect(dhakaJob?.matchRationale).toContain("Dhaka Tech Hub")
+
+    // Foreign onsite jobs (like London, Berlin) must still be strictly excluded
     for (const job of result.opportunities) {
-      const mode = detectJobWorkMode({
+      const isRemote = detectJobWorkMode({
         location: job.location,
         title: job.title,
         description: job.descriptionSnippet,
         sourceBoard: job.sourceBoard,
-      })
-      expect(mode).toBe("remote")
-      expect(job.matchRationale.toLowerCase()).toContain("remote")
+      }) === "remote"
+      const isDhakaOrLocal = job.location.toLowerCase().includes("dhaka") || job.location.toLowerCase().includes("sylhet")
+      expect(isRemote || isDhakaOrLocal).toBe(true)
     }
   })
 })

@@ -282,6 +282,38 @@ export function checkLocationMatch(
 }
 
 /**
+ * Detects if an on-site or hybrid job is located in the country's primary tech capital
+ * which is relevant and accessible to nationwide candidates (e.g. Dhaka for any candidate in Bangladesh).
+ */
+export function isNationalTechHubMatch(jobLocation?: string, userLocation?: string): boolean {
+  if (!jobLocation || !userLocation) return false
+  const userLower = userLocation.toLowerCase()
+  const jobLower = jobLocation.toLowerCase()
+
+  // Bangladesh Tech Capital: Dhaka (primary tech hub for candidates anywhere across Bangladesh)
+  const isCandidateInBD =
+    userLower.includes("bangladesh") ||
+    userLower.includes("bd") ||
+    userLower.includes("dhaka") ||
+    userLower.includes("chittagong") ||
+    userLower.includes("chattogram") ||
+    userLower.includes("sylhet") ||
+    userLower.includes("rajshahi") ||
+    userLower.includes("khulna") ||
+    userLower.includes("barishal") ||
+    userLower.includes("rangpur") ||
+    userLower.includes("mymensingh") ||
+    userLower.includes("comilla") ||
+    userLower.includes("cumilla")
+
+  if (isCandidateInBD && jobLower.includes("dhaka")) {
+    return true
+  }
+
+  return false
+}
+
+/**
  * Checks if a remote job has restrictive geographic constraints (e.g. US Only, UK Only)
  * that disqualify a candidate living in a different country/region
  */
@@ -731,6 +763,8 @@ export async function executeSearchExternalJobs(
       const isStrictCityMatch = userLocation
         ? checkLocationMatch(jobLocation, userLocation, { strictCity: true })
         : false
+      const isNationalHub = isNationalTechHubMatch(jobLocation, userLocation)
+      const isViableLocalMatch = isStrictCityMatch || isNationalHub
 
       if (!isExplicitSearch) {
         // Gate 1A: Remote-only candidate will NEVER see on-site or hybrid jobs
@@ -744,13 +778,14 @@ export async function executeSearchExternalJobs(
           continue
         }
 
-        // Gate 1B: On-site candidate in city X will NEVER see on-site or hybrid jobs in city Y
-        if (userWorkPreference === "onsite" && (jobWorkMode === "onsite" || jobWorkMode === "hybrid") && !isStrictCityMatch && userLocation) {
+        // Gate 1B: On-site candidate in city X will NEVER see on-site or hybrid jobs in distant foreign locations
+        // Allows local city match OR national tech hub like Dhaka for Bangladesh candidates
+        if (userWorkPreference === "onsite" && (jobWorkMode === "onsite" || jobWorkMode === "hybrid") && !isViableLocalMatch && userLocation) {
           continue
         }
 
-        // Gate 1C: Hybrid candidate in city X will NEVER see hybrid or on-site jobs in city Y
-        if (userWorkPreference === "hybrid" && (jobWorkMode === "hybrid" || jobWorkMode === "onsite") && !isStrictCityMatch && userLocation) {
+        // Gate 1C: Hybrid candidate in city X will NEVER see hybrid or on-site jobs in distant foreign locations
+        if (userWorkPreference === "hybrid" && (jobWorkMode === "hybrid" || jobWorkMode === "onsite") && !isViableLocalMatch && userLocation) {
           continue
         }
 
@@ -787,6 +822,9 @@ export async function executeSearchExternalJobs(
         } else if (isStrictCityMatch && jobWorkMode === "hybrid") {
           locationScore = 26
           locationRationale = `Local Hybrid match in ${userLocation}`
+        } else if (isNationalHub && (jobWorkMode === "onsite" || jobWorkMode === "hybrid")) {
+          locationScore = 25
+          locationRationale = `Dhaka Tech Hub: Primary tech opening in Bangladesh (Accessible from ${userLocation})`
         } else if (jobWorkMode === "remote") {
           locationScore = 15
           locationRationale = "Remote work option (flexible alternative)"
@@ -798,15 +836,21 @@ export async function executeSearchExternalJobs(
         } else if (isStrictCityMatch && jobWorkMode === "onsite") {
           locationScore = 26
           locationRationale = `Local On-site in ${userLocation}`
+        } else if (isNationalHub && (jobWorkMode === "hybrid" || jobWorkMode === "onsite")) {
+          locationScore = 24
+          locationRationale = `Dhaka Tech Hub: Primary tech opening in Bangladesh (Accessible from ${userLocation})`
         } else if (jobWorkMode === "remote") {
           locationScore = 20
           locationRationale = "Remote flexibility (alternative to Hybrid)"
         }
       } else {
         // "open" or unspecified
-        if (isLocationMatch) {
+        if (isStrictCityMatch) {
           locationScore = 30
           locationRationale = `Local opportunity in ${userLocation}`
+        } else if (isNationalHub) {
+          locationScore = 28
+          locationRationale = "Dhaka Tech Hub opportunity in Bangladesh"
         } else if (jobWorkMode === "remote") {
           locationScore = 28
           locationRationale = "Global Remote opportunity"
