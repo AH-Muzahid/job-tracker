@@ -1,8 +1,8 @@
 "use client"
-/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { useState, useRef, useEffect } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { useUser } from "@clerk/nextjs"
 import {
   Bell,
   Check,
@@ -32,6 +32,7 @@ export interface NotificationItem {
 }
 
 export function NotificationCenter() {
+  const { isLoaded, isSignedIn } = useUser()
   const [isOpen, setIsOpen] = useState(false)
   const [activeFilter, setActiveFilter] = useState<"all" | "unread">("all")
   const dropdownRef = useRef<HTMLDivElement>(null)
@@ -40,11 +41,22 @@ export function NotificationCenter() {
   // Fetch notifications
   const { data, isLoading } = useQuery({
     queryKey: ["notifications", "list"],
+    enabled: isLoaded && !!isSignedIn,
+    initialData: { notifications: [], unreadCount: 0 },
     queryFn: async () => {
       const res = await fetch("/api/notifications?limit=30")
-      if (!res.ok) throw new Error("Failed to fetch notifications")
-      const json = await res.json()
-      return json.data as { notifications: NotificationItem[]; unreadCount: number }
+      if (!res.ok) {
+        if (res.status === 401) {
+          return { notifications: [], unreadCount: 0 }
+        }
+        throw new Error("Failed to fetch notifications")
+      }
+      const json = await res.json().catch(() => null)
+      const payload = json?.data ?? json
+      return {
+        notifications: (payload?.notifications as NotificationItem[]) || [],
+        unreadCount: typeof payload?.unreadCount === "number" ? payload.unreadCount : 0,
+      }
     },
     refetchInterval: 30000, // Poll every 30s
     staleTime: 10000,
@@ -157,7 +169,7 @@ export function NotificationCenter() {
       {isOpen && (
         <div
           className={cn(
-            "absolute right-0 top-full mt-2 w-80 sm:w-96 rounded-lg border border-border bg-card/98 shadow-xl backdrop-blur-md z-50 overflow-hidden",
+            "fixed sm:absolute inset-x-3 sm:inset-x-auto sm:right-0 top-14 sm:top-full mt-2 w-auto sm:w-96 rounded-lg border border-border bg-card/98 shadow-xl backdrop-blur-md z-50 overflow-hidden",
             "animate-in fade-in-50 zoom-in-95 duration-150"
           )}
         >

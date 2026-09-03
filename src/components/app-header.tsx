@@ -53,10 +53,10 @@ export function AppHeader() {
 					</span>
 				</Link>
 				<Separator
-					className="h-4 data-[orientation=vertical]:self-center shrink-0"
+					className="h-4 data-[orientation=vertical]:self-center shrink-0 hidden md:block"
 					orientation="vertical"
 				/>
-				<div className="min-w-0 truncate">
+				<div className="min-w-0 truncate hidden md:block">
 					<AppBreadcrumbs page={activeItem} />
 				</div>
 			</div>

@@ -79,6 +79,7 @@ export default function FilterBar({
         value={sort}
         options={SORT_OPTIONS}
         onChange={(v) => onSortChange(v as SortOption)}
+        align="right"
       />
 
       {hasFilters && (
@@ -103,11 +104,13 @@ function Dropdown({
   value,
   options,
   onChange,
+  align = "left",
 }: {
   label: string
   value: string
   options: { value: string; label: string }[]
   onChange: (value: string) => void
+  align?: "left" | "right"
 }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -141,7 +144,10 @@ function Dropdown({
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full z-50 mt-1 w-44 rounded-md border border-border bg-popover p-1 shadow-lg backdrop-blur-xl">
+        <div className={cn(
+          "absolute top-full z-50 mt-1 w-44 rounded-md border border-border bg-popover p-1 shadow-lg backdrop-blur-xl",
+          align === "right" ? "right-0" : "left-0"
+        )}>
           <button
             onClick={() => {
               onChange("")

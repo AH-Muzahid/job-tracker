@@ -157,8 +157,8 @@ export default function CompaniesPage() {
                   variant="ghost"
                   size="icon"
                   onClick={() => handleDelete(company.id)}
-                  className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive hover:bg-destructive/10 h-7 w-7 rounded-lg transition-all cursor-pointer"
-                  title="Remove company"
+                  className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 text-muted-foreground hover:text-destructive hover:bg-destructive/10 h-7 w-7 rounded-lg transition-all cursor-pointer"
+                  title="Delete company"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                 </Button>
