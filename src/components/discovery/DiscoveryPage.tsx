@@ -189,6 +189,19 @@ export function DiscoveryPage() {
   })
 
   const handleApplyClick = useCallback((job: ExternalJobOpportunity) => {
+    // Non-blocking telemetry tracking for external job link clicks
+    fetch("/api/jobs/discover", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "track_click",
+        jobId: job.id,
+        companyName: job.company,
+        jobTitle: job.title,
+        clickType: "external_link",
+      }),
+    }).catch(() => {})
+
     if (job.appliedStatus) return
     setTrackModalJob(job)
   }, [])
@@ -421,6 +434,17 @@ export function DiscoveryPage() {
           if (!open) setTrackModalJob(null)
         }}
         onTrackApplied={(job) => {
+          fetch("/api/jobs/discover", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "track_click",
+              jobId: job.id,
+              companyName: job.company,
+              jobTitle: job.title,
+              clickType: "apply",
+            }),
+          }).catch(() => {})
           saveMutation.mutate({
             ...job,
             appliedStatus: "Applied",

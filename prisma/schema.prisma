@@ -31,6 +31,7 @@ model User {
   notifications Notification[]
   connectedAccount ConnectedAccount?
   jobMatches UserJobMatch[]
+  discoveryEvents DiscoveryEvent[]
 }
 
 model Application {
@@ -384,6 +385,7 @@ model CanonicalJob {
   updatedAt   DateTime       @updatedAt
 
   matches     UserJobMatch[]
+  events      DiscoveryEvent[]
 
   @@index([isExpired, expiresAt])
   @@index([sourceBoard])
@@ -411,6 +413,22 @@ model UserJobMatch {
   @@index([userId, status, publishedAt])
   @@index([userId, isSaved])
   @@index([userId, batchId])
+  @@index([jobId])
+}
+
+model DiscoveryEvent {
+  id         String        @id @default(cuid())
+  userId     String
+  jobId      String?
+  eventType  String        // "BATCH_PUBLISHED" | "FEED_VIEWED" | "JOB_SAVED" | "JOB_DISMISSED" | "JOB_UNDISMISSED" | "JOB_APPLIED" | "JOB_CLICK_EXTERNAL" | "FEED_REFRESHED"
+  metadata   Json?
+  createdAt  DateTime      @default(now())
+
+  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  job        CanonicalJob? @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([userId, eventType, createdAt])
+  @@index([eventType, createdAt])
   @@index([jobId])
 }
 

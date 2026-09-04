@@ -32,6 +32,10 @@ vi.mock("@/lib/prisma", () => ({
     user: {
       findMany: vi.fn(),
     },
+    discoveryEvent: {
+      create: vi.fn().mockResolvedValue({ id: "evt-1" }),
+      findMany: vi.fn().mockResolvedValue([]),
+    },
   },
   withDbRetry: vi.fn((fn: any) => fn()),
 }))

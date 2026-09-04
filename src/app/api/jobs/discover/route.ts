@@ -17,6 +17,7 @@ import {
 import { inngest } from "@/inngest/client"
 import { checkDistributedRateLimit, rateLimitResponse } from "@/lib/rate-limit"
 import { ResponseUtil } from "@/lib/api-response"
+import { logDiscoveryEvent } from "@/lib/discovery/telemetry"
 
 export async function GET(request: NextRequest) {
   const userId = await getInternalUserId()
@@ -215,6 +216,18 @@ export async function GET(request: NextRequest) {
       batchSummary
     )
 
+    // Fire-and-forget telemetry logging (non-blocking, zero latency impact on GET)
+    logDiscoveryEvent({
+      userId,
+      eventType: "FEED_VIEWED",
+      metadata: {
+        count: filteredOpportunities.length,
+        totalActive: opportunities.length,
+        query: query || undefined,
+        forceRefresh,
+      },
+    })
+
     return ResponseUtil.success({
       count: filteredOpportunities.length,
       nextBatchAt,
@@ -288,11 +301,23 @@ export async function POST(request: NextRequest) {
         ).catch((err) => console.warn("[UserJobMatch save mark error]:", err))
       }
 
+      // 3. Fire-and-forget telemetry logging
+      logDiscoveryEvent({
+        userId,
+        eventType: "JOB_SAVED",
+        jobId: jobId || undefined,
+        metadata: { companyName, jobTitle, location, salary },
+      })
+
       return ResponseUtil.success(saveResult)
     }
 
     if (action === "refresh") {
       console.log(`[JobDiscovery API] Refresh batch triggered for userId=${userId}`)
+      logDiscoveryEvent({
+        userId,
+        eventType: "FEED_REFRESHED",
+      })
       const result = await processUserJobBatch(userId, { forceImmediatePublish: true, notify: false })
       return ResponseUtil.success(result)
     }
@@ -326,6 +351,14 @@ export async function POST(request: NextRequest) {
           })
         )
       }
+
+      logDiscoveryEvent({
+        userId,
+        eventType: "JOB_DISMISSED",
+        jobId: jobId || undefined,
+        metadata: { companyName, jobTitle, dismissReason: dismissReason || "user_hidden" },
+      })
+
       return ResponseUtil.success({ dismissed: true })
     }
 
@@ -358,7 +391,29 @@ export async function POST(request: NextRequest) {
           })
         )
       }
+
+      logDiscoveryEvent({
+        userId,
+        eventType: "JOB_UNDISMISSED",
+        jobId: jobId || undefined,
+        metadata: { companyName, jobTitle },
+      })
+
       return ResponseUtil.success({ restored: true })
+    }
+
+    if (action === "track_click") {
+      const { jobId, companyName, jobTitle, clickType } = body
+      const eventType = clickType === "apply" ? "JOB_APPLIED" : "JOB_CLICK_EXTERNAL"
+
+      logDiscoveryEvent({
+        userId,
+        eventType,
+        jobId: jobId || undefined,
+        metadata: { companyName, jobTitle, clickType },
+      })
+
+      return ResponseUtil.success({ tracked: true, eventType })
     }
 
     return ResponseUtil.badRequest("Invalid action")

@@ -2,6 +2,7 @@ import { inngest } from "../client"
 import { prisma, withDbRetry } from "@/lib/prisma"
 import { executeSearchExternalJobs } from "@/lib/ai/graph/tools/discovery-tools"
 import { ingestGlobalJobsToCatalog } from "@/lib/discovery/scrapers"
+import { logDiscoveryEvent } from "@/lib/discovery/telemetry"
 
 /**
  * Generates a deterministic batch ID for the 6-hour interval
@@ -153,7 +154,18 @@ export async function processUserJobBatch(
     })
   )
 
-  // 5. In-App Notification Dispatch
+  // 5. Telemetry & Analytics: Log BATCH_PUBLISHED event
+  logDiscoveryEvent({
+    userId,
+    eventType: "BATCH_PUBLISHED",
+    metadata: {
+      batchId,
+      publishedCount: publishResult.count + (options.forceImmediatePublish ? stagedCount : 0),
+      archivedCount: archiveResult.count,
+    },
+  })
+
+  // 6. In-App Notification Dispatch
   if (shouldNotify && (publishResult.count > 0 || options.forceImmediatePublish)) {
     await withDbRetry(() =>
       prisma.notification.create({
