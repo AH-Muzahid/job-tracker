@@ -14,6 +14,7 @@ import {
   getCurrentBatchStartTime,
   processUserJobBatch,
 } from "@/inngest/functions/batch-job-pipeline"
+import { inngest } from "@/inngest/client"
 import { ResponseUtil } from "@/lib/api-response"
 
 export async function GET(request: NextRequest) {
@@ -32,7 +33,29 @@ export async function GET(request: NextRequest) {
     const now = new Date()
     const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000)
 
-    // If explicit forceRefresh is requested, seed immediately
+    // 1. Cold-start check: If CanonicalJob catalog has 0 jobs, trigger background ingest and return non-blocking syncing state (<50ms)
+    const canonicalCount = await withDbRetry(() =>
+      prisma.canonicalJob.count({ where: { isExpired: false } })
+    )
+
+    if (canonicalCount === 0) {
+      console.log(`[JobDiscovery API] Canonical catalog is empty. Dispatching background crawler...`)
+      inngest.send({ name: "discovery/global-crawl.trigger" }).catch((err) => {
+        console.warn("[JobDiscovery API] Failed to trigger background crawl:", err)
+      })
+
+      return ResponseUtil.success({
+        count: 0,
+        syncing: true,
+        message: "জব ক্যাটালগ ব্যাকগ্রাউন্ডে সিঙ্ক হচ্ছে। অনুগ্রহ করে কিছু মুহূর্ত পর পুনরায় রিফ্রেশ করুন।",
+        nextBatchAt: getNextBatchReleaseTime(now).toISOString(),
+        currentBatchStartedAt: getCurrentBatchStartTime(now).toISOString(),
+        batchSummary: { justIn: 0, earlierToday: 0, yesterday: 0, totalActive: 0 },
+        opportunities: [],
+      })
+    }
+
+    // If explicit forceRefresh is requested, seed immediately from local DB
     if (forceRefresh) {
       console.log(`[JobDiscovery API] Explicit forceRefresh requested for userId=${userId}. Processing fresh batch...`)
       await processUserJobBatch(userId, { forceImmediatePublish: true, notify: false })
@@ -51,9 +74,9 @@ export async function GET(request: NextRequest) {
       appMap.set(key, { id: app.id, status: app.status })
     }
 
-    // Query all published jobs within the 24-hour rolling window OR saved jobs directly (excluding DISMISSED)
-    let rawJobs = await withDbRetry(() =>
-      prisma.discoveredJob.findMany({
+    // Query all published job matches within the 24-hour rolling window OR saved jobs directly (excluding DISMISSED)
+    let rawMatches = await withDbRetry(() =>
+      prisma.userJobMatch.findMany({
         where: {
           userId,
           status: { not: "DISMISSED" },
@@ -67,6 +90,9 @@ export async function GET(request: NextRequest) {
             },
           ],
         },
+        include: {
+          job: true,
+        },
         orderBy: [
           { publishedAt: "desc" },
           { fitScore: "desc" },
@@ -74,14 +100,14 @@ export async function GET(request: NextRequest) {
         take: 60,
       })
     )
-    console.log(`[JobDiscovery API] Found ${rawJobs.length} active jobs in rolling window for userId=${userId}`)
+    console.log(`[JobDiscovery API] Found ${rawMatches.length} active matches in rolling window for userId=${userId}`)
 
-    // If user has zero active jobs, seed their initial batch (cold-start recovery)
-    if (rawJobs.length === 0 && !forceRefresh) {
-      console.log(`[JobDiscovery API] 0 active jobs for userId=${userId}. Triggering cold-start batch generation...`)
+    // If user has zero active matches, seed their initial batch in-memory from CanonicalJob (<50ms, zero HTTP calls)
+    if (rawMatches.length === 0 && !forceRefresh) {
+      console.log(`[JobDiscovery API] 0 active matches for userId=${userId}. Triggering fast in-memory batch generation...`)
       await processUserJobBatch(userId, { forceImmediatePublish: true, notify: false })
-      rawJobs = await withDbRetry(() =>
-        prisma.discoveredJob.findMany({
+      rawMatches = await withDbRetry(() =>
+        prisma.userJobMatch.findMany({
           where: {
             userId,
             status: { not: "DISMISSED" },
@@ -95,6 +121,9 @@ export async function GET(request: NextRequest) {
               },
             ],
           },
+          include: {
+            job: true,
+          },
           orderBy: [
             { publishedAt: "desc" },
             { fitScore: "desc" },
@@ -102,12 +131,13 @@ export async function GET(request: NextRequest) {
           take: 60,
         })
       )
-      console.log(`[JobDiscovery API] Post cold-start DB count: ${rawJobs.length} jobs for userId=${userId}`)
+      console.log(`[JobDiscovery API] Post-scoring DB matches count: ${rawMatches.length} for userId=${userId}`)
     }
 
-    // Transform jobs into UI-ready opportunity format with batch age metadata
-    const opportunities = rawJobs.map((job) => {
-      const publishedAt = job.publishedAt || job.createdAt
+    // Transform matches into UI-ready opportunity format with batch age metadata
+    const opportunities = rawMatches.map((match) => {
+      const job = match.job
+      const publishedAt = match.publishedAt || match.createdAt
       const ageHours = (now.getTime() - publishedAt.getTime()) / (1000 * 60 * 60)
 
       let batchSlot: "just-in" | "earlier-today" | "yesterday" = "just-in"
@@ -125,7 +155,8 @@ export async function GET(request: NextRequest) {
       const existingApp = appMap.get(dedupKey)
 
       return {
-        id: job.id,
+        id: match.id,
+        jobId: job.id,
         title: job.title,
         company: job.company,
         location: job.location,
@@ -133,14 +164,14 @@ export async function GET(request: NextRequest) {
         sourceBoard: job.sourceBoard as any,
         tags: job.tags || [],
         salary: job.salary || undefined,
-        fitScore: job.fitScore,
-        matchRationale: job.matchRationale || "",
+        fitScore: match.fitScore,
+        matchRationale: match.matchRationale || "",
         descriptionSnippet: job.description || "",
-        batchId: job.batchId,
+        batchId: match.batchId,
         batchSlot,
         batchLabel,
         publishedAt: publishedAt.toISOString(),
-        isSaved: job.isSaved,
+        isSaved: match.isSaved,
         appliedStatus: existingApp?.status || null,
         applicationId: existingApp?.id || null,
       }
@@ -213,28 +244,27 @@ export async function POST(request: NextRequest) {
         return ResponseUtil.error(saveResult.error || "Failed to save job", 500)
       }
 
-      // 2. Mark DiscoveredJob as isSaved: true (protected from rolling 24h archival)
+      // 2. Mark UserJobMatch as isSaved: true (protected from rolling 24h archival)
       if (jobId) {
         await withDbRetry(() =>
-          prisma.discoveredJob.updateMany({
+          prisma.userJobMatch.updateMany({
             where: {
-              id: jobId,
               userId,
+              OR: [{ id: jobId }, { jobId: jobId }],
             },
             data: { isSaved: true },
           })
-        ).catch((err) => console.warn("[DiscoveredJob save mark error]:", err))
+        ).catch((err) => console.warn("[UserJobMatch save mark error]:", err))
       } else {
         await withDbRetry(() =>
-          prisma.discoveredJob.updateMany({
+          prisma.userJobMatch.updateMany({
             where: {
               userId,
-              company: companyName,
-              title: jobTitle,
+              job: { company: companyName, title: jobTitle },
             },
             data: { isSaved: true },
           })
-        ).catch((err) => console.warn("[DiscoveredJob save mark error]:", err))
+        ).catch((err) => console.warn("[UserJobMatch save mark error]:", err))
       }
 
       return ResponseUtil.success(saveResult)
@@ -247,19 +277,31 @@ export async function POST(request: NextRequest) {
     }
 
     if (action === "dismiss") {
-      const { jobId, companyName, jobTitle } = body
+      const { jobId, companyName, jobTitle, dismissReason } = body
       if (jobId) {
         await withDbRetry(() =>
-          prisma.discoveredJob.updateMany({
-            where: { id: jobId, userId },
-            data: { status: "DISMISSED" },
+          prisma.userJobMatch.updateMany({
+            where: {
+              userId,
+              OR: [{ id: jobId }, { jobId: jobId }],
+            },
+            data: {
+              status: "DISMISSED",
+              dismissReason: dismissReason || "user_hidden",
+            },
           })
         )
       } else if (companyName && jobTitle) {
         await withDbRetry(() =>
-          prisma.discoveredJob.updateMany({
-            where: { userId, company: companyName, title: jobTitle },
-            data: { status: "DISMISSED" },
+          prisma.userJobMatch.updateMany({
+            where: {
+              userId,
+              job: { company: companyName, title: jobTitle },
+            },
+            data: {
+              status: "DISMISSED",
+              dismissReason: dismissReason || "user_hidden",
+            },
           })
         )
       }
@@ -270,16 +312,28 @@ export async function POST(request: NextRequest) {
       const { jobId, companyName, jobTitle } = body
       if (jobId) {
         await withDbRetry(() =>
-          prisma.discoveredJob.updateMany({
-            where: { id: jobId, userId },
-            data: { status: "PUBLISHED" },
+          prisma.userJobMatch.updateMany({
+            where: {
+              userId,
+              OR: [{ id: jobId }, { jobId: jobId }],
+            },
+            data: {
+              status: "PUBLISHED",
+              dismissReason: null,
+            },
           })
         )
       } else if (companyName && jobTitle) {
         await withDbRetry(() =>
-          prisma.discoveredJob.updateMany({
-            where: { userId, company: companyName, title: jobTitle },
-            data: { status: "PUBLISHED" },
+          prisma.userJobMatch.updateMany({
+            where: {
+              userId,
+              job: { company: companyName, title: jobTitle },
+            },
+            data: {
+              status: "PUBLISHED",
+              dismissReason: null,
+            },
           })
         )
       }
