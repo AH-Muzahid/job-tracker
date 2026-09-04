@@ -121,12 +121,12 @@ Whenever ANY change, fix, optimization, or feature is added to the Job Discovery
   - **Status**: `Pending`
   - **Completed At**: —
 
-- [ ] **`REC-12` [Intelligence] Visa Sponsorship & Work Auth Extraction**
+- [x] **`REC-12` [Intelligence] Visa Sponsorship & Work Auth Extraction**
   - **Issue**: International candidates cannot filter jobs requiring US/UK citizenship vs offering sponsorship.
   - **Action**: Parse JD text for visa sponsorship signals (`H-1B`, `Visa Sponsorship Available`, `Must be authorized`).
-  - **Target Files**: `src/lib/discovery/matching.ts`
-  - **Status**: `Pending`
-  - **Completed At**: —
+  - **Target Files**: `src/lib/discovery/matching.ts`, `src/lib/discovery/scrapers.ts`, `prisma/schema.prisma`, `src/components/discovery/`
+  - **Status**: `Completed`
+  - **Completed At**: 2026-09-04
 
 ---
 
@@ -146,12 +146,12 @@ Whenever ANY change, fix, optimization, or feature is added to the Job Discovery
   - **Status**: `Completed`
   - **Completed At**: 2026-09-04
 
-- [ ] **`REC-15` [Quality] Posted Date & Freshness Tracking**
+- [x] **`REC-15` [Quality] Posted Date & Freshness Tracking**
   - **Issue**: Jobs lack origin publish timestamps; older jobs receive the same priority as 2-hour-old postings.
   - **Action**: Extract `postedAt` timestamp from scrapers and incorporate freshness decay into ranking.
-  - **Target Files**: `src/lib/discovery/types.ts`, `src/lib/discovery/scrapers.ts`
-  - **Status**: `Pending`
-  - **Completed At**: —
+  - **Target Files**: `src/lib/discovery/types.ts`, `src/lib/discovery/scrapers.ts`, `src/lib/discovery/matching.ts`, `src/components/discovery/`
+  - **Status**: `Completed`
+  - **Completed At**: 2026-09-04
 
 - [ ] **`REC-16` [Agentic] Cover Letter Agent Trigger on Save**
   - **Issue**: Saving a job to the tracker requires the user to manually draft application materials elsewhere.
@@ -221,6 +221,7 @@ Tracking schema additions for the recommended canonical data model:
 | 2026-09-04 | `REC-07` | Integrated direct Greenhouse (`boards-api.greenhouse.io`) and Lever (`api.lever.co`) unauthenticated public JSON endpoints into Discovery ingestion. Implemented strict `TECH_ROLE_FILTER_REGEX` to filter out non-engineering/HR/sales clutter, multi-word tag extraction with Knowledge Graph canonicalization, and resilient error/timeout handling. Connected into both multi-board live query search (`fetchMultiBoardOpportunities`) and catalog deep crawler (`ingestGlobalJobsToCatalog`). Added UI source filter badges and options for Greenhouse & Lever. Created comprehensive unit test suite (`src/__tests__/greenhouse-lever.test.ts`). | `src/lib/discovery/types.ts`, `src/components/discovery/types.ts`, `src/components/discovery/DiscoveryFilterSidebar.tsx`, `src/lib/discovery/scrapers.ts`, `src/lib/ai/knowledge-graph.ts`, `src/__tests__/greenhouse-lever.test.ts`, `docs/JOB-DISCOVERY-TRACKER.md` | Antigravity AI |
 | 2026-09-04 | `REC-05`, `REC-14` | Implemented "Top Picks" spotlight showcase (`DiscoveryTopPicks.tsx`) with linear architectural blueprint layout, DecorIcon (+) crosshairs, Zap icon badges, and graceful degradation (cleanly omitted when no 90%+ match exists). Implemented interactive 1-click dismissal modal (`DiscoveryDismissModal.tsx`) with 6 structured rejection reasons (`wrong_role`, `wrong_location`, `bad_salary`, `bad_company`, `unqualified`, `not_interested`), optimistic UI updates, 5-second Sonner undo toast, and server undismiss syncing. Zero Sparkles icons used. Added test suite `src/__tests__/discovery-ui-dismiss.test.ts`. | `src/components/discovery/DiscoveryDismissModal.tsx`, `src/components/discovery/DiscoveryTopPicks.tsx`, `src/components/discovery/DiscoveryJobList.tsx`, `src/components/discovery/DiscoveryPage.tsx`, `src/__tests__/discovery-ui-dismiss.test.ts`, `docs/JOB-DISCOVERY-TRACKER.md` | Antigravity AI |
 | 2026-09-04 | `REC-09` | Implemented Implicit Preference Learning Engine (`src/lib/discovery/preferences.ts`). Ingests 45-day rolling window of UserJobMatch and DiscoveryEvent data with time decay (recent 14d at 1.0, older at 0.6). Uses canonical skill normalization (`toCanonical`) and extracts positive affinities (saved skills, companies, roles) and negative aversions (dismissed under `wrong_role`, `bad_company`, `wrong_location`). Implemented Threshold Defense requiring >= 2.0 weighted dismissals before penalizing. Balanced adjustments capped at +10 boost / -25 penalty. Wired into `executeDiscoveryBatch` scoring and match rationale (`🧠 Learned Preference/Aversion`). Integrated clean Redis cache invalidation on save, dismiss, undismiss, and apply click. Created test suite `src/__tests__/discovery-preferences.test.ts`. | `src/lib/discovery/preferences.ts`, `src/lib/ai/graph/tools/discovery-tools.ts`, `src/app/api/jobs/discover/route.ts`, `src/__tests__/discovery-preferences.test.ts`, `docs/JOB-DISCOVERY-TRACKER.md` | Antigravity AI |
+| 2026-09-04 | `REC-12`, `REC-15`, `DB-MIG` | Implemented Visa Sponsorship & Work Auth Detection (`detectVisaSponsorship`) with strict negative precedence against citizenship/authorization restrictions, and Posted Date Freshness Tracking (`calculateJobFreshness`) with decay decay (+3 for <24h, +2 for 24-72h, 0 for 3-14d, -2 for 15-30d, -5 for >30d). Updated `CanonicalJob` schema with `visaSponsorship String? @default("unknown")` and synced DB. Extended all scrapers (RemoteOK, Jobicy, Arbeitnow, Adzuna, LinkedIn, Greenhouse, Lever) to extract `postedAt` timestamps and detect visa status. Wired freshness bonus and international visa sponsorship scoring into match rationale (`🕒 Freshness Boost`, `🛂 Visa: Sponsorship Available`). Added visa badges and relative posting tags across `DiscoveryJobRow.tsx` and `DiscoveryTopPicks.tsx`. Added Visa Sponsorship filter option to `DiscoveryFilterSidebar.tsx` and activated true "Newest" date sorting in `DiscoveryPage.tsx`. Created test suite `src/__tests__/discovery-visa-freshness.test.ts`. 100% test pass rate across 41 test suites (248 tests). | `prisma/schema.prisma`, `src/lib/discovery/types.ts`, `src/lib/discovery/matching.ts`, `src/lib/discovery/scrapers.ts`, `src/lib/ai/graph/tools/discovery-tools.ts`, `src/app/api/jobs/discover/route.ts`, `src/components/discovery/types.ts`, `src/components/discovery/DiscoveryJobRow.tsx`, `src/components/discovery/DiscoveryTopPicks.tsx`, `src/components/discovery/DiscoveryFilterSidebar.tsx`, `src/components/discovery/DiscoveryPage.tsx`, `src/__tests__/discovery-visa-freshness.test.ts`, `docs/JOB-DISCOVERY-TRACKER.md` | Antigravity AI |
 
 
 
