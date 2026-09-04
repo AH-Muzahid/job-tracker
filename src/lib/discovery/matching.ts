@@ -1,3 +1,4 @@
+import { createHash } from "crypto"
 import { UnifiedRawJob } from "./types"
 
 /**
@@ -23,6 +24,33 @@ export function normalizeTitle(title: string): string {
     .replace(/[^a-z0-9]/g, " ")
     .replace(/\s+/g, " ")
     .trim()
+}
+
+/**
+ * Generates a deterministic, collision-resistant fingerprint for deduplication.
+ * Handles remote variations and punctuation noise.
+ */
+export function normalizeJobFingerprint(
+  company: string,
+  title: string,
+  location: string = "",
+  isRemote?: boolean
+): string {
+  const normCo = normalizeCompany(company)
+  const normTi = normalizeTitle(title)
+  
+  const locLower = (location || "").toLowerCase()
+  const detectedRemote =
+    isRemote === true ||
+    locLower.includes("remote") ||
+    locLower.includes("anywhere") ||
+    locLower.includes("worldwide") ||
+    locLower.includes("global") ||
+    locLower.includes("telecommute")
+
+  const normLoc = detectedRemote ? "remote" : locLower.replace(/[^a-z0-9]/g, "").trim()
+  const rawKey = `${normCo}:${normTi}:${normLoc}`
+  return createHash("sha256").update(rawKey).digest("hex")
 }
 
 /**

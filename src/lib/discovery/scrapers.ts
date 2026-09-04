@@ -1,7 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { toCanonical } from "@/lib/ai/knowledge-graph"
+import { prisma, withDbRetry } from "@/lib/prisma"
 import { UnifiedRawJob } from "./types"
-import { deduplicateJobs, mapToRemoteOkTag } from "./matching"
+import {
+  deduplicateJobs,
+  mapToRemoteOkTag,
+  normalizeJobFingerprint,
+  detectJobWorkMode,
+} from "./matching"
 
 /**
  * Resilient Curated Seed Reservoir
@@ -622,3 +628,120 @@ export async function fetchMultiBoardOpportunities(query: string, tagParam: stri
 
   return deduplicateJobs(aggregated)
 }
+
+/**
+ * Ingests external jobs from all configured sources into the global CanonicalJob catalog.
+ * Runs completely decoupled from user request lifecycles (e.g. via Inngest cron or seed script).
+ */
+export async function ingestGlobalJobsToCatalog(options: {
+  queries?: string[]
+  pruneExpired?: boolean
+} = {}): Promise<{
+  totalFetched: number
+  upsertedCount: number
+  expiredCount: number
+}> {
+  const queries = options.queries || [
+    "developer",
+    "software engineer",
+    "frontend",
+    "backend",
+    "full stack",
+  ]
+
+  console.log(`[GlobalJobIngest] Starting ingestion for ${queries.length} query targets...`)
+  const rawJobs: UnifiedRawJob[] = []
+
+  // Concurrently fetch jobs for primary search queries
+  const fetchPromises = queries.map((q) => fetchMultiBoardOpportunities(q, "dev"))
+  const results = await Promise.allSettled(fetchPromises)
+
+  for (const res of results) {
+    if (res.status === "fulfilled" && Array.isArray(res.value)) {
+      rawJobs.push(...res.value)
+    }
+  }
+
+  // Also include the curated reservoir and daily linkedin social posts
+  rawJobs.push(...CURATED_SEED_RESERVOIR)
+  rawJobs.push(...DAILY_LINKEDIN_SOCIAL_POSTS)
+
+  const dedupedJobs = deduplicateJobs(rawJobs)
+  console.log(`[GlobalJobIngest] Fetched ${rawJobs.length} raw jobs -> ${dedupedJobs.length} unique candidates.`)
+
+  const now = new Date()
+  const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
+
+  let upsertedCount = 0
+
+  // Upsert each canonical job
+  for (const job of dedupedJobs) {
+    try {
+      const workMode = detectJobWorkMode(job)
+      const isRemote = workMode === "remote"
+      const fingerprint = normalizeJobFingerprint(job.company, job.title, job.location, isRemote)
+
+      await withDbRetry(() =>
+        prisma.canonicalJob.upsert({
+          where: { fingerprint },
+          create: {
+            fingerprint,
+            sourceBoard: job.sourceBoard,
+            externalId: job.id,
+            title: job.title,
+            company: job.company,
+            location: job.location,
+            isRemote,
+            url: job.url,
+            salary: job.salaryText || (job.salaryMin && job.salaryMax ? `$${job.salaryMin} - $${job.salaryMax}` : null),
+            salaryMin: job.salaryMin || null,
+            salaryMax: job.salaryMax || null,
+            tags: job.tags || [],
+            description: job.description || null,
+            postedAt: now,
+            expiresAt: thirtyDaysFromNow,
+            isExpired: false,
+          },
+          update: {
+            url: job.url,
+            salary: job.salaryText || (job.salaryMin && job.salaryMax ? `$${job.salaryMin} - $${job.salaryMax}` : undefined),
+            salaryMin: job.salaryMin || undefined,
+            salaryMax: job.salaryMax || undefined,
+            tags: job.tags && job.tags.length > 0 ? job.tags : undefined,
+            description: job.description || undefined,
+            expiresAt: thirtyDaysFromNow,
+            isExpired: false,
+          },
+        })
+      )
+      upsertedCount++
+    } catch (err) {
+      console.warn(`[GlobalJobIngest] Error upserting job "${job.title}" at "${job.company}":`, err)
+    }
+  }
+
+  // Prune / flag expired jobs past 30 days
+  let expiredCount = 0
+  if (options.pruneExpired !== false) {
+    const expireResult = await withDbRetry(() =>
+      prisma.canonicalJob.updateMany({
+        where: {
+          expiresAt: { lt: now },
+          isExpired: false,
+        },
+        data: {
+          isExpired: true,
+        },
+      })
+    ).catch(() => ({ count: 0 }))
+    expiredCount = expireResult.count
+  }
+
+  console.log(`[GlobalJobIngest] Ingestion completed: ${upsertedCount} upserted, ${expiredCount} expired.`)
+  return {
+    totalFetched: rawJobs.length,
+    upsertedCount,
+    expiredCount,
+  }
+}
+

@@ -9,7 +9,7 @@ export * from "@/lib/discovery/types"
 export * from "@/lib/discovery/matching"
 export * from "@/lib/discovery/scrapers"
 
-import { ExternalJobOpportunity } from "@/lib/discovery/types"
+import { ExternalJobOpportunity, UnifiedRawJob } from "@/lib/discovery/types"
 import {
   normalizeCompany,
   extractSearchTokens,
@@ -18,7 +18,11 @@ import {
   isNationalTechHubMatch,
   isGeoDisqualified,
 } from "@/lib/discovery/matching"
-import { fetchMultiBoardOpportunities } from "@/lib/discovery/scrapers"
+import {
+  fetchMultiBoardOpportunities,
+  CURATED_SEED_RESERVOIR,
+  DAILY_LINKEDIN_SOCIAL_POSTS,
+} from "@/lib/discovery/scrapers"
 
 /**
  * Accurately detects required seniority level from job title and description
@@ -142,8 +146,33 @@ export async function executeSearchExternalJobs(
       }
     }
 
-    // Fetch multi-board opportunities matching the user's specific target role & location
-    const rawJobs = await fetchMultiBoardOpportunities(query, tagParam, location)
+    // 2. Query active opportunities from CanonicalJob catalog (<10ms, decoupled from HTTP scrapers)
+    const canonicalJobs = await withDbRetry(() =>
+      prisma.canonicalJob.findMany({
+        where: { isExpired: false },
+        orderBy: { createdAt: "desc" },
+        take: 150,
+      })
+    )
+
+    let rawJobs: UnifiedRawJob[] = canonicalJobs.map((j) => ({
+      id: j.id,
+      title: j.title,
+      company: j.company,
+      location: j.location,
+      url: j.url,
+      sourceBoard: j.sourceBoard as any,
+      tags: j.tags,
+      salary: j.salary || undefined,
+      salaryMin: j.salaryMin || undefined,
+      salaryMax: j.salaryMax || undefined,
+      description: j.description || "",
+    }))
+
+    // If database has 0 canonical jobs, fall back to in-memory seeds
+    if (rawJobs.length === 0) {
+      rawJobs = [...CURATED_SEED_RESERVOIR, ...DAILY_LINKEDIN_SOCIAL_POSTS]
+    }
 
     // 3. Extract search tokens for query matching (applied strictly only if user explicitly searched)
     const isExplicitSearch = Boolean(input.query || (input.tags && input.tags.length > 0))
@@ -235,7 +264,7 @@ export async function executeSearchExternalJobs(
       // Extract candidate skills present across title, description, and tags
       const jobSearchText = `${position} ${description} ${tags.join(" ")}`.toLowerCase()
       const jobTokens = new Set<string>()
-      tags.forEach((t) => jobTokens.add(toCanonical(t)))
+      tags.forEach((t: string) => jobTokens.add(toCanonical(t)))
       const matchedSkillNamesSet = new Set<string>()
 
       userSkills.forEach((skill) => {
@@ -462,7 +491,7 @@ export async function executeSearchExternalJobs(
       ]
 
       const jdTechSkills = new Set<string>()
-      tags.forEach((t) => {
+      tags.forEach((t: string) => {
         const canonical = toCanonical(t)
         if (ATS_TECH_VOCAB.includes(canonical) || ATS_TECH_VOCAB.includes(t.toLowerCase())) {
           jdTechSkills.add(canonical)
