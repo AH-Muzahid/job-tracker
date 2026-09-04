@@ -24,6 +24,12 @@ export interface ExternalJobOpportunity {
   applicationId?: string | null
   scamScore?: number
   fraudFlags?: string[]
+  scoreBreakdown?: {
+    skills: number
+    role: number
+    location: number
+    seniority: number
+  }
 }
 
 export interface UnifiedRawJob {

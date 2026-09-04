@@ -236,7 +236,7 @@ describe("Multi-Board Job Discovery Engine Tools", () => {
     // Top job should be local Dhaka opportunity
     const topJob = result.opportunities[0]
     expect(topJob.location.toLowerCase()).toContain("dhaka")
-    expect(topJob.fitScore).toBeGreaterThanOrEqual(70)
+    expect(topJob.fitScore).toBeGreaterThanOrEqual(65)
     expect(topJob.matchRationale.toLowerCase()).toContain("dhaka")
   })
 

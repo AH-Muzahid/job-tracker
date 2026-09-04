@@ -3,7 +3,7 @@ export type BatchSlot = "" | "just-in" | "earlier-today" | "yesterday"
 export interface DiscoveryFilters {
   source: "" | "remoteok" | "arbeitnow" | "adzuna" | "curated" | "linkedin" | "jobicy" | "linkedin_post" | "company_portal"
   location: "" | "remote" | "hybrid" | "onsite"
-  minScore: "" | "85" | "70" | "0"
+  minScore: "" | "90" | "75" | "50" | "0"
   batchSlot?: BatchSlot
   tags: string[]
   hideApplied?: boolean
@@ -31,9 +31,10 @@ export const DISCOVERY_SORT_OPTIONS: { value: SortOption; label: string }[] = [
 ]
 
 export function getScoreBadgeClass(score: number): string {
-  if (score >= 85) return "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
-  if (score >= 70) return "bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/30"
-  return "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30"
+  if (score >= 90) return "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/40"
+  if (score >= 75) return "bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/30"
+  if (score >= 50) return "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30"
+  return "bg-zinc-500/10 text-zinc-500 dark:text-zinc-400 border-zinc-500/20"
 }
 
 export function getSourceBadge(source: string): { label: string; color: string } {

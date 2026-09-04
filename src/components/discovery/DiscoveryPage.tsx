@@ -119,9 +119,10 @@ export function DiscoveryPage() {
       }
       if (filters.minScore) {
         const min = parseInt(filters.minScore)
-        if (min === 85 && job.fitScore < 85) return false
-        if (min === 70 && (job.fitScore < 70 || job.fitScore >= 85)) return false
-        if (min === 0 && job.fitScore >= 70) return false
+        if (min === 90 && job.fitScore < 90) return false
+        if (min === 75 && (job.fitScore < 75 || job.fitScore >= 90)) return false
+        if (min === 50 && (job.fitScore < 50 || job.fitScore >= 75)) return false
+        if (min === 0 && job.fitScore >= 50) return false
       }
       if (filters.tags.length > 0) {
         const jobTags = job.tags?.map((t) => t.toLowerCase()) || []

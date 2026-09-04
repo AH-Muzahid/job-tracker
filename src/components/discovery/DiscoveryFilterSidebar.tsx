@@ -93,9 +93,10 @@ export function DiscoveryFilterSidebar({
             onChange={(v) => update({ minScore: v as DiscoveryFilters["minScore"] })}
             options={[
               { value: "", label: "All Scores" },
-              { value: "85", label: "85%+ (Strong)", dot: "bg-emerald-500" },
-              { value: "70", label: "70-84% (Good)", dot: "bg-sky-500" },
-              { value: "0", label: "Below 70%", dot: "bg-amber-500" },
+              { value: "90", label: "90%+ (Top Pick)", dot: "bg-emerald-500" },
+              { value: "75", label: "75-89% (Strong)", dot: "bg-sky-500" },
+              { value: "50", label: "50-74% (Moderate)", dot: "bg-amber-500" },
+              { value: "0", label: "< 50% (Low Match)", dot: "bg-zinc-400" },
             ]}
           />
         </div>

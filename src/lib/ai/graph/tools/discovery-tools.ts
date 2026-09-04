@@ -357,8 +357,8 @@ export async function executeSearchExternalJobs(
         }
       }
 
-      // Factor 2: Skill Match & Demonstrated Project Proof (up to 35 pts)
-      // Skills demonstrated in actual projects (bestProjects) get 3x the weight of flat declared skills!
+      // Factor 2: Skill Match & Demonstrated Project Proof (up to 40 pts)
+      // Skills demonstrated in actual projects (bestProjects) get 8 pts each, declared skills get 3 pts each
       let winningBoost = 0
       const matchedWinningSkills: string[] = []
       let projectProvenCount = 0
@@ -379,45 +379,48 @@ export async function executeSearchExternalJobs(
         }
       })
 
-      // Project-demonstrated skills carry heavy weight (6.5 pts each), flat declared skills carry 2.5 pts each
-      const rawSkillPoints = (projectProvenCount * 6.5) + (declaredOnlyCount * 2.5)
-      const skillScore = Math.max(0, Math.min(35, rawSkillPoints + winningBoost))
+      // Project-demonstrated skills carry heavy weight (10 pts each), flat declared skills carry 8 pts each
+      const rawSkillPoints = (projectProvenCount * 10) + (declaredOnlyCount * 8)
+      const skillScore = Math.max(0, Math.min(40, rawSkillPoints + winningBoost))
 
-      // Factor 3: Target Role Alignment (up to 20 pts)
+      // Factor 3: Target Role Alignment (up to 25 pts)
       let roleScore = 0
       let roleRationale = ""
       const posLower = position.toLowerCase()
       if (primaryTargetRole && posLower.includes(primaryTargetRole.toLowerCase())) {
-        roleScore = 20
+        roleScore = 25
         roleRationale = `Target match for "${primaryTargetRole}"`
       } else {
         const matchedTargetRole = targetRolesLower.find((r: string) => posLower.includes(r))
         if (matchedTargetRole) {
-          roleScore = 18
+          roleScore = 20
           roleRationale = `Target match for "${matchedTargetRole}"`
-        } else if (
-          Array.from(userSkills).some(
-            (s) => posLower.includes(s) && ["frontend", "backend", "fullstack", "devops", "engineer", "developer", "lead"].includes(s)
-          )
-        ) {
-          roleScore = 14
-          roleRationale = "Software engineering profile alignment"
-        } else if (/\b(salesforce|crm)\b/i.test(posLower)) {
-          roleScore = 14
-          roleRationale = "Salesforce & CRM enterprise engineering"
-        } else if (/\b(solutions architect|cloud architect)\b/i.test(posLower)) {
-          roleScore = 14
-          roleRationale = "Solutions & Cloud systems architecture"
         } else {
-          roleScore = 8
+          // Check if candidate's target roles share core domain terms with the job title
+          const targetTokens = targetRolesLower.flatMap((r: string) => r.split(/\s+/)).filter((t: string) => t.length > 3)
+          const isDomainMatch = targetTokens.some((tok: string) => posLower.includes(tok))
+          const isTechJob = /\b(software|developer|engineer|programmer|frontend|backend|fullstack|web|devops|data|ai)\b/i.test(posLower)
+
+          if (isDomainMatch || isTechJob) {
+            roleScore = 18
+            roleRationale = "Software engineering profile alignment"
+          } else if (/\b(salesforce|crm)\b/i.test(posLower)) {
+            roleScore = 15
+            roleRationale = "Salesforce & CRM enterprise engineering"
+          } else if (/\b(solutions architect|cloud architect)\b/i.test(posLower)) {
+            roleScore = 15
+            roleRationale = "Solutions & Cloud systems architecture"
+          } else {
+            roleScore = 5
+          }
         }
       }
 
       if (winningRoles.some((wr) => posLower.includes(wr))) {
-        roleScore = Math.min(20, roleScore + 4)
+        roleScore = Math.min(25, roleScore + 4)
       }
 
-      // Factor 4: Seniority & Experience Level Alignment (up to 25 pts)
+      // Factor 4: Seniority & Experience Level Alignment (up to 15 pts)
       const jobSeniority = detectJobSeniority(position, description)
 
       // Target Audience Focus: Junior / Early-Career and Junior-to-Mid (0-3 yrs).
@@ -426,60 +429,57 @@ export async function executeSearchExternalJobs(
         continue // Filter out Staff/Lead/Architect clutter for early-career developers
       }
 
-      let experienceScore = 15
+      let experienceScore = 10
       let experienceRationale = ""
 
       if (userExperienceLevel === "junior" || userExperienceLevel === "entry" || userStatus.includes("studying")) {
         if (jobSeniority === "junior" || jobSeniority === "entry") {
-          experienceScore = 25
+          experienceScore = 15
           experienceRationale = "Junior / Early-career: Ideal seniority match for your current academic & portfolio stage"
         } else if (jobSeniority === "mid") {
-          experienceScore = 20
+          experienceScore = 11
           experienceRationale = "Mid-level growth role: Attainable progression matching your verified full-stack projects"
         } else if (jobSeniority === "senior") {
-          experienceScore = 8
+          experienceScore = 4
           experienceRationale = "Senior position: High seniority requirement; your stack aligns well, but role demands seasoned autonomy"
         } else {
-          experienceScore = 3
+          experienceScore = 1
           experienceRationale = "Staff/Lead position: Demands multi-year enterprise leadership beyond early-career scope"
         }
       } else if (userExperienceLevel === "mid") {
         if (jobSeniority === "mid") {
-          experienceScore = 25
+          experienceScore = 15
           experienceRationale = "Mid-level alignment: Well-suited for your intermediate experience"
         } else if (jobSeniority === "senior") {
-          experienceScore = 20
+          experienceScore = 11
           experienceRationale = "Senior stretch: Great next-step career opportunity"
         } else if (jobSeniority === "junior") {
-          experienceScore = 12
+          experienceScore = 7
           experienceRationale = "Junior role: You may be overqualified for this position"
         } else {
-          experienceScore = 10
+          experienceScore = 4
           experienceRationale = "Leadership position: Requires substantial team lead experience"
         }
       } else {
         if (jobSeniority === "senior" || jobSeniority === "lead") {
-          experienceScore = 25
+          experienceScore = 15
           experienceRationale = "Senior/Lead alignment: Tailored for your experienced leadership profile"
         } else if (jobSeniority === "mid") {
-          experienceScore = 15
+          experienceScore = 9
           experienceRationale = "Mid-level role: Lower seniority than your senior profile"
         } else {
-          experienceScore = 6
+          experienceScore = 3
           experienceRationale = "Junior role: Significantly below your senior experience level"
         }
       }
 
-      // Compute Realistic Calibrated Hiring & Interview Probability (Scale: 50% - 88%)
-      // High Interview Odds: 78% - 86% (Requires verified project proof + matching seniority)
-      // Solid Match: 68% - 77%
-      // Stretch Match: 52% - 66%
-      // Compute Realistic Calibrated Hiring & Interview Probability (Scale: 50% - 88%)
-      // High Interview Odds: 78% - 86% (Requires verified project proof + matching seniority)
-      // Solid Match: 68% - 77%
-      // Stretch Match: 52% - 66%
+      // Compute Uncompressed 1-99% Fit Score (REC-06)
+      // 90% - 99%: Exceptional / Top Pick (Verified stack + target role + exact seniority/location)
+      // 75% - 89%: Strong Match (High skill overlap, solid role/seniority fit)
+      // 50% - 74%: Moderate / Stretch Match (Adjacent stack or seniority stretch)
+      // 1% - 49%: Low Match (Significant role, skill, or experience divergence)
       const rawPoints = locationScore + skillScore + roleScore + experienceScore
-      const finalFitScore = Math.max(50, Math.min(88, 48 + Math.round(rawPoints * 0.40)))
+      const finalFitScore = Math.max(1, Math.min(99, Math.round(rawPoints)))
 
       // Realistic ATS Keyword Matching Simulation (Comparing JD requirements vs Candidate verified skills)
       const ATS_TECH_VOCAB = [
@@ -557,8 +557,10 @@ export async function executeSearchExternalJobs(
         outreachPitch = `Hi ${authorFirstName}, I saw your opening for ${position} at ${company}. I've recently built ${topProjName} with ${matchedTechString}. Would love to share my GitHub and discuss how my hands-on build experience aligns with your team!`
       }
 
-      // Compose detailed, multi-dimensional AI Match Rationale
-      const rationaleParts: string[] = []
+      // Transparent Score Factor Breakdown (REC-06)
+      const rationaleParts: string[] = [
+        `📊 Fit Breakdown: ${finalFitScore}% (Skills: ${skillScore}/40 • Role: ${roleScore}/25 • Location: ${locationScore}/20 • Seniority: ${experienceScore}/15)`,
+      ]
 
       if (roleRationale) {
         rationaleParts.push(`🎯 Role Match: ${roleRationale}`)
@@ -618,6 +620,12 @@ export async function executeSearchExternalJobs(
         outreachPitch,
         atsScore,
         missingKeywords: missingAtsSkills.slice(0, 5),
+        scoreBreakdown: {
+          skills: skillScore,
+          role: roleScore,
+          location: locationScore,
+          seniority: experienceScore,
+        },
       })
     }
 
@@ -637,7 +645,7 @@ export async function executeSearchExternalJobs(
           tags.forEach((t: string) => {
             if (userSkills.has(t)) matchedCount++
           })
-          const fallbackFitScore = Math.min(84, Math.max(62, 60 + matchedCount * 6))
+          const fallbackFitScore = Math.max(15, Math.min(85, Math.round(25 + matchedCount * 12)))
 
           scoredOpportunities.push({
             id: job.id,
