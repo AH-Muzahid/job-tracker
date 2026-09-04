@@ -86,12 +86,12 @@ Whenever ANY change, fix, optimization, or feature is added to the Job Discovery
   - **Status**: `Completed`
   - **Completed At**: 2026-09-04
 
-- [ ] **`REC-07` [Coverage] Integrate Greenhouse & Lever API Ingestion**
+- [x] **`REC-07` [Coverage] Integrate Greenhouse & Lever API Ingestion**
   - **Issue**: Missing direct ATS integration where 50%+ of high-quality tech startups hire.
   - **Action**: Add direct boards endpoints (`boards-api.greenhouse.io`, `api.lever.co`).
   - **Target Files**: `src/lib/discovery/scrapers.ts`
-  - **Status**: `Pending`
-  - **Completed At**: —
+  - **Status**: `Completed`
+  - **Completed At**: 2026-09-04
 
 - [x] **`REC-08` [Observability] End-to-End Analytics & Metric Tracking**
   - **Issue**: Zero telemetry for `batch_published`, `job_viewed`, `job_saved`, `job_applied`.
@@ -218,4 +218,6 @@ Tracking schema additions for the recommended canonical data model:
 | 2026-09-04 | `REC-01`, `REC-02`, `REC-05`, `DB-MIG` | Replaced legacy `DiscoveredJob` with clean normalized `CanonicalJob` & `UserJobMatch` data model. Decoupled scraping from synchronous HTTP request flow to background Inngest crawler and seed script. Enabled sub-50ms non-blocking cold-start with `syncing: true` response. Implemented remote-aware, punctuation-cleaned SHA-256 fingerprint deduplication. Added dismiss reason tracking in schema & POST route. | `prisma/schema.prisma`, `src/lib/discovery/matching.ts`, `src/lib/discovery/scrapers.ts`, `prisma/seed-discovery.ts`, `src/inngest/functions/batch-job-pipeline.ts`, `src/app/api/jobs/discover/route.ts`, `src/lib/ai/graph/tools/discovery-tools.ts`, `src/app/api/inngest/route.ts`, `src/__tests__/batch-job-pipeline.test.ts` | Antigravity AI |
 | 2026-09-04 | `REC-03`, `REC-04` | Implemented Upstash Redis distributed sliding window rate limiting on GET /api/jobs/discover (45 req/min), manual refresh (5 req/min), and POST mutations (30 req/min). Built heuristic rule-based scam & fraud detection engine (`evaluateJobScamRisk`) identifying advance fees, anonymous messengers, phishing shorteners, and absurd salaries; persisted `scamScore` and automatically disqualified listings with `scamScore >= 0.6`. | `src/lib/discovery/matching.ts`, `src/lib/discovery/types.ts`, `src/lib/discovery/scrapers.ts`, `src/lib/ai/graph/tools/discovery-tools.ts`, `src/app/api/jobs/discover/route.ts`, `src/__tests__/scam-detection.test.ts` | Antigravity AI |
 | 2026-09-04 | `REC-06`, `REC-08`, `DB-MIG` | Recalibrated match score formula from compressed 50-88% to uncompressed 1-99% using balanced 100-point rubric (Skills 40, Role 25, Location 20, Seniority 15) with transparent factor breakdown in match rationale. Updated frontend score badge thresholds (90%+ Emerald Top Pick, 75-89% Sky Strong, 50-74% Amber Moderate, <50% Zinc Low) and filter boundaries. Added `DiscoveryEvent` model in database. Implemented non-blocking fire-and-forget telemetry (`logDiscoveryEvent`) across discovery pipeline and added conversion funnel analytics (`getDiscoveryFunnelMetrics` & GET `/api/jobs/discover/analytics`). | `src/lib/ai/graph/tools/discovery-tools.ts`, `src/lib/discovery/types.ts`, `src/components/discovery/types.ts`, `src/components/discovery/DiscoveryFilterSidebar.tsx`, `src/components/discovery/DiscoveryPage.tsx`, `prisma/schema.prisma`, `src/lib/discovery/telemetry.ts`, `src/lib/telemetry.ts`, `src/app/api/jobs/discover/route.ts`, `src/app/api/jobs/discover/analytics/route.ts`, `src/inngest/functions/batch-job-pipeline.ts`, `src/__tests__/discovery-telemetry.test.ts`, `docs/JOB-DISCOVERY-TRACKER.md` | Antigravity AI |
+| 2026-09-04 | `REC-07` | Integrated direct Greenhouse (`boards-api.greenhouse.io`) and Lever (`api.lever.co`) unauthenticated public JSON endpoints into Discovery ingestion. Implemented strict `TECH_ROLE_FILTER_REGEX` to filter out non-engineering/HR/sales clutter, multi-word tag extraction with Knowledge Graph canonicalization, and resilient error/timeout handling. Connected into both multi-board live query search (`fetchMultiBoardOpportunities`) and catalog deep crawler (`ingestGlobalJobsToCatalog`). Added UI source filter badges and options for Greenhouse & Lever. Created comprehensive unit test suite (`src/__tests__/greenhouse-lever.test.ts`). | `src/lib/discovery/types.ts`, `src/components/discovery/types.ts`, `src/components/discovery/DiscoveryFilterSidebar.tsx`, `src/lib/discovery/scrapers.ts`, `src/lib/ai/knowledge-graph.ts`, `src/__tests__/greenhouse-lever.test.ts`, `docs/JOB-DISCOVERY-TRACKER.md` | Antigravity AI |
+
 
