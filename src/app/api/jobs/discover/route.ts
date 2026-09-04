@@ -18,6 +18,7 @@ import { inngest } from "@/inngest/client"
 import { checkDistributedRateLimit, rateLimitResponse } from "@/lib/rate-limit"
 import { ResponseUtil } from "@/lib/api-response"
 import { logDiscoveryEvent } from "@/lib/discovery/telemetry"
+import { invalidateUserImplicitPreferences } from "@/lib/discovery/preferences"
 
 export async function GET(request: NextRequest) {
   const userId = await getInternalUserId()
@@ -309,6 +310,9 @@ export async function POST(request: NextRequest) {
         metadata: { companyName, jobTitle, location, salary },
       })
 
+      // Invalidate learned preference cache so next discovery scoring includes this affinity
+      void invalidateUserImplicitPreferences(userId)
+
       return ResponseUtil.success(saveResult)
     }
 
@@ -359,6 +363,9 @@ export async function POST(request: NextRequest) {
         metadata: { companyName, jobTitle, dismissReason: dismissReason || "user_hidden" },
       })
 
+      // Invalidate learned preference cache so next discovery scoring incorporates this aversion
+      void invalidateUserImplicitPreferences(userId)
+
       return ResponseUtil.success({ dismissed: true })
     }
 
@@ -399,6 +406,9 @@ export async function POST(request: NextRequest) {
         metadata: { companyName, jobTitle },
       })
 
+      // Invalidate learned preference cache on undo
+      void invalidateUserImplicitPreferences(userId)
+
       return ResponseUtil.success({ restored: true })
     }
 
@@ -412,6 +422,10 @@ export async function POST(request: NextRequest) {
         jobId: jobId || undefined,
         metadata: { companyName, jobTitle, clickType },
       })
+
+      if (eventType === "JOB_APPLIED") {
+        void invalidateUserImplicitPreferences(userId)
+      }
 
       return ResponseUtil.success({ tracked: true, eventType })
     }

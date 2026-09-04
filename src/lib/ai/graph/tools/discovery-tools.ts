@@ -8,8 +8,13 @@ import { getUserMacroOutcomes } from "@/lib/ai/learning-engine"
 export * from "@/lib/discovery/types"
 export * from "@/lib/discovery/matching"
 export * from "@/lib/discovery/scrapers"
+export * from "@/lib/discovery/preferences"
 
 import { ExternalJobOpportunity, UnifiedRawJob } from "@/lib/discovery/types"
+import {
+  getUserImplicitPreferences,
+  calculateImplicitPreferenceAdjustment,
+} from "@/lib/discovery/preferences"
 import {
   normalizeCompany,
   extractSearchTokens,
@@ -65,11 +70,12 @@ export async function executeSearchExternalJobs(
   if (!userId) return { success: false, count: 0, query: "", opportunities: [], error: "Unauthorized" }
 
   try {
-    // 1. Fetch user profile, resume & macro-learning outcomes concurrently
-    const [profile, resume, macroOutcomes] = await Promise.all([
+    // 1. Fetch user profile, resume, macro-learning outcomes & implicit preferences concurrently
+    const [profile, resume, macroOutcomes, implicitPrefs] = await Promise.all([
       withDbRetry<any>(() => prisma.userProfile.findUnique({ where: { userId } })),
       withDbRetry<any>(() => prisma.resume.findFirst({ where: { userId, isDefault: true } })),
       getUserMacroOutcomes(userId).catch(() => null),
+      getUserImplicitPreferences(userId).catch(() => null),
     ])
 
     const userSkills = new Set<string>()
@@ -473,12 +479,24 @@ export async function executeSearchExternalJobs(
         }
       }
 
-      // Compute Uncompressed 1-99% Fit Score (REC-06)
+      // Factor 5: Implicit Learned Preferences (REC-09)
+      const implicitAdj = calculateImplicitPreferenceAdjustment(
+        {
+          title: position,
+          company,
+          location: jobLocation,
+          isRemote: jobWorkMode === "remote",
+          tags,
+        },
+        implicitPrefs
+      )
+
+      // Compute Uncompressed 1-99% Fit Score (REC-06 & REC-09)
       // 90% - 99%: Exceptional / Top Pick (Verified stack + target role + exact seniority/location)
       // 75% - 89%: Strong Match (High skill overlap, solid role/seniority fit)
       // 50% - 74%: Moderate / Stretch Match (Adjacent stack or seniority stretch)
       // 1% - 49%: Low Match (Significant role, skill, or experience divergence)
-      const rawPoints = locationScore + skillScore + roleScore + experienceScore
+      const rawPoints = locationScore + skillScore + roleScore + experienceScore + implicitAdj.scoreDelta
       const finalFitScore = Math.max(1, Math.min(99, Math.round(rawPoints)))
 
       // Realistic ATS Keyword Matching Simulation (Comparing JD requirements vs Candidate verified skills)
@@ -557,10 +575,19 @@ export async function executeSearchExternalJobs(
         outreachPitch = `Hi ${authorFirstName}, I saw your opening for ${position} at ${company}. I've recently built ${topProjName} with ${matchedTechString}. Would love to share my GitHub and discuss how my hands-on build experience aligns with your team!`
       }
 
-      // Transparent Score Factor Breakdown (REC-06)
+      // Transparent Score Factor Breakdown (REC-06 & REC-09)
+      const learnedSnippet = implicitAdj.scoreDelta !== 0
+        ? ` • Learned: ${implicitAdj.scoreDelta > 0 ? `+${implicitAdj.scoreDelta}` : implicitAdj.scoreDelta}`
+        : ""
       const rationaleParts: string[] = [
-        `📊 Fit Breakdown: ${finalFitScore}% (Skills: ${skillScore}/40 • Role: ${roleScore}/25 • Location: ${locationScore}/20 • Seniority: ${experienceScore}/15)`,
+        `📊 Fit Breakdown: ${finalFitScore}% (Skills: ${skillScore}/40 • Role: ${roleScore}/25 • Location: ${locationScore}/20 • Seniority: ${experienceScore}/15${learnedSnippet})`,
       ]
+
+      if (implicitAdj.reasons.length > 0) {
+        for (const reason of implicitAdj.reasons) {
+          rationaleParts.push(`🧠 ${reason}`)
+        }
+      }
 
       if (roleRationale) {
         rationaleParts.push(`🎯 Role Match: ${roleRationale}`)
