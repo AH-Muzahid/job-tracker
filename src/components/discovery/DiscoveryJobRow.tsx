@@ -228,7 +228,7 @@ export function DiscoveryJobRow({
         )}
       </div>
 
-      {/* Expanded Content (Structured Intelligence Drawer) */}
+      {/* Expanded Content (Structured Intelligence Dossier) */}
       <AnimatePresence>
         {isExpanded && (
           <motion.div
@@ -236,77 +236,128 @@ export function DiscoveryJobRow({
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className="overflow-hidden"
+            className="overflow-hidden border-t border-border/60"
           >
-            <div className="px-4 pb-4 pt-2 space-y-4">
-              {/* Intelligence Grid */}
-              <div className="bg-muted/20 border border-border/70 p-4 rounded-none space-y-3">
-                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/50 pb-2.5">
+            <div className="px-4 sm:px-5 pb-5 pt-3 space-y-4 bg-muted/10">
+              {/* AI Match Intelligence Dossier */}
+              <div className="bg-card border border-border/80 p-4 sm:p-5 rounded-none space-y-4 shadow-xs">
+                {/* Dossier Header */}
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/50 pb-3">
                   <div className="flex items-center gap-2">
                     <Zap className="size-4 text-primary" />
-                    <span className="text-xs font-semibold uppercase tracking-wider text-foreground font-mono">
-                      AI Match Intelligence
+                    <span className="text-xs font-bold uppercase tracking-wider text-foreground font-mono">
+                      AI Match Intelligence Dossier
                     </span>
                   </div>
-                  {typeof job.atsScore === "number" && (
-                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 text-xs font-mono border bg-background/80 text-foreground border-border">
-                      <span className="text-muted-foreground">ATS Compatibility:</span>
-                      <span className={cn(
-                        "font-bold",
-                        job.atsScore >= 75 ? "text-emerald-500" : job.atsScore >= 60 ? "text-amber-500" : "text-muted-foreground"
-                      )}>
-                        {job.atsScore}%
+                  <div className="flex items-center gap-2">
+                    {typeof job.atsScore === "number" && (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 text-xs font-mono border bg-background text-foreground border-border">
+                        <span className="text-muted-foreground">ATS Compatibility:</span>
+                        <span className={cn(
+                          "font-bold",
+                          job.atsScore >= 75 ? "text-emerald-500" : job.atsScore >= 60 ? "text-amber-500" : "text-muted-foreground"
+                        )}>
+                          {job.atsScore}%
+                        </span>
                       </span>
+                    )}
+                    <span className={cn(
+                      "inline-flex items-center gap-1 px-2.5 py-0.5 text-xs font-bold border font-mono",
+                      getScoreBadgeClass(job.fitScore)
+                    )}>
+                      <BrainCircuit className="size-3" />
+                      <span>{job.fitScore}% Fit</span>
                     </span>
-                  )}
+                  </div>
                 </div>
 
-                {/* 4-Metric Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
-                  {parsedRationale.scoreBreakdown && (
-                    <div className="p-2.5 bg-background/60 border border-border/50 rounded-none space-y-1">
-                      <span className="text-[11px] font-mono text-muted-foreground uppercase block">Score Breakdown</span>
-                      <p className="text-xs font-medium text-foreground">{parsedRationale.scoreBreakdown}</p>
+                {/* 4 Pillars Scoring Rubric */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                  <div className="p-3 bg-muted/30 border border-border/60 rounded-none space-y-1">
+                    <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider block">Skills Match</span>
+                    <p className="text-sm font-bold font-mono text-foreground">{parsedRationale.skillsScore || "40/40"}</p>
+                    <span className="text-[11px] text-muted-foreground block">Verified stack alignment</span>
+                  </div>
+
+                  <div className="p-3 bg-muted/30 border border-border/60 rounded-none space-y-1">
+                    <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider block">Role Fit</span>
+                    <p className="text-sm font-bold font-mono text-foreground">{parsedRationale.roleScore || "25/25"}</p>
+                    <span className="text-[11px] text-muted-foreground block">Title &amp; profile match</span>
+                  </div>
+
+                  <div className="p-3 bg-muted/30 border border-border/60 rounded-none space-y-1">
+                    <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider block">Work Mode</span>
+                    <p className="text-sm font-bold font-mono text-foreground">{parsedRationale.locationScore || "20/20"}</p>
+                    <span className="text-[11px] text-muted-foreground block">Location compatibility</span>
+                  </div>
+
+                  <div className="p-3 bg-muted/30 border border-border/60 rounded-none space-y-1">
+                    <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider block">Seniority</span>
+                    <p className="text-sm font-bold font-mono text-foreground">{parsedRationale.seniorityScore || "15/15"}</p>
+                    <span className="text-[11px] text-muted-foreground block">Career stage match</span>
+                  </div>
+                </div>
+
+                {/* Qualitative Insights */}
+                <div className="space-y-2.5 pt-1">
+                  {parsedRationale.roleMatch && (
+                    <div className="p-3 bg-muted/20 border border-border/50 rounded-none flex items-start gap-2.5">
+                      <span className="text-emerald-500 font-bold shrink-0 mt-0.5">✓</span>
+                      <div className="space-y-0.5">
+                        <span className="text-xs font-semibold text-foreground font-mono">Role Alignment</span>
+                        <p className="text-xs text-muted-foreground leading-relaxed">{parsedRationale.roleMatch}</p>
+                      </div>
                     </div>
                   )}
 
-                  {parsedRationale.roleMatch && (
-                    <div className="p-2.5 bg-background/60 border border-border/50 rounded-none space-y-1">
-                      <span className="text-[11px] font-mono text-muted-foreground uppercase block">Role Alignment</span>
-                      <p className="text-xs font-medium text-foreground">{parsedRationale.roleMatch}</p>
+                  {parsedRationale.techStack && (
+                    <div className="p-3 bg-muted/20 border border-border/50 rounded-none flex items-start gap-2.5">
+                      <span className="text-primary font-bold shrink-0 mt-0.5">⚡</span>
+                      <div className="space-y-0.5">
+                        <span className="text-xs font-semibold text-foreground font-mono">Verified Stack Match</span>
+                        <p className="text-xs text-muted-foreground font-mono leading-relaxed">{parsedRationale.techStack}</p>
+                      </div>
                     </div>
                   )}
 
                   {parsedRationale.experienceFit && (
-                    <div className="p-2.5 bg-background/60 border border-border/50 rounded-none space-y-1">
-                      <span className="text-[11px] font-mono text-muted-foreground uppercase block">Seniority & Stage</span>
-                      <p className="text-xs font-medium text-foreground">{parsedRationale.experienceFit}</p>
+                    <div className="p-3 bg-muted/20 border border-border/50 rounded-none flex items-start gap-2.5">
+                      <span className="text-sky-500 font-bold shrink-0 mt-0.5">🎓</span>
+                      <div className="space-y-0.5">
+                        <span className="text-xs font-semibold text-foreground font-mono">Experience &amp; Seniority</span>
+                        <p className="text-xs text-muted-foreground leading-relaxed">{parsedRationale.experienceFit}</p>
+                      </div>
                     </div>
                   )}
 
                   {parsedRationale.locationFit && (
-                    <div className="p-2.5 bg-background/60 border border-border/50 rounded-none space-y-1">
-                      <span className="text-[11px] font-mono text-muted-foreground uppercase block">Location / Work Mode</span>
-                      <p className="text-xs font-medium text-foreground">{parsedRationale.locationFit}</p>
+                    <div className="p-3 bg-muted/20 border border-border/50 rounded-none flex items-start gap-2.5">
+                      <span className="text-emerald-500 font-bold shrink-0 mt-0.5">🌍</span>
+                      <div className="space-y-0.5">
+                        <span className="text-xs font-semibold text-foreground font-mono">Work Mode &amp; Eligibility</span>
+                        <p className="text-xs text-muted-foreground leading-relaxed">{parsedRationale.locationFit}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {parsedRationale.summary && !parsedRationale.roleMatch && !parsedRationale.techStack && (
+                    <div className="p-3 bg-muted/20 border border-border/50 rounded-none">
+                      <p className="text-xs text-muted-foreground leading-relaxed">{parsedRationale.summary}</p>
                     </div>
                   )}
                 </div>
 
-                {/* Tech Stack Match Details */}
-                {parsedRationale.techStack && (
-                  <div className="p-2.5 bg-background/60 border border-border/50 rounded-none space-y-1">
-                    <span className="text-[11px] font-mono text-muted-foreground uppercase block">Verified Tech Stack Match</span>
-                    <p className="text-xs font-medium text-foreground font-mono">{parsedRationale.techStack}</p>
-                  </div>
-                )}
-
                 {/* Strategy Tip Callout */}
                 {parsedRationale.strategyTip && (
-                  <div className="p-3 bg-primary/5 border border-primary/20 rounded-none flex items-start gap-2.5">
+                  <div className="p-3.5 bg-primary/5 border border-primary/25 rounded-none flex items-start gap-2.5">
                     <Zap className="size-4 text-primary shrink-0 mt-0.5" />
                     <div className="space-y-0.5">
-                      <span className="text-xs font-semibold text-primary font-mono uppercase">Strategy Recommendation</span>
-                      <p className="text-xs text-foreground/90 leading-relaxed">{parsedRationale.strategyTip}</p>
+                      <span className="text-xs font-bold text-primary font-mono uppercase tracking-wider">
+                        Strategy Recommendation
+                      </span>
+                      <p className="text-xs text-foreground/90 leading-relaxed font-medium">
+                        {parsedRationale.strategyTip}
+                      </p>
                     </div>
                   </div>
                 )}

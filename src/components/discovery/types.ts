@@ -113,6 +113,10 @@ export function formatSalaryClean(salary?: string | null): string | null {
 
 export interface ParsedRationale {
   scoreBreakdown?: string
+  skillsScore?: string
+  roleScore?: string
+  locationScore?: string
+  seniorityScore?: string
   roleMatch?: string
   techStack?: string
   experienceFit?: string
@@ -120,37 +124,89 @@ export interface ParsedRationale {
   freshness?: string
   atsCompatibility?: string
   strategyTip?: string
-  otherPoints: string[]
+  learnedNotes?: string[]
+  summary?: string
+  allPoints: { title: string; content: string; icon?: string }[]
 }
 
 export function parseMatchRationale(rationale?: string | null): ParsedRationale {
-  const result: ParsedRationale = { otherPoints: [] }
+  const result: ParsedRationale = {
+    allPoints: [],
+    learnedNotes: [],
+  }
   if (!rationale) return result
 
-  const parts = rationale.split(" • ")
-  for (const part of parts) {
-    const trimmed = part.trim()
-    if (!trimmed) continue
+  const raw = rationale.trim()
 
-    if (trimmed.startsWith("Fit Breakdown:")) {
-      result.scoreBreakdown = trimmed.replace("Fit Breakdown:", "").trim()
-    } else if (trimmed.startsWith("Role Match:")) {
-      result.roleMatch = trimmed.replace("Role Match:", "").trim()
-    } else if (trimmed.startsWith("Tech Stack:")) {
-      result.techStack = trimmed.replace("Tech Stack:", "").trim()
-    } else if (trimmed.startsWith("Experience Fit:")) {
-      result.experienceFit = trimmed.replace("Experience Fit:", "").trim()
-    } else if (trimmed.startsWith("Location:")) {
-      result.locationFit = trimmed.replace("Location:", "").trim()
-    } else if (trimmed.startsWith("Freshness:")) {
-      result.freshness = trimmed.replace("Freshness:", "").trim()
-    } else if (trimmed.startsWith("ATS Compatibility:")) {
-      result.atsCompatibility = trimmed.replace("ATS Compatibility:", "").trim()
-    } else if (trimmed.startsWith("Strategy Tip:")) {
-      result.strategyTip = trimmed.replace("Strategy Tip:", "").trim()
-    } else {
-      result.otherPoints.push(trimmed)
-    }
+  // 1. Extract Fit Breakdown & sub-scores:
+  const scoreMatch = raw.match(/(?:📊\s*)?Fit Breakdown:\s*([^\n•]+(?:\([^)]+\))?)/i)
+  if (scoreMatch) {
+    result.scoreBreakdown = scoreMatch[1].trim()
+    const skillsM = result.scoreBreakdown.match(/Skills:\s*(\d+\/\d+)/i)
+    if (skillsM) result.skillsScore = skillsM[1]
+    const roleM = result.scoreBreakdown.match(/Role:\s*(\d+\/\d+)/i)
+    if (roleM) result.roleScore = roleM[1]
+    const locM = result.scoreBreakdown.match(/Location:\s*(\d+\/\d+)/i)
+    if (locM) result.locationScore = locM[1]
+    const senM = result.scoreBreakdown.match(/Seniority:\s*(\d+\/\d+)/i)
+    if (senM) result.seniorityScore = senM[1]
+  }
+
+  // 2. Role Match
+  const roleMatch = raw.match(/(?:🎯\s*)?Role Match:\s*([^•\n]+)/i)
+  if (roleMatch) {
+    result.roleMatch = roleMatch[1].trim()
+    result.allPoints.push({ title: "Role Alignment", content: result.roleMatch, icon: "target" })
+  }
+
+  // 3. Tech Stack / Strengths
+  const techMatch = raw.match(/(?:⚡\s*)?(?:Tech Stack|Proven Strengths):\s*([^•\n]+)/i)
+  if (techMatch) {
+    result.techStack = techMatch[1].trim()
+    result.allPoints.push({ title: "Tech Stack", content: result.techStack, icon: "zap" })
+  }
+
+  // 4. Experience Fit
+  const expMatch = raw.match(/(?:🎓\s*)?Experience Fit:\s*([^•\n]+)/i)
+  if (expMatch) {
+    result.experienceFit = expMatch[1].trim()
+    result.allPoints.push({ title: "Experience Level", content: result.experienceFit, icon: "graduation" })
+  }
+
+  // 5. Location / Work Mode (avoid picking up "Location: 20/20" inside breakdown)
+  const locMatch = raw.match(/(?:🌍\s*)Location:\s*([^•\n]+)/i) || (!scoreMatch ? raw.match(/Location:\s*([^•\n]+)/i) : null)
+  if (locMatch && !locMatch[1].includes("/20")) {
+    result.locationFit = locMatch[1].trim()
+    result.allPoints.push({ title: "Work Mode & Location", content: result.locationFit, icon: "globe" })
+  }
+
+  // 6. Freshness
+  const freshMatch = raw.match(/(?:🕒\s*)?Freshness:\s*([^•\n]+)/i)
+  if (freshMatch) {
+    result.freshness = freshMatch[1].trim()
+  }
+
+  // 7. ATS Compatibility
+  const atsMatch = raw.match(/(?:📋\s*)?ATS Compatibility:\s*([^•\n]+)/i)
+  if (atsMatch) {
+    result.atsCompatibility = atsMatch[1].trim()
+  }
+
+  // 8. Strategy Tip
+  const stratMatch = raw.match(/(?:💡\s*)?Strategy Tip:\s*([^•\n]+)/i)
+  if (stratMatch) {
+    result.strategyTip = stratMatch[1].trim()
+  }
+
+  // 9. Learned Notes
+  const learnedMatches = raw.matchAll(/(?:🧠\s*)?((?:Learned|Preference|Aversion)[^:•\n]+:\s*[^•\n]+)/gi)
+  for (const lm of Array.from(learnedMatches)) {
+    result.learnedNotes?.push(lm[1].trim())
+  }
+
+  // Fallback summary if structured elements were not found
+  if (!result.roleMatch && !result.techStack && !result.experienceFit) {
+    result.summary = raw
   }
 
   return result

@@ -150,22 +150,33 @@ export function DiscoveryTopPicks({
                 </div>
 
                 {/* Clean Match Highlight Banner */}
-                {(parsed.roleMatch || parsed.experienceFit || parsed.strategyTip) && (
-                  <div className="p-2.5 bg-muted/30 border border-border/60 rounded-none space-y-1 text-xs">
-                    {parsed.roleMatch && (
-                      <div className="flex items-start gap-1.5 text-foreground/90">
-                        <span className="text-emerald-500 font-semibold shrink-0">✓ Fit:</span>
-                        <span className="line-clamp-2 leading-relaxed">{parsed.roleMatch}</span>
-                      </div>
-                    )}
-                    {parsed.strategyTip && (
-                      <div className="flex items-start gap-1.5 text-muted-foreground pt-0.5 border-t border-border/40">
-                        <span className="text-primary font-semibold shrink-0">💡 Tip:</span>
-                        <span className="line-clamp-1 leading-relaxed">{parsed.strategyTip}</span>
-                      </div>
-                    )}
-                  </div>
-                )}
+                <div className="p-3 bg-muted/40 border border-border/70 rounded-none space-y-1.5 text-xs">
+                  {parsed.roleMatch ? (
+                    <div className="flex items-start gap-1.5 text-foreground/90 font-medium">
+                      <span className="text-emerald-500 font-bold shrink-0">✓ Fit:</span>
+                      <span className="line-clamp-2 leading-relaxed">{parsed.roleMatch}</span>
+                    </div>
+                  ) : parsed.summary ? (
+                    <div className="flex items-start gap-1.5 text-foreground/90 font-medium">
+                      <span className="text-emerald-500 font-bold shrink-0">✓ Fit:</span>
+                      <span className="line-clamp-2 leading-relaxed">{parsed.summary}</span>
+                    </div>
+                  ) : null}
+
+                  {parsed.techStack && (
+                    <div className="flex items-start gap-1.5 text-muted-foreground pt-0.5">
+                      <span className="text-primary font-bold shrink-0">⚡ Stack:</span>
+                      <span className="line-clamp-1 font-mono text-[11px]">{parsed.techStack}</span>
+                    </div>
+                  )}
+
+                  {parsed.strategyTip && (
+                    <div className="flex items-start gap-1.5 text-muted-foreground pt-1 border-t border-border/40">
+                      <span className="text-amber-500 font-bold shrink-0">💡 Tip:</span>
+                      <span className="line-clamp-1 leading-relaxed">{parsed.strategyTip}</span>
+                    </div>
+                  )}
+                </div>
 
                 {/* Tags */}
                 {job.tags && job.tags.length > 0 && (
