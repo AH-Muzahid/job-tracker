@@ -51,21 +51,21 @@ Whenever ANY change, fix, optimization, or feature is added to the Job Discovery
   - **Owner**: Antigravity AI
   - **Completed At**: 2026-09-04
 
-- [ ] **`REC-03` [Security] Implement Rate Limiting on Discovery Endpoints**
+- [x] **`REC-03` [Security] Implement Rate Limiting on Discovery Endpoints**
   - **Issue**: `GET /api/jobs/discover?refresh=true` and `POST /api/jobs/discover` have no rate limiting, allowing denial-of-service / API quota exhaustion.
   - **Action**: Add Upstash Redis sliding window rate limiter (e.g., 10 req/min per user for discovery).
   - **Target Files**: `src/app/api/jobs/discover/route.ts`, `src/lib/rate-limit.ts`
-  - **Status**: `Pending`
-  - **Owner**: Unassigned
-  - **Completed At**: —
+  - **Status**: `Completed`
+  - **Owner**: Antigravity AI
+  - **Completed At**: 2026-09-04
 
-- [ ] **`REC-04` [Trust] Implement Scam & Fraud Detection Layer**
+- [x] **`REC-04` [Trust] Implement Scam & Fraud Detection Layer**
   - **Issue**: Scraped listings have zero fraud checks (phishing URLs, fake recruiters, unrealistic salaries).
   - **Action**: Implement heuristic rule-checks (disposable domains, payment requests, missing company profile, telegram-only contact). Flag with `scamScore`.
   - **Target Files**: `src/lib/discovery/matching.ts`, `src/lib/discovery/types.ts`
-  - **Status**: `Pending`
-  - **Owner**: Unassigned
-  - **Completed At**: —
+  - **Status**: `Completed`
+  - **Owner**: Antigravity AI
+  - **Completed At**: 2026-09-04
 
 - [x] **`REC-05` [Learning] Capture Dismiss Reasons for Feedback Loops**
   - **Issue**: Dismissing a job currently gives zero signal back to the AI (wasted learning opportunity).
@@ -216,3 +216,4 @@ Tracking schema additions for the recommended canonical data model:
 |:---|:---:|:---|:---|:---:|
 | 2026-09-04 | `INIT` | Initialized comprehensive Job Discovery Audit (`docs/JOB-DISCOVERY-AUDIT.md`) and living tracker (`docs/JOB-DISCOVERY-TRACKER.md`). | `docs/JOB-DISCOVERY-AUDIT.md`, `docs/JOB-DISCOVERY-TRACKER.md` | Staff AI Architect & PM Team |
 | 2026-09-04 | `REC-01`, `REC-02`, `REC-05`, `DB-MIG` | Replaced legacy `DiscoveredJob` with clean normalized `CanonicalJob` & `UserJobMatch` data model. Decoupled scraping from synchronous HTTP request flow to background Inngest crawler and seed script. Enabled sub-50ms non-blocking cold-start with `syncing: true` response. Implemented remote-aware, punctuation-cleaned SHA-256 fingerprint deduplication. Added dismiss reason tracking in schema & POST route. | `prisma/schema.prisma`, `src/lib/discovery/matching.ts`, `src/lib/discovery/scrapers.ts`, `prisma/seed-discovery.ts`, `src/inngest/functions/batch-job-pipeline.ts`, `src/app/api/jobs/discover/route.ts`, `src/lib/ai/graph/tools/discovery-tools.ts`, `src/app/api/inngest/route.ts`, `src/__tests__/batch-job-pipeline.test.ts` | Antigravity AI |
+| 2026-09-04 | `REC-03`, `REC-04` | Implemented Upstash Redis distributed sliding window rate limiting on GET /api/jobs/discover (45 req/min), manual refresh (5 req/min), and POST mutations (30 req/min). Built heuristic rule-based scam & fraud detection engine (`evaluateJobScamRisk`) identifying advance fees, anonymous messengers, phishing shorteners, and absurd salaries; persisted `scamScore` and automatically disqualified listings with `scamScore >= 0.6`. | `src/lib/discovery/matching.ts`, `src/lib/discovery/types.ts`, `src/lib/discovery/scrapers.ts`, `src/lib/ai/graph/tools/discovery-tools.ts`, `src/app/api/jobs/discover/route.ts`, `src/__tests__/scam-detection.test.ts` | Antigravity AI |

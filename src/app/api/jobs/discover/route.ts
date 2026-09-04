@@ -15,6 +15,7 @@ import {
   processUserJobBatch,
 } from "@/inngest/functions/batch-job-pipeline"
 import { inngest } from "@/inngest/client"
+import { checkDistributedRateLimit, rateLimitResponse } from "@/lib/rate-limit"
 import { ResponseUtil } from "@/lib/api-response"
 
 export async function GET(request: NextRequest) {
@@ -23,9 +24,23 @@ export async function GET(request: NextRequest) {
     return ResponseUtil.unauthorized()
   }
 
+  // Rate limit general discovery queries (45 req / min)
+  const rateLimit = await checkDistributedRateLimit(`discovery:get:${userId}`, 45, 60)
+  if (!rateLimit.success) {
+    return rateLimitResponse(rateLimit)
+  }
+
   const { searchParams } = new URL(request.url)
   const query = searchParams.get("query")?.toLowerCase().trim() || ""
   const forceRefresh = searchParams.get("refresh") === "true"
+
+  // Stricter rate limit on explicit manual refresh (5 refreshes / min)
+  if (forceRefresh) {
+    const refreshLimit = await checkDistributedRateLimit(`discovery:refresh:${userId}`, 5, 60)
+    if (!refreshLimit.success) {
+      return rateLimitResponse(refreshLimit)
+    }
+  }
 
   console.log(`[JobDiscovery API] GET called: userId=${userId}, query="${query}", forceRefresh=${forceRefresh}`)
 
@@ -217,6 +232,12 @@ export async function POST(request: NextRequest) {
   const userId = await getInternalUserId()
   if (!userId) {
     return ResponseUtil.unauthorized()
+  }
+
+  // Rate limit discovery mutations (30 actions / min per user)
+  const rateLimit = await checkDistributedRateLimit(`discovery:post:${userId}`, 30, 60)
+  if (!rateLimit.success) {
+    return rateLimitResponse(rateLimit)
   }
 
   try {
