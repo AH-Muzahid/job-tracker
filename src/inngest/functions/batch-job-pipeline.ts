@@ -1,6 +1,7 @@
 import { inngest } from "../client"
 import { prisma, withDbRetry } from "@/lib/prisma"
 import { executeSearchExternalJobs } from "@/lib/ai/graph/tools/discovery-tools"
+import { ingestGlobalJobsToCatalog } from "@/lib/discovery/scrapers"
 
 /**
  * Generates a deterministic batch ID for the 6-hour interval
@@ -31,8 +32,8 @@ export function getCurrentBatchStartTime(date: Date = new Date()): Date {
 
 /**
  * Core processor for a single user:
- * 1. Crawls & scores external opportunities (STAGED)
- * 2. Archives jobs older than 24h where isSaved == false (Rolling 24h Archival)
+ * 1. Matches & scores in-database Canonical opportunities against user profile (STAGED)
+ * 2. Archives matches older than 24h where isSaved == false (Rolling 24h Archival)
  * 3. Switches current batch from STAGED -> PUBLISHED
  * 4. Dispatches in-app notification to the user
  */
@@ -48,7 +49,7 @@ export async function processUserJobBatch(
   const batchId = options.batchId || getBatchId(now)
   const shouldNotify = options.notify !== false
 
-  // 1. Fetch & score jobs against user resume/profile
+  // 1. Fetch & score jobs against user resume/profile (Instant DB in-memory search)
   const searchResult = await executeSearchExternalJobs(userId, { limit: 16 })
   const opportunities = searchResult.opportunities || []
 
@@ -57,7 +58,7 @@ export async function processUserJobBatch(
   // If forceImmediatePublish is requested, wake up any non-dismissed dormant jobs immediately
   if (options.forceImmediatePublish) {
     await withDbRetry(() =>
-      prisma.discoveredJob.updateMany({
+      prisma.userJobMatch.updateMany({
         where: {
           userId,
           status: { in: ["STAGED", "ARCHIVED"] },
@@ -70,44 +71,39 @@ export async function processUserJobBatch(
     )
   }
 
-  // 2. Stage new jobs using single bulk lookup & createMany (P0 optimization: N+1 elimination)
+  // 2. Stage new job matches
   if (opportunities.length > 0) {
-    const existingJobs =
+    const validCanonicalJobs = await withDbRetry(() =>
+      prisma.canonicalJob.findMany({
+        where: { id: { in: opportunities.map((o) => o.id) } },
+        select: { id: true },
+      })
+    )
+    const validJobIdSet = new Set(validCanonicalJobs.map((j) => j.id))
+
+    const existingMatches =
       (await withDbRetry(() =>
-        prisma.discoveredJob.findMany({
+        prisma.userJobMatch.findMany({
           where: {
             userId,
             status: { in: ["PUBLISHED", "DISMISSED"] },
           },
-          select: {
-            title: true,
-            company: true,
-          },
+          select: { jobId: true },
         })
       )) || []
 
-    const existingKeySet = new Set(
-      existingJobs.map((j) => `${j.title.toLowerCase()}|${j.company.toLowerCase()}`)
+    const existingJobIdSet = new Set(existingMatches.map((m) => m.jobId))
+
+    const newMatchesToInsert = opportunities.filter(
+      (opp) => validJobIdSet.has(opp.id) && !existingJobIdSet.has(opp.id)
     )
 
-    const newJobsToInsert = opportunities.filter(
-      (opp) => !existingKeySet.has(`${opp.title.toLowerCase()}|${opp.company.toLowerCase()}`)
-    )
-
-    if (newJobsToInsert.length > 0) {
+    if (newMatchesToInsert.length > 0) {
       await withDbRetry(() =>
-        prisma.discoveredJob.createMany({
-          data: newJobsToInsert.map((opp) => ({
+        prisma.userJobMatch.createMany({
+          data: newMatchesToInsert.map((opp) => ({
             userId,
-            sourceBoard: opp.sourceBoard,
-            externalId: opp.id,
-            title: opp.title,
-            company: opp.company,
-            location: opp.location,
-            url: opp.url,
-            salary: opp.salary,
-            tags: opp.tags || [],
-            description: opp.descriptionSnippet,
+            jobId: opp.id,
             fitScore: opp.fitScore,
             matchRationale: opp.matchRationale,
             status: options.forceImmediatePublish ? "PUBLISHED" : "STAGED",
@@ -115,9 +111,10 @@ export async function processUserJobBatch(
             isSaved: false,
             publishedAt: options.forceImmediatePublish ? now : null,
           })),
+          skipDuplicates: true,
         })
       )
-      stagedCount = newJobsToInsert.length
+      stagedCount = newMatchesToInsert.length
     }
   }
 
@@ -125,7 +122,7 @@ export async function processUserJobBatch(
   // If publishedAt is older than 24 hours AND isSaved is false -> transition to ARCHIVED
   const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000)
   const archiveResult = await withDbRetry(() =>
-    prisma.discoveredJob.updateMany({
+    prisma.userJobMatch.updateMany({
       where: {
         userId,
         status: "PUBLISHED",
@@ -143,7 +140,7 @@ export async function processUserJobBatch(
   // 4. Step C: The Publishing Switch
   // Transition all STAGED jobs for this batchId into PUBLISHED
   const publishResult = await withDbRetry(() =>
-    prisma.discoveredJob.updateMany({
+    prisma.userJobMatch.updateMany({
       where: {
         userId,
         batchId,
@@ -264,5 +261,26 @@ export const processUserJobBatchWorker = inngest.createFunction(
     }
 
     return { processed: results.length, results }
+  }
+)
+
+/**
+ * Global Job Board Crawler & Catalog Ingest Scheduler
+ * Periodically crawls multi-board opportunities decoupled from user requests
+ */
+export const globalJobCrawlScheduler = inngest.createFunction(
+  {
+    id: "global-job-crawl-scheduler",
+    name: "Global Job Board Crawler & Catalog Ingest",
+    triggers: [
+      { cron: "0 */4 * * *" }, // Runs every 4 hours
+      { event: "discovery/global-crawl.trigger" },
+    ],
+  },
+  async ({ step }) => {
+    const result = await step.run("crawl-and-upsert-canonical-jobs", async () => {
+      return await ingestGlobalJobsToCatalog()
+    })
+    return result
   }
 )

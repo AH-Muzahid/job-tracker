@@ -11,7 +11,14 @@ import * as discoveryTools from "@/lib/ai/graph/tools/discovery-tools"
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
-    discoveredJob: {
+    canonicalJob: {
+      findFirst: vi.fn(),
+      findMany: vi.fn(),
+      create: vi.fn(),
+      upsert: vi.fn(),
+      count: vi.fn(),
+    },
+    userJobMatch: {
       findFirst: vi.fn(),
       findMany: vi.fn(),
       create: vi.fn(),
@@ -87,9 +94,10 @@ describe("6-Hour Staged Batch Pipeline & 24h Rolling Window", () => {
       ],
     })
 
-    vi.mocked(prisma.discoveredJob.findMany).mockResolvedValue([])
-    vi.mocked(prisma.discoveredJob.createMany).mockResolvedValue({ count: 1 } as any)
-    vi.mocked(prisma.discoveredJob.updateMany)
+    vi.mocked(prisma.canonicalJob.findMany).mockResolvedValue([{ id: "job-1" }] as any)
+    vi.mocked(prisma.userJobMatch.findMany).mockResolvedValue([])
+    vi.mocked(prisma.userJobMatch.createMany).mockResolvedValue({ count: 1 } as any)
+    vi.mocked(prisma.userJobMatch.updateMany)
       .mockResolvedValueOnce({ count: 3 }) // Step 2: archive count
       .mockResolvedValueOnce({ count: 1 }) // Step 3: publish switch count
     vi.mocked(prisma.notification.create).mockResolvedValue({ id: "notif-1" } as any)
@@ -104,7 +112,7 @@ describe("6-Hour Staged Batch Pipeline & 24h Rolling Window", () => {
     expect(result.archivedCount).toBe(3)
 
     // Verify rolling 24h archival call
-    expect(prisma.discoveredJob.updateMany).toHaveBeenNthCalledWith(
+    expect(prisma.userJobMatch.updateMany).toHaveBeenNthCalledWith(
       1,
       expect.objectContaining({
         where: expect.objectContaining({
@@ -118,7 +126,7 @@ describe("6-Hour Staged Batch Pipeline & 24h Rolling Window", () => {
     )
 
     // Verify publishing switch call
-    expect(prisma.discoveredJob.updateMany).toHaveBeenNthCalledWith(
+    expect(prisma.userJobMatch.updateMany).toHaveBeenNthCalledWith(
       2,
       expect.objectContaining({
         where: expect.objectContaining({
