@@ -8,6 +8,7 @@ import {
   normalizeJobFingerprint,
   detectJobWorkMode,
   evaluateJobScamRisk,
+  detectVisaSponsorship,
 } from "./matching"
 
 /**
@@ -205,9 +206,12 @@ export async function fetchRemoteOkJobs(tagParam: string): Promise<UnifiedRawJob
         ? item.tags.map((t: string) => toCanonical(t))
         : []
 
+      const title = String(item.position || "Software Engineer")
+      const description = String(item.description || "").slice(0, 1000).replace(/<[^>]+>/g, " ")
+
       return {
         id: String(item.id || `rok-${item.slug || Math.random()}`),
-        title: String(item.position || "Software Engineer"),
+        title,
         company: String(item.company || "Tech Company"),
         location: String(item.location || "Remote"),
         url: item.url || `https://remoteok.com/remote-jobs/${item.id}`,
@@ -215,7 +219,9 @@ export async function fetchRemoteOkJobs(tagParam: string): Promise<UnifiedRawJob
         tags,
         salaryMin: item.salary_min ? Number(item.salary_min) : undefined,
         salaryMax: item.salary_max ? Number(item.salary_max) : undefined,
-        description: String(item.description || "").slice(0, 1000).replace(/<[^>]+>/g, " "),
+        description,
+        postedAt: item.date ? new Date(item.date).toISOString() : undefined,
+        visaSponsorship: detectVisaSponsorship(description, title),
       }
     })
   } catch {
@@ -249,9 +255,12 @@ export async function fetchJobicyJobs(): Promise<UnifiedRawJob[]> {
         ? item.jobTags.map((t: string) => toCanonical(t))
         : []
 
+      const title = String(item.jobTitle || "Software Engineer")
+      const description = String(item.jobDescription || item.jobExcerpt || "").slice(0, 1000).replace(/<[^>]+>/g, " ")
+
       return {
         id: String(item.id || `jb-${Math.random()}`),
-        title: String(item.jobTitle || "Software Engineer"),
+        title,
         company: String(item.companyName || "Tech Company"),
         location: String(item.jobGeo || "Remote"),
         url: item.url || "https://jobicy.com",
@@ -259,7 +268,9 @@ export async function fetchJobicyJobs(): Promise<UnifiedRawJob[]> {
         tags,
         salaryMin: item.annualSalaryMin ? Number(item.annualSalaryMin) : undefined,
         salaryMax: item.annualSalaryMax ? Number(item.annualSalaryMax) : undefined,
-        description: String(item.jobDescription || item.jobExcerpt || "").slice(0, 1000).replace(/<[^>]+>/g, " "),
+        description,
+        postedAt: item.pubDate ? new Date(item.pubDate).toISOString() : undefined,
+        visaSponsorship: detectVisaSponsorship(description, title),
       }
     })
   } catch {
@@ -309,15 +320,23 @@ export async function fetchArbeitnowJobs(query: string): Promise<UnifiedRawJob[]
         ? item.tags.map((t: string) => toCanonical(t))
         : []
 
+      const title = String(item.title || "")
+      const description = String(item.description || "").slice(0, 1000).replace(/<[^>]+>/g, " ")
+      const postedAt = item.created_at
+        ? new Date(typeof item.created_at === "number" ? item.created_at * 1000 : item.created_at).toISOString()
+        : undefined
+
       return {
         id: String(item.slug || `an-${Math.random()}`),
-        title: String(item.title || ""),
+        title,
         company: String(item.company_name || ""),
         location: item.remote ? "Remote" : String(item.location || "Europe / Remote"),
         url: item.url || "https://www.arbeitnow.com",
         sourceBoard: "arbeitnow" as const,
         tags,
-        description: String(item.description || "").slice(0, 1000).replace(/<[^>]+>/g, " "),
+        description,
+        postedAt,
+        visaSponsorship: detectVisaSponsorship(description, title),
       }
     })
   } catch {
@@ -356,18 +375,26 @@ export async function fetchAdzunaJobs(query: string, location?: string): Promise
     const data = await res.json()
     if (!data || !Array.isArray(data.results)) return []
 
-    return data.results.map((item: any) => ({
-      id: String(item.id || `adz-${item.company?.display_name}-${item.title}`),
-      title: String(item.title || "").replace(/<\/?strong>/gi, ""),
-      company: String(item.company?.display_name || ""),
-      location: String(item.location?.display_name || location || "Local/Hybrid"),
-      url: item.redirect_url || "",
-      sourceBoard: "adzuna" as const,
-      tags: item.category?.tag ? [toCanonical(item.category.tag)] : [],
-      salaryMin: item.salary_min ? Math.round(item.salary_min) : undefined,
-      salaryMax: item.salary_max ? Math.round(item.salary_max) : undefined,
-      description: String(item.description || "").replace(/<[^>]+>/g, " "),
-    }))
+    return data.results.map((item: any) => {
+      const title = String(item.title || "").replace(/<\/?strong>/gi, "")
+      const description = String(item.description || "").replace(/<[^>]+>/g, " ")
+      const postedAt = item.created ? new Date(item.created).toISOString() : undefined
+
+      return {
+        id: String(item.id || `adz-${item.company?.display_name}-${item.title}`),
+        title,
+        company: String(item.company?.display_name || ""),
+        location: String(item.location?.display_name || location || "Local/Hybrid"),
+        url: item.redirect_url || "",
+        sourceBoard: "adzuna" as const,
+        tags: item.category?.tag ? [toCanonical(item.category.tag)] : [],
+        salaryMin: item.salary_min ? Math.round(item.salary_min) : undefined,
+        salaryMax: item.salary_max ? Math.round(item.salary_max) : undefined,
+        description,
+        postedAt,
+        visaSponsorship: detectVisaSponsorship(description, title),
+      }
+    })
   } catch {
     return []
   }
@@ -416,6 +443,7 @@ export async function fetchLinkedInGuestJobs(query: string, location?: string): 
       const jobIdMatch = rawLink.match(/-(\d+)(?:$|\/)/)
       const jobId = jobIdMatch ? jobIdMatch[1] : `li-${i}-${Date.now()}`
 
+      const description = `${title} at ${company} in ${loc}. Verified LinkedIn opening.`
       jobs.push({
         id: `li-guest-${jobId}`,
         title,
@@ -424,7 +452,9 @@ export async function fetchLinkedInGuestJobs(query: string, location?: string): 
         url: rawLink,
         sourceBoard: "linkedin",
         tags: [toCanonical(title), "linkedin", "developer"],
-        description: `${title} at ${company} in ${loc}. Verified LinkedIn opening.`,
+        description,
+        postedAt: new Date().toISOString(),
+        visaSponsorship: detectVisaSponsorship(description, title),
       })
     }
 
@@ -706,6 +736,8 @@ export async function fetchGreenhouseJobs(options: {
         const loc = String(j.location?.name || "Remote")
         const tags = extractTechTagsFromText(`${title} ${board}`)
         if (tags.length === 0) tags.push("developer")
+        const description = `${title} at ${companyName}. Official Greenhouse job posting. Location: ${loc}.`
+        const postedAt = j.updated_at ? new Date(j.updated_at).toISOString() : undefined
 
         return {
           id: `gh-${board}-${j.id}`,
@@ -715,7 +747,9 @@ export async function fetchGreenhouseJobs(options: {
           url: j.absolute_url || `https://boards.greenhouse.io/${board}/jobs/${j.id}`,
           sourceBoard: "greenhouse" as const,
           tags,
-          description: `${title} at ${companyName}. Official Greenhouse job posting. Location: ${loc}.`,
+          description,
+          postedAt,
+          visaSponsorship: detectVisaSponsorship(description, title),
         }
       })
     } catch {
@@ -779,6 +813,8 @@ export async function fetchLeverJobs(options: {
         const loc = String(j.categories?.location || (j.workplaceType === "remote" ? "Remote" : "Hybrid / On-site"))
         const tags = extractTechTagsFromText(`${title} ${j.categories?.team || ""} ${company}`)
         if (tags.length === 0) tags.push("developer")
+        const description = String(j.descriptionPlain || `${title} at ${companyName}. Location: ${loc}.`).slice(0, 1000)
+        const postedAt = j.createdAt ? new Date(j.createdAt).toISOString() : undefined
 
         return {
           id: `lever-${company}-${j.id}`,
@@ -788,7 +824,9 @@ export async function fetchLeverJobs(options: {
           url: j.hostedUrl || `https://jobs.lever.co/${company}/${j.id}`,
           sourceBoard: "lever" as const,
           tags,
-          description: String(j.descriptionPlain || `${title} at ${companyName}. Location: ${loc}.`).slice(0, 1000),
+          description,
+          postedAt,
+          visaSponsorship: detectVisaSponsorship(description, title),
         }
       })
     } catch {
@@ -917,6 +955,9 @@ export async function ingestGlobalJobsToCatalog(options: {
       const isRemote = workMode === "remote"
       const fingerprint = normalizeJobFingerprint(job.company, job.title, job.location, isRemote)
       const scamEval = evaluateJobScamRisk(job)
+      const visaSponsorship = job.visaSponsorship || detectVisaSponsorship(job.description, job.title)
+      const postedAtDate = job.postedAt ? new Date(job.postedAt) : now
+      const validPostedAt = isNaN(postedAtDate.getTime()) ? now : postedAtDate
 
       await withDbRetry(() =>
         prisma.canonicalJob.upsert({
@@ -935,10 +976,11 @@ export async function ingestGlobalJobsToCatalog(options: {
             salaryMax: job.salaryMax || null,
             tags: job.tags || [],
             description: job.description || null,
-            postedAt: now,
+            postedAt: validPostedAt,
             expiresAt: thirtyDaysFromNow,
             isExpired: scamEval.isSuspicious,
             scamScore: scamEval.scamScore,
+            visaSponsorship,
           },
           update: {
             url: job.url,
@@ -947,9 +989,11 @@ export async function ingestGlobalJobsToCatalog(options: {
             salaryMax: job.salaryMax || undefined,
             tags: job.tags && job.tags.length > 0 ? job.tags : undefined,
             description: job.description || undefined,
+            postedAt: validPostedAt,
             expiresAt: thirtyDaysFromNow,
             isExpired: scamEval.isSuspicious,
             scamScore: scamEval.scamScore,
+            visaSponsorship: visaSponsorship !== "unknown" ? visaSponsorship : undefined,
           },
         })
       )

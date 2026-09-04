@@ -40,6 +40,7 @@ export function DiscoveryPage() {
     source: "",
     location: "",
     minScore: "",
+    visaSponsorship: "",
     batchSlot: "",
     tags: [],
     hideApplied: false,
@@ -126,6 +127,7 @@ export function DiscoveryPage() {
         if (min === 50 && (job.fitScore < 50 || job.fitScore >= 75)) return false
         if (min === 0 && job.fitScore >= 50) return false
       }
+      if (filters.visaSponsorship && job.visaSponsorship !== filters.visaSponsorship) return false
       if (filters.tags.length > 0) {
         const jobTags = job.tags?.map((t) => t.toLowerCase()) || []
         if (!filters.tags.some((t) => jobTags.includes(t.toLowerCase()))) return false
@@ -151,6 +153,11 @@ export function DiscoveryPage() {
         case "score-asc": return a.fitScore - b.fitScore
         case "salary-desc": return parseSalary(b.salary) - parseSalary(a.salary)
         case "salary-asc": return parseSalary(a.salary) - parseSalary(b.salary)
+        case "newest": {
+          const timeA = new Date(a.postedAt || a.publishedAt || 0).getTime()
+          const timeB = new Date(b.postedAt || b.publishedAt || 0).getTime()
+          return timeB - timeA
+        }
         default: return 0
       }
     })
@@ -300,6 +307,7 @@ export function DiscoveryPage() {
     (filters.source ? 1 : 0) +
     (filters.location ? 1 : 0) +
     (filters.minScore ? 1 : 0) +
+    (filters.visaSponsorship ? 1 : 0) +
     (filters.batchSlot ? 1 : 0) +
     (filters.hideApplied ? 1 : 0) +
     filters.tags.length

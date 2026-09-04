@@ -1,10 +1,10 @@
 "use client"
 
-import { Zap, BrainCircuit, ExternalLink, BookmarkPlus, Check, RefreshCw, EyeOff, MapPin, DollarSign, Globe } from "lucide-react"
+import { Zap, BrainCircuit, ExternalLink, BookmarkPlus, Check, RefreshCw, EyeOff, MapPin, DollarSign, Globe, ShieldCheck, Clock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { DecorIcon } from "@/components/decor-icon"
 import { cn } from "@/lib/utils"
-import { getScoreBadgeClass, getSourceBadge } from "./types"
+import { getScoreBadgeClass, getSourceBadge, getVisaBadge } from "./types"
 import type { ExternalJobOpportunity } from "@/lib/discovery/types"
 
 interface DiscoveryTopPicksProps {
@@ -62,6 +62,7 @@ export function DiscoveryTopPicks({
           const isSaved = savedJobs.has(job.id)
           const isSaving = isSavingId === job.id
           const sourceBadge = getSourceBadge(job.sourceBoard)
+          const visaBadge = getVisaBadge(job.visaSponsorship)
 
           return (
             <div
@@ -84,6 +85,20 @@ export function DiscoveryTopPicks({
                   </span>
 
                   <div className="flex items-center gap-1.5">
+                    {visaBadge && (
+                      <span className={cn("inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-none text-[10px] font-medium border", visaBadge.color)}>
+                        <ShieldCheck className="size-2.5" />
+                        <span>{visaBadge.label}</span>
+                      </span>
+                    )}
+
+                    {job.freshnessLabel && (
+                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-none text-[10px] font-medium border bg-muted/40 text-muted-foreground border-border/60">
+                        <Clock className="size-2.5" />
+                        <span>{job.freshnessLabel}</span>
+                      </span>
+                    )}
+
                     <span className={cn("inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-none text-[10px] font-medium border", sourceBadge.color)}>
                       <Globe className="size-2.5" />
                       <span>{sourceBadge.label}</span>

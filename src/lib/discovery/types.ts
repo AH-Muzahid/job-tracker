@@ -19,6 +19,9 @@ export interface ExternalJobOpportunity {
   batchLabel?: string
   batchId?: string
   publishedAt?: string
+  postedAt?: string
+  freshnessLabel?: string
+  visaSponsorship?: "available" | "not_available" | "unknown"
   isSaved?: boolean
   appliedStatus?: string | null
   applicationId?: string | null
@@ -46,6 +49,8 @@ export interface UnifiedRawJob {
   salaryMax?: number
   salaryText?: string
   description: string
+  postedAt?: string | Date
+  visaSponsorship?: "available" | "not_available" | "unknown"
   scamScore?: number
   fraudFlags?: string[]
 }

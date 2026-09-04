@@ -18,7 +18,7 @@ export function DiscoveryFilterSidebar({
   className,
   hideDecor = false,
 }: DiscoveryFilterSidebarProps) {
-  const hasFilters = filters.source || filters.location || filters.minScore || filters.batchSlot || filters.tags.length > 0 || !!filters.hideApplied
+  const hasFilters = filters.source || filters.location || filters.minScore || filters.visaSponsorship || filters.batchSlot || filters.tags.length > 0 || !!filters.hideApplied
 
   const update = (patch: Partial<DiscoveryFilters>) => {
     onFilterChange({ ...filters, ...patch })
@@ -30,7 +30,7 @@ export function DiscoveryFilterSidebar({
   }
 
   const clearAll = () => {
-    onFilterChange({ source: "", location: "", minScore: "", batchSlot: "", tags: [], hideApplied: false })
+    onFilterChange({ source: "", location: "", minScore: "", visaSponsorship: "", batchSlot: "", tags: [], hideApplied: false })
   }
 
   return (
@@ -83,6 +83,20 @@ export function DiscoveryFilterSidebar({
               { value: "remote", label: "Remote", dot: "bg-emerald-500" },
               { value: "hybrid", label: "Hybrid", dot: "bg-sky-500" },
               { value: "onsite", label: "On-site", dot: "bg-amber-500" },
+            ]}
+          />
+        </div>
+
+        {/* Visa & Work Auth */}
+        <div>
+          <label className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/80 mb-2 block">Visa & Work Auth</label>
+          <RadioGroup
+            value={filters.visaSponsorship || ""}
+            onChange={(v) => update({ visaSponsorship: v as DiscoveryFilters["visaSponsorship"] })}
+            options={[
+              { value: "", label: "All Work Auth" },
+              { value: "available", label: "Visa Sponsored", dot: "bg-emerald-500" },
+              { value: "not_available", label: "Direct / No Visa", dot: "bg-zinc-400" },
             ]}
           />
         </div>

@@ -381,6 +381,7 @@ model CanonicalJob {
   expiresAt   DateTime?
   isExpired   Boolean        @default(false)
   scamScore   Float          @default(0)
+  visaSponsorship String?    @default("unknown") // "available" | "not_available" | "unknown"
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
 

@@ -4,6 +4,7 @@ export interface DiscoveryFilters {
   source: "" | "remoteok" | "arbeitnow" | "adzuna" | "curated" | "linkedin" | "jobicy" | "linkedin_post" | "company_portal" | "greenhouse" | "lever"
   location: "" | "remote" | "hybrid" | "onsite"
   minScore: "" | "90" | "75" | "50" | "0"
+  visaSponsorship?: "" | "available" | "not_available"
   batchSlot?: BatchSlot
   tags: string[]
   hideApplied?: boolean
@@ -85,5 +86,21 @@ export function getBatchSlotBadge(slot?: string): { label: string; color: string
         color: "bg-primary/10 text-primary border-primary/20",
       }
   }
+}
+
+export function getVisaBadge(status?: string): { label: string; color: string } | null {
+  if (status === "available") {
+    return {
+      label: "Visa Sponsor",
+      color: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30",
+    }
+  }
+  if (status === "not_available") {
+    return {
+      label: "No Visa",
+      color: "bg-zinc-500/10 text-zinc-500 dark:text-zinc-400 border-zinc-500/20",
+    }
+  }
+  return null
 }
 

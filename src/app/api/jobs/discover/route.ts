@@ -8,6 +8,7 @@ import {
   executeSaveJobOpportunityToTracker,
   normalizeCompany,
   normalizeTitle,
+  calculateJobFreshness,
 } from "@/lib/ai/graph/tools/discovery-tools"
 import {
   getNextBatchReleaseTime,
@@ -170,6 +171,7 @@ export async function GET(request: NextRequest) {
 
       const dedupKey = `${normalizeCompany(job.company)}:${normalizeTitle(job.title)}`
       const existingApp = appMap.get(dedupKey)
+      const freshness = calculateJobFreshness(job.postedAt || publishedAt)
 
       return {
         id: match.id,
@@ -188,6 +190,9 @@ export async function GET(request: NextRequest) {
         batchSlot,
         batchLabel,
         publishedAt: publishedAt.toISOString(),
+        postedAt: (job.postedAt || publishedAt).toISOString(),
+        freshnessLabel: freshness.label,
+        visaSponsorship: (job.visaSponsorship as any) || "unknown",
         isSaved: match.isSaved,
         appliedStatus: existingApp?.status || null,
         applicationId: existingApp?.id || null,

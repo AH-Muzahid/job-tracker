@@ -5,12 +5,12 @@ import { motion, AnimatePresence } from "framer-motion"
 import {
   BrainCircuit, BookmarkPlus, Check, ExternalLink, MapPin,
   DollarSign, Zap, Globe, RefreshCw, X, Clock, EyeOff,
-  Copy, CheckCheck, UserCheck, MessageSquare,
+  Copy, CheckCheck, UserCheck, MessageSquare, ShieldCheck,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { DecorIcon } from "@/components/decor-icon"
 import { cn } from "@/lib/utils"
-import { getScoreBadgeClass, getSourceBadge, getBatchSlotBadge } from "./types"
+import { getScoreBadgeClass, getSourceBadge, getBatchSlotBadge, getVisaBadge } from "./types"
 import type { ExternalJobOpportunity } from "@/lib/ai/graph/tools/discovery-tools"
 
 interface DiscoveryJobRowProps {
@@ -37,6 +37,7 @@ export function DiscoveryJobRow({
   onApplyClick,
 }: DiscoveryJobRowProps) {
   const sourceBadge = getSourceBadge(job.sourceBoard)
+  const visaBadge = getVisaBadge(job.visaSponsorship)
   const [copiedPitch, setCopiedPitch] = useState(false)
   const [showPitch, setShowPitch] = useState(false)
   const [isGeneratingPitch, setIsGeneratingPitch] = useState(false)
@@ -105,7 +106,19 @@ export function DiscoveryJobRow({
                   Applied
                 </span>
               )}
-              {job.batchSlot && (
+              {visaBadge && (
+                <span className={cn("inline-flex items-center gap-0.5 px-1 py-0.2 rounded-none text-[9px] font-medium border", visaBadge.color)}>
+                  <ShieldCheck className="size-2" />
+                  {visaBadge.label}
+                </span>
+              )}
+              {job.freshnessLabel && (
+                <span className="inline-flex items-center gap-0.5 px-1 py-0.2 rounded-none text-[9px] font-medium border bg-muted/40 text-muted-foreground border-border/60">
+                  <Clock className="size-2" />
+                  {job.freshnessLabel}
+                </span>
+              )}
+              {job.batchSlot && !job.freshnessLabel && (
                 <span className={cn("inline-flex items-center gap-0.5 px-1 py-0.2 rounded-none text-[9px] font-medium border", getBatchSlotBadge(job.batchSlot).color)}>
                   <Clock className="size-2" />
                   {getBatchSlotBadge(job.batchSlot).label}
@@ -127,7 +140,19 @@ export function DiscoveryJobRow({
               <span>Applied ({job.appliedStatus})</span>
             </span>
           )}
-          {job.batchSlot && (
+          {visaBadge && (
+            <span className={cn("inline-flex items-center gap-1 px-1.5 py-0.5 rounded-none text-[10px] font-medium border", visaBadge.color)}>
+              <ShieldCheck className="size-2.5" />
+              <span>{visaBadge.label}</span>
+            </span>
+          )}
+          {job.freshnessLabel && (
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-none text-[10px] font-medium border bg-muted/40 text-muted-foreground border-border/60">
+              <Clock className="size-2.5" />
+              <span>{job.freshnessLabel}</span>
+            </span>
+          )}
+          {job.batchSlot && !job.freshnessLabel && (
             <span className={cn("inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-none text-[10px] font-medium border", getBatchSlotBadge(job.batchSlot).color)}>
               <Clock className="size-2.5" />
               {getBatchSlotBadge(job.batchSlot).label}

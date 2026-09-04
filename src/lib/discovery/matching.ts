@@ -453,3 +453,117 @@ export function evaluateJobScamRisk(job: {
     isSuspicious: finalScore >= 0.6,
   }
 }
+
+export type VisaSponsorshipStatus = "available" | "not_available" | "unknown"
+
+/**
+ * Heuristically parses job descriptions and titles for visa sponsorship and work authorization signals.
+ * Differentiates positive sponsorship offers from strict disqualifying citizenship/no-sponsorship policies.
+ * Negative disqualifications (e.g. US citizenship required, no sponsorship) take strict precedence.
+ */
+export function detectVisaSponsorship(description?: string, title?: string): VisaSponsorshipStatus {
+  const text = `${title || ""} ${description || ""}`.toLowerCase()
+  if (!text.trim()) return "unknown"
+
+  // 1. Strict negative disqualifications (Takes precedence to protect international candidates)
+  const negativePatterns = [
+    /\b(no\s+(visa\s+)?sponsorship|not\s+offer(ing)?\s+(visa\s+)?sponsorship|cannot\s+(offer\s+|provide\s+)?(visa\s+)?sponsorship|unable\s+to\s+sponsor|will\s+not\s+sponsor|not\s+eligible\s+for\s+(visa\s+)?sponsorship)\b/i,
+    /\b(no\s+sponsorship\s+(is\s+)?(now|available|offered|provided)|no\s+sponsorship\s+now\s+or\s+in\s+the\s+future)\b/i,
+    /\b(without\s+(employer\s+|company\s+)?(visa\s+)?sponsorship|not\s+requiring\s+(visa\s+)?sponsorship)\b/i,
+    /\b(must\s+be\s+(legally\s+)?authorized\s+to\s+work\s+in\s+[a-z\s.]+\s+without\s+(visa\s+|company\s+|employer\s+)?sponsorship)\b/i,
+    /\b(us\s+citizenship\s+required|u\.s\.\s+citizenship\s+required|united\s+states\s+citizenship\s+required)\b/i,
+    /\b(security\s+clearance\s+required|active\s+secret\s+clearance|ts\/sci\s+clearance|top\s+secret\s+clearance)\b/i,
+    /\b(only\s+u\.?s\.?\s+citizens|u\.?s\.?\s+citizens\s+only|us\s+citizens\s+and\s+green\s+card\s+holders\s+only)\b/i,
+    /\b(must\s+have\s+the\s+right\s+to\s+work\s+in\s+the\s+uk\s+without\s+sponsorship)\b/i,
+  ]
+
+  for (const pattern of negativePatterns) {
+    if (pattern.test(text)) {
+      return "not_available"
+    }
+  }
+
+  // 2. Verified positive sponsorship patterns
+  const positivePatterns = [
+    /\b(visa\s+sponsorship\s+(is\s+)?(available|provided|offered|supported))\b/i,
+    /\b(we\s+(offer|provide|support|can\s+provide)\s+(visa\s+)?sponsorship)\b/i,
+    /\b(open\s+to\s+(visa\s+)?sponsoring|willing\s+to\s+sponsor(\s+visas?)?)\b/i,
+    /\b(h-?1b\s+(transfer|sponsorship|supported|cap\s+exempt)|visa\s+support\s+provided)\b/i,
+    /\b(relocation\s+and\s+visa\s+sponsorship|visa\s+sponsorship\s+and\s+relocation)\b/i,
+    /\b(sponsorship\s+is\s+available|sponsorship\s+provided|sponsorship\s+offered)\b/i,
+  ]
+
+  for (const pattern of positivePatterns) {
+    if (pattern.test(text)) {
+      return "available"
+    }
+  }
+
+  return "unknown"
+}
+
+export interface FreshnessCalculation {
+  scoreDelta: number // Boost or penalty applied to fit score (+3 to -5)
+  label: string // Human-readable relative age
+  ageDays: number
+}
+
+/**
+ * Calculates posting freshness decay and scoring adjustment.
+ * Recent postings (<72h) get a freshness boost (+2 to +3), while stale postings (>14d) decay.
+ */
+export function calculateJobFreshness(
+  postedAt?: string | Date | null,
+  referenceDate: Date = new Date()
+): FreshnessCalculation {
+  if (!postedAt) {
+    return { scoreDelta: 0, label: "Active", ageDays: 0 }
+  }
+
+  const date = typeof postedAt === "string" ? new Date(postedAt) : postedAt
+  if (isNaN(date.getTime())) {
+    return { scoreDelta: 0, label: "Active", ageDays: 0 }
+  }
+
+  const diffMs = referenceDate.getTime() - date.getTime()
+  const diffHours = Math.max(0, diffMs / (1000 * 60 * 60))
+  const ageDays = Math.floor(diffHours / 24)
+
+  if (diffHours < 24) {
+    return {
+      scoreDelta: 3,
+      label: "Just posted (<24h)",
+      ageDays,
+    }
+  }
+
+  if (diffHours < 72) {
+    return {
+      scoreDelta: 2,
+      label: ageDays <= 1 ? "1d ago" : `${ageDays}d ago`,
+      ageDays,
+    }
+  }
+
+  if (ageDays <= 14) {
+    return {
+      scoreDelta: 0,
+      label: ageDays < 7 ? `${ageDays}d ago` : `${Math.floor(ageDays / 7)}w ago`,
+      ageDays,
+    }
+  }
+
+  if (ageDays <= 30) {
+    return {
+      scoreDelta: -2,
+      label: `${Math.floor(ageDays / 7)}w ago`,
+      ageDays,
+    }
+  }
+
+  return {
+    scoreDelta: -5,
+    label: "30d+ ago",
+    ageDays,
+  }
+}

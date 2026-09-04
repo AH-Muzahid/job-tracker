@@ -22,6 +22,9 @@ import {
   checkLocationMatch,
   isNationalTechHubMatch,
   isGeoDisqualified,
+  calculateJobFreshness,
+  detectVisaSponsorship,
+  type VisaSponsorshipStatus,
 } from "@/lib/discovery/matching"
 import {
   fetchMultiBoardOpportunities,
@@ -173,6 +176,8 @@ export async function executeSearchExternalJobs(
       salaryMin: j.salaryMin || undefined,
       salaryMax: j.salaryMax || undefined,
       description: j.description || "",
+      postedAt: j.postedAt || undefined,
+      visaSponsorship: (j.visaSponsorship as any) || "unknown",
     }))
 
     // If database has 0 canonical jobs, fall back to in-memory seeds
@@ -491,12 +496,40 @@ export async function executeSearchExternalJobs(
         implicitPrefs
       )
 
-      // Compute Uncompressed 1-99% Fit Score (REC-06 & REC-09)
+      // Factor 6: Posting Freshness & Decay (REC-15)
+      const freshness = calculateJobFreshness(job.postedAt)
+
+      // Factor 7: Visa Sponsorship & Work Authorization (REC-12)
+      const visaStatus = (job.visaSponsorship as VisaSponsorshipStatus) || detectVisaSponsorship(description, position)
+      let visaScore = 0
+      let visaRationale = ""
+      const isCandidateAbroad =
+        userLocation.toLowerCase().includes("bangladesh") ||
+        userLocation.toLowerCase().includes("bd") ||
+        userLocation.toLowerCase().includes("dhaka") ||
+        userLocation.toLowerCase().includes("sylhet")
+
+      if (visaStatus === "available") {
+        visaScore = isCandidateAbroad ? 3 : 1
+        visaRationale = "Visa sponsorship supported / available"
+      } else if (
+        visaStatus === "not_available" &&
+        isCandidateAbroad &&
+        (jobLocation.toLowerCase().includes("us") ||
+         jobLocation.toLowerCase().includes("united states") ||
+         jobLocation.toLowerCase().includes("uk") ||
+         jobLocation.toLowerCase().includes("united kingdom"))
+      ) {
+        visaScore = -6
+        visaRationale = "No visa sponsorship (local citizenship / authorization required)"
+      }
+
+      // Compute Uncompressed 1-99% Fit Score (REC-06, REC-09, REC-12, REC-15)
       // 90% - 99%: Exceptional / Top Pick (Verified stack + target role + exact seniority/location)
       // 75% - 89%: Strong Match (High skill overlap, solid role/seniority fit)
       // 50% - 74%: Moderate / Stretch Match (Adjacent stack or seniority stretch)
       // 1% - 49%: Low Match (Significant role, skill, or experience divergence)
-      const rawPoints = locationScore + skillScore + roleScore + experienceScore + implicitAdj.scoreDelta
+      const rawPoints = locationScore + skillScore + roleScore + experienceScore + implicitAdj.scoreDelta + freshness.scoreDelta + visaScore
       const finalFitScore = Math.max(1, Math.min(99, Math.round(rawPoints)))
 
       // Realistic ATS Keyword Matching Simulation (Comparing JD requirements vs Candidate verified skills)
@@ -608,6 +641,16 @@ export async function executeSearchExternalJobs(
         rationaleParts.push(`🌍 Location: ${locationRationale}`)
       }
 
+      if (freshness.scoreDelta > 0) {
+        rationaleParts.push(`🕒 Freshness: ${freshness.label} (+${freshness.scoreDelta})`)
+      }
+
+      if (visaStatus === "available") {
+        rationaleParts.push(`🛂 Visa: Sponsorship Available`)
+      } else if (visaRationale) {
+        rationaleParts.push(`⚠️ Work Auth: ${visaRationale}`)
+      }
+
       // Explicit ATS Match in Rationale
       const atsDetail = matchedAtsSkills.length > 0 ? `Matched: ${matchedAtsSkills.slice(0, 4).join(", ")}` : "Baseline keyword alignment"
       const missingDetail = missingAtsSkills.length > 0 ? ` | Missing: ${missingAtsSkills.slice(0, 3).join(", ")}` : ""
@@ -647,6 +690,9 @@ export async function executeSearchExternalJobs(
         outreachPitch,
         atsScore,
         missingKeywords: missingAtsSkills.slice(0, 5),
+        postedAt: job.postedAt ? (typeof job.postedAt === "string" ? job.postedAt : job.postedAt.toISOString()) : undefined,
+        freshnessLabel: freshness.label,
+        visaSponsorship: visaStatus,
         scoreBreakdown: {
           skills: skillScore,
           role: roleScore,
