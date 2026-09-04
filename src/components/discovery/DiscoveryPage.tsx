@@ -21,6 +21,7 @@ import { DiscoveryJobList } from "./DiscoveryJobList"
 import { DiscoveryBatchTimer } from "./DiscoveryBatchTimer"
 import { DiscoveryPreferencesModal } from "./DiscoveryPreferencesModal"
 import { DiscoveryTrackModal } from "./DiscoveryTrackModal"
+import { DiscoveryDismissModal } from "./DiscoveryDismissModal"
 import { useUserProfile } from "@/lib/api"
 import type { DiscoveryFilters, SortOption, BatchSummary } from "./types"
 import type { ExternalJobOpportunity } from "@/lib/ai/graph/tools/discovery-tools"
@@ -47,6 +48,7 @@ export function DiscoveryPage() {
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null)
   const [savedJobs, setSavedJobs] = useState<Set<string>>(new Set())
   const [dismissedJobIds, setDismissedJobIds] = useState<Set<string>>(new Set())
+  const [dismissModalJob, setDismissModalJob] = useState<ExternalJobOpportunity | null>(null)
   const [preferencesModalOpen, setPreferencesModalOpen] = useState(false)
   const [trackModalJob, setTrackModalJob] = useState<ExternalJobOpportunity | null>(null)
   const queryClient = useQueryClient()
@@ -231,7 +233,7 @@ export function DiscoveryPage() {
   })
 
   const dismissMutation = useMutation({
-    mutationFn: async (job: ExternalJobOpportunity) => {
+    mutationFn: async ({ job, reason }: { job: ExternalJobOpportunity; reason: string }) => {
       const res = await fetch("/api/jobs/discover", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -240,40 +242,50 @@ export function DiscoveryPage() {
           jobId: job.id,
           companyName: job.company,
           jobTitle: job.title,
+          dismissReason: reason,
         }),
       })
       if (!res.ok) throw new Error("Failed to dismiss job")
       return res.json()
     },
-    onMutate: (job) => {
+    onMutate: ({ job }) => {
+      // Optimistic instant hide
       setDismissedJobIds((prev) => new Set(prev).add(job.id))
     },
-    onSuccess: (_, job) => {
-      toast(`"${job.title}" hidden from your feed`, {
+    onSuccess: (_, { job }) => {
+      toast.success(`"${job.title}" hidden from your feed`, {
+        duration: 5000,
         action: {
           label: "Undo",
           onClick: async () => {
+            // Optimistic restore
             setDismissedJobIds((prev) => {
               const next = new Set(prev)
               next.delete(job.id)
               return next
             })
-            await fetch("/api/jobs/discover", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                action: "undismiss",
-                jobId: job.id,
-                companyName: job.company,
-                jobTitle: job.title,
-              }),
-            }).catch(() => {})
-            queryClient.invalidateQueries({ queryKey: ["discovery"] })
+            try {
+              await fetch("/api/jobs/discover", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  action: "undismiss",
+                  jobId: job.id,
+                  companyName: job.company,
+                  jobTitle: job.title,
+                }),
+              })
+              queryClient.invalidateQueries({ queryKey: ["discovery"] })
+              toast.success(`"${job.title}" restored to your feed`)
+            } catch {
+              toast.error("Failed to restore job")
+            }
           },
         },
       })
     },
-    onError: (err: Error, job) => {
+    onError: (err: Error, { job }) => {
+      // Rollback optimistic removal
       setDismissedJobIds((prev) => {
         const next = new Set(prev)
         next.delete(job.id)
@@ -400,8 +412,8 @@ export function DiscoveryPage() {
             saveMutation={saveMutation}
             onToggleExpand={handleToggleExpand}
             onSave={(job) => saveMutation.mutate(job)}
-            onDismiss={(job) => dismissMutation.mutate(job)}
-            dismissingJobId={dismissMutation.variables?.id || null}
+            onDismiss={(job) => setDismissModalJob(job)}
+            dismissingJobId={dismissMutation.isPending ? dismissMutation.variables?.job.id : null}
             onApplyClick={handleApplyClick}
             onClearAll={() => {
               setSearchQuery("")
@@ -454,6 +466,18 @@ export function DiscoveryPage() {
           saveMutation.mutate(job)
         }}
         isSubmitting={saveMutation.isPending}
+      />
+
+      {/* Interactive 1-Click Dismissal Modal */}
+      <DiscoveryDismissModal
+        job={dismissModalJob}
+        open={Boolean(dismissModalJob)}
+        onOpenChange={(open) => {
+          if (!open) setDismissModalJob(null)
+        }}
+        onDismiss={(job, reason) => {
+          dismissMutation.mutate({ job, reason })
+        }}
       />
     </div>
   )

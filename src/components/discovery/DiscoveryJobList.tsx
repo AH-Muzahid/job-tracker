@@ -4,6 +4,7 @@ import { Briefcase, RefreshCw, Sliders } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { DecorIcon } from "@/components/decor-icon"
 import { DiscoveryJobRow } from "./DiscoveryJobRow"
+import { DiscoveryTopPicks } from "./DiscoveryTopPicks"
 import type { ExternalJobOpportunity } from "@/lib/ai/graph/tools/discovery-tools"
 import type { UseMutationResult } from "@tanstack/react-query"
 
@@ -95,10 +96,25 @@ export function DiscoveryJobList({
     )
   }
 
+  const hasTopPicks = opportunities.some((j) => j.fitScore >= 90)
+
   return (
     <div>
+      {/* Top Picks Showcase (Gracefully degrades to null when no 90%+ match exists) */}
+      <DiscoveryTopPicks
+        topPicks={opportunities}
+        savedJobs={savedJobs}
+        isSavingId={saveMutation.isPending ? saveMutation.variables?.id : null}
+        onSave={onSave}
+        onDismiss={onDismiss || (() => {})}
+        onApplyClick={onApplyClick}
+        onSelectJob={(id) => onToggleExpand(id)}
+      />
+
       <div className="flex items-center justify-between mb-2 px-1">
-        <span className="text-xs font-semibold text-foreground">{opportunities.length} Positions Available</span>
+        <span className="text-xs font-semibold text-foreground">
+          {hasTopPicks ? "All Feed Positions" : "Positions Available"} ({opportunities.length})
+        </span>
       </div>
       <div>
         {opportunities.map((job) => (
