@@ -104,3 +104,55 @@ export function getVisaBadge(status?: string): { label: string; color: string } 
   return null
 }
 
+export function formatSalaryClean(salary?: string | null): string | null {
+  if (!salary) return null
+  const trimmed = salary.trim()
+  if (!trimmed) return null
+  return trimmed.replace(/^\$\s*\$*/, "$")
+}
+
+export interface ParsedRationale {
+  scoreBreakdown?: string
+  roleMatch?: string
+  techStack?: string
+  experienceFit?: string
+  locationFit?: string
+  freshness?: string
+  atsCompatibility?: string
+  strategyTip?: string
+  otherPoints: string[]
+}
+
+export function parseMatchRationale(rationale?: string | null): ParsedRationale {
+  const result: ParsedRationale = { otherPoints: [] }
+  if (!rationale) return result
+
+  const parts = rationale.split(" • ")
+  for (const part of parts) {
+    const trimmed = part.trim()
+    if (!trimmed) continue
+
+    if (trimmed.startsWith("Fit Breakdown:")) {
+      result.scoreBreakdown = trimmed.replace("Fit Breakdown:", "").trim()
+    } else if (trimmed.startsWith("Role Match:")) {
+      result.roleMatch = trimmed.replace("Role Match:", "").trim()
+    } else if (trimmed.startsWith("Tech Stack:")) {
+      result.techStack = trimmed.replace("Tech Stack:", "").trim()
+    } else if (trimmed.startsWith("Experience Fit:")) {
+      result.experienceFit = trimmed.replace("Experience Fit:", "").trim()
+    } else if (trimmed.startsWith("Location:")) {
+      result.locationFit = trimmed.replace("Location:", "").trim()
+    } else if (trimmed.startsWith("Freshness:")) {
+      result.freshness = trimmed.replace("Freshness:", "").trim()
+    } else if (trimmed.startsWith("ATS Compatibility:")) {
+      result.atsCompatibility = trimmed.replace("ATS Compatibility:", "").trim()
+    } else if (trimmed.startsWith("Strategy Tip:")) {
+      result.strategyTip = trimmed.replace("Strategy Tip:", "").trim()
+    } else {
+      result.otherPoints.push(trimmed)
+    }
+  }
+
+  return result
+}
+

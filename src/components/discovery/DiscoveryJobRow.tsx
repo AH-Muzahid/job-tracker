@@ -4,13 +4,20 @@ import { useEffect, useCallback, useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   BrainCircuit, BookmarkPlus, Check, ExternalLink, MapPin,
-  DollarSign, Zap, Globe, RefreshCw, X, Clock, EyeOff,
+  Zap, Globe, RefreshCw, Clock, EyeOff,
   Copy, CheckCheck, UserCheck, MessageSquare, ShieldCheck,
+  ChevronDown, ChevronUp,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { DecorIcon } from "@/components/decor-icon"
 import { cn } from "@/lib/utils"
-import { getScoreBadgeClass, getSourceBadge, getBatchSlotBadge, getVisaBadge } from "./types"
+import {
+  getScoreBadgeClass,
+  getSourceBadge,
+  getVisaBadge,
+  formatSalaryClean,
+  parseMatchRationale,
+} from "./types"
 import type { ExternalJobOpportunity } from "@/lib/ai/graph/tools/discovery-tools"
 
 interface DiscoveryJobRowProps {
@@ -38,6 +45,9 @@ export function DiscoveryJobRow({
 }: DiscoveryJobRowProps) {
   const sourceBadge = getSourceBadge(job.sourceBoard)
   const visaBadge = getVisaBadge(job.visaSponsorship)
+  const cleanSalary = formatSalaryClean(job.salary)
+  const parsedRationale = parseMatchRationale(job.matchRationale)
+
   const [copiedPitch, setCopiedPitch] = useState(false)
   const [showPitch, setShowPitch] = useState(false)
   const [isGeneratingPitch, setIsGeneratingPitch] = useState(false)
@@ -56,150 +66,169 @@ export function DiscoveryJobRow({
   return (
     <div
       className={cn(
-        "transition-colors",
+        "transition-colors group",
         isExpanded
-          ? "bg-card border border-border/60 rounded-none my-1 shadow-xs relative"
-          : "border-b border-border/40 py-3 px-4 cursor-pointer hover:bg-muted/30"
+          ? "bg-card border border-border/80 rounded-none my-2 shadow-xs relative"
+          : "border-b border-border/50 py-3.5 px-4 cursor-pointer hover:bg-muted/20"
       )}
       onClick={!isExpanded ? onToggle : undefined}
     >
       {isExpanded && <DecorIcon position="top-right" />}
       {isExpanded && <DecorIcon position="bottom-left" />}
 
-      {/* Row content */}
-      <div className={cn("flex items-start sm:items-center gap-3", isExpanded && "px-4 pt-3 pb-2")}>
-        <div className="size-8 rounded-none bg-muted flex items-center justify-center font-bold text-xs text-foreground shrink-0 border border-border mt-0.5 sm:mt-0">
-          {job.company.slice(0, 2).toUpperCase()}
-        </div>
-
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between gap-2">
-            <h3 className="text-sm font-semibold text-foreground truncate group-hover:text-primary transition-colors">
-              {job.title}
-            </h3>
-
-            {/* Mobile-only compact fit score */}
-            <span className={cn("sm:hidden flex items-center gap-1 px-1.5 py-0.2 rounded-none text-[10px] font-bold border shrink-0", getScoreBadgeClass(job.fitScore))}>
-              <BrainCircuit className="size-2.5" />
-              {job.fitScore}%
-            </span>
+      {/* Main Row Content */}
+      <div className={cn("flex flex-col sm:flex-row sm:items-center justify-between gap-3", isExpanded && "px-4 pt-3.5 pb-2")}>
+        {/* Left identity + details */}
+        <div className="flex items-start gap-3.5 min-w-0 flex-1">
+          {/* Company Avatar Monogram */}
+          <div className="size-10 rounded-none bg-muted/80 flex items-center justify-center font-bold text-xs sm:text-sm text-foreground shrink-0 border border-border mt-0.5 sm:mt-0 font-mono select-none">
+            {job.company.slice(0, 2).toUpperCase()}
           </div>
 
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-0.5">
-            <span className="text-xs text-muted-foreground font-medium">{job.company}</span>
-            <span className="text-[11px] text-muted-foreground flex items-center gap-0.5">
-              <MapPin className="size-3 shrink-0" />
-              <span className="truncate max-w-[110px]">{job.location}</span>
-            </span>
-            {job.salary && (
-              <span className="text-[11px] font-mono text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5">
-                <DollarSign className="size-3 shrink-0" />
-                {job.salary}
-              </span>
-            )}
+          <div className="flex-1 min-w-0 space-y-1.5">
+            {/* Title & Fit Pill */}
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="text-base font-semibold text-foreground group-hover:text-primary transition-colors leading-snug">
+                {job.title}
+              </h3>
 
-            {/* Mobile-only badges displayed on second line */}
-            <div className="flex sm:hidden items-center gap-1.5 mt-0.5">
-              {job.appliedStatus && (
-                <span className="inline-flex items-center gap-0.5 px-1 py-0.2 rounded-none text-[9px] font-medium bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
-                  <Check className="size-2" />
-                  Applied
-                </span>
-              )}
-              {visaBadge && (
-                <span className={cn("inline-flex items-center gap-0.5 px-1 py-0.2 rounded-none text-[9px] font-medium border", visaBadge.color)}>
-                  <ShieldCheck className="size-2" />
-                  {visaBadge.label}
-                </span>
-              )}
+              {/* Fit Score Badge */}
+              <span className={cn(
+                "inline-flex items-center gap-1 px-2.5 py-0.5 rounded-none text-xs font-bold border shrink-0 font-mono",
+                getScoreBadgeClass(job.fitScore)
+              )}>
+                <BrainCircuit className="size-3" />
+                <span>{job.fitScore}% Match</span>
+              </span>
+
+              {/* Freshness Badge */}
               {job.freshnessLabel && (
-                <span className="inline-flex items-center gap-0.5 px-1 py-0.2 rounded-none text-[9px] font-medium border bg-muted/40 text-muted-foreground border-border/60">
-                  <Clock className="size-2" />
-                  {job.freshnessLabel}
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-none text-xs font-medium border bg-muted/40 text-muted-foreground border-border/60 shrink-0">
+                  <Clock className="size-3" />
+                  <span>{job.freshnessLabel}</span>
                 </span>
               )}
-              {job.batchSlot && !job.freshnessLabel && (
-                <span className={cn("inline-flex items-center gap-0.5 px-1 py-0.2 rounded-none text-[9px] font-medium border", getBatchSlotBadge(job.batchSlot).color)}>
-                  <Clock className="size-2" />
-                  {getBatchSlotBadge(job.batchSlot).label}
+            </div>
+
+            {/* Metadata Line */}
+            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-muted-foreground">
+              <span className="font-medium text-foreground text-sm">{job.company}</span>
+              <span className="text-muted-foreground/50 select-none">•</span>
+              
+              <span className="inline-flex items-center gap-1">
+                <MapPin className="size-3.5 shrink-0" />
+                <span className="truncate max-w-[150px]">{job.location}</span>
+              </span>
+
+              {cleanSalary && (
+                <>
+                  <span className="text-muted-foreground/50 select-none">•</span>
+                  <span className="font-mono font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 border border-emerald-500/20 rounded-none">
+                    {cleanSalary}
+                  </span>
+                </>
+              )}
+
+              {visaBadge && (
+                <span className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-none font-medium border", visaBadge.color)}>
+                  <ShieldCheck className="size-3" />
+                  <span>{visaBadge.label}</span>
                 </span>
               )}
-              <span className={cn("inline-flex items-center gap-0.5 px-1 py-0.2 rounded-none text-[9px] font-medium border", sourceBadge.color)}>
-                <Globe className="size-2" />
-                {sourceBadge.label}
+
+              <span className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-none font-medium border", sourceBadge.color)}>
+                <Globe className="size-3" />
+                <span>{sourceBadge.label}</span>
               </span>
             </div>
+
+            {/* Tags (Collapsed View) */}
+            {!isExpanded && job.tags && job.tags.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                {job.tags.slice(0, 5).map((tag) => (
+                  <span
+                    key={tag}
+                    className="text-xs px-2 py-0.5 bg-muted/60 text-muted-foreground border border-border/50 rounded-none font-mono"
+                  >
+                    {tag}
+                  </span>
+                ))}
+                {job.tags.length > 5 && (
+                  <span className="text-xs text-muted-foreground/80 self-center font-mono">
+                    +{job.tags.length - 5}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Desktop-only badges aligned to right */}
-        <div className="hidden sm:flex items-center gap-2 shrink-0">
-          {job.appliedStatus && (
-            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-none text-[10px] font-medium bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
-              <Check className="size-2.5" />
-              <span>Applied ({job.appliedStatus})</span>
-            </span>
-          )}
-          {visaBadge && (
-            <span className={cn("inline-flex items-center gap-1 px-1.5 py-0.5 rounded-none text-[10px] font-medium border", visaBadge.color)}>
-              <ShieldCheck className="size-2.5" />
-              <span>{visaBadge.label}</span>
-            </span>
-          )}
-          {job.freshnessLabel && (
-            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-none text-[10px] font-medium border bg-muted/40 text-muted-foreground border-border/60">
-              <Clock className="size-2.5" />
-              <span>{job.freshnessLabel}</span>
-            </span>
-          )}
-          {job.batchSlot && !job.freshnessLabel && (
-            <span className={cn("inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-none text-[10px] font-medium border", getBatchSlotBadge(job.batchSlot).color)}>
-              <Clock className="size-2.5" />
-              {getBatchSlotBadge(job.batchSlot).label}
-            </span>
-          )}
-          <span className={cn("flex items-center gap-1 px-2 py-0.5 rounded-none text-[11px] font-bold border", getScoreBadgeClass(job.fitScore))}>
-            <BrainCircuit className="size-3" />
-            {job.fitScore}%
-          </span>
-          <span className={cn("inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-none text-[10px] font-medium border", sourceBadge.color)}>
-            <Globe className="size-2.5" />
-            {sourceBadge.label}
-          </span>
-          {onDismiss && !isExpanded && (
+        {/* Right Instant Action Bar (Always Available on Collapsed Row) */}
+        {!isExpanded && (
+          <div
+            className="flex items-center gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-border/40"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {job.appliedStatus ? (
+              <span className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-none text-xs font-medium bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+                <Check className="size-3.5" />
+                <span>Applied</span>
+              </span>
+            ) : (
+              <Button
+                size="sm"
+                variant={isSaved ? "secondary" : "default"}
+                disabled={isSaved || isSaving}
+                onClick={onSave}
+                className="h-8 text-xs px-3 gap-1.5 cursor-pointer font-medium rounded-none"
+              >
+                {isSaved ? (
+                  <><Check className="size-3.5 text-emerald-500" /><span>Saved</span></>
+                ) : isSaving ? (
+                  <><RefreshCw className="size-3.5 animate-spin" /><span>Saving...</span></>
+                ) : (
+                  <><BookmarkPlus className="size-3.5" /><span>Save</span></>
+                )}
+              </Button>
+            )}
+
+            <a
+              href={job.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => onApplyClick?.()}
+              className="inline-flex items-center justify-center gap-1.5 h-8 px-3 rounded-none border border-border text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors cursor-pointer"
+            >
+              <span>Apply</span>
+              <ExternalLink className="size-3" />
+            </a>
+
+            {onDismiss && (
+              <button
+                type="button"
+                onClick={onDismiss}
+                disabled={isDismissing}
+                title="Dismiss from feed"
+                className="size-8 inline-flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors rounded-none cursor-pointer border border-transparent hover:border-destructive/30"
+              >
+                <EyeOff className="size-3.5" />
+              </button>
+            )}
+
             <button
               type="button"
-              onClick={(e) => {
-                e.stopPropagation()
-                onDismiss()
-              }}
-              disabled={isDismissing}
-              title="Dismiss this job from feed"
-              className="size-6 inline-flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors rounded-none cursor-pointer ml-1"
+              onClick={onToggle}
+              title="View AI Match Breakdown"
+              className="h-8 px-2 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors rounded-none cursor-pointer border border-border/60"
             >
-              <EyeOff className="size-3" />
+              <span className="hidden md:inline">Details</span>
+              <ChevronDown className="size-3.5" />
             </button>
-          )}
-        </div>
-
-        {!isExpanded && (
-          <div className="text-[11px] text-muted-foreground line-clamp-1 max-w-[320px] hidden lg:block" title={job.matchRationale}>
-            {job.matchRationale}
           </div>
         )}
       </div>
 
-      {/* Tags row (collapsed) */}
-      {!isExpanded && job.tags?.length > 0 && (
-        <div className="flex flex-wrap gap-1 mt-1.5 ml-11">
-          {job.tags.slice(0, 4).map((t) => (
-            <span key={t} className="text-[10px] px-1.5 py-0 bg-muted/70 rounded-none text-muted-foreground">{t}</span>
-          ))}
-          {job.tags.length > 4 && <span className="text-[10px] text-muted-foreground">+{job.tags.length - 4}</span>}
-        </div>
-      )}
-
-      {/* Expanded content */}
+      {/* Expanded Content (Structured Intelligence Drawer) */}
       <AnimatePresence>
         {isExpanded && (
           <motion.div
@@ -209,60 +238,99 @@ export function DiscoveryJobRow({
             transition={{ duration: 0.2, ease: "easeOut" }}
             className="overflow-hidden"
           >
-            <div className="px-4 pb-3 space-y-3">
-              {/* AI Rationale & In-Depth Personalization */}
-              <div className="bg-muted/20 rounded-none p-3.5 border border-border/60 space-y-2">
-                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-2">
-                  <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                    <Zap className="size-3.5 text-primary" />
-                    <span>AI Personalization & Match Rationale</span>
-                  </p>
+            <div className="px-4 pb-4 pt-2 space-y-4">
+              {/* Intelligence Grid */}
+              <div className="bg-muted/20 border border-border/70 p-4 rounded-none space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/50 pb-2.5">
                   <div className="flex items-center gap-2">
-                    {typeof job.atsScore === "number" && (
-                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-none text-[10px] font-mono border bg-background/60 text-muted-foreground border-border">
-                        <span>ATS Match:</span>
-                        <span className={cn(
-                          "font-bold",
-                          job.atsScore >= 75 ? "text-emerald-500" : job.atsScore >= 60 ? "text-amber-500" : "text-muted-foreground"
-                        )}>
-                          {job.atsScore}%
-                        </span>
-                      </span>
-                    )}
-                    <span className="text-[10px] font-mono text-muted-foreground hidden sm:inline">
-                      Evaluated against profile & bestProjects
+                    <Zap className="size-4 text-primary" />
+                    <span className="text-xs font-semibold uppercase tracking-wider text-foreground font-mono">
+                      AI Match Intelligence
                     </span>
                   </div>
+                  {typeof job.atsScore === "number" && (
+                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 text-xs font-mono border bg-background/80 text-foreground border-border">
+                      <span className="text-muted-foreground">ATS Compatibility:</span>
+                      <span className={cn(
+                        "font-bold",
+                        job.atsScore >= 75 ? "text-emerald-500" : job.atsScore >= 60 ? "text-amber-500" : "text-muted-foreground"
+                      )}>
+                        {job.atsScore}%
+                      </span>
+                    </span>
+                  )}
                 </div>
-                <div className="space-y-1.5 pt-0.5">
-                  {job.matchRationale.split(" • ").map((dimension, idx) => (
-                    <div key={idx} className="flex items-start gap-2 text-xs text-muted-foreground leading-relaxed">
-                      <span className="text-primary/70 shrink-0 select-none">•</span>
-                      <span>{dimension}</span>
+
+                {/* 4-Metric Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+                  {parsedRationale.scoreBreakdown && (
+                    <div className="p-2.5 bg-background/60 border border-border/50 rounded-none space-y-1">
+                      <span className="text-[11px] font-mono text-muted-foreground uppercase block">Score Breakdown</span>
+                      <p className="text-xs font-medium text-foreground">{parsedRationale.scoreBreakdown}</p>
                     </div>
-                  ))}
+                  )}
+
+                  {parsedRationale.roleMatch && (
+                    <div className="p-2.5 bg-background/60 border border-border/50 rounded-none space-y-1">
+                      <span className="text-[11px] font-mono text-muted-foreground uppercase block">Role Alignment</span>
+                      <p className="text-xs font-medium text-foreground">{parsedRationale.roleMatch}</p>
+                    </div>
+                  )}
+
+                  {parsedRationale.experienceFit && (
+                    <div className="p-2.5 bg-background/60 border border-border/50 rounded-none space-y-1">
+                      <span className="text-[11px] font-mono text-muted-foreground uppercase block">Seniority & Stage</span>
+                      <p className="text-xs font-medium text-foreground">{parsedRationale.experienceFit}</p>
+                    </div>
+                  )}
+
+                  {parsedRationale.locationFit && (
+                    <div className="p-2.5 bg-background/60 border border-border/50 rounded-none space-y-1">
+                      <span className="text-[11px] font-mono text-muted-foreground uppercase block">Location / Work Mode</span>
+                      <p className="text-xs font-medium text-foreground">{parsedRationale.locationFit}</p>
+                    </div>
+                  )}
                 </div>
+
+                {/* Tech Stack Match Details */}
+                {parsedRationale.techStack && (
+                  <div className="p-2.5 bg-background/60 border border-border/50 rounded-none space-y-1">
+                    <span className="text-[11px] font-mono text-muted-foreground uppercase block">Verified Tech Stack Match</span>
+                    <p className="text-xs font-medium text-foreground font-mono">{parsedRationale.techStack}</p>
+                  </div>
+                )}
+
+                {/* Strategy Tip Callout */}
+                {parsedRationale.strategyTip && (
+                  <div className="p-3 bg-primary/5 border border-primary/20 rounded-none flex items-start gap-2.5">
+                    <Zap className="size-4 text-primary shrink-0 mt-0.5" />
+                    <div className="space-y-0.5">
+                      <span className="text-xs font-semibold text-primary font-mono uppercase">Strategy Recommendation</span>
+                      <p className="text-xs text-foreground/90 leading-relaxed">{parsedRationale.strategyTip}</p>
+                    </div>
+                  </div>
+                )}
               </div>
 
-              {/* Direct Author Outreach (On-Demand Generation) */}
+              {/* Direct Author Outreach */}
               {(job.outreachPitch || job.authorName || job.sourceBoard === "linkedin_post") && (
-                <div className="bg-primary/5 border border-primary/25 p-3 rounded-none space-y-2">
-                  <div className="flex flex-wrap items-center justify-between gap-1.5 border-b border-primary/20 pb-1.5">
-                    <div className="flex items-center gap-1.5 text-xs font-semibold text-primary">
-                      <MessageSquare className="size-3.5" />
+                <div className="bg-primary/5 border border-primary/25 p-3.5 rounded-none space-y-2.5">
+                  <div className="flex flex-wrap items-center justify-between gap-1.5 border-b border-primary/20 pb-2">
+                    <div className="flex items-center gap-1.5 text-xs font-semibold text-primary font-mono uppercase">
+                      <MessageSquare className="size-4" />
                       <span>Direct Author Outreach (Bypasses ATS)</span>
                     </div>
                     {job.authorName && (
-                      <span className="text-[11px] text-muted-foreground font-mono">
-                        Author / Recruiter: {job.authorName}
+                      <span className="text-xs text-muted-foreground font-mono">
+                        Author: <strong className="text-foreground">{job.authorName}</strong>
                       </span>
                     )}
                   </div>
 
                   {!showPitch ? (
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pt-1">
                       <p className="text-xs text-muted-foreground">
-                        Ready to reach out? Generate a custom 2-sentence cold message referencing your verified projects.
+                        Generate a customized 2-sentence direct message highlighting your verified projects.
                       </p>
                       <Button
                         size="sm"
@@ -276,24 +344,24 @@ export function DiscoveryJobRow({
                             setShowPitch(true)
                           }, 300)
                         }}
-                        className="h-7 text-[11px] gap-1.5 rounded-none font-medium text-primary hover:text-primary hover:bg-primary/10 border-primary/30 shrink-0 cursor-pointer"
+                        className="h-8 text-xs gap-1.5 rounded-none font-medium text-primary hover:bg-primary/10 border-primary/30 shrink-0 cursor-pointer"
                       >
                         {isGeneratingPitch ? (
                           <>
-                            <RefreshCw className="size-3 animate-spin text-primary" />
+                            <RefreshCw className="size-3.5 animate-spin text-primary" />
                             <span>Generating Pitch...</span>
                           </>
                         ) : (
                           <>
-                            <Zap className="size-3 text-primary" />
+                            <Zap className="size-3.5 text-primary" />
                             <span>Generate Outreach Pitch</span>
                           </>
                         )}
                       </Button>
                     </div>
                   ) : (
-                    <div className="space-y-2 pt-1">
-                      <p className="text-xs text-muted-foreground leading-relaxed italic bg-background/60 p-2.5 border border-border/50 select-all">
+                    <div className="space-y-2.5 pt-1">
+                      <p className="text-xs text-foreground/90 leading-relaxed italic bg-background/80 p-3 border border-border/50 select-all">
                         &ldquo;{job.outreachPitch || `Hi ${job.authorName ? job.authorName.split(" ")[0] : "Hiring Lead"}, I noticed your opening for ${job.title} at ${job.company}. My verified full-stack projects align closely with your stack requirements. I'd love to share my portfolio and connect!`}&rdquo;
                       </p>
                       <div className="flex flex-wrap items-center gap-2 pt-0.5">
@@ -307,17 +375,17 @@ export function DiscoveryJobRow({
                             setCopiedPitch(true)
                             setTimeout(() => setCopiedPitch(false), 2000)
                           }}
-                          className="h-7 text-[11px] gap-1.5 rounded-none font-medium cursor-pointer"
+                          className="h-8 text-xs gap-1.5 rounded-none font-medium cursor-pointer"
                         >
                           {copiedPitch ? (
                             <>
-                              <CheckCheck className="size-3 text-emerald-500" />
+                              <CheckCheck className="size-3.5 text-emerald-500" />
                               <span>Copied to Clipboard!</span>
                             </>
                           ) : (
                             <>
-                              <Copy className="size-3" />
-                              <span>Copy Tailored DM Pitch</span>
+                              <Copy className="size-3.5" />
+                              <span>Copy Pitch</span>
                             </>
                           )}
                         </Button>
@@ -327,11 +395,11 @@ export function DiscoveryJobRow({
                             target="_blank"
                             rel="noopener noreferrer"
                             onClick={(e) => e.stopPropagation()}
-                            className="inline-flex items-center gap-1 h-7 px-2.5 text-[11px] font-medium border border-border text-foreground hover:bg-muted/40 transition-colors"
+                            className="inline-flex items-center gap-1 h-8 px-3 text-xs font-medium border border-border text-foreground hover:bg-muted/40 transition-colors"
                           >
-                            <UserCheck className="size-3 text-primary" />
-                            <span>View Author Profile</span>
-                            <ExternalLink className="size-2.5 opacity-70" />
+                            <UserCheck className="size-3.5 text-primary" />
+                            <span>View Profile</span>
+                            <ExternalLink className="size-3 opacity-70" />
                           </a>
                         )}
                         <button
@@ -340,9 +408,9 @@ export function DiscoveryJobRow({
                             e.stopPropagation()
                             setShowPitch(false)
                           }}
-                          className="text-[11px] text-muted-foreground hover:text-foreground ml-auto cursor-pointer underline underline-offset-2"
+                          className="text-xs text-muted-foreground hover:text-foreground ml-auto cursor-pointer underline underline-offset-2"
                         >
-                          Collapse
+                          Collapse Pitch
                         </button>
                       </div>
                     </div>
@@ -350,25 +418,27 @@ export function DiscoveryJobRow({
                 </div>
               )}
 
-              {/* Tags */}
-              {job.tags?.length > 0 && (
-                <div className="flex flex-wrap gap-1">
-                  {job.tags.map((t) => (
-                    <span key={t} className="text-[10px] px-1.5 py-0 bg-muted/70 rounded-none text-muted-foreground border border-border/50">{t}</span>
-                  ))}
+              {/* All Tags */}
+              {job.tags && job.tags.length > 0 && (
+                <div className="space-y-1.5 pt-1">
+                  <span className="text-[11px] font-mono text-muted-foreground uppercase block">All Extracted Tags</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {job.tags.map((t) => (
+                      <span
+                        key={t}
+                        className="text-xs px-2 py-0.5 bg-muted/60 rounded-none text-muted-foreground border border-border/50 font-mono"
+                      >
+                        {t}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               )}
 
-              {/* Source */}
-              <div className="text-[11px] text-muted-foreground flex items-center gap-1">
-                <Globe className="size-3" />
-                <span>Source: {sourceBadge.label}</span>
-              </div>
-
-              {/* Actions */}
-              <div className="flex flex-wrap items-center gap-2 pt-1">
+              {/* Bottom Actions Bar in Expanded State */}
+              <div className="flex flex-wrap items-center gap-2.5 pt-2 border-t border-border/50">
                 {job.appliedStatus ? (
-                  <div className="inline-flex items-center gap-1.5 h-8 px-3 text-xs bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 font-medium">
+                  <div className="inline-flex items-center gap-1.5 h-9 px-3 text-xs bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 font-medium">
                     <Check className="size-3.5" />
                     <span>Already in Tracker ({job.appliedStatus})</span>
                   </div>
@@ -378,10 +448,10 @@ export function DiscoveryJobRow({
                     variant={isSaved ? "secondary" : "default"}
                     disabled={isSaved || isSaving}
                     onClick={(e) => { e.stopPropagation(); onSave() }}
-                    className="h-8 text-xs gap-1.5 cursor-pointer font-medium rounded-none flex-1 sm:flex-initial"
+                    className="h-9 text-xs px-4 gap-1.5 cursor-pointer font-medium rounded-none"
                   >
                     {isSaved ? (
-                      <><Check className="size-3.5 text-emerald-500" /><span>Saved</span></>
+                      <><Check className="size-3.5 text-emerald-500" /><span>Saved to Tracker</span></>
                     ) : isSaving ? (
                       <><RefreshCw className="size-3.5 animate-spin" /><span>Saving...</span></>
                     ) : (
@@ -398,14 +468,14 @@ export function DiscoveryJobRow({
                     e.stopPropagation()
                     onApplyClick?.()
                   }}
-                  className="inline-flex items-center justify-center gap-1 h-8 px-3 rounded-none border border-border text-xs text-muted-foreground hover:text-foreground font-medium transition-colors flex-1 sm:flex-initial"
+                  className="inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-none border border-border text-xs text-foreground hover:bg-muted/50 font-medium transition-colors cursor-pointer"
                 >
                   <span>
                     {job.sourceBoard === "curated"
-                      ? `Apply at ${job.company}`
+                      ? `Apply on ${job.company}`
                       : `View on ${sourceBadge.label}`}
                   </span>
-                  <ExternalLink className="size-3" />
+                  <ExternalLink className="size-3.5" />
                 </a>
 
                 {onDismiss && (
@@ -418,20 +488,23 @@ export function DiscoveryJobRow({
                       e.stopPropagation()
                       onDismiss()
                     }}
-                    className="h-8 text-xs gap-1 cursor-pointer text-muted-foreground hover:text-destructive hover:border-destructive/40 hover:bg-destructive/10 rounded-none"
+                    className="h-9 text-xs gap-1.5 cursor-pointer text-muted-foreground hover:text-destructive hover:border-destructive/40 hover:bg-destructive/10 rounded-none"
                   >
                     <EyeOff className="size-3.5" />
-                    <span>Dismiss</span>
+                    <span>Dismiss Role</span>
                   </Button>
                 )}
 
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
+                  size="sm"
                   onClick={(e) => { e.stopPropagation(); onToggle() }}
-                  className="ml-auto text-muted-foreground hover:text-foreground cursor-pointer p-1"
+                  className="ml-auto h-9 text-xs text-muted-foreground hover:text-foreground cursor-pointer rounded-none gap-1"
                 >
-                  <X className="size-4" />
-                </button>
+                  <span>Collapse</span>
+                  <ChevronUp className="size-3.5" />
+                </Button>
               </div>
             </div>
           </motion.div>

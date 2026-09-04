@@ -339,31 +339,35 @@ export function DiscoveryPage() {
       <DiscoveryStatRow opportunities={allOpportunities} savedJobs={savedJobs} />
 
       {/* Search + Sort + Filter Bar */}
-      <div className="flex flex-wrap sm:flex-nowrap items-center gap-2">
-        <form onSubmit={handleSearchSubmit} className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+      <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5">
+        <form onSubmit={handleSearchSubmit} className="relative flex-1 min-w-[220px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             type="text"
-            placeholder="Search roles, companies, or tech stack..."
+            placeholder="Search roles, companies, or tech stack (e.g. Frontend, React)..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-8 pr-8 text-xs h-8 bg-background rounded-none"
+            className="pl-9 pr-9 text-sm h-9 bg-background rounded-none border-border/70"
           />
           {searchQuery && (
-            <button type="button" onClick={() => setSearchQuery("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5 cursor-pointer">
-              <X className="h-3 w-3" />
+            <button
+              type="button"
+              onClick={() => setSearchQuery("")}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1 cursor-pointer"
+            >
+              <X className="h-3.5 w-3.5" />
             </button>
           )}
         </form>
 
-        <div className="flex items-center gap-1.5 shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
           {/* Mobile Filter Trigger Sheet */}
           <Sheet open={mobileFiltersOpen} onOpenChange={setMobileFiltersOpen}>
             <SheetTrigger asChild>
               <Button
                 variant="outline"
                 size="sm"
-                className="lg:hidden h-8 text-xs gap-1.5 rounded-none cursor-pointer border-border"
+                className="lg:hidden h-9 text-xs gap-1.5 rounded-none cursor-pointer border-border"
               >
                 <Filter className="size-3.5" />
                 <span>Filters</span>
@@ -396,8 +400,8 @@ export function DiscoveryPage() {
             variant="outline"
             onClick={() => refetch()}
             disabled={isLoading || isRefetching}
-            className="h-8 px-2.5 cursor-pointer rounded-none"
-            title="Refresh"
+            className="h-9 px-3 cursor-pointer rounded-none border-border"
+            title="Refresh Feed"
           >
             <RefreshCw className={cn("h-3.5 w-3.5", (isLoading || isRefetching) && "animate-spin")} />
           </Button>
@@ -409,7 +413,7 @@ export function DiscoveryPage() {
         <DiscoveryFilterSidebar
           filters={filters}
           onFilterChange={setFilters}
-          className="hidden lg:block w-60 shrink-0 border-r border-border/60 pr-5"
+          className="hidden lg:block w-64 shrink-0 border-r border-border/60 pr-5"
         />
         <div className="flex-1 min-w-0">
           <DiscoveryJobList

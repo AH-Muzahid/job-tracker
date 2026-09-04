@@ -111,9 +111,12 @@ export function DiscoveryJobList({
         onSelectJob={(id) => onToggleExpand(id)}
       />
 
-      <div className="flex items-center justify-between mb-2 px-1">
-        <span className="text-xs font-semibold text-foreground">
+      <div className="flex items-center justify-between mb-3 px-1 border-b border-border/60 pb-2">
+        <span className="text-xs font-bold uppercase tracking-wider font-mono text-foreground">
           {hasTopPicks ? "All Feed Positions" : "Positions Available"} ({opportunities.length})
+        </span>
+        <span className="text-xs text-muted-foreground font-mono hidden sm:inline">
+          Click any role to inspect AI score breakdown &amp; tips
         </span>
       </div>
       <div>
