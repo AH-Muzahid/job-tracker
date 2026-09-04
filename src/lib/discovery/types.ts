@@ -4,7 +4,7 @@ export interface ExternalJobOpportunity {
   company: string
   location: string
   url: string
-  sourceBoard: "remoteok" | "arbeitnow" | "adzuna" | "curated" | "linkedin" | "jobicy" | "linkedin_post" | "company_portal"
+  sourceBoard: "remoteok" | "arbeitnow" | "adzuna" | "curated" | "linkedin" | "jobicy" | "linkedin_post" | "company_portal" | "greenhouse" | "lever"
   tags: string[]
   salary?: string
   fitScore: number
@@ -38,7 +38,7 @@ export interface UnifiedRawJob {
   company: string
   location: string
   url: string
-  sourceBoard: "remoteok" | "arbeitnow" | "adzuna" | "curated" | "linkedin" | "jobicy" | "linkedin_post" | "company_portal"
+  sourceBoard: "remoteok" | "arbeitnow" | "adzuna" | "curated" | "linkedin" | "jobicy" | "linkedin_post" | "company_portal" | "greenhouse" | "lever"
   tags: string[]
   authorName?: string
   authorUrl?: string

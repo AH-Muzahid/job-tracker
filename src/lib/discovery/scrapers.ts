@@ -589,18 +589,235 @@ export const BD_TECH_AGENCY_JOBS: UnifiedRawJob[] = [
   },
 ]
 
+export const GREENHOUSE_TARGET_BOARDS = [
+  "vercel",
+  "stripe",
+  "anthropic",
+  "figma",
+  "cloudflare",
+  "gitlab",
+  "datadog",
+  "discord",
+  "mongodb",
+  "canonical",
+  "twitch",
+  "elastic",
+]
+
+export const LEVER_TARGET_COMPANIES = [
+  "spotify",
+  "palantir",
+  "kraken",
+  "kinsta",
+  "lever",
+]
+
+const COMPANY_DISPLAY_NAMES: Record<string, string> = {
+  vercel: "Vercel",
+  stripe: "Stripe",
+  anthropic: "Anthropic",
+  figma: "Figma",
+  cloudflare: "Cloudflare",
+  gitlab: "GitLab",
+  datadog: "Datadog",
+  discord: "Discord",
+  mongodb: "MongoDB",
+  canonical: "Canonical",
+  twitch: "Twitch",
+  elastic: "Elastic",
+  spotify: "Spotify",
+  palantir: "Palantir",
+  kraken: "Kraken",
+  kinsta: "Kinsta",
+  lever: "Lever",
+}
+
+const COMMON_TECH_TAGS = [
+  "react", "nextjs", "next.js", "vue", "angular", "typescript", "javascript",
+  "node", "nodejs", "node.js", "express", "python", "django", "fastapi", "golang", "go",
+  "rust", "java", "c++", "c#", ".net", "ruby", "rails", "sql", "postgresql",
+  "postgres", "mongodb", "redis", "docker", "kubernetes", "aws", "gcp", "azure",
+  "graphql", "rest", "api", "tailwind", "fullstack", "full stack", "full-stack", "frontend", "front end", "backend", "back end",
+  "devops", "ai", "llm", "machine learning", "ml", "security", "mobile", "ios", "android",
+]
+
+export const TECH_ROLE_FILTER_REGEX =
+  /\b(software|developer|engineer|fullstack|full-stack|frontend|front-end|backend|back-end|devops|data|ai|machine learning|ml|cloud|platform|security|systems|qa|sre|architect|mobile|ios|android|product design|ui\/ux)\b/i
+
+export function extractTechTagsFromText(text: string): string[] {
+  const lower = text.toLowerCase()
+  const matched = new Set<string>()
+  for (const tag of COMMON_TECH_TAGS) {
+    const escaped = tag.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+    const regex = new RegExp(`(^|[^a-z0-9+#.-])${escaped}([^a-z0-9+#.-]|$)`, "i")
+    if (regex.test(lower)) {
+      matched.add(toCanonical(tag))
+    }
+  }
+  return Array.from(matched)
+}
+
+/**
+ * Fetches software engineering and tech opportunities directly from Greenhouse boards JSON API
+ */
+export async function fetchGreenhouseJobs(options: {
+  boards?: string[]
+  boardTokens?: string[]
+  limitPerBoard?: number
+  query?: string
+} = {}): Promise<UnifiedRawJob[]> {
+  const boards = options.boards || options.boardTokens || GREENHOUSE_TARGET_BOARDS
+  const limitPerBoard = options.limitPerBoard || 15
+  const queryLower = (options.query || "").toLowerCase().trim()
+
+  const fetchBoard = async (board: string): Promise<UnifiedRawJob[]> => {
+    try {
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 4000)
+
+      const res = await fetch(`https://boards-api.greenhouse.io/v1/boards/${board}/jobs?content=false`, {
+        headers: {
+          "Accept": "application/json",
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) CareerTrack-Discovery/1.0",
+        },
+        signal: controller.signal,
+      })
+      clearTimeout(timeout)
+
+      if (!res.ok) return []
+      const data = await res.json()
+      if (!data || !Array.isArray(data.jobs)) return []
+
+      const companyName = COMPANY_DISPLAY_NAMES[board] || (board.charAt(0).toUpperCase() + board.slice(1))
+
+      // Filter for tech/engineering roles
+      const filtered = data.jobs.filter((j: any) => {
+        if (!j || !j.title) return false
+        if (!TECH_ROLE_FILTER_REGEX.test(j.title)) return false
+        if (queryLower) {
+          const matchTarget = `${j.title} ${companyName} ${j.location?.name || ""}`.toLowerCase()
+          return matchTarget.includes(queryLower)
+        }
+        return true
+      })
+
+      return filtered.slice(0, limitPerBoard).map((j: any) => {
+        const title = String(j.title || "Software Engineer")
+        const loc = String(j.location?.name || "Remote")
+        const tags = extractTechTagsFromText(`${title} ${board}`)
+        if (tags.length === 0) tags.push("developer")
+
+        return {
+          id: `gh-${board}-${j.id}`,
+          title,
+          company: companyName,
+          location: loc,
+          url: j.absolute_url || `https://boards.greenhouse.io/${board}/jobs/${j.id}`,
+          sourceBoard: "greenhouse" as const,
+          tags,
+          description: `${title} at ${companyName}. Official Greenhouse job posting. Location: ${loc}.`,
+        }
+      })
+    } catch {
+      return []
+    }
+  }
+
+  const results = await Promise.allSettled(boards.map((b) => fetchBoard(b)))
+  const jobs: UnifiedRawJob[] = []
+  for (const r of results) {
+    if (r.status === "fulfilled") jobs.push(...r.value)
+  }
+  return jobs
+}
+
+/**
+ * Fetches tech roles directly from Lever public postings JSON API
+ */
+export async function fetchLeverJobs(options: {
+  companies?: string[]
+  companySlugs?: string[]
+  limitPerCompany?: number
+  query?: string
+} = {}): Promise<UnifiedRawJob[]> {
+  const companies = options.companies || options.companySlugs || LEVER_TARGET_COMPANIES
+  const limitPerCompany = options.limitPerCompany || 15
+  const queryLower = (options.query || "").toLowerCase().trim()
+
+  const fetchCompany = async (company: string): Promise<UnifiedRawJob[]> => {
+    try {
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 4000)
+
+      const res = await fetch(`https://api.lever.co/v0/postings/${company}?mode=json`, {
+        headers: {
+          "Accept": "application/json",
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) CareerTrack-Discovery/1.0",
+        },
+        signal: controller.signal,
+      })
+      clearTimeout(timeout)
+
+      if (!res.ok) return []
+      const data = await res.json()
+      if (!Array.isArray(data)) return []
+
+      const companyName = COMPANY_DISPLAY_NAMES[company] || (company.charAt(0).toUpperCase() + company.slice(1))
+
+      const filtered = data.filter((j: any) => {
+        if (!j || !j.text) return false
+        if (!TECH_ROLE_FILTER_REGEX.test(j.text)) return false
+        if (queryLower) {
+          const matchTarget = `${j.text} ${companyName} ${j.categories?.location || ""}`.toLowerCase()
+          return matchTarget.includes(queryLower)
+        }
+        return true
+      })
+
+      return filtered.slice(0, limitPerCompany).map((j: any) => {
+        const title = String(j.text || "Software Engineer")
+        const loc = String(j.categories?.location || (j.workplaceType === "remote" ? "Remote" : "Hybrid / On-site"))
+        const tags = extractTechTagsFromText(`${title} ${j.categories?.team || ""} ${company}`)
+        if (tags.length === 0) tags.push("developer")
+
+        return {
+          id: `lever-${company}-${j.id}`,
+          title,
+          company: companyName,
+          location: loc,
+          url: j.hostedUrl || `https://jobs.lever.co/${company}/${j.id}`,
+          sourceBoard: "lever" as const,
+          tags,
+          description: String(j.descriptionPlain || `${title} at ${companyName}. Location: ${loc}.`).slice(0, 1000),
+        }
+      })
+    } catch {
+      return []
+    }
+  }
+
+  const results = await Promise.allSettled(companies.map((c) => fetchCompany(c)))
+  const jobs: UnifiedRawJob[] = []
+  for (const r of results) {
+    if (r.status === "fulfilled") jobs.push(...r.value)
+  }
+  return jobs
+}
+
 /**
  * Ingests jobs across all configured external job boards concurrently.
  * Combines live scraped boards, LinkedIn guest listings, organic founder posts,
- * and high-trust BD tech agency portals.
+ * direct Greenhouse/Lever ATS, and high-trust BD tech agency portals.
  */
 export async function fetchMultiBoardOpportunities(query: string, tagParam: string, location?: string): Promise<UnifiedRawJob[]> {
-  const [remoteOkResults, jobicyResults, arbeitnowResults, adzunaResults, linkedInGuestResults] = await Promise.allSettled([
+  const [remoteOkResults, jobicyResults, arbeitnowResults, adzunaResults, linkedInGuestResults, greenhouseResults, leverResults] = await Promise.allSettled([
     fetchRemoteOkJobs(tagParam),
     fetchJobicyJobs(),
     fetchArbeitnowJobs(query),
     fetchAdzunaJobs(query, location),
     fetchLinkedInGuestJobs(query, location),
+    fetchGreenhouseJobs({ query, limitPerBoard: 8 }),
+    fetchLeverJobs({ query, limitPerCompany: 8 }),
   ])
 
   const aggregated: UnifiedRawJob[] = []
@@ -619,6 +836,12 @@ export async function fetchMultiBoardOpportunities(query: string, tagParam: stri
   }
   if (linkedInGuestResults.status === "fulfilled" && Array.isArray(linkedInGuestResults.value)) {
     aggregated.push(...linkedInGuestResults.value)
+  }
+  if (greenhouseResults.status === "fulfilled" && Array.isArray(greenhouseResults.value)) {
+    aggregated.push(...greenhouseResults.value)
+  }
+  if (leverResults.status === "fulfilled" && Array.isArray(leverResults.value)) {
+    aggregated.push(...leverResults.value)
   }
 
   // Include organic LinkedIn founder / HR hiring posts (The "Hidden Job Market" - primary junior hiring channel)
@@ -666,6 +889,18 @@ export async function ingestGlobalJobsToCatalog(options: {
   // Also include the curated reservoir and daily linkedin social posts
   rawJobs.push(...CURATED_SEED_RESERVOIR)
   rawJobs.push(...DAILY_LINKEDIN_SOCIAL_POSTS)
+
+  // Dedicated deep crawl for top ATS board targets (Greenhouse + Lever)
+  const [greenhouseDeep, leverDeep] = await Promise.allSettled([
+    fetchGreenhouseJobs({ limitPerBoard: 25 }),
+    fetchLeverJobs({ limitPerCompany: 25 }),
+  ])
+  if (greenhouseDeep.status === "fulfilled" && Array.isArray(greenhouseDeep.value)) {
+    rawJobs.push(...greenhouseDeep.value)
+  }
+  if (leverDeep.status === "fulfilled" && Array.isArray(leverDeep.value)) {
+    rawJobs.push(...leverDeep.value)
+  }
 
   const dedupedJobs = deduplicateJobs(rawJobs)
   console.log(`[GlobalJobIngest] Fetched ${rawJobs.length} raw jobs -> ${dedupedJobs.length} unique candidates.`)

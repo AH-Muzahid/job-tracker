@@ -101,9 +101,14 @@ export const CANONICAL_ALIASES: Record<string, string> = {
   tdd: "tdd",
   "unit testing": "testing",
   vitest: "vitest",
-  jest: "jest",
   playwright: "playwright",
   cypress: "cypress",
+  "full stack": "fullstack",
+  "full-stack": "fullstack",
+  "front end": "frontend",
+  "front-end": "frontend",
+  "back end": "backend",
+  "back-end": "backend",
 }
 
 export function toCanonical(name: string): string {

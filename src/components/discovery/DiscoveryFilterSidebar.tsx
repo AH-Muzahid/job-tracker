@@ -61,6 +61,8 @@ export function DiscoveryFilterSidebar({
             onChange={(v) => update({ source: v as DiscoveryFilters["source"] })}
             options={[
               { value: "", label: "All Sources" },
+              { value: "greenhouse", label: "Greenhouse Direct", dot: "bg-teal-500" },
+              { value: "lever", label: "Lever Direct", dot: "bg-emerald-500" },
               { value: "linkedin", label: "LinkedIn / Local", dot: "bg-blue-500" },
               { value: "remoteok", label: "RemoteOK", dot: "bg-indigo-500" },
               { value: "arbeitnow", label: "Arbeitnow", dot: "bg-emerald-500" },
