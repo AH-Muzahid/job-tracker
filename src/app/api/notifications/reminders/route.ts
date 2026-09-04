@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server"
 import { getInternalUserId } from "@/lib/auth"
 import { prisma, withDbRetry } from "@/lib/prisma"
 import { ResponseUtil } from "@/lib/api-response"
@@ -17,7 +16,7 @@ export interface ReminderAlert {
 export async function GET() {
   const userId = await getInternalUserId()
   if (!userId) {
-    return NextResponse.json(ResponseUtil.error("Unauthorized", 401), { status: 401 })
+    return ResponseUtil.unauthorized()
   }
 
   const rateCheck = checkRateLimit(`reminders:${userId}`, 30, 60 * 1000)
@@ -115,17 +114,12 @@ export async function GET() {
       })
     }
 
-    return NextResponse.json(
-      ResponseUtil.success({
-        reminders,
-        count: reminders.length,
-      })
-    )
+    return ResponseUtil.success({
+      reminders,
+      count: reminders.length,
+    })
   } catch (err) {
     console.error("Notifications reminders API error:", err)
-    return NextResponse.json(
-      ResponseUtil.error("Failed to fetch notification reminders", 500),
-      { status: 500 }
-    )
+    return ResponseUtil.error("Failed to fetch notification reminders", 500)
   }
 }

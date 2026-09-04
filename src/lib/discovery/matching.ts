@@ -57,19 +57,41 @@ export function deduplicateJobs(jobs: UnifiedRawJob[]): UnifiedRawJob[] {
  * Detects whether a job is Remote, Hybrid, or On-site from its metadata
  */
 export function detectJobWorkMode(job: { location?: string; title?: string; description?: string; sourceBoard?: string }): "remote" | "hybrid" | "onsite" {
-  if (job.sourceBoard === "remoteok") return "remote"
   const locTitle = `${job.location || ""} ${job.title || ""}`.toLowerCase()
   if (locTitle.includes("hybrid")) return "hybrid"
-  if (locTitle.includes("remote") || locTitle.includes("work from anywhere") || locTitle.includes("telecommute") || locTitle.includes("anywhere")) {
+  if (
+    locTitle.includes("remote") ||
+    locTitle.includes("work from anywhere") ||
+    locTitle.includes("telecommute") ||
+    locTitle.includes("anywhere") ||
+    locTitle.includes("worldwide") ||
+    locTitle.includes("global")
+  ) {
     return "remote"
   }
 
   // Check description with strict boundary keywords
   const desc = (job.description || "").toLowerCase()
   if (desc.includes("hybrid work") || desc.includes("hybrid schedule") || desc.includes("hybrid role")) return "hybrid"
-  if (desc.includes("100% remote") || desc.includes("fully remote") || desc.includes("work from home") || desc.includes("remote-first") || desc.includes("remote eligible")) {
+  if (
+    desc.includes("100% remote") ||
+    desc.includes("fully remote") ||
+    desc.includes("work from home") ||
+    desc.includes("remote-first") ||
+    desc.includes("remote eligible") ||
+    desc.includes("work remotely")
+  ) {
     return "remote"
   }
+
+  if (job.sourceBoard === "remoteok") {
+    // If remoteok job specifies an actual city/country and doesn't mention remote, treat as onsite/local
+    if (job.location && job.location.toLowerCase() !== "remote" && !desc.includes("remote")) {
+      return "onsite"
+    }
+    return "remote"
+  }
+
   return "onsite"
 }
 
@@ -134,7 +156,65 @@ export function isNationalTechHubMatch(jobLocation?: string, userLocation?: stri
 export function isGeoDisqualified(job: { location?: string; title?: string; description?: string }, userLocation?: string): boolean {
   if (!userLocation) return false
   const userLocLower = userLocation.toLowerCase()
+  const loc = (job.location || "").toLowerCase().trim()
   const text = `${job.location || ""} ${job.title || ""} ${job.description || ""}`.toLowerCase()
+
+  // Detect if candidate is in Bangladesh / South Asia
+  const isCandidateInBD =
+    userLocLower.includes("bangladesh") ||
+    userLocLower.includes("bd") ||
+    userLocLower.includes("dhaka") ||
+    userLocLower.includes("sylhet") ||
+    userLocLower.includes("chittagong") ||
+    userLocLower.includes("rajshahi") ||
+    userLocLower.includes("khulna")
+
+  if (isCandidateInBD) {
+    const isGlobal =
+      loc.includes("worldwide") ||
+      loc.includes("anywhere") ||
+      loc.includes("global") ||
+      loc === "remote" ||
+      loc === ""
+
+    if (!isGlobal) {
+      // Disqualify jobs explicitly restricted to distant continents/regions
+      const nonApacRegions = [
+        "latam",
+        "latin america",
+        "south america",
+        "brazil",
+        "mexico",
+        "argentina",
+        "colombia",
+        "chile",
+        "emea",
+        "europe",
+        "germany",
+        "uk",
+        "united kingdom",
+        "london",
+        "france",
+        "spain",
+        "poland",
+        "netherlands",
+        "canada",
+        "usa",
+        "us",
+        "united states",
+        "north america",
+      ]
+
+      const isRestricted = nonApacRegions.some((reg) => {
+        const regex = new RegExp(`(^|[^a-z])${reg}([^a-z]|$)`, "i")
+        return regex.test(loc)
+      })
+
+      if (isRestricted) {
+        return true
+      }
+    }
+  }
 
   // If candidate is outside US / North America
   const isCandidateOutsideUS = !userLocLower.includes("united states") && !userLocLower.includes("usa") && !userLocLower.includes("us")

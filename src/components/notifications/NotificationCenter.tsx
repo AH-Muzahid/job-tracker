@@ -42,7 +42,7 @@ export function NotificationCenter() {
   const { data, isLoading } = useQuery({
     queryKey: ["notifications", "list"],
     enabled: isLoaded && !!isSignedIn,
-    initialData: { notifications: [], unreadCount: 0 },
+    placeholderData: { notifications: [], unreadCount: 0 },
     queryFn: async () => {
       const res = await fetch("/api/notifications?limit=30")
       if (!res.ok) {
@@ -58,8 +58,9 @@ export function NotificationCenter() {
         unreadCount: typeof payload?.unreadCount === "number" ? payload.unreadCount : 0,
       }
     },
-    refetchInterval: 30000, // Poll every 30s
-    staleTime: 10000,
+    refetchInterval: 60000, // Poll every 60s
+    staleTime: 60000, // Keep fresh for 60s
+    refetchOnWindowFocus: false,
   })
 
   const notifications = data?.notifications || []

@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export const dynamic = "force-dynamic"
 
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest } from "next/server"
 import { getInternalUserId } from "@/lib/auth"
 import { prisma, withDbRetry } from "@/lib/prisma"
 import { ResponseUtil } from "@/lib/api-response"
@@ -9,7 +9,7 @@ import { ResponseUtil } from "@/lib/api-response"
 export async function GET(request: NextRequest) {
   const userId = await getInternalUserId()
   if (!userId) {
-    return NextResponse.json(ResponseUtil.error("Unauthorized", 401), { status: 401 })
+    return ResponseUtil.unauthorized()
   }
 
   const { searchParams } = new URL(request.url)
@@ -34,21 +34,19 @@ export async function GET(request: NextRequest) {
       })
     )
 
-    return NextResponse.json(
-      ResponseUtil.success({
-        notifications,
-        unreadCount,
-      })
-    )
+    return ResponseUtil.success({
+      notifications,
+      unreadCount,
+    })
   } catch (error: any) {
-    return NextResponse.json(ResponseUtil.error(error?.message || "Failed to fetch notifications"), { status: 500 })
+    return ResponseUtil.error(error?.message || "Failed to fetch notifications", 500)
   }
 }
 
 export async function PATCH(request: NextRequest) {
   const userId = await getInternalUserId()
   if (!userId) {
-    return NextResponse.json(ResponseUtil.error("Unauthorized", 401), { status: 401 })
+    return ResponseUtil.unauthorized()
   }
 
   try {
@@ -62,7 +60,7 @@ export async function PATCH(request: NextRequest) {
           data: { isRead: true },
         })
       )
-      return NextResponse.json(ResponseUtil.success({ message: "All notifications marked as read." }))
+      return ResponseUtil.success({ message: "All notifications marked as read." })
     }
 
     if (notificationId) {
@@ -72,11 +70,11 @@ export async function PATCH(request: NextRequest) {
           data: { isRead: true },
         })
       )
-      return NextResponse.json(ResponseUtil.success({ notification: updated }))
+      return ResponseUtil.success({ notification: updated })
     }
 
-    return NextResponse.json(ResponseUtil.error("notificationId or markAllAsRead is required"), { status: 400 })
+    return ResponseUtil.badRequest("notificationId or markAllAsRead is required")
   } catch (error: any) {
-    return NextResponse.json(ResponseUtil.error(error?.message || "Failed to update notifications"), { status: 500 })
+    return ResponseUtil.error(error?.message || "Failed to update notifications", 500)
   }
 }

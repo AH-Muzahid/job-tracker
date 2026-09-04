@@ -1,10 +1,11 @@
 "use client"
 
-import { useEffect, useCallback } from "react"
+import { useEffect, useCallback, useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   BrainCircuit, BookmarkPlus, Check, ExternalLink, MapPin,
   DollarSign, Zap, Globe, RefreshCw, X, Clock, EyeOff,
+  Copy, CheckCheck, UserCheck, MessageSquare,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { DecorIcon } from "@/components/decor-icon"
@@ -36,6 +37,9 @@ export function DiscoveryJobRow({
   onApplyClick,
 }: DiscoveryJobRowProps) {
   const sourceBadge = getSourceBadge(job.sourceBoard)
+  const [copiedPitch, setCopiedPitch] = useState(false)
+  const [showPitch, setShowPitch] = useState(false)
+  const [isGeneratingPitch, setIsGeneratingPitch] = useState(false)
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (e.key === "Escape" && isExpanded) onToggle()
@@ -154,7 +158,7 @@ export function DiscoveryJobRow({
         </div>
 
         {!isExpanded && (
-          <div className="text-[11px] text-muted-foreground line-clamp-1 max-w-[200px] hidden xl:block">
+          <div className="text-[11px] text-muted-foreground line-clamp-1 max-w-[320px] hidden lg:block" title={job.matchRationale}>
             {job.matchRationale}
           </div>
         )}
@@ -181,14 +185,145 @@ export function DiscoveryJobRow({
             className="overflow-hidden"
           >
             <div className="px-4 pb-3 space-y-3">
-              {/* AI Rationale */}
-              <div className="bg-muted/30 rounded-none p-3 border border-border/60">
-                <p className="text-xs font-semibold text-foreground flex items-center gap-1 mb-1">
-                  <Zap className="size-3 text-primary" />
-                  AI Rationale
-                </p>
-                <p className="text-[11px] text-muted-foreground leading-relaxed">{job.matchRationale}</p>
+              {/* AI Rationale & In-Depth Personalization */}
+              <div className="bg-muted/20 rounded-none p-3.5 border border-border/60 space-y-2">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/40 pb-2">
+                  <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                    <Zap className="size-3.5 text-primary" />
+                    <span>AI Personalization & Match Rationale</span>
+                  </p>
+                  <div className="flex items-center gap-2">
+                    {typeof job.atsScore === "number" && (
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-none text-[10px] font-mono border bg-background/60 text-muted-foreground border-border">
+                        <span>ATS Match:</span>
+                        <span className={cn(
+                          "font-bold",
+                          job.atsScore >= 75 ? "text-emerald-500" : job.atsScore >= 60 ? "text-amber-500" : "text-muted-foreground"
+                        )}>
+                          {job.atsScore}%
+                        </span>
+                      </span>
+                    )}
+                    <span className="text-[10px] font-mono text-muted-foreground hidden sm:inline">
+                      Evaluated against profile & bestProjects
+                    </span>
+                  </div>
+                </div>
+                <div className="space-y-1.5 pt-0.5">
+                  {job.matchRationale.split(" • ").map((dimension, idx) => (
+                    <div key={idx} className="flex items-start gap-2 text-xs text-muted-foreground leading-relaxed">
+                      <span className="text-primary/70 shrink-0 select-none">•</span>
+                      <span>{dimension}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
+
+              {/* Direct Author Outreach (On-Demand Generation) */}
+              {(job.outreachPitch || job.authorName || job.sourceBoard === "linkedin_post") && (
+                <div className="bg-primary/5 border border-primary/25 p-3 rounded-none space-y-2">
+                  <div className="flex flex-wrap items-center justify-between gap-1.5 border-b border-primary/20 pb-1.5">
+                    <div className="flex items-center gap-1.5 text-xs font-semibold text-primary">
+                      <MessageSquare className="size-3.5" />
+                      <span>Direct Author Outreach (Bypasses ATS)</span>
+                    </div>
+                    {job.authorName && (
+                      <span className="text-[11px] text-muted-foreground font-mono">
+                        Author / Recruiter: {job.authorName}
+                      </span>
+                    )}
+                  </div>
+
+                  {!showPitch ? (
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1">
+                      <p className="text-xs text-muted-foreground">
+                        Ready to reach out? Generate a custom 2-sentence cold message referencing your verified projects.
+                      </p>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={isGeneratingPitch}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setIsGeneratingPitch(true)
+                          setTimeout(() => {
+                            setIsGeneratingPitch(false)
+                            setShowPitch(true)
+                          }, 300)
+                        }}
+                        className="h-7 text-[11px] gap-1.5 rounded-none font-medium text-primary hover:text-primary hover:bg-primary/10 border-primary/30 shrink-0 cursor-pointer"
+                      >
+                        {isGeneratingPitch ? (
+                          <>
+                            <RefreshCw className="size-3 animate-spin text-primary" />
+                            <span>Generating Pitch...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Zap className="size-3 text-primary" />
+                            <span>Generate Outreach Pitch</span>
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-2 pt-1">
+                      <p className="text-xs text-muted-foreground leading-relaxed italic bg-background/60 p-2.5 border border-border/50 select-all">
+                        &ldquo;{job.outreachPitch || `Hi ${job.authorName ? job.authorName.split(" ")[0] : "Hiring Lead"}, I noticed your opening for ${job.title} at ${job.company}. My verified full-stack projects align closely with your stack requirements. I'd love to share my portfolio and connect!`}&rdquo;
+                      </p>
+                      <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            const pitchText = job.outreachPitch || `Hi ${job.authorName ? job.authorName.split(" ")[0] : "Hiring Lead"}, I noticed your opening for ${job.title} at ${job.company}. My verified full-stack projects align closely with your stack requirements. I'd love to share my portfolio and connect!`
+                            navigator.clipboard.writeText(pitchText)
+                            setCopiedPitch(true)
+                            setTimeout(() => setCopiedPitch(false), 2000)
+                          }}
+                          className="h-7 text-[11px] gap-1.5 rounded-none font-medium cursor-pointer"
+                        >
+                          {copiedPitch ? (
+                            <>
+                              <CheckCheck className="size-3 text-emerald-500" />
+                              <span>Copied to Clipboard!</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="size-3" />
+                              <span>Copy Tailored DM Pitch</span>
+                            </>
+                          )}
+                        </Button>
+                        {job.authorUrl && (
+                          <a
+                            href={job.authorUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="inline-flex items-center gap-1 h-7 px-2.5 text-[11px] font-medium border border-border text-foreground hover:bg-muted/40 transition-colors"
+                          >
+                            <UserCheck className="size-3 text-primary" />
+                            <span>View Author Profile</span>
+                            <ExternalLink className="size-2.5 opacity-70" />
+                          </a>
+                        )}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setShowPitch(false)
+                          }}
+                          className="text-[11px] text-muted-foreground hover:text-foreground ml-auto cursor-pointer underline underline-offset-2"
+                        >
+                          Collapse
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Tags */}
               {job.tags?.length > 0 && (
@@ -202,7 +337,7 @@ export function DiscoveryJobRow({
               {/* Source */}
               <div className="text-[11px] text-muted-foreground flex items-center gap-1">
                 <Globe className="size-3" />
-                <span>{sourceBadge.label}</span>
+                <span>Source: {sourceBadge.label}</span>
               </div>
 
               {/* Actions */}
@@ -240,7 +375,11 @@ export function DiscoveryJobRow({
                   }}
                   className="inline-flex items-center justify-center gap-1 h-8 px-3 rounded-none border border-border text-xs text-muted-foreground hover:text-foreground font-medium transition-colors flex-1 sm:flex-initial"
                 >
-                  <span>View on {sourceBadge.label}</span>
+                  <span>
+                    {job.sourceBoard === "curated"
+                      ? `Apply at ${job.company}`
+                      : `View on ${sourceBadge.label}`}
+                  </span>
                   <ExternalLink className="size-3" />
                 </a>
 

@@ -1,8 +1,8 @@
 "use client"
 
 import React, { useState, useEffect } from "react"
-import { Mail, CheckCircle2, AlertCircle, RefreshCw, Trash2, ExternalLink, ShieldCheck } from "lucide-react"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Mail, RefreshCw, Trash2, ExternalLink, ShieldCheck } from "lucide-react"
+import { DecorIcon } from "@/components/decor-icon"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
 
@@ -92,104 +92,112 @@ export function GoogleAccountCard() {
   }
 
   return (
-    <Card className="border border-border/60 shadow-sm bg-card text-card-foreground">
-      <CardHeader className="pb-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-lg bg-primary/10 text-primary border border-primary/20">
-              <Mail className="w-5 h-5" />
-            </div>
-            <div>
-              <CardTitle className="text-lg font-semibold tracking-tight">Personal Email Integration</CardTitle>
-              <CardDescription className="text-sm text-muted-foreground mt-0.5">
-                Send outreach emails directly from your verified Google account and sync incoming recruiter replies.
-              </CardDescription>
-            </div>
-          </div>
-          {connected ? (
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              Connected
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-              <AlertCircle className="w-3.5 h-3.5" />
-              Not Connected
-            </span>
-          )}
-        </div>
-      </CardHeader>
+    <div className="relative rounded-none border border-border bg-card/60 backdrop-blur-xl p-4 sm:p-6 transition-colors">
+      <DecorIcon position="top-right" />
+      <DecorIcon position="bottom-left" />
 
-      <CardContent className="space-y-4 pt-0">
-        <div className="p-4 rounded-lg bg-muted/40 border border-border/50 text-sm space-y-3">
-          <div className="flex items-start gap-2.5 text-muted-foreground">
-            <ShieldCheck className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-            <p className="text-xs leading-relaxed">
-              We store OAuth refresh tokens with AES-256-GCM encryption. We only request permissions to draft & dispatch outreach emails and read job interview response threads.
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-border/70 gap-3">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-8 w-8 items-center justify-center border border-border bg-muted/40 text-foreground shrink-0">
+            <Mail className="h-4 w-4" />
+          </div>
+          <div>
+            <span className="text-[10px] font-mono tracking-wider text-muted-foreground uppercase">SYNC / GMAIL</span>
+            <h3 className="text-sm font-semibold tracking-tight text-foreground">Personal Gmail Integration</h3>
+          </div>
+        </div>
+
+        {connected ? (
+          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-mono text-[10px] uppercase w-fit">
+            <span className="h-1.5 w-1.5 bg-emerald-500 rounded-full animate-pulse" />
+            Connected
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 border border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400 font-mono text-[10px] uppercase w-fit">
+            <span className="h-1.5 w-1.5 bg-amber-500 rounded-full" />
+            Disconnected
+          </span>
+        )}
+      </div>
+
+      <div className="mt-4 space-y-4">
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          Send recruiter outreach emails directly from your personal Gmail address and automatically sync incoming interview replies to your pipeline.
+        </p>
+
+        <div className="rounded-none border border-border/60 bg-muted/20 p-3.5 space-y-2.5 font-mono text-xs">
+          <div className="flex items-start gap-2 text-muted-foreground">
+            <ShieldCheck className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
+            <p className="text-[11px] leading-relaxed">
+              OAuth tokens are securely stored using AES-256-GCM authenticated encryption. Access is restricted strictly to job correspondence threads.
             </p>
           </div>
 
           {connected && email && (
-            <div className="flex items-center justify-between pt-2 border-t border-border/40">
-              <span className="text-xs text-muted-foreground">Connected Gmail Address:</span>
-              <span className="text-xs font-mono font-medium text-foreground bg-background px-2.5 py-1 rounded border border-border">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 pt-2 border-t border-border/40 text-[11px]">
+              <span className="text-muted-foreground shrink-0">Active Address:</span>
+              <span className="font-mono text-foreground bg-background px-2 py-0.5 border border-border break-all max-w-full">
                 {email}
               </span>
             </div>
           )}
         </div>
 
-        <div className="flex items-center justify-between pt-2">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
             <Button
+              type="button"
               variant="outline"
               size="sm"
               onClick={fetchStatus}
               disabled={loading || disconnecting || syncing}
-              className="text-xs h-8"
+              className="rounded-none border-border font-mono text-xs h-8 px-3 cursor-pointer flex-1 sm:flex-initial"
             >
-              <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${loading ? "animate-spin" : ""}`} />
-              Refresh Status
+              <RefreshCw className={`w-3 h-3 mr-1.5 ${loading ? "animate-spin" : ""}`} />
+              Refresh
             </Button>
 
             {connected && (
               <Button
+                type="button"
                 variant="secondary"
                 size="sm"
                 onClick={handleSyncNow}
                 disabled={syncing || loading}
-                className="text-xs h-8"
+                className="rounded-none font-mono text-xs h-8 px-3 cursor-pointer flex-1 sm:flex-initial"
               >
-                <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${syncing ? "animate-spin text-primary" : ""}`} />
-                {syncing ? "Syncing..." : "Sync Inbox Now"}
+                <RefreshCw className={`w-3 h-3 mr-1.5 ${syncing ? "animate-spin text-primary" : ""}`} />
+                Sync Inbox
               </Button>
             )}
           </div>
 
           {connected ? (
             <Button
+              type="button"
               variant="destructive"
               size="sm"
               onClick={handleDisconnect}
               disabled={disconnecting || syncing}
-              className="text-xs h-8"
+              className="rounded-none font-mono text-xs h-8 px-3 cursor-pointer w-full sm:w-auto"
             >
-              <Trash2 className="w-3.5 h-3.5 mr-1.5" />
-              {disconnecting ? "Disconnecting..." : "Disconnect Account"}
+              <Trash2 className="w-3 h-3 mr-1.5" />
+              {disconnecting ? "Disconnecting..." : "Disconnect"}
             </Button>
           ) : (
             <Button
+              type="button"
               size="sm"
               onClick={handleConnect}
               disabled={loading}
-              className="text-xs h-8 bg-primary hover:bg-primary/90 text-primary-foreground"
+              className="rounded-none font-mono text-xs h-8 px-4 cursor-pointer bg-primary hover:bg-primary/90 text-primary-foreground w-full sm:w-auto"
             >
-              <ExternalLink className="w-3.5 h-3.5 mr-1.5" />
-              Connect Google Account
+              <ExternalLink className="w-3 h-3 mr-1.5" />
+              Connect Gmail Account
             </Button>
           )}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   )
 }

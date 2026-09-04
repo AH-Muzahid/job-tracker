@@ -1,7 +1,7 @@
 export type BatchSlot = "" | "just-in" | "earlier-today" | "yesterday"
 
 export interface DiscoveryFilters {
-  source: "" | "remoteok" | "arbeitnow" | "adzuna" | "curated" | "linkedin"
+  source: "" | "remoteok" | "arbeitnow" | "adzuna" | "curated" | "linkedin" | "jobicy" | "linkedin_post" | "company_portal"
   location: "" | "remote" | "hybrid" | "onsite"
   minScore: "" | "85" | "70" | "0"
   batchSlot?: BatchSlot
@@ -40,12 +40,18 @@ export function getSourceBadge(source: string): { label: string; color: string }
   switch (source) {
     case "remoteok":
       return { label: "RemoteOK", color: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20" }
+    case "jobicy":
+      return { label: "Jobicy", color: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20" }
     case "arbeitnow":
       return { label: "Arbeitnow", color: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20" }
     case "adzuna":
       return { label: "Adzuna", color: "bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20" }
     case "linkedin":
       return { label: "LinkedIn", color: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20" }
+    case "linkedin_post":
+      return { label: "Founder / HR Post", color: "bg-blue-600/15 text-blue-600 dark:text-blue-400 border-blue-500/30" }
+    case "company_portal":
+      return { label: "Company Career Page", color: "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20" }
     default:
       return { label: "Curated", color: "bg-primary/10 text-primary border-primary/20" }
   }

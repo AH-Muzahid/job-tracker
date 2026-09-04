@@ -20,6 +20,7 @@ import { DiscoverySortDropdown } from "./DiscoverySortDropdown"
 import { DiscoveryJobList } from "./DiscoveryJobList"
 import { DiscoveryBatchTimer } from "./DiscoveryBatchTimer"
 import { DiscoveryPreferencesModal } from "./DiscoveryPreferencesModal"
+import { DiscoveryTrackModal } from "./DiscoveryTrackModal"
 import { useUserProfile } from "@/lib/api"
 import type { DiscoveryFilters, SortOption, BatchSummary } from "./types"
 import type { ExternalJobOpportunity } from "@/lib/ai/graph/tools/discovery-tools"
@@ -47,6 +48,7 @@ export function DiscoveryPage() {
   const [savedJobs, setSavedJobs] = useState<Set<string>>(new Set())
   const [dismissedJobIds, setDismissedJobIds] = useState<Set<string>>(new Set())
   const [preferencesModalOpen, setPreferencesModalOpen] = useState(false)
+  const [trackModalJob, setTrackModalJob] = useState<ExternalJobOpportunity | null>(null)
   const queryClient = useQueryClient()
 
   // Fetch active user profile search preferences
@@ -56,9 +58,21 @@ export function DiscoveryPage() {
   const { data, isLoading, isRefetching, refetch } = useQuery({
     queryKey: ["discovery", "feed"],
     queryFn: async () => {
+      console.log("[JobDiscovery Client] Fetching /api/jobs/discover?limit=60...")
       const res = await fetch("/api/jobs/discover?limit=60")
-      if (!res.ok) throw new Error("Failed to discover jobs")
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => null)
+        console.error("[JobDiscovery Client] API error response:", res.status, errJson)
+        throw new Error(errJson?.error || "Failed to discover jobs")
+      }
       const json = await res.json()
+      console.log("[JobDiscovery Client] Received discovery payload:", json)
+      console.log(
+        "[JobDiscovery Client] Total opportunities:",
+        json?.data?.opportunities?.length ?? 0,
+        "Batch Summary:",
+        json?.data?.batchSummary
+      )
       return json.data as DiscoveryApiResponse
     },
     staleTime: 60_000,
@@ -117,6 +131,15 @@ export function DiscoveryPage() {
     })
   }, [allOpportunities, searchQuery, filters])
 
+  useEffect(() => {
+    if (data?.opportunities) {
+      console.log(
+        `[JobDiscovery Client] Feed state: ${allOpportunities.length} available opportunities -> ${filteredOpportunities.length} after filters. Active filters:`,
+        { searchQuery, ...filters }
+      )
+    }
+  }, [allOpportunities.length, filteredOpportunities.length, searchQuery, filters, data?.opportunities])
+
   // Memoized sorting
   const sortedOpportunities = useMemo(() => {
     return [...filteredOpportunities].sort((a, b) => {
@@ -164,35 +187,27 @@ export function DiscoveryPage() {
     onError: (err: Error) => toast.error(err?.message || "Failed to save"),
   })
 
-  const handleApplyClick = useCallback(
-    (job: ExternalJobOpportunity) => {
-      if (job.appliedStatus) return
-      toast.info(`Opening external application for ${job.company}`, {
-        description: "Did you apply? Track this application directly in your Tracker.",
-        duration: 9000,
-        action: {
-          label: "Track as Applied",
-          onClick: () => {
-            saveMutation.mutate({
-              ...job,
-              appliedStatus: "Applied",
-            } as ExternalJobOpportunity)
-          },
-        },
-      })
-    },
-    [saveMutation]
-  )
+  const handleApplyClick = useCallback((job: ExternalJobOpportunity) => {
+    if (job.appliedStatus) return
+    setTrackModalJob(job)
+  }, [])
 
   const forceRefreshMutation = useMutation({
     mutationFn: async () => {
+      console.log("[JobDiscovery Client] Manual batch refresh requested...")
       const res = await fetch("/api/jobs/discover", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "refresh" }),
       })
-      if (!res.ok) throw new Error("Failed to sync fresh batch")
-      return res.json()
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => null)
+        console.error("[JobDiscovery Client] Refresh failed:", res.status, errJson)
+        throw new Error(errJson?.error || "Failed to sync fresh batch")
+      }
+      const result = await res.json()
+      console.log("[JobDiscovery Client] Refresh result:", result)
+      return result
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["discovery"] })
@@ -395,6 +410,25 @@ export function DiscoveryPage() {
           refetchProfile()
           forceRefreshMutation.mutate()
         }}
+      />
+
+      {/* External Application Follow-up & Track Modal */}
+      <DiscoveryTrackModal
+        job={trackModalJob}
+        open={Boolean(trackModalJob)}
+        onOpenChange={(open) => {
+          if (!open) setTrackModalJob(null)
+        }}
+        onTrackApplied={(job) => {
+          saveMutation.mutate({
+            ...job,
+            appliedStatus: "Applied",
+          } as ExternalJobOpportunity)
+        }}
+        onSaveToTracker={(job) => {
+          saveMutation.mutate(job)
+        }}
+        isSubmitting={saveMutation.isPending}
       />
     </div>
   )

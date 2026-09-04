@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export const dynamic = "force-dynamic"
 
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest } from "next/server"
 import { getInternalUserId } from "@/lib/auth"
 import { prisma, withDbRetry } from "@/lib/prisma"
 import {
@@ -19,12 +19,14 @@ import { ResponseUtil } from "@/lib/api-response"
 export async function GET(request: NextRequest) {
   const userId = await getInternalUserId()
   if (!userId) {
-    return NextResponse.json(ResponseUtil.error("Unauthorized", 401), { status: 401 })
+    return ResponseUtil.unauthorized()
   }
 
   const { searchParams } = new URL(request.url)
   const query = searchParams.get("query")?.toLowerCase().trim() || ""
   const forceRefresh = searchParams.get("refresh") === "true"
+
+  console.log(`[JobDiscovery API] GET called: userId=${userId}, query="${query}", forceRefresh=${forceRefresh}`)
 
   try {
     const now = new Date()
@@ -32,6 +34,7 @@ export async function GET(request: NextRequest) {
 
     // If explicit forceRefresh is requested, seed immediately
     if (forceRefresh) {
+      console.log(`[JobDiscovery API] Explicit forceRefresh requested for userId=${userId}. Processing fresh batch...`)
       await processUserJobBatch(userId, { forceImmediatePublish: true, notify: false })
     }
 
@@ -71,9 +74,11 @@ export async function GET(request: NextRequest) {
         take: 60,
       })
     )
+    console.log(`[JobDiscovery API] Found ${rawJobs.length} active jobs in rolling window for userId=${userId}`)
 
     // If user has zero active jobs, seed their initial batch (cold-start recovery)
     if (rawJobs.length === 0 && !forceRefresh) {
+      console.log(`[JobDiscovery API] 0 active jobs for userId=${userId}. Triggering cold-start batch generation...`)
       await processUserJobBatch(userId, { forceImmediatePublish: true, notify: false })
       rawJobs = await withDbRetry(() =>
         prisma.discoveredJob.findMany({
@@ -97,6 +102,7 @@ export async function GET(request: NextRequest) {
           take: 60,
         })
       )
+      console.log(`[JobDiscovery API] Post cold-start DB count: ${rawJobs.length} jobs for userId=${userId}`)
     }
 
     // Transform jobs into UI-ready opportunity format with batch age metadata
@@ -158,34 +164,39 @@ export async function GET(request: NextRequest) {
       totalActive: opportunities.length,
     }
 
-    return NextResponse.json(
-      ResponseUtil.success({
-        count: filteredOpportunities.length,
-        nextBatchAt,
-        currentBatchStartedAt,
-        batchSummary,
-        opportunities: filteredOpportunities,
-      })
+    console.log(
+      `[JobDiscovery API] Returning ${filteredOpportunities.length} opportunities for userId=${userId}. Slots:`,
+      batchSummary
     )
+
+    return ResponseUtil.success({
+      count: filteredOpportunities.length,
+      nextBatchAt,
+      currentBatchStartedAt,
+      batchSummary,
+      opportunities: filteredOpportunities,
+    })
   } catch (error: any) {
-    return NextResponse.json(ResponseUtil.error(error?.message || "Internal server error"), { status: 500 })
+    console.error("[JobDiscovery API] GET Error:", error)
+    return ResponseUtil.error(error?.message || "Internal server error", 500)
   }
 }
 
 export async function POST(request: NextRequest) {
   const userId = await getInternalUserId()
   if (!userId) {
-    return NextResponse.json(ResponseUtil.error("Unauthorized", 401), { status: 401 })
+    return ResponseUtil.unauthorized()
   }
 
   try {
     const body = await request.json().catch(() => ({}))
     const { action } = body
+    console.log(`[JobDiscovery API] POST action="${action}" for userId=${userId}`)
 
     if (action === "save") {
       const { jobId, companyName, jobTitle, jobUrl, location, salary, notes } = body
       if (!companyName || !jobTitle) {
-        return NextResponse.json(ResponseUtil.error("companyName and jobTitle are required"), { status: 400 })
+        return ResponseUtil.badRequest("companyName and jobTitle are required")
       }
 
       // 1. Create tracker application record
@@ -199,7 +210,7 @@ export async function POST(request: NextRequest) {
       })
 
       if (!saveResult.success) {
-        return NextResponse.json(ResponseUtil.error(saveResult.error || "Failed to save job"), { status: 500 })
+        return ResponseUtil.error(saveResult.error || "Failed to save job", 500)
       }
 
       // 2. Mark DiscoveredJob as isSaved: true (protected from rolling 24h archival)
@@ -226,12 +237,13 @@ export async function POST(request: NextRequest) {
         ).catch((err) => console.warn("[DiscoveredJob save mark error]:", err))
       }
 
-      return NextResponse.json(ResponseUtil.success(saveResult))
+      return ResponseUtil.success(saveResult)
     }
 
     if (action === "refresh") {
+      console.log(`[JobDiscovery API] Refresh batch triggered for userId=${userId}`)
       const result = await processUserJobBatch(userId, { forceImmediatePublish: true, notify: false })
-      return NextResponse.json(ResponseUtil.success(result))
+      return ResponseUtil.success(result)
     }
 
     if (action === "dismiss") {
@@ -251,7 +263,7 @@ export async function POST(request: NextRequest) {
           })
         )
       }
-      return NextResponse.json(ResponseUtil.success({ dismissed: true }))
+      return ResponseUtil.success({ dismissed: true })
     }
 
     if (action === "undismiss") {
@@ -271,12 +283,13 @@ export async function POST(request: NextRequest) {
           })
         )
       }
-      return NextResponse.json(ResponseUtil.success({ restored: true }))
+      return ResponseUtil.success({ restored: true })
     }
 
-    return NextResponse.json(ResponseUtil.error("Invalid action", 400), { status: 400 })
+    return ResponseUtil.badRequest("Invalid action")
   } catch (error: any) {
-    return NextResponse.json(ResponseUtil.error(error?.message || "Internal server error"), { status: 500 })
+    console.error("[JobDiscovery API] POST Error:", error)
+    return ResponseUtil.error(error?.message || "Internal server error", 500)
   }
 }
 

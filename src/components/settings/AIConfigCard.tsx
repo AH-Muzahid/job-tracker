@@ -12,7 +12,7 @@ import {
   XCircle,
   Loader2,
 } from "lucide-react"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { DecorIcon } from "@/components/decor-icon"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -206,40 +206,58 @@ export function AIConfigCard({ initialData, isLoading = false }: AIConfigCardPro
   }
 
   return (
-    <Card>
-      <CardHeader className="pb-3 flex flex-row items-center justify-between">
-        <div>
-          <CardTitle className="text-base flex items-center gap-2">
-            <Bot className="h-5 w-5 text-primary" /> AI Key Profiles
-          </CardTitle>
-          <CardDescription className="text-xs mt-1">
-            Add multiple AI Provider keys and switch between them instantly when rate limits occur.
-          </CardDescription>
-        </div>
-        <Button size="sm" onClick={openNewProfileForm} className="gap-1.5">
-          <Plus className="h-4 w-4" /> Add Key
-        </Button>
-      </CardHeader>
+    <div className="relative rounded-none border border-border bg-card/60 backdrop-blur-xl p-4 sm:p-6 transition-colors">
+      <DecorIcon position="top-right" />
+      <DecorIcon position="bottom-left" />
 
-      <CardContent className="space-y-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-border/70 gap-3">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-8 w-8 items-center justify-center border border-border bg-muted/40 text-foreground shrink-0">
+            <Bot className="h-4 w-4 text-primary" />
+          </div>
+          <div>
+            <span className="text-[10px] font-mono tracking-wider text-muted-foreground uppercase">AI / RUNTIME</span>
+            <h3 className="text-sm font-semibold tracking-tight text-foreground">AI Key Profiles & Vault</h3>
+          </div>
+        </div>
+
+        <Button
+          type="button"
+          size="sm"
+          onClick={openNewProfileForm}
+          className="rounded-none font-mono text-xs h-8 px-3.5 cursor-pointer bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5 w-full sm:w-auto justify-center"
+        >
+          <Plus className="h-3.5 w-3.5" /> Add Profile Key
+        </Button>
+      </div>
+
+      <div className="space-y-4 pt-4">
         {loadingAi ? (
           <div className="space-y-2">
-            <Skeleton className="h-16 w-full" />
-            <Skeleton className="h-16 w-full" />
+            <Skeleton className="h-14 w-full rounded-none" />
+            <Skeleton className="h-14 w-full rounded-none" />
           </div>
         ) : profiles.length === 0 ? (
-          <div className="border border-dashed rounded-lg p-6 text-center space-y-3">
+          <div className="border border-dashed border-border rounded-none p-6 sm:p-8 text-center space-y-3 bg-muted/10">
             <Bot className="h-8 w-8 mx-auto text-muted-foreground" />
             <div>
-              <p className="text-sm font-medium">No AI Profiles Configured</p>
-              <p className="text-xs text-muted-foreground">Add a Google Gemini, OpenAI, or Anthropic key to power AI features.</p>
+              <p className="text-sm font-semibold text-foreground">No AI Key Profiles Configured</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Add a Google Gemini, OpenAI, or Anthropic key to power AI assistance, tailored resumes, and auto-matching.
+              </p>
             </div>
-            <Button size="sm" variant="outline" onClick={openNewProfileForm} className="gap-1">
-              <Plus className="h-4 w-4" /> Add your first key
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={openNewProfileForm}
+              className="rounded-none font-mono text-xs h-8 gap-1.5 cursor-pointer w-full sm:w-auto"
+            >
+              <Plus className="h-3.5 w-3.5" /> Add Your First Key
             </Button>
           </div>
         ) : (
-          <div className="grid gap-3">
+          <div className="grid gap-2.5">
             {profiles.map((prof) => {
               const isActive = prof.id === activeId
               const testStatus = testResults[prof.id]
@@ -248,60 +266,62 @@ export function AIConfigCard({ initialData, isLoading = false }: AIConfigCardPro
               return (
                 <div
                   key={prof.id}
-                  className={`flex flex-col sm:flex-row sm:items-center justify-between p-3.5 rounded-lg border transition-all ${
+                  className={`flex flex-col sm:flex-row sm:items-center justify-between p-3.5 rounded-none border transition-all gap-2 ${
                     isActive
-                      ? "border-primary/30 dark:border-primary/25 bg-primary/5 dark:bg-primary/10 shadow-sm"
-                      : "border-border hover:border-muted-foreground/30"
+                      ? "border-primary/50 bg-primary/5 shadow-xs"
+                      : "border-border bg-card/40 hover:border-border/80"
                   }`}
                 >
-                  <div className="space-y-1 mb-2 sm:mb-0">
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold text-sm">{prof.name}</span>
+                  <div className="space-y-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-semibold text-sm text-foreground truncate">{prof.name}</span>
                       {isActive && (
-                        <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-primary text-primary-foreground px-2 py-0.5 rounded-full">
+                        <span className="inline-flex items-center gap-1 font-mono text-[10px] uppercase border border-primary/40 bg-primary/10 text-primary px-1.5 py-0.5 rounded-none shrink-0">
                           <Zap className="h-3 w-3 fill-current" /> Active
                         </span>
                       )}
-                      <span className="text-[11px] font-mono uppercase bg-muted px-2 py-0.5 rounded text-muted-foreground">
+                      <span className="font-mono text-[10px] uppercase border border-border bg-muted/40 px-1.5 py-0.5 rounded-none text-muted-foreground shrink-0">
                         {prof.providerType}
                       </span>
                     </div>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs text-muted-foreground font-mono break-all">
                       {prof.model ? `Model: ${prof.model}` : `Default model for ${prof.providerType}`}
                       {prof.baseUrl && ` • ${prof.baseUrl}`}
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-border/40 justify-start sm:justify-end shrink-0">
                     {isTestingThis ? (
-                      <span className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                      <span className="flex items-center gap-1 font-mono text-xs text-muted-foreground">
                         <Loader2 className="h-3.5 w-3.5 animate-spin" /> Testing...
                       </span>
                     ) : testStatus === true ? (
-                      <span className="flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
-                        <CheckCircle className="h-3.5 w-3.5" /> Working
+                      <span className="flex items-center gap-1 font-mono text-xs text-emerald-600 dark:text-emerald-400">
+                        <CheckCircle className="h-3.5 w-3.5" /> Verified
                       </span>
                     ) : testStatus === false ? (
-                      <span className="flex items-center gap-1 text-xs font-medium text-destructive">
+                      <span className="flex items-center gap-1 font-mono text-xs text-destructive">
                         <XCircle className="h-3.5 w-3.5" /> Failed
                       </span>
                     ) : null}
 
                     {!isActive && (
                       <Button
+                        type="button"
                         size="sm"
                         variant="secondary"
-                        className="h-8 text-xs gap-1"
+                        className="rounded-none font-mono text-xs h-7 px-2.5 gap-1 cursor-pointer"
                         onClick={() => switchActiveProfile(prof.id)}
                       >
-                        <Check className="h-3.5 w-3.5" /> Switch Active
+                        <Check className="h-3 w-3" /> Set Active
                       </Button>
                     )}
 
                     <Button
+                      type="button"
                       size="sm"
                       variant="outline"
-                      className="h-8 text-xs gap-1"
+                      className="rounded-none font-mono text-xs h-7 px-2.5 gap-1 cursor-pointer"
                       onClick={() => testConnection(prof.id)}
                       disabled={isTestingThis}
                     >
@@ -309,23 +329,25 @@ export function AIConfigCard({ initialData, isLoading = false }: AIConfigCardPro
                     </Button>
 
                     <Button
+                      type="button"
                       size="sm"
                       variant="ghost"
-                      className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                      className="rounded-none h-7 w-7 p-0 text-muted-foreground hover:text-foreground cursor-pointer"
                       onClick={() => openEditProfileForm(prof)}
                       title="Edit profile"
                     >
-                      <Edit2 className="h-3.5 w-3.5" />
+                      <Edit2 className="h-3 w-3" />
                     </Button>
 
                     <Button
+                      type="button"
                       size="sm"
                       variant="ghost"
-                      className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+                      className="rounded-none h-7 w-7 p-0 text-muted-foreground hover:text-destructive cursor-pointer"
                       onClick={() => deleteProfile(prof.id, prof.name)}
                       title="Delete profile"
                     >
-                      <Trash2 className="h-3.5 w-3.5" />
+                      <Trash2 className="h-3 w-3" />
                     </Button>
                   </div>
                 </div>
@@ -335,35 +357,35 @@ export function AIConfigCard({ initialData, isLoading = false }: AIConfigCardPro
         )}
 
         {showForm && (
-          <div className="mt-4 p-4 border rounded-lg bg-card/80 space-y-4 animate-in fade-in slide-in-from-top-2">
-            <div className="flex items-center justify-between border-b pb-2">
-              <h4 className="font-semibold text-sm">
-                {editingId ? "Edit AI Profile" : "Add New AI Profile"}
+          <div className="mt-4 p-4 border border-border rounded-none bg-muted/20 space-y-4">
+            <div className="flex items-center justify-between border-b border-border/60 pb-2">
+              <h4 className="font-semibold text-xs font-mono uppercase tracking-wider text-foreground">
+                {editingId ? "Edit AI Profile" : "Register AI Profile Key"}
               </h4>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-6 w-6 p-0 text-muted-foreground"
+              <button
+                type="button"
+                className="h-6 w-6 inline-flex items-center justify-center font-mono text-xs text-muted-foreground hover:text-foreground cursor-pointer"
                 onClick={() => setShowForm(false)}
               >
                 ✕
-              </Button>
+              </button>
             </div>
 
-            <div className="grid sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Profile Name</Label>
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-mono text-foreground">Profile Name</Label>
                 <Input
-                  placeholder="e.g. Primary Gemini, Backup DeepSeek"
+                  placeholder="e.g. Primary Gemini, Fast Groq"
                   value={profName}
                   onChange={(e) => setProfName(e.target.value)}
+                  className="rounded-none text-xs h-8 font-mono border-border bg-background"
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label>Provider Type</Label>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-mono text-foreground">Provider Type</Label>
                 <select
-                  className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm"
+                  className="flex h-8 w-full rounded-none border border-border bg-background px-3 py-1 font-mono text-xs text-foreground shadow-none focus:outline-none"
                   value={aiProvider}
                   onChange={(e) => setAiProvider(e.target.value)}
                 >
@@ -376,20 +398,21 @@ export function AIConfigCard({ initialData, isLoading = false }: AIConfigCardPro
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label>API Key</Label>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-mono text-foreground">API Key</Label>
               <Input
                 type="password"
                 value={aiApiKey}
                 onChange={(e) => setAiApiKey(e.target.value)}
                 placeholder={editingId ? "•••••••••• (leave blank to keep unchanged)" : "sk-... or AIzaSy..."}
+                className="rounded-none text-xs h-8 font-mono border-border bg-background"
               />
             </div>
 
             {(aiProvider === "custom-openai" || aiProvider === "custom-anthropic") && (
-              <div className="grid sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Base URL</Label>
+              <div className="grid sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-mono text-foreground">Base URL</Label>
                   <Input
                     value={aiBaseUrl}
                     onChange={(e) => setAiBaseUrl(e.target.value)}
@@ -398,10 +421,11 @@ export function AIConfigCard({ initialData, isLoading = false }: AIConfigCardPro
                         ? "https://your-anthropic-proxy.com/v1"
                         : "https://api.openrouter.ai/v1"
                     }
+                    className="rounded-none text-xs h-8 font-mono border-border bg-background"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label>Model Name</Label>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-mono text-foreground">Model Name</Label>
                   <Input
                     value={aiModel}
                     onChange={(e) => setAiModel(e.target.value)}
@@ -410,25 +434,38 @@ export function AIConfigCard({ initialData, isLoading = false }: AIConfigCardPro
                         ? "claude-3-5-sonnet-20241022"
                         : "google/gemini-2.0-flash-exp:free or openrouter/auto"
                     }
+                    className="rounded-none text-xs h-8 font-mono border-border bg-background"
                   />
-                  <p className="text-[11px] text-muted-foreground">
-                    Examples for OpenRouter: <code className="bg-muted px-1 py-0.5 rounded">openrouter/auto</code>, <code className="bg-muted px-1 py-0.5 rounded">google/gemini-2.0-flash-exp:free</code>, <code className="bg-muted px-1 py-0.5 rounded">meta-llama/llama-3.3-70b-instruct:free</code>
+                  <p className="text-[10px] font-mono text-muted-foreground">
+                    Examples: <code className="bg-muted px-1 py-0.5 border border-border">openrouter/auto</code>, <code className="bg-muted px-1 py-0.5 border border-border">google/gemini-2.0-flash-exp:free</code>
                   </p>
                 </div>
               </div>
             )}
 
-            <div className="flex items-center gap-2 justify-end pt-2">
-              <Button size="sm" variant="outline" onClick={() => setShowForm(false)}>
+            <div className="flex items-center gap-2 justify-end pt-2 border-t border-border/40">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => setShowForm(false)}
+                className="rounded-none font-mono text-xs h-8 px-3 cursor-pointer"
+              >
                 Cancel
               </Button>
-              <Button size="sm" onClick={saveProfile} disabled={savingAi}>
+              <Button
+                type="button"
+                size="sm"
+                onClick={saveProfile}
+                disabled={savingAi}
+                className="rounded-none font-mono text-xs h-8 px-4 cursor-pointer bg-primary hover:bg-primary/90 text-primary-foreground"
+              >
                 {savingAi ? "Saving..." : editingId ? "Update Profile" : "Save Profile"}
               </Button>
             </div>
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   )
 }

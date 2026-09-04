@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest } from "next/server"
 import { getInternalUserId } from "@/lib/auth"
 import { prisma, withDbRetry } from "@/lib/prisma"
 import { ResponseUtil } from "@/lib/api-response"
@@ -7,7 +7,7 @@ import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit"
 export async function POST(req: NextRequest) {
   const userId = await getInternalUserId()
   if (!userId) {
-    return NextResponse.json(ResponseUtil.error("Unauthorized", 401), { status: 401 })
+    return ResponseUtil.unauthorized()
   }
 
   const rateCheck = checkRateLimit(`bulk-applications:${userId}`, 20, 60 * 1000)
@@ -20,10 +20,7 @@ export async function POST(req: NextRequest) {
     const { action, ids, payload } = body
 
     if (!Array.isArray(ids) || ids.length === 0) {
-      return NextResponse.json(
-        ResponseUtil.error("Minimum 1 application ID is required", 400),
-        { status: 400 }
-      )
+      return ResponseUtil.badRequest("Minimum 1 application ID is required")
     }
 
     // Verify all requested IDs belong to the authenticated user
@@ -37,10 +34,7 @@ export async function POST(req: NextRequest) {
     const validIds = validApplications.map((app) => app.id)
 
     if (validIds.length === 0) {
-      return NextResponse.json(
-        ResponseUtil.error("No valid applications found for this user", 404),
-        { status: 404 }
-      )
+      return ResponseUtil.notFound("No valid applications found for this user")
     }
 
     if (action === "delete") {
@@ -50,21 +44,16 @@ export async function POST(req: NextRequest) {
         })
       )
 
-      return NextResponse.json(
-        ResponseUtil.success({
-          message: `Successfully deleted ${deleteResult.count} applications`,
-          count: deleteResult.count,
-        })
-      )
+      return ResponseUtil.success({
+        message: `Successfully deleted ${deleteResult.count} applications`,
+        count: deleteResult.count,
+      })
     }
 
     if (action === "update_status") {
       const newStatus = payload?.status
       if (!newStatus || typeof newStatus !== "string") {
-        return NextResponse.json(
-          ResponseUtil.error("Valid status string is required for update_status", 400),
-          { status: 400 }
-        )
+        return ResponseUtil.badRequest("Valid status string is required for update_status")
       }
 
       await withDbRetry(async () => {
@@ -88,22 +77,17 @@ export async function POST(req: NextRequest) {
         ])
       })
 
-      return NextResponse.json(
-        ResponseUtil.success({
-          message: `Successfully updated status for ${validIds.length} applications`,
-          count: validIds.length,
-          status: newStatus,
-        })
-      )
+      return ResponseUtil.success({
+        message: `Successfully updated status for ${validIds.length} applications`,
+        count: validIds.length,
+        status: newStatus,
+      })
     }
 
     if (action === "add_tag") {
       const tagId = payload?.tagId
       if (!tagId || typeof tagId !== "string") {
-        return NextResponse.json(
-          ResponseUtil.error("Valid tagId string is required for add_tag", 400),
-          { status: 400 }
-        )
+        return ResponseUtil.badRequest("Valid tagId string is required for add_tag")
       }
 
       const tagExists = await withDbRetry(() =>
@@ -111,7 +95,7 @@ export async function POST(req: NextRequest) {
       )
 
       if (!tagExists) {
-        return NextResponse.json(ResponseUtil.error("Tag not found", 404), { status: 404 })
+        return ResponseUtil.notFound("Tag not found")
       }
 
       const applicationTagsData = validIds.map((id) => ({
@@ -126,23 +110,15 @@ export async function POST(req: NextRequest) {
         })
       )
 
-      return NextResponse.json(
-        ResponseUtil.success({
-          message: `Successfully added tag to ${validIds.length} applications`,
-          count: validIds.length,
-        })
-      )
+      return ResponseUtil.success({
+        message: `Successfully added tag to ${validIds.length} applications`,
+        count: validIds.length,
+      })
     }
 
-    return NextResponse.json(
-      ResponseUtil.error("Invalid action. Supported: delete, update_status, add_tag", 400),
-      { status: 400 }
-    )
+    return ResponseUtil.badRequest("Invalid action. Supported: delete, update_status, add_tag")
   } catch (err) {
     console.error("Bulk operations API error:", err)
-    return NextResponse.json(
-      ResponseUtil.error("Failed to process bulk operation", 500),
-      { status: 500 }
-    )
+    return ResponseUtil.error("Failed to process bulk operation", 500)
   }
 }

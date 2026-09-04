@@ -25,6 +25,12 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "CareerTrack Lite",
   description: "Track your job applications effortlessly",
+  verification: {
+    google: "36af505b5fe4b54c",
+  },
+  other: {
+    "google-site-verification": "google36af505b5fe4b54c",
+  },
 }
 
 export default function RootLayout({

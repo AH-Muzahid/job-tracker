@@ -46,7 +46,7 @@ export interface GraphMatchResult {
 }
 
 // Canonical tech alias map for exact semantic deduplication and matching
-const CANONICAL_ALIASES: Record<string, string> = {
+export const CANONICAL_ALIASES: Record<string, string> = {
   golang: "go",
   go: "go",
   k8s: "kubernetes",

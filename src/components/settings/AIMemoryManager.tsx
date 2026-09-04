@@ -1,11 +1,10 @@
 "use client"
 
 import React, { useState, useEffect } from "react"
-import { Brain, Trash2, Plus, Loader2, BrainCircuit, RefreshCw, UserCheck } from "lucide-react"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Trash2, Plus, Loader2, BrainCircuit, RefreshCw, UserCheck } from "lucide-react"
+import { DecorIcon } from "@/components/decor-icon"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
 
 interface MemoryItem {
@@ -133,43 +132,53 @@ export function AIMemoryManager({ initialMemories, isLoading = false }: AIMemory
   }
 
   return (
-    <Card className="rounded-xl border border-border/80 bg-card shadow-2xs">
-      <CardHeader className="pb-3">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-          <div className="space-y-1">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2 text-foreground">
-              <Brain className="h-4 w-4 text-indigo-500" />
-              <span>AI Persistent Memory & Knowledge</span>
-            </CardTitle>
-            <CardDescription className="text-xs text-muted-foreground">
-              Facts, career constraints, and preferences the AI remembers across all your chat and interview sessions.
-            </CardDescription>
+    <div className="relative rounded-none border border-border bg-card/60 backdrop-blur-xl p-4 sm:p-6 transition-colors">
+      <DecorIcon position="top-right" />
+      <DecorIcon position="bottom-left" />
+
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-border/70 gap-3">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-8 w-8 items-center justify-center border border-border bg-muted/40 text-foreground shrink-0">
+            <BrainCircuit className="h-4 w-4 text-primary" />
           </div>
-          <div className="flex items-center gap-2 self-start sm:self-center">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleSyncProfile}
-              disabled={syncingProfile}
-              className="text-xs h-7 gap-1.5 cursor-pointer font-medium"
-              title="Import facts from Profile Setup"
-            >
-              <RefreshCw className={`h-3 w-3 ${syncingProfile ? "animate-spin" : ""}`} />
-              <span>{syncingProfile ? "Syncing..." : "Sync from Profile"}</span>
-            </Button>
-            <Badge variant="secondary" className="text-xs">
-              {memories.length} {memories.length === 1 ? "Fact" : "Facts"} Retained
-            </Badge>
+          <div>
+            <span className="text-[10px] font-mono tracking-wider text-muted-foreground uppercase">AI / KNOWLEDGE</span>
+            <h3 className="text-sm font-semibold tracking-tight text-foreground">
+              Semantic Memory & Constraints
+            </h3>
           </div>
         </div>
-      </CardHeader>
-      <CardContent className="space-y-4 pt-1">
+
+        <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleSyncProfile}
+            disabled={syncingProfile}
+            className="rounded-none font-mono text-xs h-7 px-2.5 gap-1.5 cursor-pointer flex-1 sm:flex-initial"
+            title="Import facts from Profile Setup"
+          >
+            <RefreshCw className={`h-3 w-3 ${syncingProfile ? "animate-spin" : ""}`} />
+            <span>{syncingProfile ? "Syncing..." : "Sync Profile"}</span>
+          </Button>
+          <span className="font-mono text-[10px] uppercase border border-border bg-muted/40 px-2 py-0.5 rounded-none text-muted-foreground shrink-0">
+            {memories.length} {memories.length === 1 ? "Fact" : "Facts"}
+          </span>
+        </div>
+      </div>
+
+      <div className="space-y-4 pt-4">
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          Permanent career facts, constraints, and salary expectations automatically recalled by AI during outreach and interview preparation.
+        </p>
+
         {/* Add Memory Form */}
         <form onSubmit={handleAddMemory} className="flex flex-col sm:flex-row gap-2">
           <select
             value={newCategory}
             onChange={(e) => setNewCategory(e.target.value)}
-            className="rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 h-8"
+            className="rounded-none border border-border bg-background px-3 py-1 font-mono text-xs text-foreground focus:outline-none h-8 w-full sm:w-auto shrink-0"
           >
             <option value="preference">Preference</option>
             <option value="skill">Skill / Stack</option>
@@ -182,13 +191,13 @@ export function AIMemoryManager({ initialMemories, isLoading = false }: AIMemory
             value={newContent}
             onChange={(e) => setNewContent(e.target.value)}
             disabled={adding}
-            className="text-xs h-8 flex-1"
+            className="rounded-none text-xs h-8 font-mono border-border bg-background flex-1 w-full"
           />
           <Button
             type="submit"
             size="sm"
             disabled={adding || !newContent.trim()}
-            className="text-xs h-8 gap-1.5 shrink-0 cursor-pointer font-medium"
+            className="rounded-none font-mono text-xs h-8 px-4 gap-1.5 shrink-0 cursor-pointer bg-primary hover:bg-primary/90 text-primary-foreground w-full sm:w-auto justify-center"
           >
             {adding ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
             <span>Remember</span>
@@ -197,37 +206,38 @@ export function AIMemoryManager({ initialMemories, isLoading = false }: AIMemory
 
         {/* Memories List */}
         {loading ? (
-          <div className="flex items-center justify-center py-6 text-muted-foreground text-xs gap-2">
+          <div className="flex items-center justify-center py-6 text-muted-foreground font-mono text-xs gap-2">
             <Loader2 className="h-4 w-4 animate-spin" />
             <span>Loading retained memories...</span>
           </div>
         ) : memories.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-border/80 p-6 text-center text-muted-foreground space-y-2.5 bg-muted/20">
+          <div className="rounded-none border border-dashed border-border p-6 text-center text-muted-foreground space-y-2.5 bg-muted/10">
             <BrainCircuit className="h-5 w-5 mx-auto text-muted-foreground/60" />
             <div className="space-y-0.5">
               <p className="text-xs font-semibold text-foreground">No explicit memories retained yet.</p>
               <p className="text-[11px] text-muted-foreground max-w-sm mx-auto">
-                As you chat with the AI assistant, it will automatically record your preferences. You can also import your Profile Setup data in 1 click!
+                As you chat with the AI assistant, it will record your preferences. You can also import Profile Setup data in 1 click.
               </p>
             </div>
             <Button
+              type="button"
               variant="outline"
               size="sm"
               onClick={handleSyncProfile}
               disabled={syncingProfile}
-              className="text-xs h-8 gap-1.5 cursor-pointer font-medium mx-auto"
+              className="rounded-none font-mono text-xs h-8 gap-1.5 cursor-pointer mx-auto"
             >
               <UserCheck className="h-3.5 w-3.5 text-primary" />
               <span>Import Facts from Profile Setup</span>
             </Button>
           </div>
         ) : (
-          <div className="divide-y divide-border/60 rounded-xl border border-border/80 bg-card overflow-hidden">
+          <div className="divide-y divide-border/60 rounded-none border border-border bg-card overflow-hidden font-mono text-xs">
             {memories.map((m) => (
-              <div key={m.id} className="flex items-center justify-between p-3 gap-3 hover:bg-muted/40 transition-colors">
+              <div key={m.id} className="flex items-center justify-between p-3 gap-3 hover:bg-muted/30 transition-colors">
                 <div className="space-y-1 min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <span className="inline-flex items-center rounded-md bg-indigo-50 dark:bg-indigo-950/50 px-2 py-0.5 text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">
+                    <span className="inline-flex items-center rounded-none border border-border bg-muted/40 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-foreground">
                       {m.category}
                     </span>
                     {m.source && (
@@ -236,14 +246,15 @@ export function AIMemoryManager({ initialMemories, isLoading = false }: AIMemory
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-foreground font-normal leading-relaxed break-words">{m.content}</p>
+                  <p className="text-xs text-foreground font-normal leading-relaxed break-words font-sans">{m.content}</p>
                 </div>
                 <Button
+                  type="button"
                   variant="ghost"
                   size="icon"
                   onClick={() => handleDeleteMemory(m.id)}
                   disabled={deletingId === m.id}
-                  className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0 cursor-pointer"
+                  className="rounded-none h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0 cursor-pointer"
                   title="Forget this fact"
                 >
                   {deletingId === m.id ? (
@@ -256,7 +267,7 @@ export function AIMemoryManager({ initialMemories, isLoading = false }: AIMemory
             ))}
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   )
 }
