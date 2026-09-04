@@ -30,7 +30,7 @@ model User {
   interviewSessions InterviewSession[]
   notifications Notification[]
   connectedAccount ConnectedAccount?
-  discoveredJobs DiscoveredJob[]
+  jobMatches UserJobMatch[]
 }
 
 model Application {
@@ -361,34 +361,57 @@ model ConnectedAccount {
   @@index([provider, email])
 }
 
-model DiscoveredJob {
-  id             String    @id @default(uuid())
+model CanonicalJob {
+  id          String         @id @default(cuid())
+  fingerprint String         @unique
+  sourceBoard String
+  externalId  String?
+  title       String
+  company     String
+  location    String
+  isRemote    Boolean        @default(false)
+  url         String
+  salary      String?
+  salaryMin   Int?
+  salaryMax   Int?
+  tags        String[]
+  description String?        @db.Text
+  postedAt    DateTime?
+  expiresAt   DateTime?
+  isExpired   Boolean        @default(false)
+  scamScore   Float          @default(0)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  matches     UserJobMatch[]
+
+  @@index([isExpired, expiresAt])
+  @@index([sourceBoard])
+  @@index([createdAt])
+}
+
+model UserJobMatch {
+  id             String       @id @default(cuid())
   userId         String
-  sourceBoard    String
-  externalId     String?
-  title          String
-  company        String
-  location       String
-  url            String
-  salary         String?
-  salaryMin      Int?
-  salaryMax      Int?
-  tags           String[]
-  description    String?   @db.Text
+  jobId          String
   fitScore       Int
   matchRationale String?
-  status         String    @default("STAGED") // "STAGED" | "PUBLISHED" | "ARCHIVED"
+  status         String       @default("PUBLISHED") // "STAGED" | "PUBLISHED" | "DISMISSED" | "ARCHIVED"
+  isSaved        Boolean      @default(false)
+  dismissReason  String?      // "wrong_role" | "bad_salary" | "geo_mismatch" | "unqualified"
   batchId        String
-  isSaved        Boolean   @default(false)
   publishedAt    DateTime?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  job            CanonicalJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
 
+  @@unique([userId, jobId])
   @@index([userId, status, publishedAt])
   @@index([userId, isSaved])
   @@index([userId, batchId])
+  @@index([jobId])
 }
 
 
