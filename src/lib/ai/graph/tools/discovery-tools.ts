@@ -149,7 +149,7 @@ export async function executeSearchExternalJobs(
     // 2. Query active opportunities from CanonicalJob catalog (<10ms, decoupled from HTTP scrapers)
     const canonicalJobs = await withDbRetry(() =>
       prisma.canonicalJob.findMany({
-        where: { isExpired: false },
+        where: { isExpired: false, scamScore: { lt: 0.6 } },
         orderBy: { createdAt: "desc" },
         take: 150,
       })

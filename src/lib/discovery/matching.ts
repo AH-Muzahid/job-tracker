@@ -353,3 +353,103 @@ export function extractSearchTokens(query?: string, tags?: string[]): string[] {
 
   return Array.from(tokens)
 }
+
+export interface ScamRiskResult {
+  scamScore: number // 0.0 to 1.0
+  flags: string[]
+  isSuspicious: boolean // true if scamScore >= 0.6
+}
+
+/**
+ * Evaluates a job listing for fraud and scam indicators using heuristic rule-checks.
+ * Flags upfront fees, anonymous messengers, phishing URLs, absurd salaries, and scam phrases.
+ */
+export function evaluateJobScamRisk(job: {
+  title?: string
+  company?: string
+  url?: string
+  description?: string
+  salaryMin?: number
+  salaryMax?: number
+  salaryText?: string
+  location?: string
+}): ScamRiskResult {
+  const flags: string[] = []
+  let score = 0.0
+
+  const title = (job.title || "").toLowerCase()
+  const company = (job.company || "").trim()
+  const companyLower = company.toLowerCase()
+  const desc = (job.description || "").toLowerCase()
+  const url = (job.url || "").toLowerCase()
+
+  // 1. Missing or suspicious generic company name
+  if (!company || company.length < 2) {
+    score += 0.35
+    flags.push("missing_company_name")
+  } else if (
+    ["confidential", "unknown", "private company", "hiring company", "stealth", "various clients"].includes(
+      companyLower
+    )
+  ) {
+    score += 0.2
+    flags.push("generic_unverified_company")
+  }
+
+  // 2. Financial demands / advance fees (Direct high-severity red flag)
+  const financialScamRegex =
+    /\b(application fee|training fee|processing fee|security deposit|pay up front|upfront payment|buy equipment|purchase equipment|wire transfer|western union|crypto payment|send bitcoin|usdt deposit|cashier'?s check)\b/i
+  if (financialScamRegex.test(desc) || financialScamRegex.test(title)) {
+    score += 0.6
+    flags.push("demands_upfront_payment_or_fee")
+  }
+
+  // 3. Off-platform or anonymous contact redirection (Telegram/WhatsApp only)
+  const offPlatformRegex =
+    /\b(t\.me\/|telegram:\s*@|contact on telegram|dm on telegram|whatsapp only|contact on whatsapp:\s*\+?|message on whatsapp)\b/i
+  if (offPlatformRegex.test(desc) || offPlatformRegex.test(title)) {
+    score += 0.4
+    flags.push("off_platform_anonymous_contact")
+  }
+
+  // 4. Suspicious URL shorteners or deceptive domains
+  const suspiciousUrlShortener = /\b(bit\.ly|tinyurl\.com|cutt\.ly|rb\.gy|ow\.ly|is\.gd)\b/i
+  if (suspiciousUrlShortener.test(url)) {
+    score += 0.3
+    flags.push("shortened_phishing_url")
+  }
+
+  // 5. Classic task / reshipping / guaranteed cash scam patterns
+  const scamKeywordRegex =
+    /\b(earn \$\d+ (daily|per day)|guaranteed income|earn from home daily|package handler|re-?shipping agent|mystery shopper|secret shopper|data entry typist earn \$\d{3,}|cash advance)\b/i
+  if (scamKeywordRegex.test(desc) || scamKeywordRegex.test(title)) {
+    score += 0.45
+    flags.push("scam_phrase_detected")
+  }
+
+  // 6. Absurd salary outliers (e.g. Junior developer > $250k or entry data entry > $100/hr)
+  const isJuniorOrEntry =
+    title.includes("junior") ||
+    title.includes("intern") ||
+    title.includes("trainee") ||
+    title.includes("entry")
+
+  if (isJuniorOrEntry && job.salaryMin && job.salaryMin > 250000) {
+    score += 0.4
+    flags.push("absurd_salary_outlier_junior")
+  }
+
+  if (job.salaryMax && job.salaryMax > 800000) {
+    score += 0.3
+    flags.push("extreme_salary_outlier")
+  }
+
+  // Clamp score to [0, 1]
+  const finalScore = Math.min(1.0, Math.round(score * 100) / 100)
+
+  return {
+    scamScore: finalScore,
+    flags,
+    isSuspicious: finalScore >= 0.6,
+  }
+}

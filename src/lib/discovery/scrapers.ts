@@ -7,6 +7,7 @@ import {
   mapToRemoteOkTag,
   normalizeJobFingerprint,
   detectJobWorkMode,
+  evaluateJobScamRisk,
 } from "./matching"
 
 /**
@@ -680,6 +681,7 @@ export async function ingestGlobalJobsToCatalog(options: {
       const workMode = detectJobWorkMode(job)
       const isRemote = workMode === "remote"
       const fingerprint = normalizeJobFingerprint(job.company, job.title, job.location, isRemote)
+      const scamEval = evaluateJobScamRisk(job)
 
       await withDbRetry(() =>
         prisma.canonicalJob.upsert({
@@ -700,7 +702,8 @@ export async function ingestGlobalJobsToCatalog(options: {
             description: job.description || null,
             postedAt: now,
             expiresAt: thirtyDaysFromNow,
-            isExpired: false,
+            isExpired: scamEval.isSuspicious,
+            scamScore: scamEval.scamScore,
           },
           update: {
             url: job.url,
@@ -710,7 +713,8 @@ export async function ingestGlobalJobsToCatalog(options: {
             tags: job.tags && job.tags.length > 0 ? job.tags : undefined,
             description: job.description || undefined,
             expiresAt: thirtyDaysFromNow,
-            isExpired: false,
+            isExpired: scamEval.isSuspicious,
+            scamScore: scamEval.scamScore,
           },
         })
       )

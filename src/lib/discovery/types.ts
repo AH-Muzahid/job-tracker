@@ -22,6 +22,8 @@ export interface ExternalJobOpportunity {
   isSaved?: boolean
   appliedStatus?: string | null
   applicationId?: string | null
+  scamScore?: number
+  fraudFlags?: string[]
 }
 
 export interface UnifiedRawJob {
@@ -38,4 +40,6 @@ export interface UnifiedRawJob {
   salaryMax?: number
   salaryText?: string
   description: string
+  scamScore?: number
+  fraudFlags?: string[]
 }
