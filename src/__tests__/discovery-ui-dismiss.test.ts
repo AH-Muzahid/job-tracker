@@ -25,6 +25,17 @@ describe("Discovery UI: Top Picks & Interactive Dismissal Modal Suite", () => {
         expect(reason.icon).toBeDefined()
       }
     })
+
+    it("supports combining multiple selected reasons into a standardized comma-delimited payload", () => {
+      const selected = ["wrong_role", "bad_salary"]
+      const payload = selected.join(",")
+      expect(payload).toBe("wrong_role,bad_salary")
+
+      const parsed = payload.split(",").map((s) => s.trim())
+      expect(parsed).toContain("wrong_role")
+      expect(parsed).toContain("bad_salary")
+      expect(parsed).toHaveLength(2)
+    })
   })
 
   describe("Top Picks Selection & Graceful Degradation Logic", () => {

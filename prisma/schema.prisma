@@ -363,33 +363,37 @@ model ConnectedAccount {
 }
 
 model CanonicalJob {
-  id          String         @id @default(cuid())
-  fingerprint String         @unique
-  sourceBoard String
-  externalId  String?
-  title       String
-  company     String
-  location    String
-  isRemote    Boolean        @default(false)
-  url         String
-  salary      String?
-  salaryMin   Int?
-  salaryMax   Int?
-  tags        String[]
-  description String?        @db.Text
-  postedAt    DateTime?
-  expiresAt   DateTime?
-  isExpired   Boolean        @default(false)
-  scamScore   Float          @default(0)
-  visaSponsorship String?    @default("unknown") // "available" | "not_available" | "unknown"
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
+  id              String         @id @default(cuid())
+  fingerprint     String         @unique
+  sourceBoard     String
+  externalId      String?
+  title           String
+  company         String
+  location        String
+  isRemote        Boolean        @default(false)
+  url             String
+  salary          String?
+  salaryMin       Int?
+  salaryMax       Int?
+  tags            String[]
+  description     String?        @db.Text
+  postedAt        DateTime?
+  expiresAt       DateTime?
+  isExpired       Boolean        @default(false)
+  scamScore       Float          @default(0)
+  visaSponsorship String         @default("unknown")
+  employmentType  String         @default("full-time")
 
-  matches     UserJobMatch[]
-  events      DiscoveryEvent[]
+  // 1536-dimensional embedding using text-embedding-3-small
+  embedding       Unsupported("vector(1536)")?
+
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  matches         UserJobMatch[]
 
   @@index([isExpired, expiresAt])
-  @@index([sourceBoard])
+  @@index([sourceBoard, isExpired])
   @@index([createdAt])
 }
 
@@ -415,18 +419,19 @@ model UserJobMatch {
   @@index([userId, isSaved])
   @@index([userId, batchId])
   @@index([jobId])
+  @@index([userId, status, fitScore(sort: Desc)])
+  @@index([userId, publishedAt(sort: Desc), fitScore(sort: Desc)])
 }
 
 model DiscoveryEvent {
   id         String        @id @default(cuid())
   userId     String
-  jobId      String?
+  jobId      String?       // CanonicalJob ID, UserJobMatch ID, or external reference
   eventType  String        // "BATCH_PUBLISHED" | "FEED_VIEWED" | "JOB_SAVED" | "JOB_DISMISSED" | "JOB_UNDISMISSED" | "JOB_APPLIED" | "JOB_CLICK_EXTERNAL" | "FEED_REFRESHED"
   metadata   Json?
   createdAt  DateTime      @default(now())
 
   user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  job        CanonicalJob? @relation(fields: [jobId], references: [id], onDelete: Cascade)
 
   @@index([userId, eventType, createdAt])
   @@index([eventType, createdAt])

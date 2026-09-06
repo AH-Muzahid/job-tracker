@@ -1,8 +1,6 @@
 "use client"
 
-import { useState, useCallback, useEffect, useMemo } from "react"
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { Search, X, RefreshCw, Filter } from "lucide-react"
+import { Search, X, RefreshCw, Filter, Sliders } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import {
@@ -12,339 +10,103 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet"
-import { toast } from "sonner"
 import { cn } from "@/lib/utils"
-import { DiscoveryStatRow } from "./DiscoveryStatRow"
 import { DiscoveryFilterSidebar } from "./DiscoveryFilterSidebar"
 import { DiscoverySortDropdown } from "./DiscoverySortDropdown"
 import { DiscoveryJobList } from "./DiscoveryJobList"
-import { DiscoveryBatchTimer } from "./DiscoveryBatchTimer"
 import { DiscoveryPreferencesModal } from "./DiscoveryPreferencesModal"
 import { DiscoveryTrackModal } from "./DiscoveryTrackModal"
 import { DiscoveryDismissModal } from "./DiscoveryDismissModal"
-import { useUserProfile } from "@/lib/api"
-import type { DiscoveryFilters, SortOption, BatchSummary } from "./types"
+import { AgentAuditFeed } from "./AgentAuditFeed"
+import { useJobDiscovery } from "@/hooks/use-job-discovery"
 import type { ExternalJobOpportunity } from "@/lib/ai/graph/tools/discovery-tools"
 
-interface DiscoveryApiResponse {
-  count: number
-  nextBatchAt: string
-  currentBatchStartedAt: string
-  batchSummary: BatchSummary
-  opportunities: ExternalJobOpportunity[]
-}
-
 export function DiscoveryPage() {
-  const [searchQuery, setSearchQuery] = useState("")
-  const [filters, setFilters] = useState<DiscoveryFilters>({
-    source: "",
-    location: "",
-    minScore: "",
-    visaSponsorship: "",
-    batchSlot: "",
-    tags: [],
-    hideApplied: false,
-  })
-  const [sortBy, setSortBy] = useState<SortOption>("score-desc")
-  const [expandedRowId, setExpandedRowId] = useState<string | null>(null)
-  const [savedJobs, setSavedJobs] = useState<Set<string>>(new Set())
-  const [dismissedJobIds, setDismissedJobIds] = useState<Set<string>>(new Set())
-  const [dismissModalJob, setDismissModalJob] = useState<ExternalJobOpportunity | null>(null)
-  const [preferencesModalOpen, setPreferencesModalOpen] = useState(false)
-  const [trackModalJob, setTrackModalJob] = useState<ExternalJobOpportunity | null>(null)
-  const queryClient = useQueryClient()
-
-  // Fetch active user profile search preferences
-  const { data: userProfile, refetch: refetchProfile } = useUserProfile()
-
-  // Fetch 24-hour rolling window opportunities (instant client-side search without network flooding)
-  const { data, isLoading, isRefetching, refetch } = useQuery({
-    queryKey: ["discovery", "feed"],
-    queryFn: async () => {
-      console.log("[JobDiscovery Client] Fetching /api/jobs/discover?limit=60...")
-      const res = await fetch("/api/jobs/discover?limit=60")
-      if (!res.ok) {
-        const errJson = await res.json().catch(() => null)
-        console.error("[JobDiscovery Client] API error response:", res.status, errJson)
-        throw new Error(errJson?.error || "Failed to discover jobs")
-      }
-      const json = await res.json()
-      console.log("[JobDiscovery Client] Received discovery payload:", json)
-      console.log(
-        "[JobDiscovery Client] Total opportunities:",
-        json?.data?.opportunities?.length ?? 0,
-        "Batch Summary:",
-        json?.data?.batchSummary
-      )
-      return json.data as DiscoveryApiResponse
-    },
-    staleTime: 60_000,
-  })
-
-  // Synchronize previously saved jobs from the backend payload
-  useEffect(() => {
-    if (data?.opportunities) {
-      const initialSaved = new Set<string>()
-      for (const opp of data.opportunities) {
-        if (opp.isSaved) {
-          initialSaved.add(opp.id)
-        }
-      }
-      if (initialSaved.size > 0) {
-        setSavedJobs((prev) => new Set([...prev, ...initialSaved]))
-      }
-    }
-  }, [data?.opportunities])
-
-  const allOpportunities = useMemo(() => {
-    return (data?.opportunities || []).filter((opp) => !dismissedJobIds.has(opp.id))
-  }, [data?.opportunities, dismissedJobIds])
-
-  // Sub-millisecond instant in-memory filtering across search query and multi-criteria
-  const filteredOpportunities = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase()
-
-    return allOpportunities.filter((job) => {
-      if (filters.hideApplied && job.appliedStatus) return false
-      if (q) {
-        const target = `${job.title} ${job.company} ${job.location} ${(job.tags || []).join(" ")}`.toLowerCase()
-        if (!target.includes(q)) return false
-      }
-      if (filters.batchSlot && job.batchSlot !== filters.batchSlot) return false
-      if (filters.source && job.sourceBoard !== filters.source) return false
-      if (filters.location) {
-        const loc = job.location.toLowerCase()
-        const isRemote = loc.includes("remote") || loc.includes("anywhere")
-        const isHybrid = loc.includes("hybrid")
-        if (filters.location === "remote" && !isRemote) return false
-        if (filters.location === "hybrid" && !isHybrid) return false
-        if (filters.location === "onsite" && (isRemote || isHybrid)) return false
-      }
-      if (filters.minScore) {
-        const min = parseInt(filters.minScore)
-        if (min === 90 && job.fitScore < 90) return false
-        if (min === 75 && (job.fitScore < 75 || job.fitScore >= 90)) return false
-        if (min === 50 && (job.fitScore < 50 || job.fitScore >= 75)) return false
-        if (min === 0 && job.fitScore >= 50) return false
-      }
-      if (filters.visaSponsorship && job.visaSponsorship !== filters.visaSponsorship) return false
-      if (filters.tags.length > 0) {
-        const jobTags = job.tags?.map((t) => t.toLowerCase()) || []
-        if (!filters.tags.some((t) => jobTags.includes(t.toLowerCase()))) return false
-      }
-      return true
-    })
-  }, [allOpportunities, searchQuery, filters])
-
-  useEffect(() => {
-    if (data?.opportunities) {
-      console.log(
-        `[JobDiscovery Client] Feed state: ${allOpportunities.length} available opportunities -> ${filteredOpportunities.length} after filters. Active filters:`,
-        { searchQuery, ...filters }
-      )
-    }
-  }, [allOpportunities.length, filteredOpportunities.length, searchQuery, filters, data?.opportunities])
-
-  // Memoized sorting
-  const sortedOpportunities = useMemo(() => {
-    return [...filteredOpportunities].sort((a, b) => {
-      switch (sortBy) {
-        case "score-desc": return b.fitScore - a.fitScore
-        case "score-asc": return a.fitScore - b.fitScore
-        case "salary-desc": return parseSalary(b.salary) - parseSalary(a.salary)
-        case "salary-asc": return parseSalary(a.salary) - parseSalary(b.salary)
-        case "newest": {
-          const timeA = new Date(a.postedAt || a.publishedAt || 0).getTime()
-          const timeB = new Date(b.postedAt || b.publishedAt || 0).getTime()
-          return timeB - timeA
-        }
-        default: return 0
-      }
-    })
-  }, [filteredOpportunities, sortBy])
-
-  const saveMutation = useMutation({
-    mutationFn: async (job: ExternalJobOpportunity) => {
-      const isApplied = job.appliedStatus === "Applied"
-      const res = await fetch("/api/jobs/discover", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "save",
-          jobId: job.id,
-          companyName: job.company,
-          jobTitle: job.title,
-          jobUrl: job.url,
-          location: job.location,
-          salary: job.salary,
-          status: isApplied ? "Applied" : "Saved",
-          notes: `Fit Score: ${job.fitScore}%\n${job.matchRationale}`,
-        }),
-      })
-      if (!res.ok) throw new Error("Failed to save job to tracker")
-      return res.json()
-    },
-    onSuccess: (_, job) => {
-      setSavedJobs((prev) => new Set(prev).add(job.id))
-      queryClient.invalidateQueries({ queryKey: ["applications"] })
-      queryClient.invalidateQueries({ queryKey: ["discovery"] })
-      toast.success(
-        job.appliedStatus === "Applied"
-          ? `"${job.title}" tracked as Applied!`
-          : `"${job.title}" saved to your Tracker!`
-      )
-    },
-    onError: (err: Error) => toast.error(err?.message || "Failed to save"),
-  })
-
-  const handleApplyClick = useCallback((job: ExternalJobOpportunity) => {
-    // Non-blocking telemetry tracking for external job link clicks
-    fetch("/api/jobs/discover", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: "track_click",
-        jobId: job.id,
-        companyName: job.company,
-        jobTitle: job.title,
-        clickType: "external_link",
-      }),
-    }).catch(() => {})
-
-    if (job.appliedStatus) return
-    setTrackModalJob(job)
-  }, [])
-
-  const forceRefreshMutation = useMutation({
-    mutationFn: async () => {
-      console.log("[JobDiscovery Client] Manual batch refresh requested...")
-      const res = await fetch("/api/jobs/discover", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "refresh" }),
-      })
-      if (!res.ok) {
-        const errJson = await res.json().catch(() => null)
-        console.error("[JobDiscovery Client] Refresh failed:", res.status, errJson)
-        throw new Error(errJson?.error || "Failed to sync fresh batch")
-      }
-      const result = await res.json()
-      console.log("[JobDiscovery Client] Refresh result:", result)
-      return result
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["discovery"] })
-      toast.success("Fresh job batch generated and scored!")
-    },
-    onError: (err: Error) => toast.error(err?.message || "Failed to sync fresh batch"),
-  })
-
-  const dismissMutation = useMutation({
-    mutationFn: async ({ job, reason }: { job: ExternalJobOpportunity; reason: string }) => {
-      const res = await fetch("/api/jobs/discover", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "dismiss",
-          jobId: job.id,
-          companyName: job.company,
-          jobTitle: job.title,
-          dismissReason: reason,
-        }),
-      })
-      if (!res.ok) throw new Error("Failed to dismiss job")
-      return res.json()
-    },
-    onMutate: ({ job }) => {
-      // Optimistic instant hide
-      setDismissedJobIds((prev) => new Set(prev).add(job.id))
-    },
-    onSuccess: (_, { job }) => {
-      toast.success(`"${job.title}" hidden from your feed`, {
-        duration: 5000,
-        action: {
-          label: "Undo",
-          onClick: async () => {
-            // Optimistic restore
-            setDismissedJobIds((prev) => {
-              const next = new Set(prev)
-              next.delete(job.id)
-              return next
-            })
-            try {
-              await fetch("/api/jobs/discover", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  action: "undismiss",
-                  jobId: job.id,
-                  companyName: job.company,
-                  jobTitle: job.title,
-                }),
-              })
-              queryClient.invalidateQueries({ queryKey: ["discovery"] })
-              toast.success(`"${job.title}" restored to your feed`)
-            } catch {
-              toast.error("Failed to restore job")
-            }
-          },
-        },
-      })
-    },
-    onError: (err: Error, { job }) => {
-      // Rollback optimistic removal
-      setDismissedJobIds((prev) => {
-        const next = new Set(prev)
-        next.delete(job.id)
-        return next
-      })
-      toast.error(err?.message || "Failed to dismiss job")
-    },
-  })
-
-  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
-  const activeFiltersCount =
-    (filters.source ? 1 : 0) +
-    (filters.location ? 1 : 0) +
-    (filters.minScore ? 1 : 0) +
-    (filters.visaSponsorship ? 1 : 0) +
-    (filters.batchSlot ? 1 : 0) +
-    (filters.hideApplied ? 1 : 0) +
-    filters.tags.length
-
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    refetch()
-  }
-
-  const handleToggleExpand = useCallback((id: string) => {
-    setExpandedRowId((prev) => (prev === id ? null : id))
-  }, [])
+  const {
+    searchQuery,
+    setSearchQuery,
+    filters,
+    setFilters,
+    sortBy,
+    setSortBy,
+    savedJobs,
+    dismissModalJob,
+    setDismissModalJob,
+    preferencesModalOpen,
+    setPreferencesModalOpen,
+    trackModalJob,
+    setTrackModalJob,
+    mobileFiltersOpen,
+    setMobileFiltersOpen,
+    userProfile,
+    refetchProfile,
+    isLoading,
+    isRefetching,
+    refetch,
+    allOpportunities,
+    sortedOpportunities,
+    activeFiltersCount,
+    saveMutation,
+    forceRefreshMutation,
+    dismissMutation,
+    handleApplyClick,
+    handleSearchSubmit,
+    clearAllFilters,
+    queryClient,
+  } = useJobDiscovery()
 
   return (
-    <div className="space-y-4">
-      {/* Unified Header, Scheduled Release Countdown & 24-Hour Rolling Window Nav */}
-      <DiscoveryBatchTimer
-        nextBatchAt={data?.nextBatchAt}
-        batchSummary={data?.batchSummary}
-        activeSlot={filters.batchSlot || ""}
-        onSelectSlot={(slot) => setFilters((prev) => ({ ...prev, batchSlot: slot }))}
-        onForceRefresh={() => forceRefreshMutation.mutate()}
-        isRefreshing={forceRefreshMutation.isPending || isRefetching}
-        preferences={userProfile}
-        onOpenPreferences={() => setPreferencesModalOpen(true)}
-      />
+    <div className="space-y-6">
+      {/* 1. Clean, Minimal Header with Title, Active Criteria & Actions */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-border/70">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
+              Job Discovery
+            </h1>
+            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 text-xs font-mono font-medium border border-border bg-muted/40 text-muted-foreground rounded-none">
+              <span className="size-1.5 rounded-full bg-emerald-500" />
+              Live Feed ({allOpportunities.length})
+            </span>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Curated opportunities matched directly against your target skills and career preferences.
+          </p>
+        </div>
 
-      {/* Stat Row */}
-      <DiscoveryStatRow opportunities={allOpportunities} savedJobs={savedJobs} />
+        {/* Header Action Buttons */}
+        <div className="flex items-center gap-2 shrink-0">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPreferencesModalOpen(true)}
+            className="h-8 text-xs gap-1.5 rounded-none cursor-pointer border-border font-medium"
+          >
+            <Sliders className="size-3.5" />
+            <span>Preferences</span>
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => forceRefreshMutation.mutate()}
+            disabled={forceRefreshMutation.isPending || isRefetching}
+            className="h-8 text-xs gap-1.5 rounded-none cursor-pointer border-border"
+            title="Sync latest postings from Greenhouse, Lever & partner boards"
+          >
+            <RefreshCw className={cn("size-3.5", (forceRefreshMutation.isPending || isRefetching) && "animate-spin")} />
+            <span>{forceRefreshMutation.isPending ? "Syncing..." : "Refresh"}</span>
+          </Button>
+        </div>
+      </div>
 
       {/* Search + Sort + Filter Bar */}
-      <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5">
-        <form onSubmit={handleSearchSubmit} className="relative flex-1 min-w-[220px]">
+      <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-3">
+        <form onSubmit={handleSearchSubmit} className="relative w-full sm:w-80 md:w-96 shrink-0">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             type="text"
-            placeholder="Search roles, companies, or tech stack (e.g. Frontend, React)..."
+            placeholder="Search roles, companies, tech stack..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-9 pr-9 text-sm h-9 bg-background rounded-none border-border/70"
@@ -360,7 +122,7 @@ export function DiscoveryPage() {
           )}
         </form>
 
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-2 shrink-0 ml-auto">
           {/* Mobile Filter Trigger Sheet */}
           <Sheet open={mobileFiltersOpen} onOpenChange={setMobileFiltersOpen}>
             <SheetTrigger asChild>
@@ -382,7 +144,7 @@ export function DiscoveryPage() {
               <SheetHeader className="mb-4">
                 <SheetTitle className="text-sm font-semibold flex items-center gap-2">
                   <Filter className="size-4 text-primary" />
-                  Filters &amp; Refine
+                  Filters & Refine
                 </SheetTitle>
               </SheetHeader>
               <DiscoveryFilterSidebar
@@ -394,19 +156,11 @@ export function DiscoveryPage() {
           </Sheet>
 
           <DiscoverySortDropdown value={sortBy} onChange={setSortBy} />
-
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => refetch()}
-            disabled={isLoading || isRefetching}
-            className="h-9 px-3 cursor-pointer rounded-none border-border"
-            title="Refresh Feed"
-          >
-            <RefreshCw className={cn("h-3.5 w-3.5", (isLoading || isRefetching) && "animate-spin")} />
-          </Button>
         </div>
       </div>
+
+      {/* LangGraph Career Orchestrator Activity & Audit Feed */}
+      <AgentAuditFeed defaultExpanded={false} />
 
       {/* Two-column: Desktop Sidebar + List */}
       <div className="flex gap-6">
@@ -419,18 +173,13 @@ export function DiscoveryPage() {
           <DiscoveryJobList
             opportunities={sortedOpportunities}
             isLoading={isLoading}
-            expandedRowId={expandedRowId}
             savedJobs={savedJobs}
             saveMutation={saveMutation}
-            onToggleExpand={handleToggleExpand}
             onSave={(job) => saveMutation.mutate(job)}
             onDismiss={(job) => setDismissModalJob(job)}
             dismissingJobId={dismissMutation.isPending ? dismissMutation.variables?.job.id : null}
             onApplyClick={handleApplyClick}
-            onClearAll={() => {
-              setSearchQuery("")
-              setFilters({ source: "", location: "", minScore: "", batchSlot: "", tags: [], hideApplied: false })
-            }}
+            onClearAll={clearAllFilters}
             onRefetch={() => refetch()}
             onOpenPreferences={() => setPreferencesModalOpen(true)}
             searchQuery={searchQuery}
@@ -463,7 +212,7 @@ export function DiscoveryPage() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               action: "track_click",
-              jobId: job.id,
+              jobId: job.jobId || job.id,
               companyName: job.company,
               jobTitle: job.title,
               clickType: "apply",
@@ -493,10 +242,4 @@ export function DiscoveryPage() {
       />
     </div>
   )
-}
-
-function parseSalary(s?: string): number {
-  if (!s) return 0
-  const match = s.replace(/,/g, "").match(/\d+/)
-  return match ? parseInt(match[0]) : 0
 }

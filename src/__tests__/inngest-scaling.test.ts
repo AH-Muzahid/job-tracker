@@ -25,6 +25,9 @@ vi.mock("@/lib/prisma", () => ({
       deleteMany: vi.fn(),
       update: vi.fn(),
     },
+    userJobMatch: {
+      findMany: vi.fn(),
+    },
   },
   withDbRetry: vi.fn((fn) => fn()),
 }))
@@ -32,6 +35,7 @@ vi.mock("@/lib/prisma", () => ({
 describe("Inngest Batch Fan-Out & Scalability Suite", () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    ;(prisma as any).userJobMatch?.findMany?.mockResolvedValue([])
   })
 
   it("chunks 125 active users into 3 batch event dispatches", async () => {
@@ -103,6 +107,61 @@ describe("Inngest Batch Fan-Out & Scalability Suite", () => {
           type: "FOLLOW_UP",
           title: expect.stringContaining("Follow-up"),
           message: expect.stringContaining("Stripe recruiter"),
+        }),
+      })
+    )
+  })
+
+  it("injects top discovered job matches into daily briefing and email (REC-11)", async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({
+      id: "user-discovery-1",
+      name: "Tariq",
+      email: "tariq@example.com",
+    } as any)
+
+    vi.mocked(prisma.application.count).mockResolvedValueOnce(2)
+    vi.mocked(prisma.application.findMany).mockResolvedValueOnce([]) // no stale apps
+
+    ;(prisma as any).userJobMatch.findMany.mockResolvedValueOnce([
+      {
+        id: "match-1",
+        fitScore: 92,
+        job: {
+          id: "job-1",
+          title: "Senior Full Stack Engineer",
+          company: "Vercel",
+          location: "Remote",
+          salary: "$160k - $200k",
+          url: "https://vercel.com/careers/1",
+          tags: ["react", "node", "fulltime"],
+        },
+      },
+    ])
+
+    vi.spyOn(headless, "runHeadlessEvaluation").mockResolvedValueOnce({
+      success: true,
+      content: "Prioritize applying to the Senior Full Stack Engineer role at Vercel today.",
+      plan: [],
+    })
+
+    const mockStep = {
+      run: vi.fn(async (_name: string, fn: () => any) => fn()),
+    }
+
+    const handler = (processUserAuditBatch as any)["fn"]
+    const result = await handler({
+      event: { data: { userIds: ["user-discovery-1"] } },
+      step: mockStep,
+    })
+
+    expect(result.processed).toBe(1)
+    expect(prisma.notification.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          userId: "user-discovery-1",
+          type: "DAILY_HUNT",
+          title: expect.stringContaining("High-Fit Jobs Discovered"),
+          link: "/discovery",
         }),
       })
     )

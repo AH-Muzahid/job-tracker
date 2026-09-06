@@ -221,10 +221,40 @@ describe("Implicit Preference Learning Engine (REC-09)", () => {
       expect(prefs.dislikedRoles["devops"]).toBeGreaterThanOrEqual(2.0)
     })
 
-    it("invalidates the user cache key properly", async () => {
-      const { invalidateCache } = await import("@/lib/redis")
+    it("invalidates the user cache key properly and records invalidation timestamp", async () => {
+      const { invalidateCache, setCachedJson } = await import("@/lib/redis")
       await invalidateUserImplicitPreferences("user-999")
       expect(invalidateCache).toHaveBeenCalledWith("user:implicit-pref:user-999")
+      expect(setCachedJson).toHaveBeenCalledWith(
+        "user:implicit-pref:invalidated-at:user-999",
+        expect.any(Number),
+        3600
+      )
+    })
+
+    it("discards stale cache write when invalidation occurs during DB read window", async () => {
+      const { prisma } = await import("@/lib/prisma")
+      const { setCachedJson, getCachedJson } = await import("@/lib/redis")
+
+      ;(prisma.userJobMatch.findMany as any).mockResolvedValueOnce([])
+      ;(prisma.discoveryEvent.findMany as any).mockResolvedValueOnce([])
+
+      // Simulate that an invalidation occurred after the fetch started
+      vi.mocked(getCachedJson).mockImplementation(async (key: string) => {
+        if (key === "user:implicit-pref:invalidated-at:user-race-1") {
+          return Date.now() + 5000 // Invalidation happened during read
+        }
+        return null
+      })
+
+      await getUserImplicitPreferences("user-race-1")
+
+      // Verify that setCachedJson was NOT called for the preferences cacheKey
+      expect(setCachedJson).not.toHaveBeenCalledWith(
+        "user:implicit-pref:user-race-1",
+        expect.anything(),
+        expect.anything()
+      )
     })
   })
 })

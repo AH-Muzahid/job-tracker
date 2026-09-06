@@ -94,7 +94,8 @@ export async function getUserImplicitPreferences(userId: string): Promise<UserIm
     return emptyPreferences
   }
 
-  const now = new Date()
+  const fetchStartedAt = Date.now()
+  const now = new Date(fetchStartedAt)
   const windowStart = new Date(now.getTime() - 45 * 24 * 60 * 60 * 1000)
 
   // 1. Fetch UserJobMatch interactions within rolling window with linked CanonicalJob
@@ -179,10 +180,15 @@ export async function getUserImplicitPreferences(userId: string): Promise<UserIm
 
     if (m.status === "DISMISSED") {
       totalDismissed++
-      const reason = m.dismissReason || "user_hidden"
-      dismissReasons[reason] = (dismissReasons[reason] || 0) + 1
+      const rawReason = m.dismissReason || "user_hidden"
+      const reasonTokens = String(rawReason).split(",").map((r: string) => r.trim()).filter(Boolean)
+      if (reasonTokens.length === 0) reasonTokens.push("user_hidden")
 
-      if (reason === "wrong_role") {
+      for (const token of reasonTokens) {
+        dismissReasons[token] = (dismissReasons[token] || 0) + 1
+      }
+
+      if (reasonTokens.includes("wrong_role")) {
         for (const token of roleTokens) {
           dislikedRoles[token] = (dislikedRoles[token] || 0) + weight
         }
@@ -194,11 +200,13 @@ export async function getUserImplicitPreferences(userId: string): Promise<UserIm
             }
           }
         }
-      } else if (reason === "bad_company") {
+      }
+      if (reasonTokens.includes("bad_company")) {
         if (company) {
           dislikedCompanies[company] = (dislikedCompanies[company] || 0) + weight
         }
-      } else if (reason === "wrong_location") {
+      }
+      if (reasonTokens.includes("wrong_location")) {
         if (!job.isRemote) {
           wrongLocationOnsiteCount += weight
         }
@@ -244,8 +252,17 @@ export async function getUserImplicitPreferences(userId: string): Promise<UserIm
     dismissReasons,
   }
 
-  // Cache in Redis for 15 minutes (900 seconds)
-  void setCachedJson(cacheKey, preferences, 900)
+  // Cache in Redis for 15 minutes (900 seconds) with stampede / race condition guard
+  const invalidationKey = `user:implicit-pref:invalidated-at:${userId}`
+  const lastInvalidatedAt = await getCachedJson<number>(invalidationKey)
+  if (!lastInvalidatedAt || lastInvalidatedAt <= fetchStartedAt) {
+    void setCachedJson(cacheKey, preferences, 900)
+  } else {
+    console.log(
+      `[ImplicitPrefs] Discarding stale cache write for user ${userId}: invalidated during read window (${lastInvalidatedAt} > ${fetchStartedAt})`
+    )
+  }
+
   return preferences
 }
 
@@ -255,6 +272,9 @@ export async function getUserImplicitPreferences(userId: string): Promise<UserIm
  */
 export async function invalidateUserImplicitPreferences(userId: string): Promise<boolean> {
   const cacheKey = `user:implicit-pref:${userId}`
+  const invalidationKey = `user:implicit-pref:invalidated-at:${userId}`
+  // Set invalidation timestamp (expires in 1 hour) before deleting cache key
+  await setCachedJson(invalidationKey, Date.now(), 3600)
   return invalidateCache(cacheKey)
 }
 

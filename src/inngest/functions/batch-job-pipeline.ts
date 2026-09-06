@@ -51,7 +51,7 @@ export async function processUserJobBatch(
   const shouldNotify = options.notify !== false
 
   // 1. Fetch & score jobs against user resume/profile (Instant DB in-memory search)
-  const searchResult = await executeSearchExternalJobs(userId, { limit: 16 })
+  const searchResult = await executeSearchExternalJobs(userId, { limit: 60 })
   const opportunities = searchResult.opportunities || []
 
   let stagedCount = 0
@@ -85,19 +85,26 @@ export async function processUserJobBatch(
     const existingMatches =
       (await withDbRetry(() =>
         prisma.userJobMatch.findMany({
-          where: {
-            userId,
-            status: { in: ["PUBLISHED", "DISMISSED"] },
-          },
-          select: { jobId: true },
+          where: { userId },
+          select: { jobId: true, status: true },
         })
       )) || []
 
-    const existingJobIdSet = new Set(existingMatches.map((m) => m.jobId))
+    const existingMatchMap = new Map(existingMatches.map((m) => [m.jobId, m.status]))
 
-    const newMatchesToInsert = opportunities.filter(
-      (opp) => validJobIdSet.has(opp.id) && !existingJobIdSet.has(opp.id)
-    )
+    const newMatchesToInsert: typeof opportunities = []
+    const archivedMatchesToRevive: typeof opportunities = []
+
+    for (const opp of opportunities) {
+      if (!validJobIdSet.has(opp.id)) continue
+      const currentStatus = existingMatchMap.get(opp.id)
+      if (!currentStatus) {
+        newMatchesToInsert.push(opp)
+      } else if (currentStatus === "ARCHIVED") {
+        archivedMatchesToRevive.push(opp)
+      }
+      // If status is PUBLISHED, DISMISSED, or already STAGED, leave as-is
+    }
 
     if (newMatchesToInsert.length > 0) {
       await withDbRetry(() =>
@@ -115,8 +122,31 @@ export async function processUserJobBatch(
           skipDuplicates: true,
         })
       )
-      stagedCount = newMatchesToInsert.length
     }
+
+    if (archivedMatchesToRevive.length > 0) {
+      await Promise.all(
+        archivedMatchesToRevive.map((opp) =>
+          withDbRetry(() =>
+            prisma.userJobMatch.update({
+              where: {
+                userId_jobId: { userId, jobId: opp.id },
+              },
+              data: {
+                status: options.forceImmediatePublish ? "PUBLISHED" : "STAGED",
+                batchId,
+                fitScore: opp.fitScore,
+                matchRationale: opp.matchRationale,
+                publishedAt: options.forceImmediatePublish ? now : null,
+                dismissReason: null,
+              },
+            })
+          )
+        )
+      )
+    }
+
+    stagedCount = newMatchesToInsert.length + archivedMatchesToRevive.length
   }
 
   // 3. Step B: Rolling 24-Hour Archival Rule

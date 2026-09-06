@@ -10,6 +10,7 @@ export type DiscoveryEventType =
   | "JOB_APPLIED"
   | "JOB_CLICK_EXTERNAL"
   | "FEED_REFRESHED"
+  | "CAREER_ORCHESTRATOR_RUN"
 
 export interface LogEventParams {
   userId: string
@@ -35,7 +36,26 @@ export function logDiscoveryEvent(params: LogEventParams): void {
           metadata: params.metadata || undefined,
         },
       })
-    } catch (err) {
+    } catch (err: any) {
+      // Fallback: If foreign key or relation issue occurs, save event with null jobId and preserve id in metadata
+      if (err?.code === "P2003" && params.jobId) {
+        try {
+          await prisma.discoveryEvent.create({
+            data: {
+              userId: params.userId,
+              eventType: params.eventType,
+              jobId: null,
+              metadata: {
+                ...(params.metadata || {}),
+                unresolvedJobId: params.jobId,
+              },
+            },
+          })
+          return
+        } catch {
+          // Continue to log warning below if retry also fails
+        }
+      }
       // Telemetry must never crash or bubble up errors
       console.warn(`[Telemetry] Failed to log ${params.eventType} for user ${params.userId}:`, err)
     }

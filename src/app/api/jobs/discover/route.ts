@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export const dynamic = "force-dynamic"
 
-import { NextRequest } from "next/server"
+import { NextRequest, after } from "next/server"
 import { getInternalUserId } from "@/lib/auth"
 import { prisma, withDbRetry } from "@/lib/prisma"
 import {
@@ -10,6 +10,7 @@ import {
   normalizeTitle,
   calculateJobFreshness,
 } from "@/lib/ai/graph/tools/discovery-tools"
+import { detectEmploymentType } from "@/lib/discovery/matching"
 import {
   getNextBatchReleaseTime,
   getCurrentBatchStartTime,
@@ -20,6 +21,10 @@ import { checkDistributedRateLimit, rateLimitResponse } from "@/lib/rate-limit"
 import { ResponseUtil } from "@/lib/api-response"
 import { logDiscoveryEvent } from "@/lib/discovery/telemetry"
 import { invalidateUserImplicitPreferences } from "@/lib/discovery/preferences"
+import { generateApplicationMaterialsAgent } from "@/lib/discovery/cover-letter-agent"
+import { getCompanyEnrichment } from "@/lib/discovery/company-enrichment"
+import { retrieveCandidateJobsTier1 } from "@/lib/discovery/vector-retrieval"
+import { deepReRankCandidateJobs } from "@/lib/discovery/ai-reranker"
 
 export async function GET(request: NextRequest) {
   const userId = await getInternalUserId()
@@ -73,11 +78,43 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // If explicit forceRefresh is requested, seed immediately from local DB
-    if (forceRefresh) {
-      console.log(`[JobDiscovery API] Explicit forceRefresh requested for userId=${userId}. Processing fresh batch...`)
-      await processUserJobBatch(userId, { forceImmediatePublish: true, notify: false })
+    // 2. Resolve Profile & Demonstrated Projects
+    const [profile, resume] = await Promise.all([
+      withDbRetry(() => prisma.userProfile.findUnique({ where: { userId } })),
+      withDbRetry(() =>
+        prisma.resume.findFirst({
+          where: { userId },
+          orderBy: [{ isDefault: "desc" }, { updatedAt: "desc" }],
+        })
+      ),
+    ])
+
+    const targetRoles =
+      profile?.targetRoles && profile.targetRoles.length > 0
+        ? profile.targetRoles
+        : ["Software Engineer", "Full Stack Developer"]
+
+    const userSkills: string[] = []
+    if ((profile as any)?.skills && Array.isArray((profile as any).skills)) {
+      userSkills.push(...(profile as any).skills)
     }
+    if (profile?.strengths) {
+      profile.strengths.split(/[,|\n]+/).forEach((s) => {
+        const t = s.trim()
+        if (t && !userSkills.includes(t)) userSkills.push(t)
+      })
+    }
+    if (resume?.textContent) {
+      const tokens = resume.textContent.toLowerCase().match(/[a-z0-9+#.-]+/g) || []
+      tokens.slice(0, 25).forEach((tok) => {
+        if (tok.length > 2 && !userSkills.includes(tok)) userSkills.push(tok)
+      })
+    }
+
+    const projects = ((profile?.bestProjects as any[]) || (profile as any)?.projects as any[]) || []
+    const workPreference = profile?.workPreference || "remote"
+    const experienceLevel = profile?.experienceLevel || "mid"
+    const location = profile?.location || "Remote"
 
     // Query user's existing tracker applications to detect already-applied roles
     const userApplications = await withDbRetry(() =>
@@ -92,70 +129,49 @@ export async function GET(request: NextRequest) {
       appMap.set(key, { id: app.id, status: app.status })
     }
 
-    // Query all published job matches within the 24-hour rolling window OR saved jobs directly (excluding DISMISSED)
-    let rawMatches = await withDbRetry(() =>
+    // 3. TIER 1: Dense Vector Retrieval (<30ms)
+    const shortlistedCandidates = await retrieveCandidateJobsTier1({
+      userId,
+      targetRoles,
+      userSkills,
+      projects,
+      workPreference,
+      limit: 25,
+    })
+
+    console.log(`[JobDiscovery API] Tier 1 retrieved ${shortlistedCandidates.length} vector candidates for userId=${userId}`)
+
+    // 4. TIER 2: Deep Cross-Encoder Re-Ranking (<800ms)
+    const reRankedOpportunities = await deepReRankCandidateJobs({
+      candidateProfile: {
+        targetRoles,
+        skills: userSkills,
+        experienceLevel,
+        location,
+        projects,
+      },
+      jobs: shortlistedCandidates,
+    })
+
+    console.log(`[JobDiscovery API] Tier 2 re-ranked ${reRankedOpportunities.length} opportunities for userId=${userId}`)
+
+    // 5. Query user's saved jobs from the shortlisted candidates
+    const candidateJobIds = reRankedOpportunities.map((o) => o.id)
+    const savedMatches = await withDbRetry(() =>
       prisma.userJobMatch.findMany({
         where: {
           userId,
-          status: { not: "DISMISSED" },
-          OR: [
-            {
-              status: "PUBLISHED",
-              publishedAt: { gte: twentyFourHoursAgo },
-            },
-            {
-              isSaved: true,
-            },
-          ],
+          jobId: { in: candidateJobIds },
+          isSaved: true,
         },
-        include: {
-          job: true,
-        },
-        orderBy: [
-          { publishedAt: "desc" },
-          { fitScore: "desc" },
-        ],
-        take: 60,
+        select: { jobId: true },
       })
-    )
-    console.log(`[JobDiscovery API] Found ${rawMatches.length} active matches in rolling window for userId=${userId}`)
+    ).catch(() => [])
+    const savedJobIdSet = new Set(savedMatches.map((m) => m.jobId))
 
-    // If user has zero active matches, seed their initial batch in-memory from CanonicalJob (<50ms, zero HTTP calls)
-    if (rawMatches.length === 0 && !forceRefresh) {
-      console.log(`[JobDiscovery API] 0 active matches for userId=${userId}. Triggering fast in-memory batch generation...`)
-      await processUserJobBatch(userId, { forceImmediatePublish: true, notify: false })
-      rawMatches = await withDbRetry(() =>
-        prisma.userJobMatch.findMany({
-          where: {
-            userId,
-            status: { not: "DISMISSED" },
-            OR: [
-              {
-                status: "PUBLISHED",
-                publishedAt: { gte: twentyFourHoursAgo },
-              },
-              {
-                isSaved: true,
-              },
-            ],
-          },
-          include: {
-            job: true,
-          },
-          orderBy: [
-            { publishedAt: "desc" },
-            { fitScore: "desc" },
-          ],
-          take: 60,
-        })
-      )
-      console.log(`[JobDiscovery API] Post-scoring DB matches count: ${rawMatches.length} for userId=${userId}`)
-    }
-
-    // Transform matches into UI-ready opportunity format with batch age metadata
-    const opportunities = rawMatches.map((match) => {
-      const job = match.job
-      const publishedAt = match.publishedAt || match.createdAt
+    // 6. Transform into UI-ready opportunity format with batch age metadata
+    const opportunities = reRankedOpportunities.map((job) => {
+      const publishedAt = job.postedAt || now
       const ageHours = (now.getTime() - publishedAt.getTime()) / (1000 * 60 * 60)
 
       let batchSlot: "just-in" | "earlier-today" | "yesterday" = "just-in"
@@ -172,30 +188,43 @@ export async function GET(request: NextRequest) {
       const dedupKey = `${normalizeCompany(job.company)}:${normalizeTitle(job.title)}`
       const existingApp = appMap.get(dedupKey)
       const freshness = calculateJobFreshness(job.postedAt || publishedAt)
+      const employmentType = detectEmploymentType({
+        title: job.title,
+        description: job.description || "",
+        tags: job.tags || [],
+      })
 
       return {
-        id: match.id,
+        id: job.id,
         jobId: job.id,
         title: job.title,
         company: job.company,
         location: job.location,
         url: job.url,
-        sourceBoard: job.sourceBoard as any,
+        sourceBoard: ((job as any).sourceBoard || "curated") as any,
         tags: job.tags || [],
-        salary: job.salary || undefined,
-        fitScore: match.fitScore,
-        matchRationale: match.matchRationale || "",
+        salary: job.salary || (job.salaryMin && job.salaryMax ? `$${job.salaryMin} - $${job.salaryMax}` : undefined),
+        fitScore: job.fitScore,
+        matchRationale: job.matchRationale,
         descriptionSnippet: job.description || "",
-        batchId: match.batchId,
+        batchId: `recsys-${now.toISOString().slice(0, 10)}`,
         batchSlot,
         batchLabel,
         publishedAt: publishedAt.toISOString(),
         postedAt: (job.postedAt || publishedAt).toISOString(),
         freshnessLabel: freshness.label,
         visaSponsorship: (job.visaSponsorship as any) || "unknown",
-        isSaved: match.isSaved,
+        employmentType,
+        isSaved: savedJobIdSet.has(job.id),
         appliedStatus: existingApp?.status || null,
         applicationId: existingApp?.id || null,
+        scoreBreakdown: job.scoreBreakdown,
+        companyEnrichment: getCompanyEnrichment(job.company, {
+          description: job.description || undefined,
+          location: job.location,
+          url: job.url,
+          tags: job.tags || [],
+        }),
       }
     })
 
@@ -217,8 +246,10 @@ export async function GET(request: NextRequest) {
       totalActive: opportunities.length,
     }
 
+    const topPicksCount = filteredOpportunities.filter((o) => o.fitScore >= 90).length
+
     console.log(
-      `[JobDiscovery API] Returning ${filteredOpportunities.length} opportunities for userId=${userId}. Slots:`,
+      `[JobDiscovery API] Returning ${filteredOpportunities.length} opportunities for userId=${userId} (${topPicksCount} top picks). Slots:`,
       batchSummary
     )
 
@@ -229,6 +260,7 @@ export async function GET(request: NextRequest) {
       metadata: {
         count: filteredOpportunities.length,
         totalActive: opportunities.length,
+        topPicksCount,
         query: query || undefined,
         forceRefresh,
       },
@@ -236,6 +268,8 @@ export async function GET(request: NextRequest) {
 
     return ResponseUtil.success({
       count: filteredOpportunities.length,
+      totalAvailable: reRankedOpportunities.length,
+      topPicksCount,
       nextBatchAt,
       currentBatchStartedAt,
       batchSummary,
@@ -264,19 +298,32 @@ export async function POST(request: NextRequest) {
     const { action } = body
     console.log(`[JobDiscovery API] POST action="${action}" for userId=${userId}`)
 
-    if (action === "save") {
-      const { jobId, companyName, jobTitle, jobUrl, location, salary, notes } = body
-      if (!companyName || !jobTitle) {
-        return ResponseUtil.badRequest("companyName and jobTitle are required")
+    // Helper to resolve canonicalJobId from jobId (which may be a UserJobMatch id or CanonicalJob id)
+    const resolveCanonicalJobId = async (rawId?: string): Promise<string | undefined> => {
+      if (!rawId) return undefined
+      try {
+        const match = await prisma.userJobMatch.findFirst({
+          where: { userId, OR: [{ id: rawId }, { jobId: rawId }] },
+          select: { jobId: true },
+        })
+        return match?.jobId || rawId
+      } catch {
+        return rawId
       }
+    }
 
-      // 1. Create tracker application record
+    if (action === "save") {
+      const { jobId, companyName, jobTitle, jobUrl, location, salary, status, notes } = body
+      const resolvedJobId = await resolveCanonicalJobId(jobId)
+
+      // 1. Save directly into User Tracker (Application model)
       const saveResult = await executeSaveJobOpportunityToTracker(userId, {
         companyName,
         jobTitle,
         jobUrl,
         location,
         salary,
+        status: status || "Saved",
         notes,
       })
 
@@ -307,25 +354,50 @@ export async function POST(request: NextRequest) {
         ).catch((err) => console.warn("[UserJobMatch save mark error]:", err))
       }
 
-      // 3. Fire-and-forget telemetry logging
-      logDiscoveryEvent({
-        userId,
-        eventType: "JOB_SAVED",
-        jobId: jobId || undefined,
-        metadata: { companyName, jobTitle, location, salary },
+      // 3. Post-response background execution via Next.js 15 after() to prevent serverless CPU freeze
+      const savedAppId = (saveResult as any).applicationId
+      after(async () => {
+        try {
+          await Promise.allSettled([
+            Promise.resolve(
+              logDiscoveryEvent({
+                userId,
+                eventType: "JOB_SAVED",
+                jobId: resolvedJobId || jobId || undefined,
+                metadata: { companyName, jobTitle, location, salary },
+              })
+            ),
+            invalidateUserImplicitPreferences(userId),
+            savedAppId
+              ? generateApplicationMaterialsAgent(userId, savedAppId, {
+                  companyName,
+                  jobTitle,
+                  jobUrl,
+                  location,
+                  notes,
+                  salary,
+                })
+              : Promise.resolve(),
+          ])
+        } catch (afterErr) {
+          console.error("[JobDiscovery API] Error in post-save background tasks:", afterErr)
+        }
       })
-
-      // Invalidate learned preference cache so next discovery scoring includes this affinity
-      void invalidateUserImplicitPreferences(userId)
 
       return ResponseUtil.success(saveResult)
     }
 
     if (action === "refresh") {
       console.log(`[JobDiscovery API] Refresh batch triggered for userId=${userId}`)
-      logDiscoveryEvent({
-        userId,
-        eventType: "FEED_REFRESHED",
+      after(async () => {
+        try {
+          logDiscoveryEvent({
+            userId,
+            eventType: "FEED_REFRESHED",
+          })
+        } catch (afterErr) {
+          console.error("[JobDiscovery API] Error logging refresh event:", afterErr)
+        }
       })
       const result = await processUserJobBatch(userId, { forceImmediatePublish: true, notify: false })
       return ResponseUtil.success(result)
@@ -333,6 +405,8 @@ export async function POST(request: NextRequest) {
 
     if (action === "dismiss") {
       const { jobId, companyName, jobTitle, dismissReason } = body
+      const resolvedJobId = await resolveCanonicalJobId(jobId)
+
       if (jobId) {
         await withDbRetry(() =>
           prisma.userJobMatch.updateMany({
@@ -361,21 +435,31 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      logDiscoveryEvent({
-        userId,
-        eventType: "JOB_DISMISSED",
-        jobId: jobId || undefined,
-        metadata: { companyName, jobTitle, dismissReason: dismissReason || "user_hidden" },
+      after(async () => {
+        try {
+          await Promise.allSettled([
+            Promise.resolve(
+              logDiscoveryEvent({
+                userId,
+                eventType: "JOB_DISMISSED",
+                jobId: resolvedJobId || jobId || undefined,
+                metadata: { companyName, jobTitle, dismissReason: dismissReason || "user_hidden" },
+              })
+            ),
+            invalidateUserImplicitPreferences(userId),
+          ])
+        } catch (afterErr) {
+          console.error("[JobDiscovery API] Error in post-dismiss background tasks:", afterErr)
+        }
       })
-
-      // Invalidate learned preference cache so next discovery scoring incorporates this aversion
-      void invalidateUserImplicitPreferences(userId)
 
       return ResponseUtil.success({ dismissed: true })
     }
 
     if (action === "undismiss") {
       const { jobId, companyName, jobTitle } = body
+      const resolvedJobId = await resolveCanonicalJobId(jobId)
+
       if (jobId) {
         await withDbRetry(() =>
           prisma.userJobMatch.updateMany({
@@ -404,33 +488,49 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      logDiscoveryEvent({
-        userId,
-        eventType: "JOB_UNDISMISSED",
-        jobId: jobId || undefined,
-        metadata: { companyName, jobTitle },
+      after(async () => {
+        try {
+          await Promise.allSettled([
+            Promise.resolve(
+              logDiscoveryEvent({
+                userId,
+                eventType: "JOB_UNDISMISSED",
+                jobId: resolvedJobId || jobId || undefined,
+                metadata: { companyName, jobTitle },
+              })
+            ),
+            invalidateUserImplicitPreferences(userId),
+          ])
+        } catch (afterErr) {
+          console.error("[JobDiscovery API] Error in post-undismiss background tasks:", afterErr)
+        }
       })
-
-      // Invalidate learned preference cache on undo
-      void invalidateUserImplicitPreferences(userId)
 
       return ResponseUtil.success({ restored: true })
     }
 
     if (action === "track_click") {
       const { jobId, companyName, jobTitle, clickType } = body
+      const resolvedJobId = await resolveCanonicalJobId(jobId)
       const eventType = clickType === "apply" ? "JOB_APPLIED" : "JOB_CLICK_EXTERNAL"
 
-      logDiscoveryEvent({
-        userId,
-        eventType,
-        jobId: jobId || undefined,
-        metadata: { companyName, jobTitle, clickType },
+      after(async () => {
+        try {
+          await Promise.allSettled([
+            Promise.resolve(
+              logDiscoveryEvent({
+                userId,
+                eventType,
+                jobId: resolvedJobId || jobId || undefined,
+                metadata: { companyName, jobTitle, clickType },
+              })
+            ),
+            eventType === "JOB_APPLIED" ? invalidateUserImplicitPreferences(userId) : Promise.resolve(),
+          ])
+        } catch (afterErr) {
+          console.error("[JobDiscovery API] Error in post-track-click background tasks:", afterErr)
+        }
       })
-
-      if (eventType === "JOB_APPLIED") {
-        void invalidateUserImplicitPreferences(userId)
-      }
 
       return ResponseUtil.success({ tracked: true, eventType })
     }

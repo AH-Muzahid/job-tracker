@@ -112,9 +112,13 @@ export const CANONICAL_ALIASES: Record<string, string> = {
 }
 
 export function toCanonical(name: string): string {
+  if (!name || typeof name !== "string") return ""
   const clean = name.toLowerCase().trim().replace(/[^a-z0-9_./-]/g, " ")
   const compacted = clean.replace(/\s+/g, " ").trim()
-  return CANONICAL_ALIASES[compacted] || compacted
+  if (Object.prototype.hasOwnProperty.call(CANONICAL_ALIASES, compacted)) {
+    return CANONICAL_ALIASES[compacted]
+  }
+  return compacted
 }
 
 /**

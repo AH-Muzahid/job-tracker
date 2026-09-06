@@ -85,16 +85,16 @@ test.describe("Phase 5.2: Agentic E2E Missions Suite", () => {
 
     await page.goto("/discovery", { waitUntil: "domcontentloaded" })
 
-    // 1. Verify Autonomous Job Discovery Hub header
-    await expect(page.locator("text=Autonomous Job Discovery Hub")).toBeVisible({ timeout: 20000 })
+    // 1. Verify Job Discovery header
+    await expect(page.locator("text=Job Discovery").first()).toBeVisible({ timeout: 20000 })
 
     // 2. Verify multi-board cards from RemoteOK and Arbeitnow appear
     await expect(page.locator("text=Senior Full Stack Engineer (TypeScript / Next.js)")).toBeVisible({ timeout: 10000 })
     await expect(page.locator("text=Backend Go Developer (Distributed Systems)")).toBeVisible()
     await expect(page.locator("text=94% Match").first()).toBeVisible()
 
-    // 3. Click "Save to Tracker" on the first opportunity
-    const saveButton = page.locator("button:has-text('Save to Tracker')").first()
+    // 3. Click "Save" on the first opportunity
+    const saveButton = page.locator("button:has-text('Save')").first()
     await expect(saveButton).toBeVisible()
     await saveButton.click()
 

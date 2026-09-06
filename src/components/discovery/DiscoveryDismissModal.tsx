@@ -1,5 +1,6 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import {
   Dialog,
   DialogContent,
@@ -15,9 +16,10 @@ import {
   Building2,
   GraduationCap,
   EyeOff,
-  Briefcase,
+  Check,
 } from "lucide-react"
 import { DecorIcon } from "@/components/decor-icon"
+import { cn } from "@/lib/utils"
 import type { ExternalJobOpportunity } from "@/lib/discovery/types"
 
 export interface DismissReasonOption {
@@ -79,10 +81,36 @@ export function DiscoveryDismissModal({
   onOpenChange,
   onDismiss,
 }: DiscoveryDismissModalProps) {
+  const [selectedReasons, setSelectedReasons] = useState<string[]>([])
+
+  // Reset selected reasons whenever modal opens with a new job
+  useEffect(() => {
+    if (open) {
+      setSelectedReasons([])
+    }
+  }, [open, job?.id])
+
   if (!job) return null
 
-  const handleSelectReason = (reasonKey: string) => {
-    onDismiss(job, reasonKey)
+  const handleToggleReason = (reasonKey: string) => {
+    setSelectedReasons((prev) =>
+      prev.includes(reasonKey)
+        ? prev.filter((k) => k !== reasonKey)
+        : [...prev, reasonKey]
+    )
+  }
+
+  const handleSelectAll = () => {
+    if (selectedReasons.length === DISMISS_REASONS.length) {
+      setSelectedReasons([])
+    } else {
+      setSelectedReasons(DISMISS_REASONS.map((r) => r.key))
+    }
+  }
+
+  const handleSubmit = () => {
+    if (selectedReasons.length === 0) return
+    onDismiss(job, selectedReasons.join(","))
     onOpenChange(false)
   }
 
@@ -92,13 +120,13 @@ export function DiscoveryDismissModal({
         <DecorIcon position="top-right" />
         <DecorIcon position="bottom-left" />
 
-        <DialogHeader className="space-y-1.5 text-left">
+        <DialogHeader className="space-y-1 text-left">
           <DialogTitle className="text-base font-bold text-foreground flex items-center gap-2">
             <EyeOff className="size-4 text-muted-foreground" />
             <span>Dismiss Opportunity</span>
           </DialogTitle>
           <DialogDescription className="text-xs text-muted-foreground leading-relaxed">
-            Help CareerTrack calibrate your feed. Select why this role isn&apos;t a good fit:
+            Select all reasons that apply. CareerTrack uses this to calibrate and refine your recommendations:
           </DialogDescription>
         </DialogHeader>
 
@@ -117,25 +145,63 @@ export function DiscoveryDismissModal({
           </div>
         </div>
 
-        {/* 1-Click Reason Selection Grid */}
+        {/* Multi-Select Reason Options Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 my-2">
           {DISMISS_REASONS.map((reason) => {
             const Icon = reason.icon
+            const isSelected = selectedReasons.includes(reason.key)
+
             return (
               <button
                 key={reason.key}
                 type="button"
-                onClick={() => handleSelectReason(reason.key)}
-                className="group p-3 border border-border/70 hover:border-primary/60 bg-background/50 hover:bg-muted/40 transition-all rounded-none text-left cursor-pointer flex flex-col justify-between"
+                role="checkbox"
+                aria-checked={isSelected}
+                onClick={() => handleToggleReason(reason.key)}
+                className={cn(
+                  "group p-3 border transition-all rounded-none text-left cursor-pointer flex flex-col justify-between select-none relative",
+                  isSelected
+                    ? "border-primary bg-primary/10 dark:bg-primary/15 shadow-xs ring-1 ring-primary/40"
+                    : "border-border/70 hover:border-primary/50 bg-background/50 hover:bg-muted/30"
+                )}
               >
-                <div className="flex items-center gap-2 mb-1">
-                  <div className="size-6 rounded-none bg-muted/60 border border-border/60 flex items-center justify-center text-muted-foreground group-hover:text-primary group-hover:border-primary/40 transition-colors">
-                    <Icon className="size-3.5" />
+                <div className="flex items-center justify-between gap-2 mb-1.5">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div
+                      className={cn(
+                        "size-6 rounded-none border flex items-center justify-center transition-colors shrink-0",
+                        isSelected
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-muted/60 border-border/60 text-muted-foreground group-hover:text-primary group-hover:border-primary/40"
+                      )}
+                    >
+                      <Icon className="size-3.5" />
+                    </div>
+                    <span
+                      className={cn(
+                        "text-xs font-semibold truncate transition-colors",
+                        isSelected
+                          ? "text-primary dark:text-primary font-bold"
+                          : "text-foreground group-hover:text-primary"
+                      )}
+                    >
+                      {reason.label}
+                    </span>
                   </div>
-                  <span className="text-xs font-semibold text-foreground group-hover:text-primary transition-colors">
-                    {reason.label}
-                  </span>
+
+                  {/* Blueprint Linear Checkbox */}
+                  <div
+                    className={cn(
+                      "size-4 rounded-none border flex items-center justify-center shrink-0 transition-colors",
+                      isSelected
+                        ? "bg-primary border-primary text-primary-foreground"
+                        : "border-muted-foreground/40 bg-background group-hover:border-primary/60"
+                    )}
+                  >
+                    {isSelected && <Check className="size-3 stroke-[3]" />}
+                  </div>
                 </div>
+
                 <p className="text-[10px] text-muted-foreground leading-tight line-clamp-2">
                   {reason.description}
                 </p>
@@ -144,20 +210,60 @@ export function DiscoveryDismissModal({
           })}
         </div>
 
-        {/* Footer Actions */}
-        <div className="flex items-center justify-between pt-2 border-t border-border/40">
-          <span className="text-[10px] text-muted-foreground">
-            1-click hides this posting and refines future recommendations.
-          </span>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => onOpenChange(false)}
-            className="h-7 text-xs rounded-none cursor-pointer"
-          >
-            Cancel
-          </Button>
+        {/* Footer Actions: Selection Summary, Cancel, and Submit Button */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-border/60">
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] text-muted-foreground">
+              {selectedReasons.length > 0 ? (
+                <span className="text-foreground font-semibold">
+                  {selectedReasons.length} of {DISMISS_REASONS.length} selected
+                </span>
+              ) : (
+                "Select at least one reason"
+              )}
+            </span>
+            {selectedReasons.length > 0 ? (
+              <button
+                type="button"
+                onClick={() => setSelectedReasons([])}
+                className="text-[11px] text-muted-foreground hover:text-foreground underline cursor-pointer"
+              >
+                Clear
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleSelectAll}
+                className="text-[11px] text-muted-foreground hover:text-foreground underline cursor-pointer"
+              >
+                Select all
+              </button>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2 justify-end">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => onOpenChange(false)}
+              className="h-8 text-xs rounded-none cursor-pointer border border-transparent hover:border-border"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              disabled={selectedReasons.length === 0}
+              onClick={handleSubmit}
+              className="h-8 px-4 text-xs font-semibold rounded-none cursor-pointer bg-primary hover:bg-primary/90 text-primary-foreground disabled:opacity-40 disabled:cursor-not-allowed transition-all gap-1.5"
+            >
+              <EyeOff className="size-3.5" />
+              <span>
+                Dismiss Job{selectedReasons.length > 0 ? ` (${selectedReasons.length})` : ""}
+              </span>
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

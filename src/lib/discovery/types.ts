@@ -1,5 +1,6 @@
 export interface ExternalJobOpportunity {
   id: string
+  jobId?: string
   title: string
   company: string
   location: string
@@ -22,6 +23,7 @@ export interface ExternalJobOpportunity {
   postedAt?: string
   freshnessLabel?: string
   visaSponsorship?: "available" | "not_available" | "unknown"
+  employmentType?: "intern" | "contract" | "part-time" | "full-time"
   isSaved?: boolean
   appliedStatus?: string | null
   applicationId?: string | null
@@ -33,6 +35,14 @@ export interface ExternalJobOpportunity {
     location: number
     seniority: number
   }
+  companyEnrichment?: {
+    headcount?: string
+    stage?: string
+    industry?: string
+    isRemoteFirst?: boolean
+    verified?: boolean
+    cultureHighlights?: string[]
+  }
 }
 
 export interface UnifiedRawJob {
@@ -40,6 +50,7 @@ export interface UnifiedRawJob {
   title: string
   company: string
   location: string
+  isRemote?: boolean
   url: string
   sourceBoard: "remoteok" | "arbeitnow" | "adzuna" | "curated" | "linkedin" | "jobicy" | "linkedin_post" | "company_portal" | "greenhouse" | "lever"
   tags: string[]
@@ -51,6 +62,7 @@ export interface UnifiedRawJob {
   description: string
   postedAt?: string | Date
   visaSponsorship?: "available" | "not_available" | "unknown"
+  employmentType?: "intern" | "contract" | "part-time" | "full-time"
   scamScore?: number
   fraudFlags?: string[]
 }

@@ -4,17 +4,14 @@ import { Briefcase, RefreshCw, Sliders } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { DecorIcon } from "@/components/decor-icon"
 import { DiscoveryJobRow } from "./DiscoveryJobRow"
-import { DiscoveryTopPicks } from "./DiscoveryTopPicks"
 import type { ExternalJobOpportunity } from "@/lib/ai/graph/tools/discovery-tools"
 import type { UseMutationResult } from "@tanstack/react-query"
 
 interface DiscoveryJobListProps {
   opportunities: ExternalJobOpportunity[]
   isLoading: boolean
-  expandedRowId: string | null
   savedJobs: Set<string>
   saveMutation: UseMutationResult<unknown, Error, ExternalJobOpportunity>
-  onToggleExpand: (id: string) => void
   onSave: (job: ExternalJobOpportunity) => void
   onDismiss?: (job: ExternalJobOpportunity) => void
   dismissingJobId?: string | null
@@ -26,8 +23,8 @@ interface DiscoveryJobListProps {
 }
 
 export function DiscoveryJobList({
-  opportunities, isLoading, expandedRowId, savedJobs, saveMutation,
-  onToggleExpand, onSave, onDismiss, dismissingJobId, onApplyClick, onClearAll, onRefetch, onOpenPreferences, searchQuery,
+  opportunities, isLoading, savedJobs, saveMutation,
+  onSave, onDismiss, dismissingJobId, onApplyClick, onClearAll, onRefetch, onOpenPreferences, searchQuery,
 }: DiscoveryJobListProps) {
   if (isLoading) {
     return (
@@ -96,27 +93,11 @@ export function DiscoveryJobList({
     )
   }
 
-  const hasTopPicks = opportunities.some((j) => j.fitScore >= 90)
-
   return (
     <div>
-      {/* Top Picks Showcase (Gracefully degrades to null when no 90%+ match exists) */}
-      <DiscoveryTopPicks
-        topPicks={opportunities}
-        savedJobs={savedJobs}
-        isSavingId={saveMutation.isPending ? saveMutation.variables?.id : null}
-        onSave={onSave}
-        onDismiss={onDismiss || (() => {})}
-        onApplyClick={onApplyClick}
-        onSelectJob={(id) => onToggleExpand(id)}
-      />
-
-      <div className="flex items-center justify-between mb-3 px-1 border-b border-border/60 pb-2">
+      <div className="flex items-center justify-between mb-2 px-1 border-b border-border/60 pb-2">
         <span className="text-xs font-bold uppercase tracking-wider font-mono text-foreground">
-          {hasTopPicks ? "All Feed Positions" : "Positions Available"} ({opportunities.length})
-        </span>
-        <span className="text-xs text-muted-foreground font-mono hidden sm:inline">
-          Click any role to inspect AI score breakdown &amp; tips
+          Available Roles ({opportunities.length})
         </span>
       </div>
       <div>
@@ -124,11 +105,9 @@ export function DiscoveryJobList({
           <DiscoveryJobRow
             key={job.id}
             job={job}
-            isExpanded={expandedRowId === job.id}
             isSaved={savedJobs.has(job.id)}
             isSaving={saveMutation.isPending && saveMutation.variables?.id === job.id}
             isDismissing={dismissingJobId === job.id}
-            onToggle={() => onToggleExpand(job.id)}
             onSave={() => onSave(job)}
             onDismiss={onDismiss ? () => onDismiss(job) : undefined}
             onApplyClick={onApplyClick ? () => onApplyClick(job) : undefined}

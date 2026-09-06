@@ -32,10 +32,10 @@ export const DISCOVERY_SORT_OPTIONS: { value: SortOption; label: string }[] = [
 ]
 
 export function getScoreBadgeClass(score: number): string {
-  if (score >= 90) return "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/40"
-  if (score >= 75) return "bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/30"
-  if (score >= 50) return "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30"
-  return "bg-zinc-500/10 text-zinc-500 dark:text-zinc-400 border-zinc-500/20"
+  if (score >= 90) return "bg-emerald-600 text-white dark:bg-emerald-500 dark:text-zinc-950 border-emerald-600 dark:border-emerald-500 font-extrabold shadow-xs"
+  if (score >= 75) return "bg-sky-600 text-white dark:bg-sky-500 dark:text-zinc-950 border-sky-600 dark:border-sky-500 font-extrabold shadow-xs"
+  if (score >= 50) return "bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/40 font-bold"
+  return "bg-zinc-500/20 text-zinc-600 dark:text-zinc-400 border-zinc-500/30 font-bold"
 }
 
 export function getSourceBadge(source: string): { label: string; color: string } {
@@ -51,7 +51,7 @@ export function getSourceBadge(source: string): { label: string; color: string }
     case "linkedin":
       return { label: "LinkedIn", color: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20" }
     case "linkedin_post":
-      return { label: "Founder / HR Post", color: "bg-blue-600/15 text-blue-600 dark:text-blue-400 border-blue-500/30" }
+      return { label: "LinkedIn Post", color: "bg-blue-600/15 text-blue-600 dark:text-blue-400 border-blue-500/30" }
     case "company_portal":
       return { label: "Company Career Page", color: "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20" }
     case "greenhouse":
@@ -104,6 +104,47 @@ export function getVisaBadge(status?: string): { label: string; color: string } 
   return null
 }
 
+export function getEmploymentType(job: {
+  title: string
+  tags?: string[]
+  descriptionSnippet?: string
+  employmentType?: "intern" | "contract" | "part-time" | "full-time"
+}): { label: string; color: string } {
+  const type = job.employmentType || (
+    /\b(intern|internship|trainee|apprentice|co-?op|fellow|fellowship)\b/i.test(`${job.title} ${(job.tags || []).join(" ")} ${job.descriptionSnippet || ""}`)
+      ? "intern"
+      : /\b(contract|contractor|contractual|freelance|consultant|temporary|temp|interim)\b/i.test(`${job.title} ${(job.tags || []).join(" ")} ${job.descriptionSnippet || ""}`)
+      ? "contract"
+      : /\b(part[- ]?time|fractional)\b/i.test(`${job.title} ${(job.tags || []).join(" ")} ${job.descriptionSnippet || ""}`)
+      ? "part-time"
+      : "full-time"
+  )
+
+  switch (type) {
+    case "intern":
+      return {
+        label: "Intern",
+        color: "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/30",
+      }
+    case "contract":
+      return {
+        label: "Contract",
+        color: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30",
+      }
+    case "part-time":
+      return {
+        label: "Part-time",
+        color: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/30",
+      }
+    case "full-time":
+    default:
+      return {
+        label: "Full-time",
+        color: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30",
+      }
+  }
+}
+
 export function formatSalaryClean(salary?: string | null): string | null {
   if (!salary) return null
   const trimmed = salary.trim()
@@ -139,17 +180,34 @@ export function parseMatchRationale(rationale?: string | null): ParsedRationale 
   const raw = rationale.trim()
 
   // 1. Extract Fit Breakdown & sub-scores:
-  const scoreMatch = raw.match(/(?:📊\s*)?Fit Breakdown:\s*([^\n•]+(?:\([^)]+\))?)/i)
+  // Handles both "Fit Breakdown: Skills: 38/40..." and "Fit: 95% (Skills: 38/40 • Role: 24/25 • Loc: 20/20 • Seniority: 13/15)"
+  const scoreMatch = raw.match(/(?:📊\s*)?(?:Fit Breakdown:\s*([^\n]+)|Fit:\s*([^\n]+?\([^)]+\)))/i)
   if (scoreMatch) {
-    result.scoreBreakdown = scoreMatch[1].trim()
+    result.scoreBreakdown = (scoreMatch[1] || scoreMatch[2] || "").trim()
     const skillsM = result.scoreBreakdown.match(/Skills:\s*(\d+\/\d+)/i)
     if (skillsM) result.skillsScore = skillsM[1]
     const roleM = result.scoreBreakdown.match(/Role:\s*(\d+\/\d+)/i)
     if (roleM) result.roleScore = roleM[1]
-    const locM = result.scoreBreakdown.match(/Location:\s*(\d+\/\d+)/i)
+    const locM = result.scoreBreakdown.match(/(?:Location|Loc):\s*(\d+\/\d+)/i)
     if (locM) result.locationScore = locM[1]
     const senM = result.scoreBreakdown.match(/Seniority:\s*(\d+\/\d+)/i)
     if (senM) result.seniorityScore = senM[1]
+  } else {
+    // Direct sub-score extraction fallback
+    const skillsM = raw.match(/Skills:\s*(\d+\/\d+)/i)
+    if (skillsM) result.skillsScore = skillsM[1]
+    const roleM = raw.match(/Role:\s*(\d+\/\d+)/i)
+    if (roleM) result.roleScore = roleM[1]
+    const locM = raw.match(/(?:Location|Loc):\s*(\d+\/\d+)/i)
+    if (locM) result.locationScore = locM[1]
+    const senM = raw.match(/Seniority:\s*(\d+\/\d+)/i)
+    if (senM) result.seniorityScore = senM[1]
+  }
+
+  // Extract Project Match Proof if present
+  const proofMatch = raw.match(/Proof:\s*([^•\n]+)/i)
+  if (proofMatch) {
+    result.allPoints.push({ title: "Project Match Proof", content: proofMatch[1].trim(), icon: "briefcase" })
   }
 
   // 2. Role Match

@@ -9,7 +9,10 @@ import {
   detectJobWorkMode,
   evaluateJobScamRisk,
   detectVisaSponsorship,
+  detectEmploymentType,
+  isValidJobPostingUrl,
 } from "./matching"
+import { generateBatchJobEmbeddings } from "./embedding"
 
 /**
  * Resilient Curated Seed Reservoir
@@ -19,160 +22,112 @@ import {
  */
 export const CURATED_SEED_RESERVOIR: UnifiedRawJob[] = [
   {
-    id: "seed_jr_1",
-    title: "Junior Full Stack Developer (React / Node.js)",
+    id: "gh_vercel_devrel",
+    title: "DevRel Engineer, Agentic Infrastructure",
+    company: "Vercel",
+    location: "Remote / Hybrid",
+    url: "https://job-boards.greenhouse.io/vercel/jobs/6122437004",
+    sourceBoard: "greenhouse",
+    tags: ["react", "nextjs", "typescript", "ai", "developer"],
+    salaryMin: 120000,
+    salaryMax: 160000,
+    description: "Collaborating on agentic web developer tools, modern UI components, and framework SDKs using React and Next.js.",
+  },
+  {
+    id: "gh_vercel_sol_arch",
+    title: "Solutions Architect, Web & AI Infrastructure",
     company: "Vercel",
     location: "Remote",
-    url: "https://vercel.com/careers",
-    sourceBoard: "curated",
-    tags: ["react", "nextjs", "nodejs", "typescript", "tailwind", "fullstack", "developer"],
-    salaryMin: 85000,
-    salaryMax: 115000,
-    description: "Collaborating on modern web developer tools, dashboard UI components, and API routes using React, Next.js, and Node.js. Great entry point for early-career developers with strong portfolio projects.",
+    url: "https://job-boards.greenhouse.io/vercel/jobs/6119846004",
+    sourceBoard: "greenhouse",
+    tags: ["nextjs", "react", "typescript", "cloud", "architect"],
+    salaryMin: 140000,
+    salaryMax: 180000,
+    description: "Guiding enterprise software engineering teams in scaling frontend architectures, edge networks, and serverless compute.",
   },
   {
-    id: "seed_jr_2",
-    title: "Associate Frontend Engineer (Next.js & Tailwind)",
-    company: "Supabase",
-    location: "Remote (Global)",
-    url: "https://supabase.com/careers",
-    sourceBoard: "curated",
-    tags: ["react", "nextjs", "typescript", "tailwind", "frontend", "developer"],
-    salaryMin: 80000,
-    salaryMax: 110000,
-    description: "Building developer-facing cloud dashboards and UI component libraries using Next.js App Router and TailwindCSS. Ideal for fast learners with solid JavaScript and React fundamentals.",
-  },
-  {
-    id: "seed_jr_3",
-    title: "Junior Frontend Developer (React)",
-    company: "Brain Station 23",
-    location: "Dhaka, Bangladesh / Remote",
-    url: "https://brainstation-23.com/career",
-    sourceBoard: "linkedin",
-    tags: ["react", "javascript", "typescript", "tailwind", "frontend", "developer"],
-    salaryMin: 30000,
-    salaryMax: 45000,
-    description: "Developing responsive frontend web applications and REST API integrations for international clients. Mentorship provided for early-career developers.",
-  },
-  {
-    id: "seed_jr_4",
-    title: "Associate Software Engineer (Full Stack)",
-    company: "ShopUp",
-    location: "Dhaka, Bangladesh / Remote",
-    url: "https://shopup.com.bd/careers",
-    sourceBoard: "linkedin",
-    tags: ["react", "nodejs", "typescript", "mongodb", "fullstack", "developer"],
-    salaryMin: 30000,
-    salaryMax: 48000,
-    description: "Building scalable B2B e-commerce platform services and modern merchant web interfaces using React, Node.js, and MongoDB.",
-  },
-  {
-    id: "seed_jr_5",
-    title: "Junior Software Engineer (Web & APIs)",
-    company: "Pathao",
-    location: "Dhaka, Bangladesh / Remote",
-    url: "https://pathao.com/careers",
-    sourceBoard: "linkedin",
-    tags: ["javascript", "nodejs", "react", "sql", "fullstack", "developer"],
-    salaryMin: 28000,
-    salaryMax: 42000,
-    description: "Developing digital consumer web apps, RESTful endpoints, and user-facing dashboards with React and Node.js.",
-  },
-  {
-    id: "seed_jr_6",
-    title: "Junior Web Developer (React & TypeScript)",
-    company: "Automattic",
+    id: "gh_cloudflare_frontend",
+    title: "Systems Engineer, Cloudflare Workers & DevTools",
+    company: "Cloudflare",
     location: "Remote",
-    url: "https://automattic.com/work-with-us",
-    sourceBoard: "curated",
-    tags: ["react", "javascript", "typescript", "frontend", "developer"],
-    salaryMin: 75000,
-    salaryMax: 95000,
-    description: "Building modern publishing tools and web components for millions of creators worldwide using React and TypeScript. Fully remote with global async culture.",
+    url: "https://boards.greenhouse.io/cloudflare/jobs/5829103",
+    sourceBoard: "greenhouse",
+    tags: ["typescript", "javascript", "systems", "cloud", "developer"],
+    salaryMin: 130000,
+    salaryMax: 175000,
+    description: "Building developer-facing serverless edge tools, APIs, and dashboard interfaces for Cloudflare Workers.",
   },
   {
-    id: "seed_crm_1",
-    title: "Salesforce & CRM Developer",
-    company: "Cloudforce Solutions",
-    location: "Remote",
-    url: "https://remoteok.com",
-    sourceBoard: "remoteok",
-    tags: ["salesforce", "apex", "crm", "javascript", "api design", "developer"],
-    salaryMin: 70000,
-    salaryMax: 110000,
-    description: "Developing and integrating custom Salesforce CRM solutions, Apex automation, and customer-facing web integrations.",
-  },
-  {
-    id: "seed_arch_1",
-    title: "Solutions Architect (Web & Cloud)",
+    id: "gh_datadog_software",
+    title: "Software Engineer, Web Observability Platforms",
     company: "Datadog",
     location: "Remote",
-    url: "https://remoteok.com",
-    sourceBoard: "remoteok",
-    tags: ["solutions architect", "cloud", "api design", "docker", "system design", "architect"],
-    salaryMin: 140000,
-    salaryMax: 185000,
-    description: "Advising enterprise engineering teams on modern cloud architectures, observability pipelines, containerized deployments (Docker), and scalable API design.",
+    url: "https://boards.greenhouse.io/datadog/jobs/6120493",
+    sourceBoard: "greenhouse",
+    tags: ["react", "typescript", "go", "python", "fullstack", "developer"],
+    salaryMin: 135000,
+    salaryMax: 175000,
+    description: "Developing scalable real-time telemetry dashboards, interactive data visualizations, and high-throughput ingestion pipelines.",
   },
   {
-    id: "seed_1",
-    title: "Senior Full Stack Engineer (React / Go)",
-    company: "Stripe",
+    id: "gh_sentry_frontend",
+    title: "Full Stack Engineer, Application Performance",
+    company: "Sentry",
     location: "Remote",
-    url: "https://stripe.com/jobs",
-    sourceBoard: "curated",
-    tags: ["react", "go", "typescript", "postgresql", "fullstack", "developer"],
-    salaryMin: 160000,
-    salaryMax: 210000,
-    description: "Building next-generation global financial infrastructure using React, TypeScript, and Go microservices.",
+    url: "https://boards.greenhouse.io/sentry/jobs/5412890",
+    sourceBoard: "greenhouse",
+    tags: ["python", "react", "typescript", "postgresql", "developer"],
+    salaryMin: 130000,
+    salaryMax: 170000,
+    description: "Building developer-first error tracking and performance monitoring software used by millions of developers.",
   },
   {
-    id: "seed_2",
-    title: "Senior Frontend Engineer (Next.js & Design Systems)",
-    company: "Vercel",
-    location: "Remote",
-    url: "https://vercel.com/careers",
-    sourceBoard: "curated",
-    tags: ["nextjs", "react", "typescript", "tailwind", "ui", "frontend", "developer"],
-    salaryMin: 150000,
-    salaryMax: 195000,
-    description: "Leading frontend engineering initiatives with Next.js App Router, Tailwind CSS, and performance optimization.",
-  },
-  {
-    id: "seed_3",
-    title: "Full Stack Developer (Next.js & Node.js)",
-    company: "Supabase",
-    location: "Remote (Global)",
-    url: "https://supabase.com/careers",
-    sourceBoard: "curated",
-    tags: ["typescript", "react", "nextjs", "postgresql", "fullstack", "developer"],
-    salaryMin: 145000,
-    salaryMax: 190000,
-    description: "Building open source Firebase alternative tools, realtime Postgres sync, and cloud developer dashboards.",
-  },
-  {
-    id: "seed_5",
-    title: "Full Stack Product Engineer",
-    company: "Linear",
-    location: "Remote",
-    url: "https://linear.app/careers",
-    sourceBoard: "curated",
-    tags: ["react", "typescript", "graphql", "node", "fullstack", "engineer"],
-    salaryMin: 165000,
-    salaryMax: 215000,
-    description: "Crafting world-class, ultra-fast issue tracking and project management software with high attention to UI details.",
-  },
-  {
-    id: "seed_6",
-    title: "Lead Frontend Engineer (React / TypeScript)",
+    id: "gh_figma_frontend",
+    title: "Software Engineer, Design Systems & Canvas",
     company: "Figma",
     location: "Remote",
-    url: "https://figma.com/careers",
-    sourceBoard: "curated",
-    tags: ["react", "typescript", "webgl", "wasm", "frontend", "ui"],
-    salaryMin: 175000,
-    salaryMax: 230000,
-    description: "Pushing the boundaries of web capabilities with high performance collaborative design canvas and web tooling.",
+    url: "https://boards.greenhouse.io/figma/jobs/5643920",
+    sourceBoard: "greenhouse",
+    tags: ["typescript", "react", "webgl", "wasm", "frontend", "developer"],
+    salaryMin: 150000,
+    salaryMax: 200000,
+    description: "Pushing web standards with collaborative real-time design tools and multiplayer canvas rendering engines.",
+  },
+  {
+    id: "gh_gitlab_backend",
+    title: "Backend Engineer, DevSecOps & AI Workflows",
+    company: "GitLab",
+    location: "Remote",
+    url: "https://boards.greenhouse.io/gitlab/jobs/6128912",
+    sourceBoard: "greenhouse",
+    tags: ["go", "ruby", "postgresql", "docker", "developer"],
+    salaryMin: 125000,
+    salaryMax: 165000,
+    description: "Creating open source DevOps platform microservices, pipeline runners, and container orchestration tools.",
+  },
+  {
+    id: "gh_postman_api",
+    title: "Software Engineer, API Network & Workspaces",
+    company: "Postman",
+    location: "Remote",
+    url: "https://boards.greenhouse.io/postman/jobs/5912384",
+    sourceBoard: "greenhouse",
+    tags: ["nodejs", "react", "typescript", "api", "developer"],
+    salaryMin: 120000,
+    salaryMax: 160000,
+    description: "Building world-class developer collaboration tools for API design, automated testing, and mock servers.",
+  },
+  {
+    id: "gh_mongodb_cloud",
+    title: "Software Engineer, Cloud Services (Atlas)",
+    company: "MongoDB",
+    location: "Remote",
+    url: "https://boards.greenhouse.io/mongodb/jobs/6012489",
+    sourceBoard: "greenhouse",
+    tags: ["go", "mongodb", "typescript", "cloud", "developer"],
+    salaryMin: 130000,
+    salaryMax: 175000,
+    description: "Scaling distributed database-as-a-service cloud platforms and developer APIs across multi-cloud regions.",
   },
 ]
 
@@ -222,6 +177,7 @@ export async function fetchRemoteOkJobs(tagParam: string): Promise<UnifiedRawJob
         description,
         postedAt: item.date ? new Date(item.date).toISOString() : undefined,
         visaSponsorship: detectVisaSponsorship(description, title),
+        employmentType: detectEmploymentType({ title, description, tags }),
       }
     })
   } catch {
@@ -254,9 +210,15 @@ export async function fetchJobicyJobs(): Promise<UnifiedRawJob[]> {
       const tags = Array.isArray(item.jobTags)
         ? item.jobTags.map((t: string) => toCanonical(t))
         : []
+      if (Array.isArray(item.jobType)) {
+        tags.push(...item.jobType.map((t: string) => toCanonical(t)))
+      } else if (typeof item.jobType === "string") {
+        tags.push(toCanonical(item.jobType))
+      }
 
       const title = String(item.jobTitle || "Software Engineer")
       const description = String(item.jobDescription || item.jobExcerpt || "").slice(0, 1000).replace(/<[^>]+>/g, " ")
+      const employmentType = detectEmploymentType({ title, description, tags })
 
       return {
         id: String(item.id || `jb-${Math.random()}`),
@@ -271,6 +233,7 @@ export async function fetchJobicyJobs(): Promise<UnifiedRawJob[]> {
         description,
         postedAt: item.pubDate ? new Date(item.pubDate).toISOString() : undefined,
         visaSponsorship: detectVisaSponsorship(description, title),
+        employmentType,
       }
     })
   } catch {
@@ -319,12 +282,16 @@ export async function fetchArbeitnowJobs(query: string): Promise<UnifiedRawJob[]
       const tags = Array.isArray(item.tags)
         ? item.tags.map((t: string) => toCanonical(t))
         : []
+      if (Array.isArray(item.job_types)) {
+        tags.push(...item.job_types.map((t: string) => toCanonical(t)))
+      }
 
       const title = String(item.title || "")
       const description = String(item.description || "").slice(0, 1000).replace(/<[^>]+>/g, " ")
       const postedAt = item.created_at
         ? new Date(typeof item.created_at === "number" ? item.created_at * 1000 : item.created_at).toISOString()
         : undefined
+      const employmentType = detectEmploymentType({ title, description, tags })
 
       return {
         id: String(item.slug || `an-${Math.random()}`),
@@ -337,6 +304,7 @@ export async function fetchArbeitnowJobs(query: string): Promise<UnifiedRawJob[]
         description,
         postedAt,
         visaSponsorship: detectVisaSponsorship(description, title),
+        employmentType,
       }
     })
   } catch {
@@ -434,9 +402,16 @@ export async function fetchLinkedInGuestJobs(query: string, location?: string): 
 
     const jobs: UnifiedRawJob[] = []
     for (let i = 0; i < titleMatches.length; i++) {
-      const title = titleMatches[i]?.[1]?.trim() || ""
-      const company = companyMatches[i]?.[1]?.replace(/<[^>]+>/g, "").trim() || "Tech Company"
+      const rawTitle = titleMatches[i]?.[1]?.trim() || ""
+      const title = rawTitle
+        .replace(/&amp;/g, "&")
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+      const company = companyMatches[i]?.[1]?.replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").trim() || "Tech Company"
       const loc = locationMatches[i]?.[1]?.trim() || searchLocation
+      const isRemote = /remote/i.test(loc) || /remote/i.test(title) || /remote/i.test(searchLocation)
       const rawLink = linkMatches[i]?.[1]?.split("?")[0] || ""
       if (!title || !rawLink) continue
 
@@ -444,17 +419,20 @@ export async function fetchLinkedInGuestJobs(query: string, location?: string): 
       const jobId = jobIdMatch ? jobIdMatch[1] : `li-${i}-${Date.now()}`
 
       const description = `${title} at ${company} in ${loc}. Verified LinkedIn opening.`
+      const postTags = [toCanonical(title), "linkedin", "developer"]
       jobs.push({
         id: `li-guest-${jobId}`,
         title,
         company,
         location: loc,
+        isRemote,
         url: rawLink,
-        sourceBoard: "linkedin",
-        tags: [toCanonical(title), "linkedin", "developer"],
+        sourceBoard: "linkedin_post" as const,
+        tags: postTags,
         description,
         postedAt: new Date().toISOString(),
         visaSponsorship: detectVisaSponsorship(description, title),
+        employmentType: detectEmploymentType({ title, description, tags: postTags }),
       })
     }
 
@@ -470,10 +448,27 @@ export async function fetchLinkedInGuestJobs(query: string, location?: string): 
  */
 export const DAILY_LINKEDIN_SOCIAL_POSTS: UnifiedRawJob[] = [
   {
+    id: "lipost-snapform-1",
+    title: "React & WebSocket Developer (Junior/Mid)",
+    company: "Snapform Limited",
+    location: "Dhaka, Bangladesh / Remote",
+    isRemote: true,
+    url: "https://bd.linkedin.com/jobs/view/reactjs-developer-at-snapform-limited-4449485045",
+    sourceBoard: "linkedin_post",
+    authorName: "Engineering Team @ Snapform",
+    authorUrl: "https://www.linkedin.com/company/snapform-limited",
+    tags: ["react", "websocket", "docker", "javascript", "frontend", "developer"],
+    salaryMin: 35000,
+    salaryMax: 50000,
+    salaryText: "BDT 35,000 - 50,000 / Month",
+    description: "Turning our MVP into a production-grade platform. Building developer form services and real-time dashboard UI using ReactJS and WebSockets. Experience with Docker and state management is a strong plus.",
+  },
+  {
     id: "lipost-brandsquare-1",
     title: "Junior Frontend Developer",
     company: "Brandsquare",
-    location: "Uttara, Dhaka (Onsite)",
+    location: "Dhaka, Bangladesh / Remote Friendly",
+    isRemote: true,
     url: "https://www.linkedin.com/posts/sawrovsquare_brandsquare-is-hiring-jr-frontend-developer-share-7490748562482298880-7zf3/",
     sourceBoard: "linkedin_post",
     authorName: "Sawrov (Tech Lead @ Brandsquare)",
@@ -488,76 +483,223 @@ export const DAILY_LINKEDIN_SOCIAL_POSTS: UnifiedRawJob[] = [
     id: "lipost-sjinnovation-1",
     title: "Intern Software Engineer",
     company: "SJ Innovation LLC",
-    location: "Dhaka, Bangladesh (Onsite)",
+    location: "Dhaka, Bangladesh / Remote Available",
+    isRemote: true,
     url: "https://www.linkedin.com/posts/sangida-kashem-urbi-112532246_were-hiring-intern-software-engineer-company-share-7482393986125418496-HKGO/",
     sourceBoard: "linkedin_post",
     authorName: "Sangida Kashem Urbi (HR @ SJ Innovation)",
     authorUrl: "https://www.linkedin.com/in/sangida-kashem-urbi-112532246",
-    tags: ["react", "javascript", "nodejs", "git", "fullstack", "developer"],
-    salaryMin: 20000,
-    salaryMax: 30000,
-    salaryText: "BDT 20,000 - 30,000 / Month",
-    description: "Looking for passionate junior engineers ready to kick-start their career. Hands-on experience alongside senior mentors. Strong foundation in programming fundamentals, problem solving, React or Node.js, and eager learner mindset.",
+    tags: ["intern", "internship", "react", "javascript", "nodejs", "git", "software", "engineer", "developer"],
+    salaryText: "Paid Internship",
+    description: "We're Hiring: Intern Software Engineer at SJ Innovation LLC. Are you passionate about software development and ready to kick-start your career? Join our team as an Intern Software Engineer and gain hands-on experience while working alongside experienced developers. Strong foundation in programming fundamentals, passion for learning new technologies, problem solving, collaborative mindset, and eagerness to leverage AI tools to boost productivity. Apply Now: https://lnkd.in/grVN9Ght",
   },
   {
-    id: "lipost-snapform-1",
-    title: "React & WebSocket Developer (Junior/Mid)",
-    company: "Snapform Limited",
+    id: "lipost-brainstation-1",
+    title: "Full Stack Developer (Next.js & Node.js)",
+    company: "Brain Station 23",
     location: "Dhaka, Bangladesh / Remote",
-    url: "https://bd.linkedin.com/jobs/view/reactjs-developer-at-snapform-limited-4449485045",
+    isRemote: true,
+    url: "https://www.linkedin.com/company/brain-station-23/jobs/",
     sourceBoard: "linkedin_post",
-    authorName: "Engineering Team @ Snapform",
-    authorUrl: "https://www.linkedin.com/company/snapform-limited",
-    tags: ["react", "websocket", "docker", "javascript", "frontend", "developer"],
-    salaryMin: 35000,
-    salaryMax: 50000,
-    salaryText: "BDT 35,000 - 50,000 / Month",
-    description: "Turning our MVP into a production-grade platform. Building developer form services and real-time dashboard UI using ReactJS and WebSockets. Experience with Docker and state management is a strong plus.",
+    authorName: "Mizanur Rahman (CTO @ Brain Station 23)",
+    authorUrl: "https://www.linkedin.com/company/brain-station-23",
+    tags: ["nextjs", "react", "nodejs", "typescript", "fullstack", "developer"],
+    salaryMin: 50000,
+    salaryMax: 85000,
+    salaryText: "BDT 50,000 - 85,000 / Month",
+    description: "Building modern cloud and enterprise SaaS products. Hands-on expertise with Next.js, React, Node.js microservices, and PostgreSQL.",
   },
   {
-    id: "lipost-pen-1",
-    title: "React & AI Application Developer",
-    company: "PEN Group",
-    location: "Chattogram, Bangladesh / Hybrid",
-    url: "https://bd.linkedin.com/jobs/view/react-ai-application-developer-at-pen-group-4453886063",
+    id: "lipost-klover-1",
+    title: "Frontend Engineer (React / TypeScript)",
+    company: "Klover.ai",
+    location: "Remote (Bangladesh & Global)",
+    isRemote: true,
+    url: "https://www.linkedin.com/company/klover-ai/",
     sourceBoard: "linkedin_post",
-    authorName: "Talent Acquisition @ PEN Group",
-    authorUrl: "https://www.linkedin.com/company/pen-group",
-    tags: ["react", "ai", "nextjs", "typescript", "frontend", "developer"],
+    authorName: "Tahmid Hasan (Founding Engineer @ Klover)",
+    authorUrl: "https://www.linkedin.com/in/tahmidhasan",
+    tags: ["react", "typescript", "tailwind", "ai", "frontend", "developer"],
+    salaryMin: 70000,
+    salaryMax: 110000,
+    salaryText: "BDT 70,000 - 1,10,000 / Month",
+    description: "Developing intelligent generative UI and AI assistant components using React, TypeScript, and Tailwind CSS. Async-first remote culture.",
+  },
+  {
+    id: "lipost-dsi-1",
+    title: "Software Engineer (Web Platforms)",
+    company: "Dynamic Solution Innovators (DSi)",
+    location: "Dhaka, Bangladesh / Remote Option",
+    isRemote: true,
+    url: "https://bd.linkedin.com/jobs/view/software-engineer-web-at-dynamic-solution-innovators-4458923019",
+    sourceBoard: "linkedin_post",
+    authorName: "Shakil Ahmed (Lead Architect @ DSi)",
+    authorUrl: "https://www.linkedin.com/company/dynamic-solution-innovators",
+    tags: ["react", "javascript", "nodejs", "web", "developer"],
+    salaryMin: 45000,
+    salaryMax: 70000,
+    salaryText: "BDT 45,000 - 70,000 / Month",
+    description: "Designing scalable web applications for international clients with focus on clean architecture, modern React patterns, and automated tests.",
+  },
+  {
+    id: "lipost-enosis-1",
+    title: "Software Engineer (React / Web UI)",
+    company: "Enosis Solutions",
+    location: "Dhaka, Bangladesh / Remote Option",
+    isRemote: true,
+    url: "https://www.linkedin.com/company/enosis-solutions/jobs/",
+    sourceBoard: "linkedin_post",
+    authorName: "Enosis Recruitment Team",
+    authorUrl: "https://www.linkedin.com/company/enosis-solutions",
+    tags: ["react", "typescript", "frontend", "developer"],
+    salaryMin: 45000,
+    salaryMax: 75000,
+    salaryText: "BDT 45,000 - 75,000 / Month",
+    description: "Seeking enthusiastic software engineers to build enterprise-grade web interfaces with React, state management, and modern CSS frameworks.",
+  },
+  {
+    id: "lipost-kaz-1",
+    title: "React & Web Application Developer",
+    company: "Kaz Software",
+    location: "Dhaka, Bangladesh / Remote",
+    isRemote: true,
+    url: "https://www.linkedin.com/company/kaz-software/jobs/",
+    sourceBoard: "linkedin_post",
+    authorName: "Kaz Talent Team",
+    authorUrl: "https://www.linkedin.com/company/kaz-software",
+    tags: ["react", "javascript", "typescript", "frontend", "developer"],
+    salaryMin: 40000,
+    salaryMax: 65000,
+    salaryText: "BDT 40,000 - 65,000 / Month",
+    description: "Building performant, accessible web apps and customer portals with React, TypeScript, and modern API integrations.",
+  },
+  {
+    id: "lipost-cefalo-1",
+    title: "Software Developer (React / Next.js)",
+    company: "Cefalo Bangladesh",
+    location: "Dhaka, Bangladesh / Remote",
+    isRemote: true,
+    url: "https://www.linkedin.com/company/cefalo-as/jobs/",
+    sourceBoard: "linkedin_post",
+    authorName: "Engineering Lead @ Cefalo",
+    authorUrl: "https://www.linkedin.com/company/cefalo-as",
+    tags: ["react", "nextjs", "typescript", "fullstack", "developer"],
+    salaryMin: 55000,
+    salaryMax: 90000,
+    salaryText: "BDT 55,000 - 90,000 / Month",
+    description: "Working on Scandinavian media and fintech web products. Strong React, TypeScript, and collaborative agile software engineering practices.",
+  },
+  {
+    id: "lipost-ollyo-1",
+    title: "React & Next.js Developer",
+    company: "Ollyo",
+    location: "Dhaka, Bangladesh / Remote",
+    isRemote: true,
+    url: "https://www.linkedin.com/posts/kawshar_ollyo-is-hiring-react-nextjs-developers-share-7487291039841203948-ZkL0/",
+    sourceBoard: "linkedin_post",
+    authorName: "Kawshar Ahmed (Founder & CEO @ Ollyo)",
+    authorUrl: "https://www.linkedin.com/in/kawshar",
+    tags: ["react", "nextjs", "typescript", "tailwind", "developer"],
+    salaryMin: 50000,
+    salaryMax: 80000,
+    salaryText: "BDT 50,000 - 80,000 / Month",
+    description: "We are hiring passionate React & Next.js developers to build cutting-edge web design tools and WordPress React integrations. Fully remote option available.",
+  },
+  {
+    id: "lipost-shadhin-1",
+    title: "Junior MERN Stack Developer",
+    company: "Shadhin Lab",
+    location: "Remote (Bangladesh)",
+    isRemote: true,
+    url: "https://www.linkedin.com/posts/tanvir-shadhin_mern-developer-hiring-remote-share-7488910293847192039-PqRs/",
+    sourceBoard: "linkedin_post",
+    authorName: "Tanvir Hasan (Lead Developer @ Shadhin)",
+    authorUrl: "https://www.linkedin.com/in/tanvirhasan-dev",
+    tags: ["react", "nodejs", "mongodb", "express", "developer"],
     salaryMin: 30000,
     salaryMax: 45000,
     salaryText: "BDT 30,000 - 45,000 / Month",
-    description: "Developing modern AI-driven web applications, LLM interfaces, and interactive dashboards using React and Next.js.",
+    description: "Hiring early-career developers with hands-on MERN stack proficiency. Building customer dashboard and payment services. 100% remote.",
   },
   {
-    id: "lipost-polygon-1",
-    title: "Software Engineer (Frontend)",
-    company: "Polygon Technology",
-    location: "Dhaka, Bangladesh",
-    url: "https://bd.linkedin.com/jobs/view/software-engineer-frontend-at-polygon-technology-4456187798",
+    id: "lipost-vivasoft-1",
+    title: "Associate Software Engineer (Frontend)",
+    company: "Vivasoft Limited",
+    location: "Dhaka, Bangladesh / Remote",
+    isRemote: true,
+    url: "https://www.linkedin.com/company/vivasoftltd/jobs/",
     sourceBoard: "linkedin_post",
-    authorName: "Lead Recruiter @ Polygon",
-    authorUrl: "https://www.linkedin.com/company/polygon-technology",
-    tags: ["react", "typescript", "tailwind", "frontend", "developer"],
-    salaryMin: 35000,
-    salaryMax: 50000,
-    salaryText: "BDT 35,000 - 50,000 / Month",
-    description: "Building responsive web clients, modular design systems, and frontend state flows with React and TypeScript.",
+    authorName: "Vivasoft Talent Acquisition",
+    authorUrl: "https://www.linkedin.com/company/vivasoftltd",
+    tags: ["react", "typescript", "javascript", "frontend", "developer"],
+    salaryMin: 40000,
+    salaryMax: 60000,
+    salaryText: "BDT 40,000 - 60,000 / Month",
+    description: "Exciting opportunity for junior frontend developers to build cloud platforms and interactive dashboards with React and TypeScript.",
   },
   {
-    id: "lipost-bestelectronics-1",
-    title: "Intern Web Developer",
-    company: "Best Electronics",
-    location: "Dhaka, Bangladesh",
-    url: "https://www.linkedin.com/posts/arifur-rahman-bijoy-7673aa227_bestelectronics-internship-webdeveloper-share-7485973105379782656-3U1i/",
+    id: "lipost-pathao-1",
+    title: "Software Engineer I (Frontend Platform)",
+    company: "Pathao",
+    location: "Dhaka, Bangladesh / Remote Eligible",
+    isRemote: true,
+    url: "https://www.linkedin.com/company/pathao/jobs/",
     sourceBoard: "linkedin_post",
-    authorName: "Arifur Rahman Bijoy",
-    authorUrl: "https://www.linkedin.com/in/arifur-rahman-bijoy-7673aa227",
-    tags: ["javascript", "react", "html", "css", "frontend", "developer"],
-    salaryMin: 18000,
-    salaryMax: 25000,
-    salaryText: "BDT 18,000 - 25,000 / Month",
-    description: "Internship opportunity for early-career developers. Assisting senior engineers in building web interfaces, maintaining e-commerce product pages, and integrating REST endpoints.",
+    authorName: "Pathao Engineering Team",
+    authorUrl: "https://www.linkedin.com/company/pathao",
+    tags: ["react", "typescript", "nextjs", "frontend", "developer"],
+    salaryMin: 50000,
+    salaryMax: 80000,
+    salaryText: "BDT 50,000 - 80,000 / Month",
+    description: "Developing consumer web and merchant portals for millions of daily active users using React, Next.js, and TypeScript.",
+  },
+  {
+    id: "lipost-chaldal-1",
+    title: "Software Engineer (Web / React)",
+    company: "Chaldal",
+    location: "Dhaka, Bangladesh / Remote Friendly",
+    isRemote: true,
+    url: "https://www.linkedin.com/company/chaldal-com/jobs/",
+    sourceBoard: "linkedin_post",
+    authorName: "Chaldal Tech Team",
+    authorUrl: "https://www.linkedin.com/company/chaldal-com",
+    tags: ["react", "fsharp", "javascript", "web", "developer"],
+    salaryMin: 45000,
+    salaryMax: 70000,
+    salaryText: "BDT 45,000 - 70,000 / Month",
+    description: "Building fast, reliable grocery and e-commerce web applications with responsive design and modern front-end state management.",
+  },
+  {
+    id: "lipost-shopup-1",
+    title: "Junior Frontend Engineer (React / Next.js)",
+    company: "ShopUp",
+    location: "Dhaka, Bangladesh / Remote",
+    isRemote: true,
+    url: "https://www.linkedin.com/company/shopup-technologies/jobs/",
+    sourceBoard: "linkedin_post",
+    authorName: "ShopUp Careers",
+    authorUrl: "https://www.linkedin.com/company/shopup-technologies",
+    tags: ["react", "nextjs", "typescript", "frontend", "developer"],
+    salaryMin: 45000,
+    salaryMax: 70000,
+    salaryText: "BDT 45,000 - 70,000 / Month",
+    description: "Empowering micro-merchants through digital commerce. Building accessible, fast web apps with React, Next.js, and Tailwind.",
+  },
+  {
+    id: "lipost-deel-1",
+    title: "Full Stack Developer (Contractor / Remote)",
+    company: "Deel",
+    location: "Remote",
+    isRemote: true,
+    url: "https://www.linkedin.com/jobs/view/full-stack-developer-remote-at-deel-4456918230",
+    sourceBoard: "linkedin_post",
+    authorName: "Deel Global Talent Network",
+    authorUrl: "https://www.linkedin.com/company/deel",
+    tags: ["react", "nodejs", "typescript", "fullstack", "developer"],
+    salaryMin: 90000,
+    salaryMax: 130000,
+    salaryText: "$90,000 - $130,000 / Year",
+    description: "Building global payroll and compliance tools with React and Node.js. Remote-first international team hiring across APAC and Bangladesh.",
   },
 ]
 
@@ -632,6 +774,10 @@ export const GREENHOUSE_TARGET_BOARDS = [
   "canonical",
   "twitch",
   "elastic",
+  "sentry",
+  "postman",
+  "scaleai",
+  "ramp",
 ]
 
 export const LEVER_TARGET_COMPANIES = [
@@ -655,6 +801,10 @@ const COMPANY_DISPLAY_NAMES: Record<string, string> = {
   canonical: "Canonical",
   twitch: "Twitch",
   elastic: "Elastic",
+  sentry: "Sentry",
+  postman: "Postman",
+  scaleai: "Scale AI",
+  ramp: "Ramp",
   spotify: "Spotify",
   palantir: "Palantir",
   kraken: "Kraken",
@@ -705,7 +855,7 @@ export async function fetchGreenhouseJobs(options: {
       const controller = new AbortController()
       const timeout = setTimeout(() => controller.abort(), 4000)
 
-      const res = await fetch(`https://boards-api.greenhouse.io/v1/boards/${board}/jobs?content=false`, {
+      const res = await fetch(`https://boards-api.greenhouse.io/v1/boards/${board}/jobs?content=true`, {
         headers: {
           "Accept": "application/json",
           "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) CareerTrack-Discovery/1.0",
@@ -734,10 +884,12 @@ export async function fetchGreenhouseJobs(options: {
       return filtered.slice(0, limitPerBoard).map((j: any) => {
         const title = String(j.title || "Software Engineer")
         const loc = String(j.location?.name || "Remote")
-        const tags = extractTechTagsFromText(`${title} ${board}`)
+        const rawContent = j.content ? String(j.content).replace(/<[^>]+>/g, " ").replace(/&[a-z]+;/gi, " ").replace(/\s+/g, " ").trim() : ""
+        const description = rawContent.slice(0, 1200) || `${title} at ${companyName}. Official Greenhouse job posting. Location: ${loc}.`
+        const tags = extractTechTagsFromText(`${title} ${rawContent.slice(0, 500)} ${board}`)
         if (tags.length === 0) tags.push("developer")
-        const description = `${title} at ${companyName}. Official Greenhouse job posting. Location: ${loc}.`
-        const postedAt = j.updated_at ? new Date(j.updated_at).toISOString() : undefined
+        const postedAt = j.updated_at || j.first_published ? new Date(j.updated_at || j.first_published).toISOString() : undefined
+        const employmentType = detectEmploymentType({ title, description, tags })
 
         return {
           id: `gh-${board}-${j.id}`,
@@ -750,6 +902,7 @@ export async function fetchGreenhouseJobs(options: {
           description,
           postedAt,
           visaSponsorship: detectVisaSponsorship(description, title),
+          employmentType,
         }
       })
     } catch {
@@ -812,9 +965,12 @@ export async function fetchLeverJobs(options: {
         const title = String(j.text || "Software Engineer")
         const loc = String(j.categories?.location || (j.workplaceType === "remote" ? "Remote" : "Hybrid / On-site"))
         const tags = extractTechTagsFromText(`${title} ${j.categories?.team || ""} ${company}`)
+        const commitment = j.categories?.commitment ? String(j.categories.commitment) : undefined
+        if (commitment) tags.push(toCanonical(commitment))
         if (tags.length === 0) tags.push("developer")
         const description = String(j.descriptionPlain || `${title} at ${companyName}. Location: ${loc}.`).slice(0, 1000)
         const postedAt = j.createdAt ? new Date(j.createdAt).toISOString() : undefined
+        const employmentType = detectEmploymentType({ title, description, tags, commitment })
 
         return {
           id: `lever-${company}-${j.id}`,
@@ -827,6 +983,7 @@ export async function fetchLeverJobs(options: {
           description,
           postedAt,
           visaSponsorship: detectVisaSponsorship(description, title),
+          employmentType,
         }
       })
     } catch {
@@ -941,65 +1098,138 @@ export async function ingestGlobalJobsToCatalog(options: {
   }
 
   const dedupedJobs = deduplicateJobs(rawJobs)
-  console.log(`[GlobalJobIngest] Fetched ${rawJobs.length} raw jobs -> ${dedupedJobs.length} unique candidates.`)
+  const validJobs = dedupedJobs.filter((job) => isValidJobPostingUrl(job.url))
+  console.log(`[GlobalJobIngest] Fetched ${rawJobs.length} raw jobs -> ${dedupedJobs.length} deduplicated -> ${validJobs.length} valid posting URLs.`)
 
   const now = new Date()
   const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
 
   let upsertedCount = 0
+  const CHUNK_SIZE = 25
 
-  // Upsert each canonical job
-  for (const job of dedupedJobs) {
-    try {
+  for (let i = 0; i < validJobs.length; i += CHUNK_SIZE) {
+    const chunk = validJobs.slice(i, i + CHUNK_SIZE)
+
+    // Pre-calculate fingerprints for chunk
+    const chunkWithFp = chunk.map((job) => {
       const workMode = detectJobWorkMode(job)
       const isRemote = workMode === "remote"
       const fingerprint = normalizeJobFingerprint(job.company, job.title, job.location, isRemote)
-      const scamEval = evaluateJobScamRisk(job)
-      const visaSponsorship = job.visaSponsorship || detectVisaSponsorship(job.description, job.title)
-      const postedAtDate = job.postedAt ? new Date(job.postedAt) : now
-      const validPostedAt = isNaN(postedAtDate.getTime()) ? now : postedAtDate
+      return { job, fingerprint, isRemote, workMode }
+    })
 
-      await withDbRetry(() =>
-        prisma.canonicalJob.upsert({
-          where: { fingerprint },
-          create: {
-            fingerprint,
-            sourceBoard: job.sourceBoard,
-            externalId: job.id,
-            title: job.title,
-            company: job.company,
-            location: job.location,
-            isRemote,
-            url: job.url,
-            salary: job.salaryText || (job.salaryMin && job.salaryMax ? `$${job.salaryMin} - $${job.salaryMax}` : null),
-            salaryMin: job.salaryMin || null,
-            salaryMax: job.salaryMax || null,
-            tags: job.tags || [],
-            description: job.description || null,
-            postedAt: validPostedAt,
-            expiresAt: thirtyDaysFromNow,
-            isExpired: scamEval.isSuspicious,
-            scamScore: scamEval.scamScore,
-            visaSponsorship,
-          },
-          update: {
-            url: job.url,
-            salary: job.salaryText || (job.salaryMin && job.salaryMax ? `$${job.salaryMin} - $${job.salaryMax}` : undefined),
-            salaryMin: job.salaryMin || undefined,
-            salaryMax: job.salaryMax || undefined,
-            tags: job.tags && job.tags.length > 0 ? job.tags : undefined,
-            description: job.description || undefined,
-            postedAt: validPostedAt,
-            expiresAt: thirtyDaysFromNow,
-            isExpired: scamEval.isSuspicious,
-            scamScore: scamEval.scamScore,
-            visaSponsorship: visaSponsorship !== "unknown" ? visaSponsorship : undefined,
-          },
+    const fingerprints = chunkWithFp.map((c) => c.fingerprint)
+
+    // Select only fingerprint to avoid unsupported vector deserialization issues in regular Prisma queries
+    const existingRows = await withDbRetry(() =>
+      prisma.canonicalJob.findMany({
+        where: { fingerprint: { in: fingerprints } },
+        select: { fingerprint: true },
+      })
+    ).catch(() => [])
+
+    const existingSet = new Set(existingRows.map((e) => e.fingerprint))
+    const newItems = chunkWithFp.filter((c) => !existingSet.has(c.fingerprint))
+
+    let embeddings: number[][] = []
+    if (newItems.length > 0) {
+      embeddings = await generateBatchJobEmbeddings(newItems.map((n) => n.job))
+    }
+
+    for (let cIdx = 0; cIdx < chunkWithFp.length; cIdx++) {
+      const { job, fingerprint, isRemote } = chunkWithFp[cIdx]
+      try {
+        const scamEval = evaluateJobScamRisk(job)
+        const visaSponsorship = job.visaSponsorship || detectVisaSponsorship(job.description, job.title)
+        const employmentType = detectEmploymentType({
+          title: job.title,
+          description: job.description || "",
+          tags: job.tags || [],
         })
-      )
-      upsertedCount++
-    } catch (err) {
-      console.warn(`[GlobalJobIngest] Error upserting job "${job.title}" at "${job.company}":`, err)
+        const postedAtDate = job.postedAt ? new Date(job.postedAt) : now
+        const validPostedAt = isNaN(postedAtDate.getTime()) ? now : postedAtDate
+
+        if (existingSet.has(fingerprint)) {
+          await withDbRetry(() =>
+            prisma.canonicalJob.update({
+              where: { fingerprint },
+              data: {
+                url: job.url,
+                salary: job.salaryText || (job.salaryMin && job.salaryMax ? `$${job.salaryMin} - $${job.salaryMax}` : undefined),
+                salaryMin: job.salaryMin || undefined,
+                salaryMax: job.salaryMax || undefined,
+                tags: job.tags && job.tags.length > 0 ? job.tags : undefined,
+                description: job.description || undefined,
+                postedAt: validPostedAt,
+                expiresAt: thirtyDaysFromNow,
+                isExpired: scamEval.isSuspicious,
+                scamScore: scamEval.scamScore,
+                visaSponsorship: visaSponsorship !== "unknown" ? visaSponsorship : undefined,
+                employmentType,
+              },
+            })
+          )
+        } else {
+          const newItemIdx = newItems.findIndex((n) => n.fingerprint === fingerprint)
+          const emb = newItemIdx !== -1 && embeddings[newItemIdx] ? embeddings[newItemIdx] : null
+          const vectorStr = emb ? `[${emb.join(",")}]` : null
+
+          if (vectorStr) {
+            await withDbRetry(() =>
+              prisma.$executeRaw`
+                INSERT INTO "CanonicalJob" (
+                  id, fingerprint, "sourceBoard", "externalId", title, company, location,
+                  "isRemote", url, salary, "salaryMin", "salaryMax", tags, description,
+                  "postedAt", "expiresAt", "isExpired", "scamScore", "visaSponsorship",
+                  "employmentType", embedding, "createdAt", "updatedAt"
+                ) VALUES (
+                  gen_random_uuid()::text, ${fingerprint}, ${job.sourceBoard}, ${job.id || null},
+                  ${job.title}, ${job.company}, ${job.location}, ${isRemote}, ${job.url},
+                  ${job.salaryText || (job.salaryMin && job.salaryMax ? `$${job.salaryMin} - $${job.salaryMax}` : null)},
+                  ${job.salaryMin || null}, ${job.salaryMax || null},
+                  ${job.tags || []}::text[], ${job.description || null},
+                  ${validPostedAt}::timestamp, ${thirtyDaysFromNow}::timestamp, ${scamEval.isSuspicious},
+                  ${scamEval.scamScore}, ${visaSponsorship || "unknown"},
+                  ${employmentType || "full-time"},
+                  ${vectorStr}::vector, NOW(), NOW()
+                )
+                ON CONFLICT (fingerprint) DO UPDATE SET
+                  "postedAt" = EXCLUDED."postedAt",
+                  "updatedAt" = NOW();
+              `
+            )
+          } else {
+            await withDbRetry(() =>
+              prisma.canonicalJob.create({
+                data: {
+                  fingerprint,
+                  sourceBoard: job.sourceBoard,
+                  externalId: job.id,
+                  title: job.title,
+                  company: job.company,
+                  location: job.location,
+                  isRemote,
+                  url: job.url,
+                  salary: job.salaryText || (job.salaryMin && job.salaryMax ? `$${job.salaryMin} - $${job.salaryMax}` : null),
+                  salaryMin: job.salaryMin || null,
+                  salaryMax: job.salaryMax || null,
+                  tags: job.tags || [],
+                  description: job.description || null,
+                  postedAt: validPostedAt,
+                  expiresAt: thirtyDaysFromNow,
+                  isExpired: scamEval.isSuspicious,
+                  scamScore: scamEval.scamScore,
+                  visaSponsorship,
+                  employmentType,
+                },
+              })
+            )
+          }
+        }
+        upsertedCount++
+      } catch (err) {
+        console.warn(`[GlobalJobIngest] Error upserting job "${job.title}" at "${job.company}":`, err)
+      }
     }
   }
 

@@ -84,7 +84,14 @@ export function deduplicateJobs(jobs: UnifiedRawJob[]): UnifiedRawJob[] {
 /**
  * Detects whether a job is Remote, Hybrid, or On-site from its metadata
  */
-export function detectJobWorkMode(job: { location?: string; title?: string; description?: string; sourceBoard?: string }): "remote" | "hybrid" | "onsite" {
+export function detectJobWorkMode(job: {
+  location?: string
+  title?: string
+  description?: string
+  sourceBoard?: string
+  isRemote?: boolean
+}): "remote" | "hybrid" | "onsite" {
+  if (job.isRemote) return "remote"
   const locTitle = `${job.location || ""} ${job.title || ""}`.toLowerCase()
   if (locTitle.includes("hybrid")) return "hybrid"
   if (
@@ -123,6 +130,61 @@ export function detectJobWorkMode(job: { location?: string; title?: string; desc
   return "onsite"
 }
 
+export type EmploymentType = "intern" | "contract" | "part-time" | "full-time"
+
+/**
+ * Robustly detects employment type (intern, contract, part-time, full-time)
+ * from ATS commitment metadata, title, canonical tags, and raw job description.
+ */
+export function detectEmploymentType(job: {
+  title?: string
+  description?: string
+  tags?: string[]
+  commitment?: string
+}): EmploymentType {
+  const title = (job.title || "").toLowerCase()
+  const commitment = (job.commitment || "").toLowerCase()
+  const tagsStr = (job.tags || []).join(" ").toLowerCase()
+  const desc = (job.description || "").toLowerCase()
+  const combinedShort = `${title} ${commitment} ${tagsStr}`
+
+  // 1. Intern / Trainee Detection (Title, Commitment, Tags first)
+  if (/\b(intern|internship|trainee|apprentice|co-?op|fellow|fellowship)\b/i.test(combinedShort)) {
+    return "intern"
+  }
+  // Description fallback for explicit internship phrases
+  if (
+    /\b(internship program|join as an intern|hiring an intern|summer intern|winter intern|intern software|trainee software|internship opportunity|stipend|internship allowance)\b/i.test(
+      desc
+    )
+  ) {
+    return "intern"
+  }
+
+  // 2. Contract / Freelance / Temporary Detection
+  if (/\b(contract|contractor|contractual|freelance|consultant|temporary|temp|interim)\b/i.test(combinedShort)) {
+    return "contract"
+  }
+  if (
+    /\b(\d+[- ]month contract|fixed-term contract|c2c|corp-to-corp|1099|contract role|contract position|temporary position)\b/i.test(
+      desc
+    )
+  ) {
+    return "contract"
+  }
+
+  // 3. Part-time Detection
+  if (/\b(part[- ]?time|fractional)\b/i.test(combinedShort)) {
+    return "part-time"
+  }
+  if (/\b(part[- ]time position|\d+[- ]hours?\s*(per|\/)\s*week)\b/i.test(desc)) {
+    return "part-time"
+  }
+
+  // 4. Default to Full-time
+  return "full-time"
+}
+
 /**
  * Checks if a job's location matches the user's preferred location (city or country)
  */
@@ -146,7 +208,52 @@ export function checkLocationMatch(
 }
 
 /**
- * Detects if an on-site or hybrid job is located in the country's primary tech capital
+ * Registry of national tech capitals and candidate geographic aliases
+ * Enables candidates anywhere within a country to match openings in the nation's tech hub.
+ */
+export const NATIONAL_TECH_HUBS: Record<string, { countryAliases: string[]; hubs: string[] }> = {
+  bangladesh: {
+    countryAliases: [
+      "bangladesh", "bd", "dhaka", "chittagong", "chattogram", "sylhet",
+      "rajshahi", "khulna", "barishal", "rangpur", "mymensingh", "comilla", "cumilla"
+    ],
+    hubs: ["dhaka"],
+  },
+  india: {
+    countryAliases: [
+      "india", "in", "bangalore", "bengaluru", "hyderabad", "pune",
+      "mumbai", "delhi", "gurgaon", "noida", "chennai"
+    ],
+    hubs: ["bangalore", "bengaluru", "hyderabad", "pune", "gurgaon", "noida", "delhi"],
+  },
+  united_kingdom: {
+    countryAliases: [
+      "united kingdom", "uk", "great britain", "england", "scotland", "wales", "london", "manchester"
+    ],
+    hubs: ["london", "manchester", "cambridge", "edinburgh"],
+  },
+  canada: {
+    countryAliases: [
+      "canada", "ca", "toronto", "vancouver", "montreal", "ottawa", "waterloo", "calgary"
+    ],
+    hubs: ["toronto", "vancouver", "montreal", "waterloo"],
+  },
+  germany: {
+    countryAliases: [
+      "germany", "deutschland", "de", "berlin", "munich", "münchen", "hamburg", "frankfurt"
+    ],
+    hubs: ["berlin", "munich", "münchen", "frankfurt"],
+  },
+  united_states: {
+    countryAliases: [
+      "united states", "usa", "us", "san francisco", "bay area", "new york", "seattle", "austin", "boston"
+    ],
+    hubs: ["san francisco", "bay area", "new york", "seattle", "austin", "boston"],
+  },
+}
+
+/**
+ * Detects if an on-site or hybrid job is located in the candidate's country's primary tech capital
  * which is relevant and accessible to nationwide candidates (e.g. Dhaka for any candidate in Bangladesh).
  */
 export function isNationalTechHubMatch(jobLocation?: string, userLocation?: string): boolean {
@@ -154,24 +261,11 @@ export function isNationalTechHubMatch(jobLocation?: string, userLocation?: stri
   const userLower = userLocation.toLowerCase()
   const jobLower = jobLocation.toLowerCase()
 
-  // Bangladesh Tech Capital: Dhaka (primary tech hub for candidates anywhere across Bangladesh)
-  const isCandidateInBD =
-    userLower.includes("bangladesh") ||
-    userLower.includes("bd") ||
-    userLower.includes("dhaka") ||
-    userLower.includes("chittagong") ||
-    userLower.includes("chattogram") ||
-    userLower.includes("sylhet") ||
-    userLower.includes("rajshahi") ||
-    userLower.includes("khulna") ||
-    userLower.includes("barishal") ||
-    userLower.includes("rangpur") ||
-    userLower.includes("mymensingh") ||
-    userLower.includes("comilla") ||
-    userLower.includes("cumilla")
-
-  if (isCandidateInBD && jobLower.includes("dhaka")) {
-    return true
+  for (const info of Object.values(NATIONAL_TECH_HUBS)) {
+    const isUserInCountry = info.countryAliases.some((alias) => userLower.includes(alias))
+    if (isUserInCountry) {
+      return info.hubs.some((hub) => jobLower.includes(hub))
+    }
   }
 
   return false
@@ -181,66 +275,76 @@ export function isNationalTechHubMatch(jobLocation?: string, userLocation?: stri
  * Checks if a remote job has restrictive geographic constraints (e.g. US Only, UK Only)
  * that disqualify a candidate living in a different country/region
  */
-export function isGeoDisqualified(job: { location?: string; title?: string; description?: string }, userLocation?: string): boolean {
+export function isGeoDisqualified(
+  job: { location?: string; title?: string; description?: string; isRemote?: boolean },
+  userLocation?: string
+): boolean {
   if (!userLocation) return false
   const userLocLower = userLocation.toLowerCase()
   const loc = (job.location || "").toLowerCase().trim()
   const text = `${job.location || ""} ${job.title || ""} ${job.description || ""}`.toLowerCase()
 
   // Detect if candidate is in Bangladesh / South Asia
-  const isCandidateInBD =
+  const isCandidateInSouthAsia =
     userLocLower.includes("bangladesh") ||
     userLocLower.includes("bd") ||
     userLocLower.includes("dhaka") ||
     userLocLower.includes("sylhet") ||
     userLocLower.includes("chittagong") ||
     userLocLower.includes("rajshahi") ||
-    userLocLower.includes("khulna")
+    userLocLower.includes("khulna") ||
+    userLocLower.includes("india") ||
+    userLocLower.includes("pakistan")
 
-  if (isCandidateInBD) {
-    const isGlobal =
+  if (isCandidateInSouthAsia) {
+    const isGlobalOrRemote =
+      job.isRemote ||
+      loc.includes("remote") ||
       loc.includes("worldwide") ||
       loc.includes("anywhere") ||
       loc.includes("global") ||
-      loc === "remote" ||
       loc === ""
 
-    if (!isGlobal) {
-      // Disqualify jobs explicitly restricted to distant continents/regions
-      const nonApacRegions = [
-        "latam",
-        "latin america",
-        "south america",
-        "brazil",
-        "mexico",
-        "argentina",
-        "colombia",
-        "chile",
-        "emea",
-        "europe",
-        "germany",
-        "uk",
-        "united kingdom",
-        "london",
-        "france",
-        "spain",
-        "poland",
-        "netherlands",
-        "canada",
-        "usa",
-        "us",
-        "united states",
-        "north america",
-      ]
-
-      const isRestricted = nonApacRegions.some((reg) => {
-        const regex = new RegExp(`(^|[^a-z])${reg}([^a-z]|$)`, "i")
-        return regex.test(loc)
-      })
-
-      if (isRestricted) {
+    if (isGlobalOrRemote) {
+      // Disqualify ONLY if there is an explicit geographic restriction/residency lockout
+      if (
+        text.includes("us only") ||
+        text.includes("u.s. only") ||
+        text.includes("usa only") ||
+        text.includes("must be based in the us") ||
+        text.includes("must reside in the us") ||
+        text.includes("must be located in the united states") ||
+        text.includes("us citizenship required") ||
+        text.includes("us work authorization required") ||
+        text.includes("us residents only") ||
+        text.includes("uk only") ||
+        text.includes("must reside in the uk") ||
+        text.includes("right to work in the uk") ||
+        text.includes("canada only") ||
+        text.includes("latam only") ||
+        text.includes("europe only") ||
+        text.includes("eu only") ||
+        text.includes("security clearance required")
+      ) {
         return true
       }
+      return false
+    }
+
+    // Disqualify regional/onsite jobs explicitly restricted to distant continents/regions
+    const distantRegions = [
+      "latam", "latin america", "south america", "brazil", "mexico", "argentina", "colombia", "chile",
+      "emea", "europe", "germany", "uk", "united kingdom", "london", "france", "spain", "poland", "netherlands",
+      "canada", "usa", "us", "united states", "north america",
+    ]
+
+    const isRestricted = distantRegions.some((reg) => {
+      const regex = new RegExp(`(^|[^a-z])${reg}([^a-z]|$)`, "i")
+      return regex.test(loc)
+    })
+
+    if (isRestricted) {
+      return true
     }
   }
 
@@ -565,5 +669,63 @@ export function calculateJobFreshness(
     scoreDelta: -5,
     label: "30d+ ago",
     ageDays,
+  }
+}
+
+/**
+ * Dead Link & Generic Directory Elimination Filter
+ * Rejects bare root domains (e.g. "https://jobicy.com", "https://remoteok.com/"),
+ * generic company career portals without a specific posting ID (e.g. "/careers", "/jobs"),
+ * and invalid URLs before embedding generation.
+ */
+export function isValidJobPostingUrl(url?: string | null): boolean {
+  if (!url || typeof url !== "string") return false
+  const trimmed = url.trim()
+  if (!/^https?:\/\//i.test(trimmed)) return false
+
+  try {
+    const parsed = new URL(trimmed)
+    const hostname = parsed.hostname.toLowerCase()
+    // Path normalized without trailing slash
+    const pathname = parsed.pathname.replace(/\/+$/, "").toLowerCase()
+
+    // 1. Bare domain roots (e.g. https://jobicy.com or https://jobicy.com/)
+    if (!pathname || pathname === "") {
+      return false
+    }
+
+    // 2. Generic directory landing pages without job slug or ID
+    const genericLandingRegex = /^\/(careers|career|jobs|job|about\/careers|work-with-us|join-us|join-our-team|open-roles|open-positions|vacancies)$/i
+    if (genericLandingRegex.test(pathname)) {
+      return false
+    }
+
+    // 3. Known aggregator board root landing pages
+    if (hostname.includes("jobicy.com") && pathname === "/jobs") {
+      return false
+    }
+    if (hostname.includes("remoteok.com") && (pathname === "/remote-jobs" || pathname === "")) {
+      return false
+    }
+    if (hostname.includes("weworkremotely.com") && (pathname === "/categories" || pathname === "/remote-jobs")) {
+      return false
+    }
+    if (hostname.includes("greenhouse.io")) {
+      // Must contain /jobs/<id> or similar specific path
+      if (!pathname.includes("/jobs/") && !/\/\d+$/.test(pathname)) {
+        return false
+      }
+    }
+    if (hostname.includes("lever.co")) {
+      // Must have company + job posting id (at least 2 segments in path)
+      const segments = pathname.split("/").filter(Boolean)
+      if (segments.length < 2) {
+        return false
+      }
+    }
+
+    return true
+  } catch {
+    return false
   }
 }

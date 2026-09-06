@@ -20,6 +20,16 @@ describe("Vectorless Career Knowledge Graph & Graph-RAG Engine", () => {
     expect(toCanonical("Tailwind")).toBe("tailwindcss")
   })
 
+  it("prevents object prototype collision on native JS property names", () => {
+    expect(toCanonical("toString")).toBe("tostring")
+    expect(toCanonical("constructor")).toBe("constructor")
+    expect(toCanonical("valueOf")).toBe("valueof")
+    expect(toCanonical("hasOwnProperty")).toBe("hasownproperty")
+    expect(toCanonical("isPrototypeOf")).toBe("isprototypeof")
+    expect(typeof toCanonical("constructor")).toBe("string")
+    expect(() => toCanonical("constructor").toLowerCase()).not.toThrow()
+  })
+
   it("builds structured knowledge graph with domains, skills, and metric edges", () => {
     const rawResume = `
       Experienced Senior Fullstack Engineer.

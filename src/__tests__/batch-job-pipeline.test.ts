@@ -23,6 +23,7 @@ vi.mock("@/lib/prisma", () => ({
       findMany: vi.fn(),
       create: vi.fn(),
       createMany: vi.fn(),
+      update: vi.fn(),
       updateMany: vi.fn(),
       count: vi.fn(),
     },
@@ -152,6 +153,91 @@ describe("6-Hour Staged Batch Pipeline & 24h Rolling Window", () => {
           userId: testUserId,
           title: expect.stringContaining("নতুন কিউরেটেড জবের ব্যাচ"),
           link: "/discovery",
+        }),
+      })
+    )
+  })
+
+  it("revives previously ARCHIVED jobs back to STAGED/PUBLISHED instead of silently dropping", async () => {
+    vi.spyOn(discoveryTools, "executeSearchExternalJobs").mockResolvedValue({
+      success: true,
+      count: 2,
+      query: "dev",
+      opportunities: [
+        {
+          id: "job-new-1",
+          title: "Frontend Engineer",
+          company: "Acme",
+          location: "Remote",
+          url: "https://acme.com/jobs/1",
+          sourceBoard: "curated",
+          tags: ["react"],
+          fitScore: 88,
+          matchRationale: "Solid React match",
+          descriptionSnippet: "Build modern web apps",
+        },
+        {
+          id: "job-archived-1",
+          title: "Backend Engineer",
+          company: "Beta",
+          location: "Remote",
+          url: "https://beta.com/jobs/2",
+          sourceBoard: "curated",
+          tags: ["node"],
+          fitScore: 85,
+          matchRationale: "Solid Node match",
+          descriptionSnippet: "Design resilient APIs",
+        },
+      ],
+    })
+
+    vi.mocked(prisma.canonicalJob.findMany).mockResolvedValue([
+      { id: "job-new-1" },
+      { id: "job-archived-1" },
+    ] as any)
+
+    // Existing matches has job-archived-1 in ARCHIVED status
+    vi.mocked(prisma.userJobMatch.findMany).mockResolvedValue([
+      { jobId: "job-archived-1", status: "ARCHIVED" },
+    ] as any)
+
+    vi.mocked(prisma.userJobMatch.createMany).mockResolvedValue({ count: 1 } as any)
+    vi.mocked(prisma.userJobMatch.update).mockResolvedValue({ id: "match-archived-1" } as any)
+    vi.mocked(prisma.userJobMatch.updateMany)
+      .mockResolvedValueOnce({ count: 0 }) // Step 2: archive count
+      .mockResolvedValueOnce({ count: 2 }) // Step 3: publish switch count (both new and revived)
+
+    const result = await processUserJobBatch(testUserId, {
+      batchId: "batch-2026-09-03T12:00:00.000Z",
+      notify: false,
+    })
+
+    // Both new and revived are counted in staged
+    expect(result.stagedCount).toBe(2)
+
+    // New job is inserted with createMany
+    expect(prisma.userJobMatch.createMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: [
+          expect.objectContaining({
+            jobId: "job-new-1",
+            status: "STAGED",
+          }),
+        ],
+      })
+    )
+
+    // Archived job is updated back to STAGED with reset publishedAt
+    expect(prisma.userJobMatch.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          userId_jobId: { userId: testUserId, jobId: "job-archived-1" },
+        },
+        data: expect.objectContaining({
+          status: "STAGED",
+          batchId: "batch-2026-09-03T12:00:00.000Z",
+          publishedAt: null,
+          dismissReason: null,
         }),
       })
     )
