@@ -1,6 +1,6 @@
 "use client"
 
-import { Layers, X, RotateCcw, Briefcase, ShieldCheck, BrainCircuit, Globe } from "lucide-react"
+import { Layers, RotateCcw, Briefcase, ShieldCheck, BrainCircuit, Globe } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { DecorIcon } from "@/components/decor-icon"
 import { DISCOVERY_QUICK_TAGS, type DiscoveryFilters } from "./types"

@@ -51,7 +51,7 @@ async function main() {
 
     // 5. Test index with sample EXPLAIN query
     const dummyVector = new Array(1536).fill(0.01).join(",")
-    const explainRes = await prisma.$queryRawUnsafe<any[]>(`
+    const explainRes = await prisma.$queryRawUnsafe<Array<Record<string, unknown>>>(`
       EXPLAIN ANALYZE 
       SELECT id, (1 - (embedding <=> '[${dummyVector}]'::vector)) AS similarity
       FROM "CanonicalJob"

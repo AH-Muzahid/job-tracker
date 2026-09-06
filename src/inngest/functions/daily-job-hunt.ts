@@ -142,9 +142,24 @@ export const processUserAuditBatch = inngest.createFunction(
           .map((app) => `- ${app.jobTitle} at ${app.company?.name || app.companyName} (${app.status})`)
           .join("\n")
 
-        const opportunitiesSummary = (topMatches || [])
+        interface DiscoveredJobMatchRecord {
+          fitScore: number
+          job: {
+            id: string
+            title: string
+            company: string
+            location?: string | null
+            salary?: string | null
+            url?: string | null
+            tags?: string[]
+          }
+        }
+
+        const matchesList = (topMatches || []) as DiscoveredJobMatchRecord[]
+
+        const opportunitiesSummary = matchesList
           .map(
-            (m: any) =>
+            (m) =>
               `- ${m.job.title} at ${m.job.company} (${Math.round(m.fitScore)}% match, ${m.job.location || "Remote"}${m.job.salary ? `, ${m.job.salary}` : ""})`
           )
           .join("\n")
@@ -194,7 +209,7 @@ Provide 2-3 specific, actionable recommendations prioritizing highest-impact mov
               return "Full-time"
             }
 
-            const opportunities: DailyDigestJobItem[] = (topMatches || []).map((m: any) => ({
+            const opportunities: DailyDigestJobItem[] = matchesList.map((m) => ({
               id: m.job.id,
               title: m.job.title,
               company: m.job.company,
@@ -205,7 +220,7 @@ Provide 2-3 specific, actionable recommendations prioritizing highest-impact mov
               employmentType: formatEmploymentType(
                 detectEmploymentType({
                   title: m.job.title,
-                  tags: m.job.tags,
+                  tags: m.job.tags || [],
                 })
               ),
             }))

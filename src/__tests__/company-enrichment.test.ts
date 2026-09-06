@@ -2,7 +2,6 @@ import { describe, it, expect } from "vitest"
 import {
   getCompanyEnrichment,
   inferCompanyMetadataFromJob,
-  KNOWN_COMPANY_DIRECTORY,
 } from "@/lib/discovery/company-enrichment"
 
 describe("Company Profile Enrichment Engine (REC-10)", () => {

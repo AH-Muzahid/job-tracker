@@ -1,7 +1,7 @@
 import * as fs from "fs"
 import * as path from "path"
 import { Langfuse } from "langfuse"
-import { getLangfuseInstance, flushLangfuse, buildTraceTagsAndMetadata } from "../src/lib/ai/graph/telemetry"
+import { flushLangfuse, buildTraceTagsAndMetadata } from "../src/lib/ai/graph/telemetry"
 
 // Manual .env loader for standalone tsx execution
 function loadEnvFiles() {

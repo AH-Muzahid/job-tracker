@@ -1,4 +1,4 @@
-﻿export const dynamic = "force-dynamic"
+export const dynamic = "force-dynamic"
 
 import { NextRequest } from "next/server"
 import { getInternalUserId } from "@/lib/auth"
@@ -8,7 +8,7 @@ import { prisma } from "@/lib/prisma"
 import { createCareerOrchestratorGraph } from "@/lib/ai/graph/workflows/career-orchestrator"
 import type { OrchestratorExecutionSummary, OrchestratorAuditItem } from "@/components/discovery/audit-feed-types"
 
-export async function GET(_request: NextRequest) {
+export async function GET() {
   const userId = await getInternalUserId()
   if (!userId) {
     return ResponseUtil.unauthorized()

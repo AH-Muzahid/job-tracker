@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import React, { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
@@ -14,7 +14,6 @@ import {
   ChevronUp,
   RefreshCw,
   Clock,
-  CheckCircle2,
 } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -106,7 +105,7 @@ export function AgentAuditFeed({
   const [isExpanded, setIsExpanded] = useState(defaultExpanded)
   const queryClient = useQueryClient()
 
-  const { data, isLoading, isFetching, refetch } = useQuery<OrchestratorExecutionSummary>({
+  const { data, isFetching } = useQuery<OrchestratorExecutionSummary>({
     queryKey: ["discovery", "orchestrator-audit"],
     queryFn: async () => {
       const res = await fetch("/api/jobs/discover/orchestrator")

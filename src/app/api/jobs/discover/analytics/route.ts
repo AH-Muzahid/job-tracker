@@ -29,8 +29,9 @@ export async function GET(request: NextRequest) {
       metrics,
       windowDays: sinceDays,
     })
-  } catch (error: any) {
-    console.error("[DiscoveryAnalytics API] GET Error:", error)
-    return ResponseUtil.error(error?.message || "Failed to compute funnel metrics", 500)
+  } catch (error: unknown) {
+    const err = error as Error
+    console.error("[DiscoveryAnalytics API] GET Error:", err)
+    return ResponseUtil.error(err?.message || "Failed to compute funnel metrics", 500)
   }
 }

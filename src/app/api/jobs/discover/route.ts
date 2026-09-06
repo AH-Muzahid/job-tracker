@@ -54,7 +54,6 @@ export async function GET(request: NextRequest) {
 
   try {
     const now = new Date()
-    const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000)
 
     // 1. Cold-start check: If CanonicalJob catalog has 0 jobs, trigger background ingest and return non-blocking syncing state (<50ms)
     const canonicalCount = await withDbRetry(() =>

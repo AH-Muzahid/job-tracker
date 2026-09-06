@@ -18,6 +18,7 @@ import {
   isValidJobPostingUrl,
 } from "../src/lib/discovery/matching"
 import { processUserJobBatch } from "../src/inngest/functions/batch-job-pipeline"
+import type { UnifiedRawJob } from "../src/lib/discovery/types"
 
 const prisma = new PrismaClient()
 
@@ -36,7 +37,7 @@ async function main() {
     fetchLinkedInGuestJobs("frontend", "Bangladesh"),
   ])
 
-  const fetchedJobs: any[] = []
+  const fetchedJobs: UnifiedRawJob[] = []
   if (ghRes.status === "fulfilled") {
     console.log(`Greenhouse: ${ghRes.value.length} jobs`)
     fetchedJobs.push(...ghRes.value)

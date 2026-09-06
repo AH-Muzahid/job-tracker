@@ -5,7 +5,6 @@
  * overcoming rigid keyword matching with embedding-based or cluster-based vector similarity.
  */
 
-import { cosineSimilarity } from "@/lib/ai/cosine-similarity"
 import { toCanonical } from "@/lib/ai/knowledge-graph"
 
 export interface CandidateSemanticProfile {

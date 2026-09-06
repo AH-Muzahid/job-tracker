@@ -147,6 +147,8 @@ export async function executeSearchExternalJobs(
         location = userLocation || "Remote"
       }
     }
+    void query
+    void location
 
     // 2. Query active opportunities from CanonicalJob catalog (<10ms, decoupled from HTTP scrapers)
     const canonicalJobs = await withDbRetry(() =>
