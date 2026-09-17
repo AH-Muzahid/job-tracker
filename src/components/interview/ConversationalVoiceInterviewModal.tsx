@@ -3,6 +3,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect, useRef, useCallback } from "react"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
+import { AlertTriangle, Square } from "lucide-react"
 import { toast } from "sonner"
 import {
   ConversationalVoiceInterviewModalProps,
@@ -62,6 +64,7 @@ export function ConversationalVoiceInterviewModal({
   const [report, setReport] = useState<InterviewReportData | null>(null)
   const [isGeneratingReport, setIsGeneratingReport] = useState(false)
   const [showTranscriptDrawer, setShowTranscriptDrawer] = useState(true)
+  const [showExitConfirm, setShowExitConfirm] = useState(false)
 
   const recognitionRef = useRef<any>(null)
   const silenceTimerRef = useRef<NodeJS.Timeout | null>(null)
@@ -291,6 +294,16 @@ export function ConversationalVoiceInterviewModal({
     setIsAiSpeaking(false)
     setIsListening(false)
   }, [])
+
+  // Safe Close Guard: Prevents destroying active dialogue on accidental backdrop/Esc clicks
+  const handleRequestClose = useCallback(() => {
+    if (step === "interview" && dialogue.length > 0 && !isInterviewComplete) {
+      setShowExitConfirm(true)
+    } else {
+      stopAllAudioAndMic()
+      onClose()
+    }
+  }, [step, dialogue.length, isInterviewComplete, stopAllAudioAndMic, onClose])
 
   // Clean-up on close and unmount
   useEffect(() => {
@@ -776,8 +789,29 @@ export function ConversationalVoiceInterviewModal({
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] sm:max-h-[92vh] flex flex-col p-3 sm:p-6 overflow-hidden rounded-2xl sm:rounded-3xl">
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) {
+          handleRequestClose()
+        }
+      }}
+    >
+      <DialogContent
+        onInteractOutside={(e) => {
+          if (step === "interview" && dialogue.length > 0 && !isInterviewComplete) {
+            e.preventDefault()
+            setShowExitConfirm(true)
+          }
+        }}
+        onEscapeKeyDown={(e) => {
+          if (step === "interview" && dialogue.length > 0 && !isInterviewComplete) {
+            e.preventDefault()
+            setShowExitConfirm(true)
+          }
+        }}
+        className="w-[95vw] max-w-4xl max-h-[90vh] sm:max-h-[92vh] flex flex-col p-3 sm:p-6 overflow-hidden rounded-2xl sm:rounded-3xl relative"
+      >
         {/* SETUP SCREEN */}
         {step === "setup" && (
           <InterviewSetupScreen
@@ -875,6 +909,66 @@ export function ConversationalVoiceInterviewModal({
             }}
             onClose={onClose}
           />
+        )}
+
+        {/* ACTIVE INTERVIEW EXIT GUARD CONFIRMATION */}
+        {showExitConfirm && (
+          <div className="absolute inset-0 z-50 bg-background/95 backdrop-blur-xs flex items-center justify-center p-4 sm:p-6 animate-in fade-in-50 duration-200">
+            <div className="w-full max-w-md border border-border bg-card p-5 sm:p-6 rounded-2xl shadow-2xl space-y-4">
+              <div className="flex items-start gap-3">
+                <div className="h-10 w-10 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 mt-0.5">
+                  <AlertTriangle className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm sm:text-base font-bold text-foreground">
+                    Exit Active Interview?
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                    You are currently in Question {currentQuestionNumber} of {targetTurnCount}. Exiting now will discard your active interview progress and audio transcript.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-2 border-t border-border/50">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-xs h-9"
+                  onClick={() => setShowExitConfirm(false)}
+                >
+                  Continue Interview
+                </Button>
+                {dialogue.length >= 2 && (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="text-xs h-9 gap-1.5"
+                    onClick={() => {
+                      setShowExitConfirm(false)
+                      handleEndInterview()
+                    }}
+                  >
+                    <Square className="h-3 w-3" />
+                    End & View Report
+                  </Button>
+                )}
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  className="text-xs h-9"
+                  onClick={() => {
+                    setShowExitConfirm(false)
+                    stopAllAudioAndMic()
+                    setDialogue([])
+                    setStep("setup")
+                    onClose()
+                  }}
+                >
+                  Exit & Discard
+                </Button>
+              </div>
+            </div>
+          </div>
         )}
       </DialogContent>
     </Dialog>
