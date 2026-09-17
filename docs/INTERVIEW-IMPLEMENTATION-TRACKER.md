@@ -164,13 +164,13 @@ Whenever ANY change, fix, optimization, or feature is added to the Interview Sys
   - **Owner**: Antigravity AI
   - **Completed At**: 2026-09-17
 
-- [ ] **`INT-16` [Automation / Inngest] Inngest Cron Pipeline for 24h/2h Pre-Interview Briefing & Reminders**
+- [x] **`INT-16` [Automation / Inngest] Inngest Cron Pipeline for 24h/2h Pre-Interview Briefing & Reminders**
   - **Issue**: Reminders rely on passive manual client triggers rather than scheduled background crons.
   - **Action**: Build Inngest scheduled job checking applications with `interviewDate` within 24h and 2h. Dispatch email notifications with 1-page quick cheatsheet links.
-  - **Target Files**: `src/inngest/functions/interview-reminder-pipeline.ts`, `src/lib/email.ts`, `src/app/api/inngest/route.ts`
-  - **Status**: `Planned`
-  - **Owner**: Unassigned
-  - **Completed At**: —
+  - **Target Files**: `src/inngest/functions/interview-reminder-pipeline.ts`, `src/lib/email.ts`, `src/app/api/inngest/route.ts`, `src/__tests__/interview-reminder-pipeline.test.ts`
+  - **Status**: `Completed`
+  - **Owner**: Antigravity AI
+  - **Completed At**: 2026-09-17
 
 - [ ] **`INT-17` [Agent / Workflow] Company Research & Interview Dossier Agent Integration**
   - **Issue**: No automated company research happens when a job moves to "Interview" stage.
@@ -249,6 +249,7 @@ Tracking schema changes for the interview system:
 | 2026-09-17 | `INT-13` | Created `src/lib/ai/memory.ts` providing `persistInterviewWeaknesses`, `getUserWeaknesses`, and `formatWeaknessProbingContext`. Updated `report/route.ts` to automatically extract `knowledgeGaps` and persist them into `UserMemory` with `category: "weakness"`, severity-weighted confidence, and cache invalidation. Created unit test suite `src/__tests__/interview-weakness-memory.test.ts`. | `src/lib/ai/memory.ts`, `src/app/api/ai/mock-interview/report/route.ts`, `src/__tests__/interview-weakness-memory.test.ts`, `docs/INTERVIEW-IMPLEMENTATION-TRACKER.md` | Antigravity AI |
 | 2026-09-17 | `INT-14` | Implemented active weakness probing in `converse/route.ts` using `getUserWeaknesses` and `buildWeaknessProbingInstruction` from `src/lib/ai/memory.ts`. Automatically injects targeted challenge directives into interviewer system prompt during Turn 3 to test candidate retention and improvement. Created unit test suite `src/__tests__/weakness-probing-turn3.test.ts`. | `src/app/api/ai/mock-interview/converse/route.ts`, `src/lib/ai/memory.ts`, `src/__tests__/weakness-probing-turn3.test.ts`, `docs/INTERVIEW-IMPLEMENTATION-TRACKER.md` | Antigravity AI |
 | 2026-09-17 | `INT-15` | Enhanced `ApplicationDetailHeader.tsx` with scheduled interview banner, quick-join meeting links, and an in-place modal dialog with date/time picker, round selector, video meeting link, and cheatsheet notes. Connected persistence via `PATCH /api/applications/[id]`. Upgraded `/calendar` page with scheduled interview badges, upcoming interviews feed, and 1-click mock prep room launchers. Created unit test suite `src/__tests__/interview-scheduling-ui.test.ts`. | `src/components/applications/ApplicationDetailHeader.tsx`, `src/app/(app)/applications/[id]/page.tsx`, `src/app/(app)/calendar/page.tsx`, `src/__tests__/interview-scheduling-ui.test.ts`, `docs/INTERVIEW-IMPLEMENTATION-TRACKER.md` | Antigravity AI |
+| 2026-09-17 | `INT-16` | Built Inngest scheduled cron pipeline `interview-reminder-pipeline.ts` executing every 30 minutes (`*/30 * * * *`). Automatically detects upcoming interviews within 24h and 2h, enforces idempotency windows against `Notification` table, dispatches in-app notifications, and sends high-contrast architectural briefing emails with video call & mock prep room links using `formatInterviewReminderHtml` in `src/lib/email.ts`. Created unit test suite `src/__tests__/interview-reminder-pipeline.test.ts`. | `src/inngest/functions/interview-reminder-pipeline.ts`, `src/lib/email.ts`, `src/app/api/inngest/route.ts`, `src/__tests__/interview-reminder-pipeline.test.ts`, `docs/INTERVIEW-IMPLEMENTATION-TRACKER.md` | Antigravity AI |
 
 
 

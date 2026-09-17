@@ -271,3 +271,137 @@ export function formatDailyOpportunityDigestHtml({
 `
 }
 
+export interface InterviewReminderEmailOptions {
+  candidateName?: string
+  companyName: string
+  jobTitle: string
+  interviewRound?: string | null
+  interviewDate: Date | string
+  interviewMeetingUrl?: string | null
+  interviewNotes?: string | null
+  reminderType: "24h" | "2h"
+  appUrl?: string
+  applicationId: string
+}
+
+/**
+ * Formats a clean architectural blueprint HTML email for 24-hour and 2-hour pre-interview briefings.
+ */
+export function formatInterviewReminderHtml({
+  candidateName,
+  companyName,
+  jobTitle,
+  interviewRound,
+  interviewDate,
+  interviewMeetingUrl,
+  interviewNotes,
+  reminderType,
+  appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://careertrack.ai",
+  applicationId,
+}: InterviewReminderEmailOptions): string {
+  const roundTitle = interviewRound || "Interview Round"
+  const dateObj = new Date(interviewDate)
+  const formattedDate = dateObj.toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  })
+  const formattedTime = dateObj.toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+  })
+  const prepRoomUrl = `${appUrl}/interview-prep?appId=${applicationId}&company=${encodeURIComponent(
+    companyName
+  )}&role=${encodeURIComponent(jobTitle)}`
+  const appDetailUrl = `${appUrl}/applications/${applicationId}`
+
+  const isUrgent = reminderType === "2h"
+  const badgeText = isUrgent ? "CRITICAL: 2 HOURS REMAINING" : "PREPARATION BRIEFING: 24 HOURS OUT"
+  const badgeBg = isUrgent ? "#dc2626" : "#0284c7"
+
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>${reminderType === "2h" ? "2-Hour Alert" : "24-Hour Briefing"}: ${roundTitle} with ${companyName}</title>
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; padding: 24px; margin: 0;">
+  <div style="max-width: 600px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; padding: 32px;">
+    <!-- Header -->
+    <div style="border-bottom: 2px solid #0f172a; padding-bottom: 16px; margin-bottom: 24px;">
+      <div style="font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 4px;">CareerTrack Interview Intelligence</div>
+      <h2 style="margin: 0; font-size: 20px; font-weight: 800; color: #0f172a; text-transform: uppercase; letter-spacing: -0.02em;">${roundTitle} Briefing</h2>
+    </div>
+
+    <!-- Alert Tag -->
+    <div style="margin-bottom: 20px;">
+      <span style="background: ${badgeBg}; color: #ffffff; font-size: 11px; font-weight: 800; padding: 4px 10px; text-transform: uppercase; letter-spacing: 0.05em; display: inline-block;">
+        ${badgeText}
+      </span>
+    </div>
+
+    <p style="font-size: 14px; color: #334155; line-height: 1.6; margin: 0 0 16px 0;">
+      Hello <strong>${candidateName || "Candidate"}</strong>, you have an upcoming interview scheduled for <strong>${jobTitle}</strong> at <strong>${companyName}</strong>.
+    </p>
+
+    <!-- Schedule Card -->
+    <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 18px; margin-bottom: 24px;">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td style="padding: 6px 0; font-size: 13px; color: #64748b; font-weight: 600; width: 120px;">COMPANY:</td>
+          <td style="padding: 6px 0; font-size: 14px; color: #0f172a; font-weight: 700;">${companyName}</td>
+        </tr>
+        <tr>
+          <td style="padding: 6px 0; font-size: 13px; color: #64748b; font-weight: 600;">ROUND:</td>
+          <td style="padding: 6px 0; font-size: 14px; color: #0f172a; font-weight: 700;">${roundTitle}</td>
+        </tr>
+        <tr>
+          <td style="padding: 6px 0; font-size: 13px; color: #64748b; font-weight: 600;">DATE & TIME:</td>
+          <td style="padding: 6px 0; font-size: 14px; color: #0f172a; font-weight: 700;">${formattedDate} at ${formattedTime}</td>
+        </tr>
+        ${
+          interviewMeetingUrl
+            ? `<tr>
+          <td style="padding: 6px 0; font-size: 13px; color: #64748b; font-weight: 600;">VIDEO LINK:</td>
+          <td style="padding: 6px 0; font-size: 14px; color: #0284c7; font-weight: 700;"><a href="${interviewMeetingUrl}" style="color: #0284c7; text-decoration: underline;">Open Meeting Call &rarr;</a></td>
+        </tr>`
+            : ""
+        }
+      </table>
+    </div>
+
+    ${
+      interviewNotes
+        ? `<!-- Cheatsheet Notes -->
+    <div style="margin-bottom: 24px; border: 1px dashed #cbd5e1; background: #ffffff; padding: 16px;">
+      <div style="font-size: 12px; font-weight: 800; color: #0f172a; text-transform: uppercase; margin-bottom: 8px;">
+        Candidate Cheatsheet / Notes:
+      </div>
+      <p style="margin: 0; font-size: 13px; color: #475569; line-height: 1.6; white-space: pre-line;">${interviewNotes}</p>
+    </div>`
+        : ""
+    }
+
+    <!-- Call to Action Buttons -->
+    <div style="text-align: center; margin: 28px 0 16px 0;">
+      <a href="${prepRoomUrl}" style="display: inline-block; background: #0f172a; color: #ffffff; text-decoration: none; font-size: 13px; font-weight: 700; padding: 12px 24px; text-transform: uppercase; letter-spacing: 0.05em; margin-right: 8px; margin-bottom: 8px;">
+        Launch AI Mock Prep Room &rarr;
+      </a>
+      <a href="${appDetailUrl}" style="display: inline-block; background: #f1f5f9; color: #0f172a; border: 1px solid #cbd5e1; text-decoration: none; font-size: 13px; font-weight: 700; padding: 12px 20px; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px;">
+        View Application Cheatsheet
+      </a>
+    </div>
+
+    <!-- Footer -->
+    <div style="margin-top: 32px; padding-top: 16px; border-top: 1px solid #e2e8f0; font-size: 12px; color: #94a3b8; text-align: center;">
+      CareerTrack Automated Interview Reminders • Powered by CareerTrack Autonomous Agent
+    </div>
+  </div>
+</body>
+</html>
+`
+}
+
+

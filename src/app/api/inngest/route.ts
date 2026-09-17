@@ -11,6 +11,7 @@ import {
   globalJobCrawlScheduler,
 } from "@/inngest/functions/batch-job-pipeline"
 import { careerOrchestratorPipeline } from "@/inngest/functions/career-orchestrator-pipeline"
+import { interviewReminderPipeline } from "@/inngest/functions/interview-reminder-pipeline"
 
 export const { GET, POST, PUT } = serve({
   client: inngest,
@@ -25,6 +26,7 @@ export const { GET, POST, PUT } = serve({
     processUserJobBatchWorker,
     globalJobCrawlScheduler,
     careerOrchestratorPipeline,
+    interviewReminderPipeline,
   ],
 })
 
