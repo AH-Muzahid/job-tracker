@@ -184,13 +184,13 @@ Whenever ANY change, fix, optimization, or feature is added to the Interview Sys
 
 ### Phase 4: Autonomous Interview Agent OS & Multi-Round Coaching (P3 — Target: Sprint 5)
 
-- [ ] **`INT-18` [Agent / Graph] LangGraph Subgraph Integration for End-to-End Interview Coach**
+- [x] **`INT-18` [Agent / Graph] LangGraph Subgraph Integration for End-to-End Interview Coach**
   - **Issue**: Interview feature runs isolated API scripts without being integrated into the core `CareerOrchestrator` agent workflow.
   - **Action**: Create an `InterviewSubGraph` with states for Dossier Gathering, Question Formulation, Mock Simulation, STAR Evaluation, and Longitudinal Tracking.
-  - **Target Files**: `src/lib/ai/graph/workflows/interview-coach.ts`, `src/lib/ai/graph/workflows/career-orchestrator.ts`
-  - **Status**: `Planned`
-  - **Owner**: Unassigned
-  - **Completed At**: —
+  - **Target Files**: `src/lib/ai/graph/workflows/interview-coach.ts`, `src/lib/ai/graph/workflows/career-orchestrator.ts`, `src/__tests__/interview-coach-subgraph.test.ts`
+  - **Status**: `Completed`
+  - **Owner**: Antigravity AI
+  - **Completed At**: 2026-09-17
 
 - [ ] **`INT-19` [Analytics / Tracking] Longitudinal Interview Mastery & Company Difficulty Benchmarking**
   - **Issue**: Candidates have no visual progress charts tracking readiness scores across multiple mock rounds.
@@ -251,6 +251,7 @@ Tracking schema changes for the interview system:
 | 2026-09-17 | `INT-15` | Enhanced `ApplicationDetailHeader.tsx` with scheduled interview banner, quick-join meeting links, and an in-place modal dialog with date/time picker, round selector, video meeting link, and cheatsheet notes. Connected persistence via `PATCH /api/applications/[id]`. Upgraded `/calendar` page with scheduled interview badges, upcoming interviews feed, and 1-click mock prep room launchers. Created unit test suite `src/__tests__/interview-scheduling-ui.test.ts`. | `src/components/applications/ApplicationDetailHeader.tsx`, `src/app/(app)/applications/[id]/page.tsx`, `src/app/(app)/calendar/page.tsx`, `src/__tests__/interview-scheduling-ui.test.ts`, `docs/INTERVIEW-IMPLEMENTATION-TRACKER.md` | Antigravity AI |
 | 2026-09-17 | `INT-16` | Built Inngest scheduled cron pipeline `interview-reminder-pipeline.ts` executing every 30 minutes (`*/30 * * * *`). Automatically detects upcoming interviews within 24h and 2h, enforces idempotency windows against `Notification` table, dispatches in-app notifications, and sends high-contrast architectural briefing emails with video call & mock prep room links using `formatInterviewReminderHtml` in `src/lib/email.ts`. Created unit test suite `src/__tests__/interview-reminder-pipeline.test.ts`. | `src/inngest/functions/interview-reminder-pipeline.ts`, `src/lib/email.ts`, `src/app/api/inngest/route.ts`, `src/__tests__/interview-reminder-pipeline.test.ts`, `docs/INTERVIEW-IMPLEMENTATION-TRACKER.md` | Antigravity AI |
 | 2026-09-17 | `INT-17` | Implemented `company-dossier-agent.ts` with both high-fidelity LLM synthesis and resilient deterministic fallbacks. Compiles company overview, tech stack highlights, interview questions, and reverse-interview questions directly into `interviewNotes` and triggers in-app notification. Connected automated trigger in `application.repository.ts` when status changes to "Interview", created Inngest event listener `company-dossier-pipeline.ts`, and mounted on-demand endpoint `POST /api/applications/[id]/dossier`. Created unit test suite `src/__tests__/company-dossier-agent.test.ts`. | `src/lib/ai/agents/company-dossier-agent.ts`, `src/inngest/functions/company-dossier-pipeline.ts`, `src/app/api/applications/[id]/dossier/route.ts`, `src/features/applications/application.repository.ts`, `src/app/api/inngest/route.ts`, `src/__tests__/company-dossier-agent.test.ts`, `docs/INTERVIEW-IMPLEMENTATION-TRACKER.md` | Antigravity AI |
+| 2026-09-17 | `INT-18` | Built the comprehensive LangGraph `InterviewSubGraph` (`interview-coach.ts`) unified with `career-orchestrator.ts`. Features five discrete agentic nodes: `dossierGathering`, `weaknessRetrieval`, `questionFormulation` (with Turn 3 weakness challenge injection), `starEvaluation`, and `longitudinalTracking` (persisting knowledge gaps to `UserMemory`). Created unit test suite `src/__tests__/interview-coach-subgraph.test.ts`. | `src/lib/ai/graph/workflows/interview-coach.ts`, `src/lib/ai/graph/workflows/career-orchestrator.ts`, `src/__tests__/interview-coach-subgraph.test.ts`, `docs/INTERVIEW-IMPLEMENTATION-TRACKER.md` | Antigravity AI |
 
 
 
