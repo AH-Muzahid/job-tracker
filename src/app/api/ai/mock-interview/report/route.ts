@@ -1,11 +1,25 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server"
 import { generateText } from "ai"
+import { z } from "zod"
 import { getInternalUserId } from "@/lib/auth"
 import { getProvider } from "@/lib/ai/client"
 import { getUserAIConfig } from "@/lib/ai/config"
 import { getSystemBase } from "@/lib/ai/prompts/system-base"
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit"
+import { sanitizeUntrustedContext } from "@/lib/ai/context-builder"
+
+const ReportRequestSchema = z.object({
+  targetRole: z.string().min(1).max(200),
+  targetCompany: z.string().min(1).max(200),
+  interviewType: z.string().min(1).max(100).default("Technical"),
+  language: z.enum(["en", "bn", "mixed"]).default("en"),
+  history: z.array(z.object({
+    role: z.string(),
+    text: z.string(),
+  })).min(2, "At least one full interview question and answer is required"),
+  applicationId: z.string().cuid().nullable().optional(),
+})
 
 export async function POST(request: NextRequest) {
   const userId = await getInternalUserId()
@@ -28,14 +42,19 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const body = await request.json()
-    const { targetRole, targetCompany, interviewType, language = "en", history = [], applicationId } = body
+    const raw = await request.json()
+    const parsed = ReportRequestSchema.safeParse(raw)
 
-    if (!Array.isArray(history) || history.length < 2) {
-      return NextResponse.json({
-        error: "At least one full interview question and answer is required to generate a report.",
-      }, { status: 400 })
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Invalid request body", details: parsed.error.flatten() },
+        { status: 400 }
+      )
     }
+
+    const { interviewType, language, history, applicationId } = parsed.data
+    const targetRole = sanitizeUntrustedContext(parsed.data.targetRole)
+    const targetCompany = sanitizeUntrustedContext(parsed.data.targetCompany)
 
     const resolvedProvider = getProvider({
       providerType: aiConfig.providerType as any,
