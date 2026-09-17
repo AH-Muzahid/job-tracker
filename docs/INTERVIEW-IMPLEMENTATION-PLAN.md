@@ -300,19 +300,19 @@ DROP TABLE IF EXISTS "PrepQuestion" CASCADE;
 
 ### P0 Critical — Must Fix Before Production
 
-| # | Item | Issue | Fix |
-|---|---|---|---|
-| INT-21 | Middleware Protection | `/api/interview-sessions` missing from `PROTECTED_API_PATHS` | Add to middleware array |
-| INT-22 | Zod + IDOR | POST accepts raw body, `applicationId` not verified | Add Zod schema + ownership check |
-| INT-23 | Rate Limiting | No rate limits on sessions routes | Add `checkRateLimit` |
-| INT-24 | Report Sanitization | `targetRole`/`targetCompany` injected raw into LLM prompt | Add `sanitizeUntrustedContext()` |
-| INT-25 | Fake Agent Node | `starEvaluationNode` scores by character length | Replace with AI-powered evaluation |
+| # | Item | Issue | Fix | Status |
+|---|---|---|---|---|
+| INT-21 | Middleware Protection | `/api/interview-sessions` missing from `PROTECTED_API_PATHS` | Add to middleware array | 🟢 Completed |
+| INT-22 | Zod + IDOR | POST accepts raw body, `applicationId` not verified | Add Zod schema + ownership check | 🟢 Completed |
+| INT-23 | Rate Limiting | No rate limits on sessions routes | Add `checkRateLimit` | 🟢 Completed |
+| INT-24 | Report Sanitization | `targetRole`/`targetCompany` injected raw into LLM prompt | Add `sanitizeUntrustedContext()` | 🟢 Completed |
+| INT-25 | Fake Agent Node | `starEvaluationNode` scores by character length | Replace with AI-powered evaluation | 🟢 Completed |
 
 ### P1 High — Fix Before Beta
 
-| # | Item | Issue | Fix |
-|---|---|---|---|
-| INT-26 | Role-Aware Prompt | `interview.ts` hardcoded to JS/React | Parameterize with `targetRole` |
-| INT-27 | Email Resilience | `sendEmail` not in try/catch in Inngest | Wrap with error handling |
-| INT-28 | Type Safety | `(prisma as any)` in 4 files | Run `prisma generate`, remove casts |
+| # | Item | Issue | Fix | Status |
+|---|---|---|---|---|
+| INT-26 | Role-Aware Prompt | `interview.ts` hardcoded to JS/React | Parameterize with `targetRole` | 🟢 Completed |
+| INT-27 | Email Resilience | `sendEmail` not in try/catch in Inngest | Wrap with error handling | 🟢 Completed |
+| INT-28 | Type Safety | `(prisma as any)` in 4 files | Run `prisma generate`, remove casts | 🟢 Completed |
 
