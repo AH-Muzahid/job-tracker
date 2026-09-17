@@ -96,13 +96,13 @@ Whenever ANY change, fix, optimization, or feature is added to the Interview Sys
   - **Owner**: Antigravity AI
   - **Completed At**: 2026-09-17
 
-- [ ] **`INT-08` [Database / Schema] Add Interview Scheduling Fields to Application**
+- [x] **`INT-08` [Database / Schema] Add Interview Scheduling Fields to Application**
   - **Issue**: The `Application` model has status `"Interview"`, but lacks fields for scheduling date, time, interview round, meeting link, and preparation notes.
   - **Action**: Add `interviewDate`, `interviewRound`, `interviewMeetingUrl`, and `interviewNotes` columns to `Application` with index `@@index([userId, interviewDate])`.
-  - **Target Files**: `prisma/schema.prisma`, `src/types/job.ts`
-  - **Status**: `Planned`
-  - **Owner**: Unassigned
-  - **Completed At**: —
+  - **Target Files**: `prisma/schema.prisma`, `src/features/applications/application.types.ts`, `src/features/applications/application.repository.ts`, `src/components/applications/types.ts`, `src/features/applications/components/types.ts`
+  - **Status**: `Completed`
+  - **Owner**: Antigravity AI
+  - **Completed At**: 2026-09-17
 
 - [ ] **`INT-09` [API / Reliability] Replace Illegal Google TTS Web Scraper**
   - **Issue**: `src/app/api/ai/tts/route.ts:79` scrapes `translate.google.com/translate_tts?client=tw-ob`. Rate-limited to 10 req/min per IP, causing spoken voice playback to break on turn 2 of mock interviews.
@@ -216,11 +216,11 @@ Tracking schema changes for the interview system:
 
 | Entity / Field | Type & Details | Target File | Status | Migration Reference |
 |:---|:---|:---:|:---:|:---|
-| `Application.interviewDate` | `DateTime?` — Timestamp of upcoming interview | `prisma/schema.prisma` | ⚪ Not Started | `add_application_interview_fields` |
-| `Application.interviewRound` | `String?` — e.g. "Screening", "Technical", "System Design" | `prisma/schema.prisma` | ⚪ Not Started | `add_application_interview_fields` |
-| `Application.interviewMeetingUrl` | `String?` — Zoom/Meet/Teams video link | `prisma/schema.prisma` | ⚪ Not Started | `add_application_interview_fields` |
-| `Application.interviewNotes` | `String? @db.Text` — Preparation notes / cheatsheet | `prisma/schema.prisma` | ⚪ Not Started | `add_application_interview_fields` |
-| `Application Index` | `@@index([userId, interviewDate])` | `prisma/schema.prisma` | ⚪ Not Started | `add_application_interview_fields` |
+| `Application.interviewDate` | `DateTime?` — Timestamp of upcoming interview | `prisma/schema.prisma` | 🟢 Completed | `prisma db push` |
+| `Application.interviewRound` | `String?` — e.g. "Screening", "Technical", "System Design" | `prisma/schema.prisma` | 🟢 Completed | `prisma db push` |
+| `Application.interviewMeetingUrl` | `String?` — Zoom/Meet/Teams video link | `prisma/schema.prisma` | 🟢 Completed | `prisma db push` |
+| `Application.interviewNotes` | `String? @db.Text` — Preparation notes / cheatsheet | `prisma/schema.prisma` | 🟢 Completed | `prisma db push` |
+| `Application Index` | `@@index([userId, interviewDate])` | `prisma/schema.prisma` | 🟢 Completed | `prisma db push` |
 | `InterviewSession.applicationId` | `String?` — FK to `Application(id)` with `onDelete: SetNull` | `prisma/schema.prisma` | 🟢 Completed | `prisma db push` |
 | `InterviewSession Indices` | `@@index([applicationId])`, `@@index([userId, targetCompany])` | `prisma/schema.prisma` | 🟢 Completed | `prisma db push` |
 | `Drop PrepQuestion` | Drop zombie model and relations | `prisma/schema.prisma` | 🟢 Completed | `prisma db push` |
@@ -241,4 +241,6 @@ Tracking schema changes for the interview system:
 | 2026-09-17 | `INT-05` | Added comprehensive Zod validation schema (`ConversationTurnSchema`) and prompt injection sanitization (`sanitizeUntrustedContext`) across `targetCompany`, `targetRole`, `applicationId` metadata, history, and candidate spoken answers in `converse/route.ts`. Created unit test suite `src/__tests__/mock-interview-injection.test.ts`. | `src/app/api/ai/mock-interview/converse/route.ts`, `src/__tests__/mock-interview-injection.test.ts`, `docs/INTERVIEW-IMPLEMENTATION-TRACKER.md` | Antigravity AI |
 | 2026-09-17 | `INT-06` | Extracted `MockQuestion` interface to `src/components/interview/conversational/types.ts`. Purged 737 lines of dead code: deleted `VoiceMockInterviewModal.tsx`, `InterviewPrepResult.tsx`, and `/api/ai/mock-interview/evaluate`. Removed dead `usePrepQuestions()` hook from `src/lib/api.ts` and corrected `/10` to `/100` score scale in `interview-sessions` route. Phase 1 P0 fixes 100% completed. | `src/components/interview/conversational/types.ts`, `src/components/interview/ConversationalVoiceInterviewModal.tsx`, `src/lib/api.ts`, `src/app/api/interview-sessions/route.ts`, `docs/INTERVIEW-IMPLEMENTATION-TRACKER.md` | Antigravity AI |
 | 2026-09-17 | `INT-07` | Linked `InterviewSession` to `Application` model via `applicationId` with `SetNull` cascade and composite indices. Updated `report/route.ts` to persist verified application relationship. Dropped zombie `PrepQuestion` table, deleted `/api/prep-questions` routes, and purged `addPrepQuestions` from tool registry and middleware. Created unit test suite `src/__tests__/interview-session-application.test.ts`. | `prisma/schema.prisma`, `src/app/api/ai/mock-interview/report/route.ts`, `src/middleware.ts`, `src/lib/ai/tool-registry.ts`, `src/__tests__/interview-session-application.test.ts`, `docs/INTERVIEW-IMPLEMENTATION-TRACKER.md` | Antigravity AI |
+| 2026-09-17 | `INT-08` | Added interview scheduling columns (`interviewDate`, `interviewRound`, `interviewMeetingUrl`, `interviewNotes`) and index `@@index([userId, interviewDate])` to `Application` model. Synchronized Prisma database schema (`prisma db push`), updated repository create/update persistence, and updated TypeScript DTOs/interfaces. Created unit test suite `src/__tests__/interview-scheduling-fields.test.ts`. | `prisma/schema.prisma`, `src/features/applications/application.types.ts`, `src/features/applications/application.repository.ts`, `src/components/applications/types.ts`, `src/features/applications/components/types.ts`, `src/__tests__/interview-scheduling-fields.test.ts`, `docs/INTERVIEW-IMPLEMENTATION-TRACKER.md` | Antigravity AI |
+
 

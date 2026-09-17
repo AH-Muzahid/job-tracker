@@ -18,6 +18,10 @@ export interface Application {
   applicationDate: string
   status: string
   notes: string | null
+  interviewDate?: string | null
+  interviewRound?: string | null
+  interviewMeetingUrl?: string | null
+  interviewNotes?: string | null
   createdAt: string
   updatedAt: string
   tags: TagItem[]

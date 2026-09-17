@@ -24,6 +24,10 @@ export interface Application {
   applicationDate: Date | string
   status: string
   notes: string | null
+  interviewDate?: Date | string | null
+  interviewRound?: string | null
+  interviewMeetingUrl?: string | null
+  interviewNotes?: string | null
   createdAt: Date | string
   updatedAt: Date | string
   tags?: ApplicationTagRelation[]
@@ -55,6 +59,10 @@ export interface CreateApplicationDto {
   applicationDate: string | Date
   status: string
   notes?: string | null
+  interviewDate?: string | Date | null
+  interviewRound?: string | null
+  interviewMeetingUrl?: string | null
+  interviewNotes?: string | null
   tagIds?: string[]
 }
 
@@ -66,5 +74,9 @@ export interface UpdateApplicationDto {
   applicationDate?: string | Date
   status?: string
   notes?: string | null
+  interviewDate?: string | Date | null
+  interviewRound?: string | null
+  interviewMeetingUrl?: string | null
+  interviewNotes?: string | null
   tagIds?: string[]
 }

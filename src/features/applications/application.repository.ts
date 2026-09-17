@@ -107,6 +107,10 @@ export class ApplicationRepository {
           applicationDate: new Date(data.applicationDate),
           status: data.status,
           notes: data.notes || null,
+          interviewDate: data.interviewDate ? new Date(data.interviewDate) : null,
+          interviewRound: data.interviewRound || null,
+          interviewMeetingUrl: data.interviewMeetingUrl || null,
+          interviewNotes: data.interviewNotes || null,
           statusChanges: { create: { toStatus: data.status } },
           ...(data.tagIds?.length
             ? { tags: { create: data.tagIds.map((id) => ({ tagId: id })) } }
@@ -148,6 +152,14 @@ export class ApplicationRepository {
           ...(data.applicationDate && { applicationDate: new Date(data.applicationDate) }),
           ...(newStatus && { status: newStatus }),
           ...(data.notes !== undefined && { notes: data.notes }),
+          ...(data.interviewDate !== undefined && {
+            interviewDate: data.interviewDate ? new Date(data.interviewDate) : null,
+          }),
+          ...(data.interviewRound !== undefined && { interviewRound: data.interviewRound }),
+          ...(data.interviewMeetingUrl !== undefined && {
+            interviewMeetingUrl: data.interviewMeetingUrl,
+          }),
+          ...(data.interviewNotes !== undefined && { interviewNotes: data.interviewNotes }),
           ...(statusChanged
             ? { statusChanges: { create: { fromStatus: existingStatus, toStatus: newStatus! } } }
             : {}),
