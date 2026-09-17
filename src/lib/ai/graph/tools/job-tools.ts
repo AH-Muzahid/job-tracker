@@ -195,3 +195,170 @@ export async function executeDeleteApplication(userId: string, input: {
     return { success: false, error: error?.message || "Failed to delete application" }
   }
 }
+
+export async function executeGetPrepNotes(userId: string, input: {
+  applicationId?: string
+  category?: string
+  query?: string
+  limit?: number
+}) {
+  if (!userId) return { success: false, error: "Unauthorized" }
+
+  try {
+    const where: any = { userId }
+    if (input.applicationId) {
+      where.applicationId = input.applicationId
+    }
+    if (input.category) {
+      where.category = { equals: input.category, mode: "insensitive" }
+    }
+    if (input.query) {
+      where.OR = [
+        { title: { contains: input.query, mode: "insensitive" } },
+        { content: { contains: input.query, mode: "insensitive" } },
+      ]
+    }
+
+    const notes = await withDbRetry<any[]>(() =>
+      prisma.prepNote.findMany({
+        where,
+        orderBy: { updatedAt: "desc" },
+        take: Math.min(input.limit || 10, 50),
+        include: {
+          application: {
+            select: { id: true, companyName: true, jobTitle: true },
+          },
+        },
+      })
+    )
+
+    return {
+      success: true,
+      count: notes.length,
+      notes,
+    }
+  } catch (error: any) {
+    return { success: false, error: error?.message || "Failed to retrieve prep notes" }
+  }
+}
+
+export async function executeSavePrepNote(userId: string, input: {
+  title: string
+  content: string
+  category?: string
+  applicationId?: string
+}) {
+  if (!userId) return { success: false, error: "Unauthorized" }
+  if (!input.title || !input.content) {
+    return { success: false, error: "Title and content are required" }
+  }
+
+  try {
+    if (input.applicationId) {
+      const ownedApp = await withDbRetry<any>(() =>
+        prisma.application.findFirst({
+          where: { id: input.applicationId, userId },
+        })
+      )
+      if (!ownedApp) {
+        return { success: false, error: "Unauthorized application access" }
+      }
+    }
+
+    const note = await withDbRetry<any>(() =>
+      prisma.prepNote.create({
+        data: {
+          userId,
+          title: input.title.trim(),
+          content: input.content.trim(),
+          category: input.category?.trim() || "General",
+          applicationId: input.applicationId || null,
+        },
+      })
+    )
+
+    return {
+      success: true,
+      message: `Saved prep note "${note.title}"`,
+      note,
+    }
+  } catch (error: any) {
+    return { success: false, error: error?.message || "Failed to save prep note" }
+  }
+}
+
+export async function executeResearchCompanyIntel(userId: string, input: {
+  companyName: string
+  website?: string
+  industry?: string
+}) {
+  if (!userId) return { success: false, error: "Unauthorized" }
+  if (!input.companyName || !input.companyName.trim()) {
+    return { success: false, error: "Company name is required" }
+  }
+
+  const normalizedName = input.companyName.trim()
+
+  try {
+    let company = await withDbRetry<any>(() =>
+      prisma.company.findFirst({
+        where: {
+          userId,
+          name: { equals: normalizedName, mode: "insensitive" },
+        },
+        include: {
+          applications: {
+            select: { id: true, jobTitle: true, status: true, interviewDate: true },
+          },
+        },
+      })
+    )
+
+    if (!company) {
+      company = await withDbRetry<any>(() =>
+        prisma.company.create({
+          data: {
+            userId,
+            name: normalizedName,
+            website: input.website?.trim() || null,
+            industry: input.industry?.trim() || null,
+            notes: `Researched via Career Assistant for ${normalizedName}.`,
+          },
+          include: {
+            applications: {
+              select: { id: true, jobTitle: true, status: true, interviewDate: true },
+            },
+          },
+        })
+      )
+    }
+
+    const recentSessions = await withDbRetry<any[]>(() =>
+      prisma.interviewSession.findMany({
+        where: {
+          userId,
+          targetCompany: { equals: normalizedName, mode: "insensitive" },
+        },
+        orderBy: { createdAt: "desc" },
+        take: 3,
+        select: { id: true, score: true, verdict: true, createdAt: true },
+      })
+    )
+
+    return {
+      success: true,
+      company: {
+        id: company.id,
+        name: company.name,
+        website: company.website,
+        industry: company.industry,
+        notes: company.notes,
+        activeApplications: company.applications || [],
+        recentMockInterviewSessions: recentSessions,
+      },
+      message: `Retrieved company intelligence for ${company.name}`,
+    }
+  } catch (error: any) {
+    return { success: false, error: error?.message || `Failed to research company intel for ${normalizedName}` }
+  }
+}

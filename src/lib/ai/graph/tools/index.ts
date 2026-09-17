@@ -4,6 +4,9 @@ import {
   executeUpdateApplicationStatus,
   executeSearchApplications,
   executeDeleteApplication,
+  executeGetPrepNotes,
+  executeSavePrepNote,
+  executeResearchCompanyIntel,
 } from "./job-tools"
 import {
   executeGetResumeDetails,
@@ -34,7 +37,7 @@ export async function executeToolByName(
   toolName: string,
   toolInput: Record<string, any>,
   userId: string
-): Promise<{ success: boolean; result?: any; error?: string; message?: string }> {
+): Promise<{ success: boolean; result?: any; error?: string; message?: string; [key: string]: any }> {
   try {
     switch (toolName) {
       case "searchExternalJobs":
@@ -87,6 +90,15 @@ export async function executeToolByName(
 
       case "sendOutreachEmailViaResend":
         return await executeSendOutreachEmail(userId, toolInput as any)
+
+      case "researchCompanyIntel":
+        return await executeResearchCompanyIntel(userId, toolInput as any)
+
+      case "getPrepNotes":
+        return await executeGetPrepNotes(userId, toolInput as any)
+
+      case "savePrepNote":
+        return await executeSavePrepNote(userId, toolInput as any)
 
       default:
         return { success: false, error: `Tool "${toolName}" is not recognized.` }
