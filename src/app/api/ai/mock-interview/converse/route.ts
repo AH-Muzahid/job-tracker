@@ -394,6 +394,20 @@ ${app.analysis?.jdKeywords ? `- Key JD Keywords: ${JSON.stringify(app.analysis.j
       }
     }
 
+    // Query past candidate weaknesses to probe actively during Turn 3 (or mid-interview)
+    let weaknessProbingContext = ""
+    if (currentQuestionNumber === 3 || (targetTurnCount <= 3 && currentQuestionNumber === 2)) {
+      try {
+        const { getUserWeaknesses, buildWeaknessProbingInstruction } = await import("@/lib/ai/memory")
+        const pastWeaknesses = await getUserWeaknesses(userId, 3)
+        if (pastWeaknesses && pastWeaknesses.length > 0) {
+          weaknessProbingContext = buildWeaknessProbingInstruction(pastWeaknesses[0].content)
+        }
+      } catch (err) {
+        console.warn("[Weakness Probing Load Warning]:", err)
+      }
+    }
+
     const systemPrompt = `You are ${interviewerName}, an Engineering Leader at ${targetCompany} conducting a live spoken voice mock interview for a ${targetRole} position.
 Round: ${interviewType}
 Target Questions: ${targetTurnCount} turns. Current Turn: Question ${currentQuestionNumber} of ${targetTurnCount}.
@@ -402,7 +416,7 @@ ${toneInstructions}
 
 ${languageInstructions}
 ${targetAppIntel}
-
+${weaknessProbingContext ? `\n${weaknessProbingContext}\n` : ""}
 ## INTERVIEW STRUCTURE & PHASE:
 ${phaseInstruction}
 

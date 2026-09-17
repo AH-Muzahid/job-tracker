@@ -163,3 +163,20 @@ ${items}
 
 INSTRUCTION: Probe the candidate on one of these areas to verify if they have improved their skills or learned from past mistakes.`
 }
+
+/**
+ * Builds a specific system prompt directive for Turn 3 active weakness probing.
+ */
+export function buildWeaknessProbingInstruction(weaknessContent: string): string {
+  if (!weaknessContent || !weaknessContent.trim()) return ""
+
+  return `## TARGETED WEAKNESS PROBING (STAGE 3 PERSONALIZATION):
+The candidate previously had an identified weakness or growth area in a prior interview session:
+"${weaknessContent.trim()}"
+
+PROBING DIRECTIVE FOR THIS QUESTION:
+- Acknowledge their previous answer in 2-3 words.
+- Actively probe or challenge the candidate around this known weakness area to test whether they have improved.
+- Seamlessly weave this challenge into the current conversation (e.g., "In your last session, you touched on this topic, but let's test how you'd handle...").`
+}
+

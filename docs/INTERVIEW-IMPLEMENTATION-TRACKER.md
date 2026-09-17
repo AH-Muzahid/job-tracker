@@ -148,13 +148,13 @@ Whenever ANY change, fix, optimization, or feature is added to the Interview Sys
   - **Owner**: Antigravity AI
   - **Completed At**: 2026-09-17
 
-- [ ] **`INT-14` [Memory / Personalization] Active Weakness Probing in Follow-up Mock Interviews**
+- [x] **`INT-14` [Memory / Personalization] Active Weakness Probing in Follow-up Mock Interviews**
   - **Issue**: Consecutive mock interviews for the same candidate do not test whether they improved on previously diagnosed flaws.
   - **Action**: In `converse/route.ts`, query `searchUserMemories(userId, "weakness")` during session setup. Instruct the interviewer in Turn 3 to test candidate on a past weakness topic.
-  - **Target Files**: `src/app/api/ai/mock-interview/converse/route.ts`
-  - **Status**: `Planned`
-  - **Owner**: Unassigned
-  - **Completed At**: —
+  - **Target Files**: `src/app/api/ai/mock-interview/converse/route.ts`, `src/lib/ai/memory.ts`, `src/__tests__/weakness-probing-turn3.test.ts`
+  - **Status**: `Completed`
+  - **Owner**: Antigravity AI
+  - **Completed At**: 2026-09-17
 
 - [ ] **`INT-15` [UI / Scheduling] Add Interview Schedule Date/Time Picker to Application Drawer & Calendar View**
   - **Issue**: Users cannot schedule or see their real upcoming interviews anywhere in the UI.
@@ -247,6 +247,7 @@ Tracking schema changes for the interview system:
 | 2026-09-17 | `INT-11` | Forwarded and synchronized `preset.tone`, `preset.roundType`, and `preset.turns` from `MockInterviewLaunchpad.tsx` through `src/app/(app)/interview-prep/page.tsx` into `ConversationalVoiceInterviewModal.tsx`. Added `initialTone` and `initialTurns` to `ConversationalVoiceInterviewModalProps`, syncing state immediately when starting curated tracks. Created unit test suite `src/__tests__/launchpad-preset-sync.test.ts`. | `src/components/interview/prep/MockInterviewLaunchpad.tsx`, `src/app/(app)/interview-prep/page.tsx`, `src/components/interview/ConversationalVoiceInterviewModal.tsx`, `src/components/interview/conversational/types.ts`, `src/__tests__/launchpad-preset-sync.test.ts`, `docs/INTERVIEW-IMPLEMENTATION-TRACKER.md` | Antigravity AI |
 | 2026-09-17 | `INT-12` | Implemented runtime tool execution handlers `executeGetPrepNotes`, `executeSavePrepNote`, and `executeResearchCompanyIntel` in `src/lib/ai/graph/tools/job-tools.ts`. Integrated dispatching into `executeToolByName` in `src/lib/ai/graph/tools/index.ts` with tenant isolation and real DB queries. Created unit test suite `src/__tests__/runtime-tools-dispatch.test.ts`. | `src/lib/ai/graph/tools/job-tools.ts`, `src/lib/ai/graph/tools/index.ts`, `src/__tests__/runtime-tools-dispatch.test.ts`, `docs/INTERVIEW-IMPLEMENTATION-TRACKER.md` | Antigravity AI |
 | 2026-09-17 | `INT-13` | Created `src/lib/ai/memory.ts` providing `persistInterviewWeaknesses`, `getUserWeaknesses`, and `formatWeaknessProbingContext`. Updated `report/route.ts` to automatically extract `knowledgeGaps` and persist them into `UserMemory` with `category: "weakness"`, severity-weighted confidence, and cache invalidation. Created unit test suite `src/__tests__/interview-weakness-memory.test.ts`. | `src/lib/ai/memory.ts`, `src/app/api/ai/mock-interview/report/route.ts`, `src/__tests__/interview-weakness-memory.test.ts`, `docs/INTERVIEW-IMPLEMENTATION-TRACKER.md` | Antigravity AI |
+| 2026-09-17 | `INT-14` | Implemented active weakness probing in `converse/route.ts` using `getUserWeaknesses` and `buildWeaknessProbingInstruction` from `src/lib/ai/memory.ts`. Automatically injects targeted challenge directives into interviewer system prompt during Turn 3 to test candidate retention and improvement. Created unit test suite `src/__tests__/weakness-probing-turn3.test.ts`. | `src/app/api/ai/mock-interview/converse/route.ts`, `src/lib/ai/memory.ts`, `src/__tests__/weakness-probing-turn3.test.ts`, `docs/INTERVIEW-IMPLEMENTATION-TRACKER.md` | Antigravity AI |
 
 
 
