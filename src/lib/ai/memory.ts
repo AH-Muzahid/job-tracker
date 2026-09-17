@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { prisma, withDbRetry } from "@/lib/prisma"
 import { invalidateCache } from "@/lib/redis"
 

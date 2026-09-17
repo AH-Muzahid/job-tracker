@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getInternalUserId } from "@/lib/auth"
-import { ApplicationService } from "@/features/applications"
+import { ApplicationService } from "@/features/applications/server"
 import { MAX_PAGE_SIZE } from "@/features/applications/application.constants"
 import { checkIdempotency, storeResult, generateIdempotencyKey } from "@/lib/ai/idempotency"
 

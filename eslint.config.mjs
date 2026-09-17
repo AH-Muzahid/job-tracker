@@ -19,7 +19,24 @@ const eslintConfig = [
       "build/**",
       ".agents/**",
       "next-env.d.ts",
+      "src/__tests__/**",
+      "**/__tests__/**",
+      "**/*.test.ts",
+      "**/*.test.tsx",
+      "**/*.spec.ts",
+      "**/*.spec.tsx",
     ],
+  },
+  {
+    rules: {
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+        },
+      ],
+    },
   },
 ];
 

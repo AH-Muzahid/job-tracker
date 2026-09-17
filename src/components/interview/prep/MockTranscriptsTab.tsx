@@ -18,8 +18,6 @@ import {
   BarChart3,
   Clock,
   CheckCircle2,
-  AlertTriangle,
-  Zap,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -61,7 +59,7 @@ export function MockTranscriptsTab({
 
   // Compute longitudinal analytics client-side for zero-latency updates
   const analytics = useMemo(() => {
-    return computeLongitudinalMasteryAnalytics(sessions as any)
+    return computeLongitudinalMasteryAnalytics(sessions)
   }, [sessions])
 
   const getTierBadgeStyle = (tier: CompanyTierType) => {

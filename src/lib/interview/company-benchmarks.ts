@@ -324,7 +324,18 @@ export function computeLongitudinalMasteryAnalytics(
 
   for (const session of sortedSessions) {
     // Resolve score: prioritize session.score, fallback to report.overallScore
-    const reportObj = session.report && typeof session.report === "object" ? (session.report as any) : null
+    const reportObj =
+      session.report && typeof session.report === "object"
+        ? (session.report as {
+            overallScore?: number
+            verdict?: string
+            knowledgeGaps?: Array<{
+              topic?: string
+              type?: string
+              severity?: "high" | "medium" | "low"
+            }>
+          })
+        : null
     let effectiveScore: number | null = null
 
     if (typeof session.score === "number" && !isNaN(session.score)) {
@@ -396,7 +407,7 @@ export function computeLongitudinalMasteryAnalytics(
     tierMap[tierInfo.tier].companies.add(company)
 
     // Knowledge gaps extraction
-    const gaps: any[] = reportObj && Array.isArray(reportObj.knowledgeGaps) ? reportObj.knowledgeGaps : []
+    const gaps = reportObj && Array.isArray(reportObj.knowledgeGaps) ? reportObj.knowledgeGaps : []
     for (const gap of gaps) {
       if (!gap || !gap.topic) continue
       const rawTopic = String(gap.topic).trim()

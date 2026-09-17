@@ -5,7 +5,7 @@ const bundleAnalyzer = withBundleAnalyzer({ enabled: process.env.ANALYZE === "tr
 
 const nextConfig: NextConfig = {
   output: "standalone",
-  serverExternalPackages: ["pdf-parse"],
+  serverExternalPackages: ["pdf-parse", "inngest"],
   poweredByHeader: false,
   reactStrictMode: true,
   experimental: {

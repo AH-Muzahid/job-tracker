@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getInternalUserId } from "@/lib/auth"
-import { ApplicationService } from "@/features/applications"
+import { ApplicationService } from "@/features/applications/server"
 
 export async function GET(
   _req: NextRequest,

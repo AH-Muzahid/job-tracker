@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { StateGraph, START, END, Annotation } from "@langchain/langgraph"
-import { prisma, withDbRetry } from "@/lib/prisma"
 import { getUserWeaknesses, persistInterviewWeaknesses, type WeaknessMemory } from "@/lib/ai/memory"
 import { compileCompanyDossier, type CompanyDossier } from "@/lib/ai/agents/company-dossier-agent"
 import { getTurnArchetypePhase } from "@/app/api/ai/mock-interview/converse/route"

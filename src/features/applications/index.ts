@@ -1,6 +1,4 @@
 export * from "./application.types"
 export * from "./application.constants"
 export * from "./application.validation"
-export * from "./application.repository"
-export * from "./application.service"
 export * from "./application.hooks"

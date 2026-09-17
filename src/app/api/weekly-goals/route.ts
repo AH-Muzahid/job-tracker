@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server"
 import { getInternalUserId } from "@/lib/auth"
-import { WeeklyGoalsService } from "@/features/weekly-goals"
+import { WeeklyGoalsService } from "@/features/weekly-goals/server"
 import { ResponseUtil } from "@/lib/api-response"
 
 export async function GET() {
