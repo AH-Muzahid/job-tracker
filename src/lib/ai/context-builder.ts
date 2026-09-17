@@ -51,7 +51,7 @@ export interface CachedResume {
 export function sanitizeUntrustedContext(input: string): string {
   if (!input) return ""
   let sanitized = input.replace(/\u0000/g, "")
-  const tagRegex = /<\/?(?:system|instruction|admin|override|user_runtime_context|untrusted_content)[^>]*>/gi
+  const tagRegex = /<\/?(?:system|instruction|admin|override|user_runtime_context|untrusted_content|assistant|human)[^>]*>|\[\s*(?:system|assistant|user|admin)\s*\]/gi
 
   let previous = ""
   while (previous !== sanitized) {
