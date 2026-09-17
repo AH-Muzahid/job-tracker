@@ -120,7 +120,7 @@ export function ConceptLabTab({ onSaveAsNote }: ConceptLabTabProps) {
       const data = await res.json()
       const assistantMsg: StudyDiscussionMessage = {
         role: "assistant",
-        content: data.answer || "No response generated.",
+        content: data.answer || data.explanation || "No response generated.",
         topic: selectedTopic,
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       }

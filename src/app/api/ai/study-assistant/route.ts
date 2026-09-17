@@ -9,6 +9,7 @@ export interface StudyQueryRequest {
   topic?: string
   question: string
   language?: "en" | "bn" | "mixed"
+  history?: Array<{ role: "user" | "assistant"; content: string }>
   conversationHistory?: Array<{ role: "user" | "assistant"; content: string }>
 }
 
@@ -34,7 +35,8 @@ export async function POST(request: NextRequest) {
 
   try {
     const body: StudyQueryRequest = await request.json()
-    const { topic = "General", question, language = "mixed", conversationHistory = [] } = body
+    const { topic = "General", question, language = "mixed" } = body
+    const conversationHistory = body.conversationHistory || body.history || []
 
     if (!question || !question.trim()) {
       return NextResponse.json({ error: "Question is required" }, { status: 400 })
@@ -90,6 +92,7 @@ When explaining any concept or answering a question:
     })
 
     return NextResponse.json({
+      answer: result.text,
       explanation: result.text,
       topic,
       modelUsed: result.modelUsed,
