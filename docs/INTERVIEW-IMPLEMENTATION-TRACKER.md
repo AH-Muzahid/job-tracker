@@ -112,13 +112,13 @@ Whenever ANY change, fix, optimization, or feature is added to the Interview Sys
   - **Owner**: Antigravity AI
   - **Completed At**: 2026-09-17
 
-- [ ] **`INT-10` [AI / Prompts] Implement Dynamic Turn Archetypes for Behavioral, System Design & Technical**
+- [x] **`INT-10` [AI / Prompts] Implement Dynamic Turn Archetypes for Behavioral, System Design & Technical**
   - **Issue**: `converse/route.ts` uses a single generic script progression (Icebreaker -> Core Challenge -> Behavioral Push -> Culture Fit) regardless of whether the interview is Behavioral, Technical, or System Design.
   - **Action**: Implement round-specific phase state machines: Behavioral uses STAR progression; System Design uses Requirements -> Architecture -> Failure Modes; Technical uses Fundamentals -> Edge Cases -> Debugging.
-  - **Target Files**: `src/app/api/ai/mock-interview/converse/route.ts`
-  - **Status**: `Planned`
-  - **Owner**: Unassigned
-  - **Completed At**: —
+  - **Target Files**: `src/app/api/ai/mock-interview/converse/route.ts`, `src/lib/ai/resilience.ts`, `src/__tests__/dynamic-turn-archetypes.test.ts`
+  - **Status**: `Completed`
+  - **Owner**: Antigravity AI
+  - **Completed At**: 2026-09-17
 
 - [ ] **`INT-11` [UI / Synchronization] Forward Launchpad Persona Tones & Turn Counts into Voice Modal**
   - **Issue**: Launchpad cards show "5 Questions" or "Tough/Friendly Persona", but clicking Launch opens the modal with default values without applying preset parameters.
@@ -243,6 +243,8 @@ Tracking schema changes for the interview system:
 | 2026-09-17 | `INT-07` | Linked `InterviewSession` to `Application` model via `applicationId` with `SetNull` cascade and composite indices. Updated `report/route.ts` to persist verified application relationship. Dropped zombie `PrepQuestion` table, deleted `/api/prep-questions` routes, and purged `addPrepQuestions` from tool registry and middleware. Created unit test suite `src/__tests__/interview-session-application.test.ts`. | `prisma/schema.prisma`, `src/app/api/ai/mock-interview/report/route.ts`, `src/middleware.ts`, `src/lib/ai/tool-registry.ts`, `src/__tests__/interview-session-application.test.ts`, `docs/INTERVIEW-IMPLEMENTATION-TRACKER.md` | Antigravity AI |
 | 2026-09-17 | `INT-08` | Added interview scheduling columns (`interviewDate`, `interviewRound`, `interviewMeetingUrl`, `interviewNotes`) and index `@@index([userId, interviewDate])` to `Application` model. Synchronized Prisma database schema (`prisma db push`), updated repository create/update persistence, and updated TypeScript DTOs/interfaces. Created unit test suite `src/__tests__/interview-scheduling-fields.test.ts`. | `prisma/schema.prisma`, `src/features/applications/application.types.ts`, `src/features/applications/application.repository.ts`, `src/components/applications/types.ts`, `src/features/applications/components/types.ts`, `src/__tests__/interview-scheduling-fields.test.ts`, `docs/INTERVIEW-IMPLEMENTATION-TRACKER.md` | Antigravity AI |
 | 2026-09-17 | `INT-09` | Replaced illegal and fragile Google Translate TTS scraping with official OpenAI `tts-1` audio API with configurable voices (`onyx`, `nova`, etc.). Added graceful HTTP 204 fallback for Bengali/unsupported text to trigger native browser `SpeechSynthesis` without network failure. Raised rate limit from 10 to 60 req/min. Created unit test suite `src/__tests__/tts-route.test.ts`. | `src/app/api/ai/tts/route.ts`, `src/components/interview/ConversationalVoiceInterviewModal.tsx`, `src/__tests__/tts-route.test.ts`, `docs/INTERVIEW-IMPLEMENTATION-TRACKER.md` | Antigravity AI |
+| 2026-09-17 | `INT-10` | Implemented dynamic round-specific phase state machines (`getTurnArchetypePhase`): Behavioral (STAR progression: Background -> Situation/Task -> Action/Conflict -> Result/Reflection), System Design (Requirements -> High-Level Architecture -> Partitioning/Bottlenecks -> Failure Modes/Resiliency), Technical (Fundamentals -> Algorithmic Design -> Edge Cases/Hardening -> Live Incident Triage), Leadership, and General. Upgraded emergency fallback generator in `resilience.ts` to be archetype-aware. Created unit test suite `src/__tests__/dynamic-turn-archetypes.test.ts`. | `src/app/api/ai/mock-interview/converse/route.ts`, `src/lib/ai/resilience.ts`, `src/__tests__/dynamic-turn-archetypes.test.ts`, `docs/INTERVIEW-IMPLEMENTATION-TRACKER.md` | Antigravity AI |
+
 
 
 

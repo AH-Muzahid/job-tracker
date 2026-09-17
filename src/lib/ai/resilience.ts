@@ -265,6 +265,39 @@ export function getEmergencyInterviewTurn(
   currentPhase: string,
   turnNumber: number
 ): string {
+  const phaseLower = (currentPhase || "").toLowerCase()
+
+  if (phaseLower.includes("wrap-up") || phaseLower.includes("closing") || turnNumber >= 5) {
+    return `That concludes our interview session today! Thank you so much for your time and thoughtful responses regarding the ${targetRole} role at ${targetCompany}. Your evaluation report is now being prepared.`
+  }
+
+  if (phaseLower.includes("star") || phaseLower.includes("behavioral")) {
+    if (phaseLower.includes("situation") || phaseLower.includes("challenge")) {
+      return `Could you describe a challenging project or high-pressure situation you navigated in your recent engineering work, and what your exact responsibility was?`
+    }
+    if (phaseLower.includes("action") || phaseLower.includes("conflict")) {
+      return `When facing that hurdle, what specific actions did you personally take to align your team, resolve conflict, and drive the solution forward?`
+    }
+    if (phaseLower.includes("result") || phaseLower.includes("impact")) {
+      return `What was the measurable outcome of your actions, and what key lesson did you take away from that experience?`
+    }
+  }
+
+  if (phaseLower.includes("system design") || phaseLower.includes("architecture") || phaseLower.includes("partitioning")) {
+    if (phaseLower.includes("requirements") || phaseLower.includes("scope")) {
+      return `Let's design a core service for ${targetCompany}. How would you define the functional and non-functional requirements, specifically around availability, throughput, and consistency?`
+    }
+    if (phaseLower.includes("architecture") || phaseLower.includes("entities")) {
+      return `Walk me through the high-level architecture and core data entities: what services, API contracts, and database models would you create for ${targetCompany}?`
+    }
+    if (phaseLower.includes("partition") || phaseLower.includes("bottleneck")) {
+      return `As traffic scales 10x, how would you partition the data layer, handle caching strategies, and mitigate hot-key bottlenecks?`
+    }
+    if (phaseLower.includes("failure") || phaseLower.includes("resiliency")) {
+      return `What happens if a primary database node or downstream dependency fails during peak hours? How do you ensure high availability and graceful degradation?`
+    }
+  }
+
   const fallbackBank: Record<number, string> = {
     1: `Glad to meet you! Let's start with your core background. Can you share an overview of your recent technical stack and key projects related to ${targetRole}?`,
     2: `Thanks for sharing. Diving into engineering design: when architecting services for ${targetCompany}, how do you ensure high availability, data consistency, and low latency?`,
