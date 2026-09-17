@@ -232,6 +232,13 @@ export default function ApplicationDetailPage() {
         companyName={application.companyName}
         jobTitle={application.jobTitle}
         applicationId={application.id}
+        interviewDate={application.interviewDate}
+        interviewRound={application.interviewRound}
+        interviewMeetingUrl={application.interviewMeetingUrl}
+        interviewNotes={application.interviewNotes}
+        onScheduleUpdate={(updated) => {
+          setApplication((prev) => (prev ? { ...prev, ...updated } : null))
+        }}
         onDelete={() => setDialogOpen(true)}
       />
 

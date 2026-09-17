@@ -156,13 +156,13 @@ Whenever ANY change, fix, optimization, or feature is added to the Interview Sys
   - **Owner**: Antigravity AI
   - **Completed At**: 2026-09-17
 
-- [ ] **`INT-15` [UI / Scheduling] Add Interview Schedule Date/Time Picker to Application Drawer & Calendar View**
+- [x] **`INT-15` [UI / Scheduling] Add Interview Schedule Date/Time Picker to Application Drawer & Calendar View**
   - **Issue**: Users cannot schedule or see their real upcoming interviews anywhere in the UI.
   - **Action**: Add Date/Time picker, round selector, and meeting link input to `ApplicationDetailHeader.tsx` and mount interview badges with 1-click prep launch links in `/calendar`.
-  - **Target Files**: `src/components/applications/detail/ApplicationDetailHeader.tsx`, `src/app/(app)/calendar/page.tsx`
-  - **Status**: `Planned`
-  - **Owner**: Unassigned
-  - **Completed At**: —
+  - **Target Files**: `src/components/applications/ApplicationDetailHeader.tsx`, `src/app/(app)/applications/[id]/page.tsx`, `src/app/(app)/calendar/page.tsx`, `src/__tests__/interview-scheduling-ui.test.ts`
+  - **Status**: `Completed`
+  - **Owner**: Antigravity AI
+  - **Completed At**: 2026-09-17
 
 - [ ] **`INT-16` [Automation / Inngest] Inngest Cron Pipeline for 24h/2h Pre-Interview Briefing & Reminders**
   - **Issue**: Reminders rely on passive manual client triggers rather than scheduled background crons.
@@ -248,6 +248,7 @@ Tracking schema changes for the interview system:
 | 2026-09-17 | `INT-12` | Implemented runtime tool execution handlers `executeGetPrepNotes`, `executeSavePrepNote`, and `executeResearchCompanyIntel` in `src/lib/ai/graph/tools/job-tools.ts`. Integrated dispatching into `executeToolByName` in `src/lib/ai/graph/tools/index.ts` with tenant isolation and real DB queries. Created unit test suite `src/__tests__/runtime-tools-dispatch.test.ts`. | `src/lib/ai/graph/tools/job-tools.ts`, `src/lib/ai/graph/tools/index.ts`, `src/__tests__/runtime-tools-dispatch.test.ts`, `docs/INTERVIEW-IMPLEMENTATION-TRACKER.md` | Antigravity AI |
 | 2026-09-17 | `INT-13` | Created `src/lib/ai/memory.ts` providing `persistInterviewWeaknesses`, `getUserWeaknesses`, and `formatWeaknessProbingContext`. Updated `report/route.ts` to automatically extract `knowledgeGaps` and persist them into `UserMemory` with `category: "weakness"`, severity-weighted confidence, and cache invalidation. Created unit test suite `src/__tests__/interview-weakness-memory.test.ts`. | `src/lib/ai/memory.ts`, `src/app/api/ai/mock-interview/report/route.ts`, `src/__tests__/interview-weakness-memory.test.ts`, `docs/INTERVIEW-IMPLEMENTATION-TRACKER.md` | Antigravity AI |
 | 2026-09-17 | `INT-14` | Implemented active weakness probing in `converse/route.ts` using `getUserWeaknesses` and `buildWeaknessProbingInstruction` from `src/lib/ai/memory.ts`. Automatically injects targeted challenge directives into interviewer system prompt during Turn 3 to test candidate retention and improvement. Created unit test suite `src/__tests__/weakness-probing-turn3.test.ts`. | `src/app/api/ai/mock-interview/converse/route.ts`, `src/lib/ai/memory.ts`, `src/__tests__/weakness-probing-turn3.test.ts`, `docs/INTERVIEW-IMPLEMENTATION-TRACKER.md` | Antigravity AI |
+| 2026-09-17 | `INT-15` | Enhanced `ApplicationDetailHeader.tsx` with scheduled interview banner, quick-join meeting links, and an in-place modal dialog with date/time picker, round selector, video meeting link, and cheatsheet notes. Connected persistence via `PATCH /api/applications/[id]`. Upgraded `/calendar` page with scheduled interview badges, upcoming interviews feed, and 1-click mock prep room launchers. Created unit test suite `src/__tests__/interview-scheduling-ui.test.ts`. | `src/components/applications/ApplicationDetailHeader.tsx`, `src/app/(app)/applications/[id]/page.tsx`, `src/app/(app)/calendar/page.tsx`, `src/__tests__/interview-scheduling-ui.test.ts`, `docs/INTERVIEW-IMPLEMENTATION-TRACKER.md` | Antigravity AI |
 
 
 
