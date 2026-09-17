@@ -290,3 +290,29 @@ DROP TABLE IF EXISTS "PrepQuestion" CASCADE;
 * **Knowledge Gap Retention**: > 80% score improvement when candidate is re-tested on previous weaknesses.
 * **Spoken Turn Latency**: p95 < 1,800ms.
 * **Error Rate**: 0.00% 404s across all interview routes.
+
+---
+
+## 13. Phase 5: Post-Validation Security & Integrity Fixes
+
+> **Source**: Post-implementation hostile verification audit (September 17, 2026)
+> **Trigger**: Audit discovered 8 new issues including 3 security vulnerabilities, 1 fake implementation, and 4 quality gaps.
+
+### P0 Critical — Must Fix Before Production
+
+| # | Item | Issue | Fix |
+|---|---|---|---|
+| INT-21 | Middleware Protection | `/api/interview-sessions` missing from `PROTECTED_API_PATHS` | Add to middleware array |
+| INT-22 | Zod + IDOR | POST accepts raw body, `applicationId` not verified | Add Zod schema + ownership check |
+| INT-23 | Rate Limiting | No rate limits on sessions routes | Add `checkRateLimit` |
+| INT-24 | Report Sanitization | `targetRole`/`targetCompany` injected raw into LLM prompt | Add `sanitizeUntrustedContext()` |
+| INT-25 | Fake Agent Node | `starEvaluationNode` scores by character length | Replace with AI-powered evaluation |
+
+### P1 High — Fix Before Beta
+
+| # | Item | Issue | Fix |
+|---|---|---|---|
+| INT-26 | Role-Aware Prompt | `interview.ts` hardcoded to JS/React | Parameterize with `targetRole` |
+| INT-27 | Email Resilience | `sendEmail` not in try/catch in Inngest | Wrap with error handling |
+| INT-28 | Type Safety | `(prisma as any)` in 4 files | Run `prisma generate`, remove casts |
+

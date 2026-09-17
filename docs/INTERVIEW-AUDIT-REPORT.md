@@ -145,11 +145,11 @@ Interview Scheduled ───> Interview Prep ───> Company Research ──
 
 ---
 
-## 10. Final Scorecard
+## 10. Initial Scorecard (Baseline — Pre-Fix)
 
 ```
 ┌────────────────────────────────────────────────────────┐
-│               INTERVIEW FEATURE SCORECARD              │
+│          INTERVIEW FEATURE SCORECARD (BASELINE)        │
 ├───────────────────────────────────┬────────┬───────────┤
 │ Dimension                         │ Score  │ Grade     │
 ├───────────────────────────────────┼────────┼───────────┤
@@ -166,3 +166,63 @@ Interview Scheduled ───> Interview Prep ───> Company Research ──
 │ OVERALL SYSTEM SCORE              │ 47/100 │ FAILING   │
 └───────────────────────────────────┴────────┴───────────┘
 ```
+
+---
+
+## 11. Post-Implementation Validation Audit (September 17, 2026)
+
+> **Audit Type**: Hostile Verification — Zero Trust
+> **Conclusion**: The tracker claimed 100% completion across INT-01 to INT-20. Verification confirmed **14 of 20 genuinely fixed, 4 partially fixed, 2 incomplete/fake**. New issues discovered: **8**.
+
+### 11.1 Verified Fixes ✅
+
+INT-01 (Modal Guard), INT-02 (Concept Lab 404), INT-03 (Reminder URL), INT-05 (Prompt Injection), INT-06 (Dead Code Purge), INT-07 (FK Link), INT-08 (Scheduling Fields), INT-10 (Dynamic Archetypes), INT-11 (Preset Sync), INT-12 (Phantom Tools), INT-13 (Memory Persistence), INT-14 (Weakness Probing), INT-15 (Scheduling UI), INT-16-17 (Inngest Reminders & Dossier), INT-19 (Longitudinal Analytics)
+
+### 11.2 Partially Fixed 🟡
+
+- **INT-04**: IDOR fixed in report route but `interview-sessions/route.ts` POST still accepts unverified `applicationId`.
+- **INT-09**: Google TTS scraper replaced, but `/api/ai/tts` endpoint not fully re-verified.
+- **INT-18**: LangGraph subgraph exists but `starEvaluationNode` is a **fake stub** — scores based on response character length, not AI.
+- **INT-20**: 12 test files exist but no CI green run evidence.
+
+### 11.3 New Issues Discovered 🆕
+
+1. **`/api/interview-sessions` missing from `PROTECTED_API_PATHS` in middleware** — unauthenticated access possible.
+2. **`/api/interview-sessions` POST has zero Zod input validation** — allows arbitrary data injection.
+3. **`/api/interview-sessions` has no rate limiting**.
+4. **`/api/ai/mock-interview/report` POST does not sanitize `targetRole`/`targetCompany`** — prompt injection vector.
+5. **`interview.ts` prompt hardcoded to JavaScript/React** — breaks for non-JS roles.
+6. **`sendEmail` in Inngest reminder not wrapped in try/catch** — can crash pipeline step.
+7. **No text input fallback when SpeechRecognition unavailable** in browser.
+8. **`(prisma as any).interviewSession` type casts** in 4 route files — Prisma client needs regeneration.
+
+### 11.4 Updated Scorecard (Post-Fix)
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                INTERVIEW FEATURE SCORECARD (POST-FIX)               │
+├───────────────────────────────────┬────────┬────────┬───────────────┤
+│ Dimension                         │ Before │ After  │ Change        │
+├───────────────────────────────────┼────────┼────────┼───────────────┤
+│ Architectural Integrity           │ 48/100 │ 78/100 │ +30 ✅        │
+│ AI Quality & Prompting            │ 62/100 │ 82/100 │ +20 ✅        │
+│ Personalization & Context         │ 40/100 │ 75/100 │ +35 ✅        │
+│ User Experience & Reliability     │ 55/100 │ 80/100 │ +25 ✅        │
+│ Scalability & Database Design     │ 50/100 │ 82/100 │ +32 ✅        │
+│ Code Maintainability & Cleanliness│ 44/100 │ 76/100 │ +32 ✅        │
+│ Security & Multi-Tenancy          │ 58/100 │ 68/100 │ +10 🟡        │
+│ Agent Autonomy Readiness          │ 28/100 │ 60/100 │ +32 ✅        │
+│ Production Readiness              │ 45/100 │ 72/100 │ +27 🟡        │
+├───────────────────────────────────┼────────┼────────┼───────────────┤
+│ OVERALL SYSTEM SCORE              │ 47/100 │ 72/100 │ +25 (Phase 5) │
+└───────────────────────────────────┴────────┴────────┴───────────────┘
+```
+
+### 11.5 Production Blockers
+
+| # | Blocker | Severity | Fix Item |
+|---|---|---|---|
+| 1 | `/api/interview-sessions` unprotected by middleware | 🔴 Critical | INT-21 |
+| 2 | No input validation on interview sessions POST | 🔴 Critical | INT-22 |
+| 3 | IDOR — `applicationId` not ownership-checked in sessions | 🔴 Critical | INT-22 |
+| 4 | LangGraph `starEvaluationNode` returns fake scores | 🔴 Critical | INT-25 |
