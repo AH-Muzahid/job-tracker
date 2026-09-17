@@ -19,7 +19,7 @@ import { InterviewSetupScreen } from "./conversational/InterviewSetupScreen"
 import { ActiveInterviewRoom } from "./conversational/ActiveInterviewRoom"
 import { InterviewReportView } from "./conversational/InterviewReportView"
 
-export type { MockQuestion } from "./VoiceMockInterviewModal"
+export type { MockQuestion } from "./conversational/types"
 
 export function ConversationalVoiceInterviewModal({
   isOpen,

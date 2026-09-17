@@ -69,19 +69,7 @@ export function useDeleteCompany() {
   })
 }
 
-// ==================== Prep Questions ====================
 
-export function usePrepQuestions() {
-  return useQuery({
-    queryKey: ["prep-questions"],
-    queryFn: async () => {
-      const res = await fetch("/api/prep-questions")
-      if (!res.ok) throw new Error("Failed to load questions")
-      return res.json()
-    },
-    staleTime: 60_000,
-  })
-}
 
 export function usePrepNotes() {
   return useQuery({

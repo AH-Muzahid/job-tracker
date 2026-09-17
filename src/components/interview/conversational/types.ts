@@ -1,5 +1,13 @@
 export type InterviewStep = "setup" | "interview" | "report"
 
+export interface MockQuestion {
+  id?: string
+  question: string
+  category: string
+  difficulty: string
+  answer?: string
+}
+
 export type InterviewerTone = "friendly" | "strict" | "startup-cto" | "architect"
 
 export type VoiceGender = "female" | "male"

@@ -69,10 +69,10 @@ export async function POST(request: NextRequest) {
         await prisma.prepNote.create({
           data: {
             userId,
-            title: `Mock Evaluation: ${targetCompany || "Interview"} (${score || "N/A"}/10)`,
+            title: `Mock Evaluation: ${targetCompany || "Interview"} (${score || "N/A"}/100)`,
             category: "Mock Evaluation",
             applicationId: linkedAppId || null,
-            content: `### Interview Result: ${targetRole} @ ${targetCompany}\n\n**Verdict:** ${verdict || "Completed"}\n**Score:** ${score || "N/A"}/10\n\n${report?.executiveSummary ? `**Executive Summary:**\n${report.executiveSummary}\n\n` : ""}${report?.strengths ? `**Strengths:**\n${report.strengths.map((s: string) => `- ${s}`).join("\n")}\n\n` : ""}${report?.improvementAreas ? `**Areas to Improve:**\n${report.improvementAreas.map((a: string) => `- ${a}`).join("\n")}` : ""}`,
+            content: `### Interview Result: ${targetRole} @ ${targetCompany}\n\n**Verdict:** ${verdict || "Completed"}\n**Score:** ${score || "N/A"}/100\n\n${report?.executiveSummary ? `**Executive Summary:**\n${report.executiveSummary}\n\n` : ""}${report?.strengths ? `**Strengths:**\n${report.strengths.map((s: string) => `- ${s}`).join("\n")}\n\n` : ""}${report?.improvementAreas ? `**Areas to Improve:**\n${report.improvementAreas.map((a: string) => `- ${a}`).join("\n")}` : ""}`,
           },
         })
       } catch (err) {
