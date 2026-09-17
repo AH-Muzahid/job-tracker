@@ -1,7 +1,7 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from "next/server"
 import { getInternalUserId } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit"
 import { computeLongitudinalMasteryAnalytics } from "@/lib/interview/company-benchmarks"
 
 export async function GET() {
@@ -10,8 +10,13 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
+  const rateCheck = checkRateLimit(`interview-analytics:${userId}`, 60, 60 * 1000)
+  if (!rateCheck.success) {
+    return rateLimitResponse(rateCheck)
+  }
+
   try {
-    const sessions = await (prisma as any).interviewSession.findMany({
+    const sessions = await prisma.interviewSession.findMany({
       where: { userId },
       orderBy: { createdAt: "asc" },
       select: {

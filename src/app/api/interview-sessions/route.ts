@@ -14,7 +14,7 @@ const CreateSessionSchema = z.object({
   verdict: z.string().max(500).nullable().optional(),
   dialogue: z.array(z.any()).optional().default([]),
   report: z.any().nullable().optional(),
-  applicationId: z.string().cuid().nullable().optional(),
+  applicationId: z.string().min(1).max(100).nullable().optional(),
 })
 
 export async function GET() {
@@ -22,7 +22,7 @@ export async function GET() {
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const rateCheck = checkRateLimit(`interview-sessions-get:${userId}`, 60, 60 * 1000)
-  if (!rateCheck.allowed) return rateLimitResponse(rateCheck)
+  if (!rateCheck.success) return rateLimitResponse(rateCheck)
 
   try {
     const sessions = await prisma.interviewSession.findMany({
@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const rateCheck = checkRateLimit(`interview-sessions-post:${userId}`, 30, 60 * 1000)
-  if (!rateCheck.allowed) return rateLimitResponse(rateCheck)
+  if (!rateCheck.success) return rateLimitResponse(rateCheck)
 
   try {
     const raw = await request.json()
@@ -140,7 +140,7 @@ export async function DELETE(request: NextRequest) {
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const rateCheck = checkRateLimit(`interview-sessions-del:${userId}`, 30, 60 * 1000)
-  if (!rateCheck.allowed) return rateLimitResponse(rateCheck)
+  if (!rateCheck.success) return rateLimitResponse(rateCheck)
 
   const { searchParams } = new URL(request.url)
   const id = searchParams.get("id")

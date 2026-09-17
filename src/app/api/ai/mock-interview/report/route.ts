@@ -18,7 +18,7 @@ const ReportRequestSchema = z.object({
     role: z.string(),
     text: z.string(),
   })).min(2, "At least one full interview question and answer is required"),
-  applicationId: z.string().cuid().nullable().optional(),
+  applicationId: z.string().min(1).max(100).nullable().optional(),
 })
 
 export async function POST(request: NextRequest) {
