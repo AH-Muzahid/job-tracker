@@ -1,24 +1,35 @@
 import { NextRequest, NextResponse } from "next/server"
+import { z } from "zod"
 import { getInternalUserId } from "@/lib/auth"
 import { getUserAIConfig } from "@/lib/ai/config"
 import { getCachedKnowledgeGraph } from "@/lib/ai/knowledge-graph"
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit"
 import { resilientGenerateText, getEmergencyInterviewTurn } from "@/lib/ai/resilience"
-
+import { sanitizeUntrustedContext } from "@/lib/ai/context-builder"
 import { prisma, withDbRetry } from "@/lib/prisma"
 
-export interface ConversationTurnRequest {
-  targetRole?: string
-  targetCompany?: string
-  interviewType?: "Technical" | "Behavioral" | "System Design" | "Leadership" | "General"
-  interviewerTone?: "friendly" | "strict" | "startup-cto" | "architect"
-  voiceGender?: "female" | "male"
-  language?: "en" | "bn" | "mixed"
-  targetTurnCount?: number
-  applicationId?: string
-  history: Array<{ role: "interviewer" | "candidate"; text: string }>
-  userAnswer?: string
-}
+export const ConversationTurnSchema = z.object({
+  targetRole: z.string().max(120).optional().default("Software Engineer"),
+  targetCompany: z.string().max(120).optional().default("Top Tech Company"),
+  interviewType: z.enum(["Technical", "Behavioral", "System Design", "Leadership", "General"]).optional().default("Technical"),
+  interviewerTone: z.enum(["friendly", "strict", "startup-cto", "architect"]).optional().default("friendly"),
+  voiceGender: z.enum(["female", "male"]).optional().default("female"),
+  language: z.enum(["en", "bn", "mixed"]).optional().default("en"),
+  targetTurnCount: z.number().int().min(1).max(20).optional().default(5),
+  applicationId: z.string().optional(),
+  history: z
+    .array(
+      z.object({
+        role: z.enum(["interviewer", "candidate"]),
+        text: z.string().max(4000),
+      })
+    )
+    .optional()
+    .default([]),
+  userAnswer: z.string().max(5000).optional(),
+})
+
+export type ConversationTurnRequest = z.infer<typeof ConversationTurnSchema>
 
 export async function POST(request: NextRequest) {
   const userId = await getInternalUserId()
@@ -41,16 +52,29 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const body: ConversationTurnRequest = await request.json()
+    const rawBody = await request.json().catch(() => null)
+    if (!rawBody || typeof rawBody !== "object") {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
+    }
+
+    const parseResult = ConversationTurnSchema.safeParse(rawBody)
+    if (!parseResult.success) {
+      return NextResponse.json(
+        { error: "Invalid request payload", details: parseResult.error.flatten() },
+        { status: 400 }
+      )
+    }
+
+    const body = parseResult.data
+    const targetRole = sanitizeUntrustedContext(body.targetRole).trim() || "Software Engineer"
+    const targetCompany = sanitizeUntrustedContext(body.targetCompany).trim() || "Top Tech Company"
     const {
-      targetRole = "Software Engineer",
-      targetCompany = "Top Tech Company",
-      interviewType = "Technical",
-      interviewerTone = "friendly",
-      voiceGender = "female",
-      language = "en",
-      targetTurnCount = 5,
-      history = [],
+      interviewType,
+      interviewerTone,
+      voiceGender,
+      language,
+      targetTurnCount,
+      history,
       userAnswer,
     } = body
 
@@ -166,11 +190,15 @@ LANGUAGE INSTRUCTIONS (Natural Modern English):
           })
         )
         if (app) {
+          const sanitizedCompanyName = sanitizeUntrustedContext(app.companyName)
+          const sanitizedJobTitle = sanitizeUntrustedContext(app.jobTitle)
+          const sanitizedNotes = sanitizeUntrustedContext(app.notes ? app.notes.slice(0, 500) : "Standard engineering role")
+          const sanitizedCompanyNotes = app.company?.notes ? sanitizeUntrustedContext(app.company.notes.slice(0, 500)) : ""
           targetAppIntel = `
-## APPLICATION-SPECIFIC CONTEXT FOR ${app.companyName.toUpperCase()}:
-- Role Applied: ${app.jobTitle}
-- Job Notes / Requirements: ${app.notes ? app.notes.slice(0, 500) : "Standard engineering role"}
-${app.company?.notes ? `- Company Culture/Tech Notes: ${app.company.notes}` : ""}
+## APPLICATION-SPECIFIC CONTEXT FOR ${sanitizedCompanyName.toUpperCase()}:
+- Role Applied: ${sanitizedJobTitle}
+- Job Notes / Requirements: ${sanitizedNotes}
+${sanitizedCompanyNotes ? `- Company Culture/Tech Notes: ${sanitizedCompanyNotes}` : ""}
 ${app.analysis?.jdKeywords ? `- Key JD Keywords: ${JSON.stringify(app.analysis.jdKeywords)}` : ""}
 - Instruction: Tailor your questions specifically around this company's culture, tech requirements, and challenges.`
         }
@@ -199,17 +227,17 @@ ${phaseInstruction}
 5. Speech-to-Text Tolerance: Candidate's speech is captured via live STT. Intelligently interpret their core technical intent and ignore phonetic voice typos.
 6. ${isFinalWrapUp ? "CRITICAL: DO NOT ASK A QUESTION. THIS IS THE FINAL WRAP-UP CLOSING." : "Ask ONE specific question aligned with the current stage."}`
 
-    // Format conversation history
+    // Format conversation history with sanitization
     const formattedHistory = history.map((item) => ({
       role: item.role === "interviewer" ? ("assistant" as const) : ("user" as const),
-      content: item.text,
+      content: sanitizeUntrustedContext(item.text),
     }))
 
     const messages = [...formattedHistory]
     if (userAnswer && userAnswer.trim()) {
       messages.push({
         role: "user" as const,
-        content: userAnswer.trim(),
+        content: sanitizeUntrustedContext(userAnswer).trim(),
       })
     } else if (messages.length === 0) {
       messages.push({
