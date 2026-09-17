@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { DecorIcon } from "@/components/decor-icon"
 import { ConversationalVoiceInterviewModal } from "@/components/interview/ConversationalVoiceInterviewModal"
+import type { InterviewerTone } from "@/components/interview/conversational/types"
 
 import { PrepNote, InterviewSessionItem } from "@/components/interview/prep/types"
 import { InterviewPrepHeader } from "@/components/interview/prep/InterviewPrepBentoHero"
@@ -35,6 +36,8 @@ function InterviewPrepContent() {
   const [modalRole, setModalRole] = useState(customRole || "Senior Fullstack Engineer")
   const [modalCompany, setModalCompany] = useState(customCompany || "Google / Tech Company")
   const [modalType, setModalType] = useState("Technical")
+  const [modalTone, setModalTone] = useState<InterviewerTone>("friendly")
+  const [modalTurns, setModalTurns] = useState<number>(5)
 
   // Persistent Data States
   const [notes, setNotes] = useState<PrepNote[]>([])
@@ -71,10 +74,14 @@ function InterviewPrepContent() {
     role: string
     company: string
     type: string
+    tone?: string
+    turns?: number
   }) {
     setModalRole(preset.role)
     setModalCompany(preset.company)
     setModalType(preset.type)
+    if (preset.tone) setModalTone(preset.tone as InterviewerTone)
+    if (preset.turns) setModalTurns(preset.turns)
     setConversationalModalOpen(true)
   }
 
@@ -249,6 +256,9 @@ function InterviewPrepContent() {
             onStartCustom={() => {
               setModalRole(customRole || "Senior Fullstack Engineer")
               setModalCompany(customCompany || "Tech Company")
+              setModalType("Technical")
+              setModalTone("friendly")
+              setModalTurns(5)
               setConversationalModalOpen(true)
             }}
             onStartPreset={handleStartPreset}
@@ -297,6 +307,8 @@ function InterviewPrepContent() {
         initialRole={modalRole}
         initialCompany={modalCompany}
         initialType={modalType}
+        initialTone={modalTone}
+        initialTurns={modalTurns}
         applicationId={customAppId}
         onSessionSaved={fetchAll}
       />

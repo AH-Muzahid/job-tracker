@@ -71,6 +71,8 @@ export interface ConversationalVoiceInterviewModalProps {
   initialRole?: string
   initialCompany?: string
   initialType?: string
+  initialTone?: InterviewerTone
+  initialTurns?: number
   applicationId?: string
   onSessionSaved?: () => void
 }

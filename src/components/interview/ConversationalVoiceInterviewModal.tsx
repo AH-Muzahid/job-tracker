@@ -27,6 +27,8 @@ export function ConversationalVoiceInterviewModal({
   initialRole = "Senior Fullstack Engineer",
   initialCompany = "Google / Tech Company",
   initialType = "Technical",
+  initialTone = "friendly",
+  initialTurns = 5,
   applicationId,
   onSessionSaved,
 }: ConversationalVoiceInterviewModalProps) {
@@ -35,16 +37,18 @@ export function ConversationalVoiceInterviewModal({
   const [targetRole, setTargetRole] = useState(initialRole)
   const [targetCompany, setTargetCompany] = useState(initialCompany)
   const [interviewType, setInterviewType] = useState(initialType)
+  const [interviewerTone, setInterviewerTone] = useState<InterviewerTone>(initialTone)
+  const [targetTurnCount, setTargetTurnCount] = useState<number>(initialTurns)
 
   useEffect(() => {
     if (initialRole) setTargetRole(initialRole)
     if (initialCompany) setTargetCompany(initialCompany)
     if (initialType) setInterviewType(initialType)
-  }, [initialRole, initialCompany, initialType])
-  const [interviewerTone, setInterviewerTone] = useState<InterviewerTone>("friendly")
+    if (initialTone) setInterviewerTone(initialTone)
+    if (initialTurns) setTargetTurnCount(initialTurns)
+  }, [initialRole, initialCompany, initialType, initialTone, initialTurns])
   const [voiceGender, setVoiceGender] = useState<VoiceGender>("female")
   const [language, setLanguage] = useState<InterviewLanguage>("mixed")
-  const [targetTurnCount, setTargetTurnCount] = useState<number>(5)
   const [currentQuestionNumber, setCurrentQuestionNumber] = useState<number>(1)
   const [currentPhase, setCurrentPhase] = useState<string>("Warm-up & Introduction")
   const [isInterviewComplete, setIsInterviewComplete] = useState<boolean>(false)

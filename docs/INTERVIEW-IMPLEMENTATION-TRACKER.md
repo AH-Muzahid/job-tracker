@@ -120,13 +120,13 @@ Whenever ANY change, fix, optimization, or feature is added to the Interview Sys
   - **Owner**: Antigravity AI
   - **Completed At**: 2026-09-17
 
-- [ ] **`INT-11` [UI / Synchronization] Forward Launchpad Persona Tones & Turn Counts into Voice Modal**
+- [x] **`INT-11` [UI / Synchronization] Forward Launchpad Persona Tones & Turn Counts into Voice Modal**
   - **Issue**: Launchpad cards show "5 Questions" or "Tough/Friendly Persona", but clicking Launch opens the modal with default values without applying preset parameters.
   - **Action**: Forward `preset.tone`, `preset.roundType`, and `preset.turns` via modal props from `MockInterviewLaunchpad.tsx` and hub `page.tsx`.
-  - **Target Files**: `src/components/interview/prep/MockInterviewLaunchpad.tsx`, `src/app/(app)/interview-prep/page.tsx`, `src/components/interview/ConversationalVoiceInterviewModal.tsx`
-  - **Status**: `Planned`
-  - **Owner**: Unassigned
-  - **Completed At**: —
+  - **Target Files**: `src/components/interview/prep/MockInterviewLaunchpad.tsx`, `src/app/(app)/interview-prep/page.tsx`, `src/components/interview/ConversationalVoiceInterviewModal.tsx`, `src/components/interview/conversational/types.ts`, `src/__tests__/launchpad-preset-sync.test.ts`
+  - **Status**: `Completed`
+  - **Owner**: Antigravity AI
+  - **Completed At**: 2026-09-17
 
 - [ ] **`INT-12` [AI / Tools] Implement Phantom Tools in Runtime Tool Dispatcher**
   - **Issue**: `tool-registry.ts` registers `researchCompanyIntel` and `getPrepNotes`, but they are completely missing from `executeToolByName` in `src/lib/ai/graph/tools/index.ts`.
@@ -244,6 +244,8 @@ Tracking schema changes for the interview system:
 | 2026-09-17 | `INT-08` | Added interview scheduling columns (`interviewDate`, `interviewRound`, `interviewMeetingUrl`, `interviewNotes`) and index `@@index([userId, interviewDate])` to `Application` model. Synchronized Prisma database schema (`prisma db push`), updated repository create/update persistence, and updated TypeScript DTOs/interfaces. Created unit test suite `src/__tests__/interview-scheduling-fields.test.ts`. | `prisma/schema.prisma`, `src/features/applications/application.types.ts`, `src/features/applications/application.repository.ts`, `src/components/applications/types.ts`, `src/features/applications/components/types.ts`, `src/__tests__/interview-scheduling-fields.test.ts`, `docs/INTERVIEW-IMPLEMENTATION-TRACKER.md` | Antigravity AI |
 | 2026-09-17 | `INT-09` | Replaced illegal and fragile Google Translate TTS scraping with official OpenAI `tts-1` audio API with configurable voices (`onyx`, `nova`, etc.). Added graceful HTTP 204 fallback for Bengali/unsupported text to trigger native browser `SpeechSynthesis` without network failure. Raised rate limit from 10 to 60 req/min. Created unit test suite `src/__tests__/tts-route.test.ts`. | `src/app/api/ai/tts/route.ts`, `src/components/interview/ConversationalVoiceInterviewModal.tsx`, `src/__tests__/tts-route.test.ts`, `docs/INTERVIEW-IMPLEMENTATION-TRACKER.md` | Antigravity AI |
 | 2026-09-17 | `INT-10` | Implemented dynamic round-specific phase state machines (`getTurnArchetypePhase`): Behavioral (STAR progression: Background -> Situation/Task -> Action/Conflict -> Result/Reflection), System Design (Requirements -> High-Level Architecture -> Partitioning/Bottlenecks -> Failure Modes/Resiliency), Technical (Fundamentals -> Algorithmic Design -> Edge Cases/Hardening -> Live Incident Triage), Leadership, and General. Upgraded emergency fallback generator in `resilience.ts` to be archetype-aware. Created unit test suite `src/__tests__/dynamic-turn-archetypes.test.ts`. | `src/app/api/ai/mock-interview/converse/route.ts`, `src/lib/ai/resilience.ts`, `src/__tests__/dynamic-turn-archetypes.test.ts`, `docs/INTERVIEW-IMPLEMENTATION-TRACKER.md` | Antigravity AI |
+| 2026-09-17 | `INT-11` | Forwarded and synchronized `preset.tone`, `preset.roundType`, and `preset.turns` from `MockInterviewLaunchpad.tsx` through `src/app/(app)/interview-prep/page.tsx` into `ConversationalVoiceInterviewModal.tsx`. Added `initialTone` and `initialTurns` to `ConversationalVoiceInterviewModalProps`, syncing state immediately when starting curated tracks. Created unit test suite `src/__tests__/launchpad-preset-sync.test.ts`. | `src/components/interview/prep/MockInterviewLaunchpad.tsx`, `src/app/(app)/interview-prep/page.tsx`, `src/components/interview/ConversationalVoiceInterviewModal.tsx`, `src/components/interview/conversational/types.ts`, `src/__tests__/launchpad-preset-sync.test.ts`, `docs/INTERVIEW-IMPLEMENTATION-TRACKER.md` | Antigravity AI |
+
 
 
 
