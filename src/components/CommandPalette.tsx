@@ -189,7 +189,11 @@ export default function CommandPalette() {
           return
         }
         setSearchOpen(false)
-        router.push(`/applications/${app.id}`)
+        if (command === "/prep") {
+          router.push(`/interview-prep?appId=${app.id}&company=${encodeURIComponent(app.companyName)}&role=${encodeURIComponent(app.jobTitle)}`)
+        } else {
+          router.push(`/applications/${app.id}`)
+        }
       } catch {
         toast.error("Failed to process command")
       } finally {

@@ -52,13 +52,13 @@ Whenever ANY change, fix, optimization, or feature is added to the Interview Sys
   - **Owner**: Antigravity AI
   - **Completed At**: 2026-09-17
 
-- [ ] **`INT-03` [Bugfix / Route] Fix Broken Notification Reminder Action URL**
+- [x] **`INT-03` [Bugfix / Route] Fix Broken Notification Reminder Action URL**
   - **Issue**: `src/app/api/notifications/reminders/route.ts:89` generates interview reminders with `actionUrl: /prep?appId=...`, resulting in a 404 page for users clicking reminders.
   - **Action**: Update `actionUrl` to `/interview-prep?appId=${app.id}&company=${encodeURIComponent(app.companyName)}&role=${encodeURIComponent(app.jobTitle)}`.
-  - **Target Files**: `src/app/api/notifications/reminders/route.ts`
-  - **Status**: `In Queue`
-  - **Owner**: Unassigned
-  - **Completed At**: —
+  - **Target Files**: `src/app/api/notifications/reminders/route.ts`, `src/components/CommandPalette.tsx`
+  - **Status**: `Completed`
+  - **Owner**: Antigravity AI
+  - **Completed At**: 2026-09-17
 
 - [ ] **`INT-04` [Security] Remediate IDOR Vulnerability in Prep Notes**
   - **Issue**: `src/app/api/prep-notes/route.ts:42` and `[id]/route.ts:34` accept an arbitrary `applicationId` from user payload and attach notes without verifying that the application belongs to the authenticated user.
@@ -236,4 +236,5 @@ Tracking schema changes for the interview system:
 | 2026-09-17 | `INIT` | Initialized comprehensive forensic Interview Audit (`docs/INTERVIEW-AUDIT-REPORT.md`), Execution Plan (`docs/INTERVIEW-IMPLEMENTATION-PLAN.md`), and living tracker (`docs/INTERVIEW-IMPLEMENTATION-TRACKER.md`). Baseline score: 47/100. | `docs/INTERVIEW-AUDIT-REPORT.md`, `docs/INTERVIEW-IMPLEMENTATION-PLAN.md`, `docs/INTERVIEW-IMPLEMENTATION-TRACKER.md` | Principal Architect & AI Systems Auditor |
 | 2026-09-17 | `INT-01` | Implemented modal backdrop, escape key, and close event interception (`handleRequestClose`) in `ConversationalVoiceInterviewModal.tsx`. Added high-contrast exit confirmation overlay with options to Continue, End & View Report (if >=2 turns), or Discard. Completely protects active voice interview progress from accidental unmounting. | `src/components/interview/ConversationalVoiceInterviewModal.tsx`, `docs/INTERVIEW-IMPLEMENTATION-TRACKER.md` | Antigravity AI |
 | 2026-09-17 | `INT-02` | Fixed Concept Lab 404 error by mounting `/api/ai/prep-chat/route.ts` and updating `study-assistant/route.ts` to support both `history` and `conversationHistory` payloads and return both `answer` and `explanation`. Updated `ConceptLabTab.tsx` data extraction and created test suite `src/__tests__/prep-chat.test.ts`. | `src/app/api/ai/prep-chat/route.ts`, `src/app/api/ai/study-assistant/route.ts`, `src/components/interview/prep/ConceptLabTab.tsx`, `src/__tests__/prep-chat.test.ts`, `docs/INTERVIEW-IMPLEMENTATION-TRACKER.md` | Antigravity AI |
+| 2026-09-17 | `INT-03` | Fixed broken 404 action URL `/prep?appId=...` in `src/app/api/notifications/reminders/route.ts`. Updated reminder links to `/interview-prep?appId=...&company=...&role=...` with full parameter encoding. Updated `/prep` slash command in `CommandPalette.tsx` to route directly to tailored interview prep. Added unit test `src/__tests__/reminders-url.test.ts`. | `src/app/api/notifications/reminders/route.ts`, `src/components/CommandPalette.tsx`, `src/__tests__/reminders-url.test.ts`, `docs/INTERVIEW-IMPLEMENTATION-TRACKER.md` | Antigravity AI |
 

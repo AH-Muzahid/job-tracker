@@ -86,7 +86,7 @@ export async function GET() {
         type: "interview",
         title: `Interview Prep: ${app.companyName}`,
         description: `Active interview stage for ${app.jobTitle}. Review company background and practice behavioral questions.`,
-        actionUrl: `/prep?appId=${app.id}`,
+        actionUrl: `/interview-prep?appId=${app.id}&company=${encodeURIComponent(app.companyName)}&role=${encodeURIComponent(app.jobTitle)}`,
         priority: "high",
       })
     }
