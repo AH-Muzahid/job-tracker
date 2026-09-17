@@ -327,6 +327,35 @@ export function ConversationalVoiceInterviewModal({
           language === "bn" ? "bn" : "en"
         }&gender=${voiceGender}`
 
+        const res = await fetch(ttsUrl)
+        if (res.status === 204 || !res.ok) {
+          // Gracefully fallback to browser speech synthesis if server has no audio or is unsupported
+          if (typeof window !== "undefined" && window.speechSynthesis) {
+            const utterance = new SpeechSynthesisUtterance(cleanTextForSpeech(textToSpeak))
+            utterance.rate = speechRate
+            utterance.pitch = voiceGender === "female" ? 1.05 : 0.88
+            utterance.onstart = () => {
+              setIsAiSpeaking(true)
+              setIsListening(false)
+            }
+            utterance.onend = () => {
+              setIsAiSpeaking(false)
+              if (onDone) onDone()
+            }
+            utterance.onerror = () => {
+              setIsAiSpeaking(false)
+              if (onDone) onDone()
+            }
+            window.speechSynthesis.speak(utterance)
+            return
+          }
+          setIsAiSpeaking(false)
+          if (onDone) onDone()
+          return
+        }
+
+        const arrayBuf = await res.arrayBuffer()
+
         if (voiceGender === "male" && typeof window !== "undefined") {
           const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext
           if (AudioContextClass) {
@@ -334,9 +363,7 @@ export function ConversationalVoiceInterviewModal({
               const ctx = new AudioContextClass()
               audioContextRef.current = ctx
 
-              const res = await fetch(ttsUrl)
-              const arrayBuf = await res.arrayBuffer()
-              const audioBuffer = await ctx.decodeAudioData(arrayBuf)
+              const audioBuffer = await ctx.decodeAudioData(arrayBuf.slice(0))
 
               const source = ctx.createBufferSource()
               audioSourceNodeRef.current = source
@@ -368,7 +395,9 @@ export function ConversationalVoiceInterviewModal({
           }
         }
 
-        const audio = new Audio(ttsUrl)
+        const blob = new Blob([arrayBuf], { type: "audio/mpeg" })
+        const blobUrl = URL.createObjectURL(blob)
+        const audio = new Audio(blobUrl)
         audioPlayerRef.current = audio
         audio.playbackRate = speechRate
 
@@ -377,16 +406,19 @@ export function ConversationalVoiceInterviewModal({
           setIsListening(false)
         }
         audio.onended = () => {
+          URL.revokeObjectURL(blobUrl)
           setIsAiSpeaking(false)
           if (onDone) onDone()
         }
         audio.onerror = (e) => {
+          URL.revokeObjectURL(blobUrl)
           console.warn("Server TTS playback error:", e)
           setIsAiSpeaking(false)
           if (onDone) onDone()
         }
 
         audio.play().catch((err) => {
+          URL.revokeObjectURL(blobUrl)
           console.warn("Audio autoplay blocked or failed:", err)
           setIsAiSpeaking(false)
           if (onDone) onDone()

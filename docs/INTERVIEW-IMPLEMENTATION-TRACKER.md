@@ -104,13 +104,13 @@ Whenever ANY change, fix, optimization, or feature is added to the Interview Sys
   - **Owner**: Antigravity AI
   - **Completed At**: 2026-09-17
 
-- [ ] **`INT-09` [API / Reliability] Replace Illegal Google TTS Web Scraper**
+- [x] **`INT-09` [API / Reliability] Replace Illegal Google TTS Web Scraper**
   - **Issue**: `src/app/api/ai/tts/route.ts:79` scrapes `translate.google.com/translate_tts?client=tw-ob`. Rate-limited to 10 req/min per IP, causing spoken voice playback to break on turn 2 of mock interviews.
   - **Action**: Replace with official OpenAI `tts-1` when configured, gracefully return HTTP 204 for non-supported languages to let client use native browser `SpeechSynthesis`, and raise endpoint rate limit to 60 req/min.
-  - **Target Files**: `src/app/api/ai/tts/route.ts`
-  - **Status**: `Planned`
-  - **Owner**: Unassigned
-  - **Completed At**: —
+  - **Target Files**: `src/app/api/ai/tts/route.ts`, `src/components/interview/ConversationalVoiceInterviewModal.tsx`, `src/__tests__/tts-route.test.ts`
+  - **Status**: `Completed`
+  - **Owner**: Antigravity AI
+  - **Completed At**: 2026-09-17
 
 - [ ] **`INT-10` [AI / Prompts] Implement Dynamic Turn Archetypes for Behavioral, System Design & Technical**
   - **Issue**: `converse/route.ts` uses a single generic script progression (Icebreaker -> Core Challenge -> Behavioral Push -> Culture Fit) regardless of whether the interview is Behavioral, Technical, or System Design.
@@ -242,5 +242,7 @@ Tracking schema changes for the interview system:
 | 2026-09-17 | `INT-06` | Extracted `MockQuestion` interface to `src/components/interview/conversational/types.ts`. Purged 737 lines of dead code: deleted `VoiceMockInterviewModal.tsx`, `InterviewPrepResult.tsx`, and `/api/ai/mock-interview/evaluate`. Removed dead `usePrepQuestions()` hook from `src/lib/api.ts` and corrected `/10` to `/100` score scale in `interview-sessions` route. Phase 1 P0 fixes 100% completed. | `src/components/interview/conversational/types.ts`, `src/components/interview/ConversationalVoiceInterviewModal.tsx`, `src/lib/api.ts`, `src/app/api/interview-sessions/route.ts`, `docs/INTERVIEW-IMPLEMENTATION-TRACKER.md` | Antigravity AI |
 | 2026-09-17 | `INT-07` | Linked `InterviewSession` to `Application` model via `applicationId` with `SetNull` cascade and composite indices. Updated `report/route.ts` to persist verified application relationship. Dropped zombie `PrepQuestion` table, deleted `/api/prep-questions` routes, and purged `addPrepQuestions` from tool registry and middleware. Created unit test suite `src/__tests__/interview-session-application.test.ts`. | `prisma/schema.prisma`, `src/app/api/ai/mock-interview/report/route.ts`, `src/middleware.ts`, `src/lib/ai/tool-registry.ts`, `src/__tests__/interview-session-application.test.ts`, `docs/INTERVIEW-IMPLEMENTATION-TRACKER.md` | Antigravity AI |
 | 2026-09-17 | `INT-08` | Added interview scheduling columns (`interviewDate`, `interviewRound`, `interviewMeetingUrl`, `interviewNotes`) and index `@@index([userId, interviewDate])` to `Application` model. Synchronized Prisma database schema (`prisma db push`), updated repository create/update persistence, and updated TypeScript DTOs/interfaces. Created unit test suite `src/__tests__/interview-scheduling-fields.test.ts`. | `prisma/schema.prisma`, `src/features/applications/application.types.ts`, `src/features/applications/application.repository.ts`, `src/components/applications/types.ts`, `src/features/applications/components/types.ts`, `src/__tests__/interview-scheduling-fields.test.ts`, `docs/INTERVIEW-IMPLEMENTATION-TRACKER.md` | Antigravity AI |
+| 2026-09-17 | `INT-09` | Replaced illegal and fragile Google Translate TTS scraping with official OpenAI `tts-1` audio API with configurable voices (`onyx`, `nova`, etc.). Added graceful HTTP 204 fallback for Bengali/unsupported text to trigger native browser `SpeechSynthesis` without network failure. Raised rate limit from 10 to 60 req/min. Created unit test suite `src/__tests__/tts-route.test.ts`. | `src/app/api/ai/tts/route.ts`, `src/components/interview/ConversationalVoiceInterviewModal.tsx`, `src/__tests__/tts-route.test.ts`, `docs/INTERVIEW-IMPLEMENTATION-TRACKER.md` | Antigravity AI |
+
 
 
