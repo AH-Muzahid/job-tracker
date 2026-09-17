@@ -140,13 +140,13 @@ Whenever ANY change, fix, optimization, or feature is added to the Interview Sys
 
 ### Phase 3: Adaptive Memory, Scheduling & Inngest Reminders (P2 — Target: Sprint 4)
 
-- [ ] **`INT-13` [Memory / Intelligence] Implement Cross-Session Knowledge Gap & Weakness Persistence**
+- [x] **`INT-13` [Memory / Intelligence] Implement Cross-Session Knowledge Gap & Weakness Persistence**
   - **Issue**: Knowledge gaps identified in `report/route.ts` are only rendered in UI and saved to raw JSON; they do not persist into long-term agent memory, causing round-to-round amnesia.
   - **Action**: Automatically extract `knowledgeGaps` from the evaluation report and insert them into `UserMemory` with `category: "weakness"`, tags, and confidence scores.
-  - **Target Files**: `src/app/api/ai/mock-interview/report/route.ts`, `src/lib/ai/memory.ts`
-  - **Status**: `Planned`
-  - **Owner**: Unassigned
-  - **Completed At**: —
+  - **Target Files**: `src/app/api/ai/mock-interview/report/route.ts`, `src/lib/ai/memory.ts`, `src/__tests__/interview-weakness-memory.test.ts`
+  - **Status**: `Completed`
+  - **Owner**: Antigravity AI
+  - **Completed At**: 2026-09-17
 
 - [ ] **`INT-14` [Memory / Personalization] Active Weakness Probing in Follow-up Mock Interviews**
   - **Issue**: Consecutive mock interviews for the same candidate do not test whether they improved on previously diagnosed flaws.
@@ -246,6 +246,7 @@ Tracking schema changes for the interview system:
 | 2026-09-17 | `INT-10` | Implemented dynamic round-specific phase state machines (`getTurnArchetypePhase`): Behavioral (STAR progression: Background -> Situation/Task -> Action/Conflict -> Result/Reflection), System Design (Requirements -> High-Level Architecture -> Partitioning/Bottlenecks -> Failure Modes/Resiliency), Technical (Fundamentals -> Algorithmic Design -> Edge Cases/Hardening -> Live Incident Triage), Leadership, and General. Upgraded emergency fallback generator in `resilience.ts` to be archetype-aware. Created unit test suite `src/__tests__/dynamic-turn-archetypes.test.ts`. | `src/app/api/ai/mock-interview/converse/route.ts`, `src/lib/ai/resilience.ts`, `src/__tests__/dynamic-turn-archetypes.test.ts`, `docs/INTERVIEW-IMPLEMENTATION-TRACKER.md` | Antigravity AI |
 | 2026-09-17 | `INT-11` | Forwarded and synchronized `preset.tone`, `preset.roundType`, and `preset.turns` from `MockInterviewLaunchpad.tsx` through `src/app/(app)/interview-prep/page.tsx` into `ConversationalVoiceInterviewModal.tsx`. Added `initialTone` and `initialTurns` to `ConversationalVoiceInterviewModalProps`, syncing state immediately when starting curated tracks. Created unit test suite `src/__tests__/launchpad-preset-sync.test.ts`. | `src/components/interview/prep/MockInterviewLaunchpad.tsx`, `src/app/(app)/interview-prep/page.tsx`, `src/components/interview/ConversationalVoiceInterviewModal.tsx`, `src/components/interview/conversational/types.ts`, `src/__tests__/launchpad-preset-sync.test.ts`, `docs/INTERVIEW-IMPLEMENTATION-TRACKER.md` | Antigravity AI |
 | 2026-09-17 | `INT-12` | Implemented runtime tool execution handlers `executeGetPrepNotes`, `executeSavePrepNote`, and `executeResearchCompanyIntel` in `src/lib/ai/graph/tools/job-tools.ts`. Integrated dispatching into `executeToolByName` in `src/lib/ai/graph/tools/index.ts` with tenant isolation and real DB queries. Created unit test suite `src/__tests__/runtime-tools-dispatch.test.ts`. | `src/lib/ai/graph/tools/job-tools.ts`, `src/lib/ai/graph/tools/index.ts`, `src/__tests__/runtime-tools-dispatch.test.ts`, `docs/INTERVIEW-IMPLEMENTATION-TRACKER.md` | Antigravity AI |
+| 2026-09-17 | `INT-13` | Created `src/lib/ai/memory.ts` providing `persistInterviewWeaknesses`, `getUserWeaknesses`, and `formatWeaknessProbingContext`. Updated `report/route.ts` to automatically extract `knowledgeGaps` and persist them into `UserMemory` with `category: "weakness"`, severity-weighted confidence, and cache invalidation. Created unit test suite `src/__tests__/interview-weakness-memory.test.ts`. | `src/lib/ai/memory.ts`, `src/app/api/ai/mock-interview/report/route.ts`, `src/__tests__/interview-weakness-memory.test.ts`, `docs/INTERVIEW-IMPLEMENTATION-TRACKER.md` | Antigravity AI |
 
 
 

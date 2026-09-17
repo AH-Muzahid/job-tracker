@@ -152,6 +152,21 @@ ${dialogueTranscript}
           report,
         },
       })
+
+      // Persist identified knowledge gaps to long-term UserMemory
+      if (Array.isArray(report.knowledgeGaps) && report.knowledgeGaps.length > 0) {
+        try {
+          const { persistInterviewWeaknesses } = await import("@/lib/ai/memory")
+          await persistInterviewWeaknesses(userId, report.knowledgeGaps, {
+            targetRole,
+            targetCompany,
+            roundType: interviewType,
+          })
+        } catch (memErr) {
+          console.warn("[Memory Persistence Error (non-fatal)]:", memErr)
+        }
+      }
+
       return NextResponse.json({ ...report, sessionId: session.id })
     } catch (saveErr) {
       console.warn("[Session Save Error (non-fatal)]:", saveErr)
