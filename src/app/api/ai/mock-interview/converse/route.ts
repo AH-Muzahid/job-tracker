@@ -8,7 +8,7 @@ import { resilientGenerateText, getEmergencyInterviewTurn } from "@/lib/ai/resil
 import { sanitizeUntrustedContext } from "@/lib/ai/context-builder"
 import { prisma, withDbRetry } from "@/lib/prisma"
 
-export const ConversationTurnSchema = z.object({
+const ConversationTurnSchema = z.object({
   targetRole: z.string().max(120).optional().default("Software Engineer"),
   targetCompany: z.string().max(120).optional().default("Top Tech Company"),
   interviewType: z.enum(["Technical", "Behavioral", "System Design", "Leadership", "General"]).optional().default("Technical"),
