@@ -33,13 +33,28 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Title is required" }, { status: 400 })
     }
 
+    let verifiedApplicationId: string | null = null
+    if (body.applicationId) {
+      const ownedApp = await prisma.application.findFirst({
+        where: { id: body.applicationId, userId },
+        select: { id: true },
+      })
+      if (!ownedApp) {
+        return NextResponse.json(
+          { error: "Application not found or unauthorized" },
+          { status: 403 }
+        )
+      }
+      verifiedApplicationId = ownedApp.id
+    }
+
     const note = await prisma.prepNote.create({
       data: {
         userId,
         title: body.title.trim(),
         content: body.content || "",
         category: body.category || "General",
-        applicationId: body.applicationId || null,
+        applicationId: verifiedApplicationId,
       },
     })
 

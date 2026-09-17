@@ -25,13 +25,27 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if (!existing || existing.userId !== userId) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
   const body = await req.json()
+
+  if (body.applicationId !== undefined && body.applicationId !== null) {
+    const ownedApp = await prisma.application.findFirst({
+      where: { id: body.applicationId, userId },
+      select: { id: true },
+    })
+    if (!ownedApp) {
+      return NextResponse.json(
+        { error: "Application not found or unauthorized" },
+        { status: 403 }
+      )
+    }
+  }
+
   const note = await prisma.prepNote.update({
     where: { id },
     data: {
       ...(body.title && { title: body.title }),
       ...(body.content !== undefined && { content: body.content }),
       ...(body.category && { category: body.category }),
-      ...(body.applicationId !== undefined && { applicationId: body.applicationId }),
+      ...(body.applicationId !== undefined && { applicationId: body.applicationId || null }),
     },
   })
 

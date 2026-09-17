@@ -60,13 +60,13 @@ Whenever ANY change, fix, optimization, or feature is added to the Interview Sys
   - **Owner**: Antigravity AI
   - **Completed At**: 2026-09-17
 
-- [ ] **`INT-04` [Security] Remediate IDOR Vulnerability in Prep Notes**
+- [x] **`INT-04` [Security] Remediate IDOR Vulnerability in Prep Notes**
   - **Issue**: `src/app/api/prep-notes/route.ts:42` and `[id]/route.ts:34` accept an arbitrary `applicationId` from user payload and attach notes without verifying that the application belongs to the authenticated user.
   - **Action**: Enforce ownership check: if `applicationId` is provided, verify `prisma.application.findFirst({ where: { id: applicationId, userId } })` before mutating.
   - **Target Files**: `src/app/api/prep-notes/route.ts`, `src/app/api/prep-notes/[id]/route.ts`
-  - **Status**: `In Queue`
-  - **Owner**: Unassigned
-  - **Completed At**: —
+  - **Status**: `Completed`
+  - **Owner**: Antigravity AI
+  - **Completed At**: 2026-09-17
 
 - [ ] **`INT-05` [Security] Sanitize Prompt Inputs in Voice Interview Converse Route**
   - **Issue**: `src/app/api/ai/mock-interview/converse/route.ts:182` directly interpolates unvalidated, user-supplied `targetCompany` and `targetRole` strings into the system prompt, creating a prompt injection vector.
@@ -237,4 +237,5 @@ Tracking schema changes for the interview system:
 | 2026-09-17 | `INT-01` | Implemented modal backdrop, escape key, and close event interception (`handleRequestClose`) in `ConversationalVoiceInterviewModal.tsx`. Added high-contrast exit confirmation overlay with options to Continue, End & View Report (if >=2 turns), or Discard. Completely protects active voice interview progress from accidental unmounting. | `src/components/interview/ConversationalVoiceInterviewModal.tsx`, `docs/INTERVIEW-IMPLEMENTATION-TRACKER.md` | Antigravity AI |
 | 2026-09-17 | `INT-02` | Fixed Concept Lab 404 error by mounting `/api/ai/prep-chat/route.ts` and updating `study-assistant/route.ts` to support both `history` and `conversationHistory` payloads and return both `answer` and `explanation`. Updated `ConceptLabTab.tsx` data extraction and created test suite `src/__tests__/prep-chat.test.ts`. | `src/app/api/ai/prep-chat/route.ts`, `src/app/api/ai/study-assistant/route.ts`, `src/components/interview/prep/ConceptLabTab.tsx`, `src/__tests__/prep-chat.test.ts`, `docs/INTERVIEW-IMPLEMENTATION-TRACKER.md` | Antigravity AI |
 | 2026-09-17 | `INT-03` | Fixed broken 404 action URL `/prep?appId=...` in `src/app/api/notifications/reminders/route.ts`. Updated reminder links to `/interview-prep?appId=...&company=...&role=...` with full parameter encoding. Updated `/prep` slash command in `CommandPalette.tsx` to route directly to tailored interview prep. Added unit test `src/__tests__/reminders-url.test.ts`. | `src/app/api/notifications/reminders/route.ts`, `src/components/CommandPalette.tsx`, `src/__tests__/reminders-url.test.ts`, `docs/INTERVIEW-IMPLEMENTATION-TRACKER.md` | Antigravity AI |
+| 2026-09-17 | `INT-04` | Enforced strict tenant ownership check on `applicationId` in `POST /api/prep-notes` and `PATCH /api/prep-notes/[id]` to eliminate IDOR security vulnerability. Prevents cross-tenant note attachment and data tampering. Created unit test suite `src/__tests__/prep-notes-idor.test.ts`. | `src/app/api/prep-notes/route.ts`, `src/app/api/prep-notes/[id]/route.ts`, `src/__tests__/prep-notes-idor.test.ts`, `docs/INTERVIEW-IMPLEMENTATION-TRACKER.md` | Antigravity AI |
 
