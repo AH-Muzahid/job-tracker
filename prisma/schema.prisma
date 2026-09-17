@@ -20,7 +20,6 @@ model User {
   tags         Tag[]
   companies    Company[]
   resumes      Resume[]
-  prepQuestions PrepQuestion[]
   prepNotes    PrepNote[]
   profile      UserProfile?
   weeklyGoals  WeeklyGoal[]
@@ -54,6 +53,7 @@ model Application {
   tags          ApplicationTag[]
   prepNotes     PrepNote[]
   analysis      ApplicationAnalysis?
+  interviewSessions InterviewSession[]
 
   @@index([userId])
   @@index([companyId])
@@ -132,22 +132,6 @@ model Resume {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
-}
-
-model PrepQuestion {
-  id          String   @id @default(uuid())
-  userId      String
-  question    String
-  answer      String?
-  category    String
-  difficulty  String   @default("Medium")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@index([userId, category])
 }
 
 model PrepNote {
@@ -311,6 +295,7 @@ model CareerKnowledgeGraph {
 model InterviewSession {
   id            String   @id @default(uuid())
   userId        String
+  applicationId String?
   targetRole    String
   targetCompany String
   interviewType String
@@ -322,9 +307,12 @@ model InterviewSession {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  application Application? @relation(fields: [applicationId], references: [id], onDelete: SetNull)
 
   @@index([userId])
+  @@index([applicationId])
+  @@index([userId, targetCompany])
   @@index([userId, createdAt])
 }
 

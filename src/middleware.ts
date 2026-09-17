@@ -11,7 +11,7 @@ const PROTECTED_API_PATHS = [
   "/api/applications", "/api/dashboard",
   "/api/ai", "/api/user", "/api/weekly-goals",
   "/api/companies", "/api/resumes", "/api/tags",
-  "/api/prep-questions", "/api/prep-notes", "/api/settings",
+  "/api/prep-notes", "/api/settings",
 ]
 
 export default clerkMiddleware(async (auth, req) => {

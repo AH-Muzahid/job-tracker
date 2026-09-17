@@ -28,7 +28,6 @@ export const TOOL_RISK_MAP: Record<string, ToolRiskEntry> = {
 
   // Low mutation (non-critical creates/updates)
   setWeeklyGoals:             { name: "setWeeklyGoals",             risk: ToolRisk.LOW_MUTATION,   requiresConfirmation: false },
-  addPrepQuestions:           { name: "addPrepQuestions",           risk: ToolRisk.LOW_MUTATION,   requiresConfirmation: false },
   savePrepNote:               { name: "savePrepNote",               risk: ToolRisk.LOW_MUTATION,   requiresConfirmation: false },
   saveUserMemory:             { name: "saveUserMemory",             risk: ToolRisk.LOW_MUTATION,   requiresConfirmation: false },
   recordMockInterviewScore:   { name: "recordMockInterviewScore",   risk: ToolRisk.LOW_MUTATION,   requiresConfirmation: false },

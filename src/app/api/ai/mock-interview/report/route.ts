@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json()
-    const { targetRole, targetCompany, interviewType, language = "en", history = [] } = body
+    const { targetRole, targetCompany, interviewType, language = "en", history = [], applicationId } = body
 
     if (!Array.isArray(history) || history.length < 2) {
       return NextResponse.json({
@@ -129,9 +129,19 @@ ${dialogueTranscript}
     // Automatically persist the completed interview session to the database
     try {
       const { prisma } = await import("@/lib/prisma")
-      const session = await (prisma as any).interviewSession.create({
+      let verifiedAppId: string | null = null
+      if (applicationId) {
+        const ownedApp = await prisma.application.findFirst({
+          where: { id: applicationId, userId },
+          select: { id: true },
+        })
+        if (ownedApp) verifiedAppId = ownedApp.id
+      }
+
+      const session = await prisma.interviewSession.create({
         data: {
           userId,
+          applicationId: verifiedAppId,
           targetRole: targetRole || "Software Engineer",
           targetCompany: targetCompany || "Tech Company",
           interviewType: interviewType || "Technical",

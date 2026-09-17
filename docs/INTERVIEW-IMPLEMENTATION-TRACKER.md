@@ -88,13 +88,13 @@ Whenever ANY change, fix, optimization, or feature is added to the Interview Sys
 
 ### Phase 2: Schema Integrity, Relational DB & Core Flow (P1 — Target: Sprint 2–3)
 
-- [ ] **`INT-07` [Database / Schema] Link InterviewSession to Application & Purge PrepQuestion**
+- [x] **`INT-07` [Database / Schema] Link InterviewSession to Application & Purge PrepQuestion**
   - **Issue**: `InterviewSession` records float unlinked from `Application`, preventing applicants from seeing their interview debriefs on the job detail drawer. `PrepQuestion` is a zombie table with no UI consumers.
   - **Action**: Add `applicationId` foreign key and relation to `InterviewSession`. Drop `model PrepQuestion` and remove dead `/api/prep-questions` CRUD routes.
-  - **Target Files**: `prisma/schema.prisma`, `src/app/api/prep-questions/route.ts`, `src/app/api/prep-questions/[id]/route.ts`
-  - **Status**: `Planned`
-  - **Owner**: Unassigned
-  - **Completed At**: —
+  - **Target Files**: `prisma/schema.prisma`, `src/app/api/prep-questions/route.ts`, `src/app/api/prep-questions/[id]/route.ts`, `src/middleware.ts`, `src/lib/ai/tool-registry.ts`, `src/app/api/ai/mock-interview/report/route.ts`
+  - **Status**: `Completed`
+  - **Owner**: Antigravity AI
+  - **Completed At**: 2026-09-17
 
 - [ ] **`INT-08` [Database / Schema] Add Interview Scheduling Fields to Application**
   - **Issue**: The `Application` model has status `"Interview"`, but lacks fields for scheduling date, time, interview round, meeting link, and preparation notes.
@@ -221,9 +221,9 @@ Tracking schema changes for the interview system:
 | `Application.interviewMeetingUrl` | `String?` — Zoom/Meet/Teams video link | `prisma/schema.prisma` | ⚪ Not Started | `add_application_interview_fields` |
 | `Application.interviewNotes` | `String? @db.Text` — Preparation notes / cheatsheet | `prisma/schema.prisma` | ⚪ Not Started | `add_application_interview_fields` |
 | `Application Index` | `@@index([userId, interviewDate])` | `prisma/schema.prisma` | ⚪ Not Started | `add_application_interview_fields` |
-| `InterviewSession.applicationId` | `String?` — FK to `Application(id)` with `onDelete: SetNull` | `prisma/schema.prisma` | ⚪ Not Started | `link_interview_session_application` |
-| `InterviewSession Indices` | `@@index([applicationId])`, `@@index([userId, targetCompany])` | `prisma/schema.prisma` | ⚪ Not Started | `link_interview_session_application` |
-| `Drop PrepQuestion` | Drop zombie model and relations | `prisma/schema.prisma` | ⚪ Not Started | `drop_zombie_prep_question` |
+| `InterviewSession.applicationId` | `String?` — FK to `Application(id)` with `onDelete: SetNull` | `prisma/schema.prisma` | 🟢 Completed | `prisma db push` |
+| `InterviewSession Indices` | `@@index([applicationId])`, `@@index([userId, targetCompany])` | `prisma/schema.prisma` | 🟢 Completed | `prisma db push` |
+| `Drop PrepQuestion` | Drop zombie model and relations | `prisma/schema.prisma` | 🟢 Completed | `prisma db push` |
 
 ---
 
@@ -240,4 +240,5 @@ Tracking schema changes for the interview system:
 | 2026-09-17 | `INT-04` | Enforced strict tenant ownership check on `applicationId` in `POST /api/prep-notes` and `PATCH /api/prep-notes/[id]` to eliminate IDOR security vulnerability. Prevents cross-tenant note attachment and data tampering. Created unit test suite `src/__tests__/prep-notes-idor.test.ts`. | `src/app/api/prep-notes/route.ts`, `src/app/api/prep-notes/[id]/route.ts`, `src/__tests__/prep-notes-idor.test.ts`, `docs/INTERVIEW-IMPLEMENTATION-TRACKER.md` | Antigravity AI |
 | 2026-09-17 | `INT-05` | Added comprehensive Zod validation schema (`ConversationTurnSchema`) and prompt injection sanitization (`sanitizeUntrustedContext`) across `targetCompany`, `targetRole`, `applicationId` metadata, history, and candidate spoken answers in `converse/route.ts`. Created unit test suite `src/__tests__/mock-interview-injection.test.ts`. | `src/app/api/ai/mock-interview/converse/route.ts`, `src/__tests__/mock-interview-injection.test.ts`, `docs/INTERVIEW-IMPLEMENTATION-TRACKER.md` | Antigravity AI |
 | 2026-09-17 | `INT-06` | Extracted `MockQuestion` interface to `src/components/interview/conversational/types.ts`. Purged 737 lines of dead code: deleted `VoiceMockInterviewModal.tsx`, `InterviewPrepResult.tsx`, and `/api/ai/mock-interview/evaluate`. Removed dead `usePrepQuestions()` hook from `src/lib/api.ts` and corrected `/10` to `/100` score scale in `interview-sessions` route. Phase 1 P0 fixes 100% completed. | `src/components/interview/conversational/types.ts`, `src/components/interview/ConversationalVoiceInterviewModal.tsx`, `src/lib/api.ts`, `src/app/api/interview-sessions/route.ts`, `docs/INTERVIEW-IMPLEMENTATION-TRACKER.md` | Antigravity AI |
+| 2026-09-17 | `INT-07` | Linked `InterviewSession` to `Application` model via `applicationId` with `SetNull` cascade and composite indices. Updated `report/route.ts` to persist verified application relationship. Dropped zombie `PrepQuestion` table, deleted `/api/prep-questions` routes, and purged `addPrepQuestions` from tool registry and middleware. Created unit test suite `src/__tests__/interview-session-application.test.ts`. | `prisma/schema.prisma`, `src/app/api/ai/mock-interview/report/route.ts`, `src/middleware.ts`, `src/lib/ai/tool-registry.ts`, `src/__tests__/interview-session-application.test.ts`, `docs/INTERVIEW-IMPLEMENTATION-TRACKER.md` | Antigravity AI |
 
