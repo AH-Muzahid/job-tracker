@@ -87,23 +87,30 @@ export const interviewReminderPipeline = inngest.createFunction(
 
           // 2. Dispatch email if candidate has an email address
           if (app.user.email) {
-            const html = formatInterviewReminderHtml({
-              candidateName: app.user.name || undefined,
-              companyName: cleanCompany,
-              jobTitle: app.jobTitle,
-              interviewRound: roundTitle,
-              interviewDate: app.interviewDate!,
-              interviewMeetingUrl: app.interviewMeetingUrl,
-              interviewNotes: app.interviewNotes,
-              reminderType: "24h",
-              applicationId: app.id,
-            })
+            try {
+              const html = formatInterviewReminderHtml({
+                candidateName: app.user.name || undefined,
+                companyName: cleanCompany,
+                jobTitle: app.jobTitle,
+                interviewRound: roundTitle,
+                interviewDate: app.interviewDate!,
+                interviewMeetingUrl: app.interviewMeetingUrl,
+                interviewNotes: app.interviewNotes,
+                reminderType: "24h",
+                applicationId: app.id,
+              })
 
-            await sendEmail({
-              to: app.user.email,
-              subject: `24-Hour Briefing: ${roundTitle} with ${cleanCompany}`,
-              html,
-            })
+              await sendEmail({
+                to: app.user.email,
+                subject: `24-Hour Briefing: ${roundTitle} with ${cleanCompany}`,
+                html,
+              })
+            } catch (emailErr) {
+              console.warn(
+                `[InterviewReminder] Failed to send 24h reminder email to ${app.user.email}:`,
+                emailErr
+              )
+            }
           }
 
           remindersSent24h++
@@ -148,23 +155,30 @@ export const interviewReminderPipeline = inngest.createFunction(
 
           // 2. Dispatch urgent email
           if (app.user.email) {
-            const html = formatInterviewReminderHtml({
-              candidateName: app.user.name || undefined,
-              companyName: cleanCompany,
-              jobTitle: app.jobTitle,
-              interviewRound: roundTitle,
-              interviewDate: app.interviewDate!,
-              interviewMeetingUrl: app.interviewMeetingUrl,
-              interviewNotes: app.interviewNotes,
-              reminderType: "2h",
-              applicationId: app.id,
-            })
+            try {
+              const html = formatInterviewReminderHtml({
+                candidateName: app.user.name || undefined,
+                companyName: cleanCompany,
+                jobTitle: app.jobTitle,
+                interviewRound: roundTitle,
+                interviewDate: app.interviewDate!,
+                interviewMeetingUrl: app.interviewMeetingUrl,
+                interviewNotes: app.interviewNotes,
+                reminderType: "2h",
+                applicationId: app.id,
+              })
 
-            await sendEmail({
-              to: app.user.email,
-              subject: `Upcoming in 2 Hours: ${roundTitle} with ${cleanCompany}`,
-              html,
-            })
+              await sendEmail({
+                to: app.user.email,
+                subject: `Upcoming in 2 Hours: ${roundTitle} with ${cleanCompany}`,
+                html,
+              })
+            } catch (emailErr) {
+              console.warn(
+                `[InterviewReminder] Failed to send 2h reminder email to ${app.user.email}:`,
+                emailErr
+              )
+            }
           }
 
           remindersSent2h++
