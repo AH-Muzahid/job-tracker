@@ -141,7 +141,7 @@ export class ApplicationRepository {
     const newStatus = data.status
     const statusChanged = Boolean(newStatus && newStatus !== existingStatus)
 
-    return withDbRetry(() =>
+    const updated = await withDbRetry(() =>
       prisma.application.update({
         where: { id },
         data: {
@@ -173,6 +173,24 @@ export class ApplicationRepository {
         },
       })
     )
+
+    // Trigger company research & interview dossier agent when moving to Interview stage
+    if (statusChanged && newStatus === "Interview") {
+      try {
+        const { inngest } = await import("@/inngest/client")
+        await inngest.send({
+          name: "application/interview.scheduled",
+          data: {
+            applicationId: id,
+            userId: updated.userId,
+          },
+        })
+      } catch (err) {
+        console.warn("[Interview Status Change Inngest dispatch failed]:", err)
+      }
+    }
+
+    return updated
   }
 
   static async delete(id: string) {

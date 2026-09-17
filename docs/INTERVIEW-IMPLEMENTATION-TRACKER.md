@@ -172,13 +172,13 @@ Whenever ANY change, fix, optimization, or feature is added to the Interview Sys
   - **Owner**: Antigravity AI
   - **Completed At**: 2026-09-17
 
-- [ ] **`INT-17` [Agent / Workflow] Company Research & Interview Dossier Agent Integration**
+- [x] **`INT-17` [Agent / Workflow] Company Research & Interview Dossier Agent Integration**
   - **Issue**: No automated company research happens when a job moves to "Interview" stage.
   - **Action**: Trigger background agent when status changes to "Interview" to compile company overview, recent news, engineering blog highlights, and common interview questions into application notes.
-  - **Target Files**: `src/lib/ai/agents/company-dossier-agent.ts`, `src/inngest/functions/batch-job-pipeline.ts`
-  - **Status**: `Planned`
-  - **Owner**: Unassigned
-  - **Completed At**: —
+  - **Target Files**: `src/lib/ai/agents/company-dossier-agent.ts`, `src/inngest/functions/company-dossier-pipeline.ts`, `src/app/api/applications/[id]/dossier/route.ts`, `src/features/applications/application.repository.ts`, `src/app/api/inngest/route.ts`, `src/__tests__/company-dossier-agent.test.ts`
+  - **Status**: `Completed`
+  - **Owner**: Antigravity AI
+  - **Completed At**: 2026-09-17
 
 ---
 
@@ -250,6 +250,7 @@ Tracking schema changes for the interview system:
 | 2026-09-17 | `INT-14` | Implemented active weakness probing in `converse/route.ts` using `getUserWeaknesses` and `buildWeaknessProbingInstruction` from `src/lib/ai/memory.ts`. Automatically injects targeted challenge directives into interviewer system prompt during Turn 3 to test candidate retention and improvement. Created unit test suite `src/__tests__/weakness-probing-turn3.test.ts`. | `src/app/api/ai/mock-interview/converse/route.ts`, `src/lib/ai/memory.ts`, `src/__tests__/weakness-probing-turn3.test.ts`, `docs/INTERVIEW-IMPLEMENTATION-TRACKER.md` | Antigravity AI |
 | 2026-09-17 | `INT-15` | Enhanced `ApplicationDetailHeader.tsx` with scheduled interview banner, quick-join meeting links, and an in-place modal dialog with date/time picker, round selector, video meeting link, and cheatsheet notes. Connected persistence via `PATCH /api/applications/[id]`. Upgraded `/calendar` page with scheduled interview badges, upcoming interviews feed, and 1-click mock prep room launchers. Created unit test suite `src/__tests__/interview-scheduling-ui.test.ts`. | `src/components/applications/ApplicationDetailHeader.tsx`, `src/app/(app)/applications/[id]/page.tsx`, `src/app/(app)/calendar/page.tsx`, `src/__tests__/interview-scheduling-ui.test.ts`, `docs/INTERVIEW-IMPLEMENTATION-TRACKER.md` | Antigravity AI |
 | 2026-09-17 | `INT-16` | Built Inngest scheduled cron pipeline `interview-reminder-pipeline.ts` executing every 30 minutes (`*/30 * * * *`). Automatically detects upcoming interviews within 24h and 2h, enforces idempotency windows against `Notification` table, dispatches in-app notifications, and sends high-contrast architectural briefing emails with video call & mock prep room links using `formatInterviewReminderHtml` in `src/lib/email.ts`. Created unit test suite `src/__tests__/interview-reminder-pipeline.test.ts`. | `src/inngest/functions/interview-reminder-pipeline.ts`, `src/lib/email.ts`, `src/app/api/inngest/route.ts`, `src/__tests__/interview-reminder-pipeline.test.ts`, `docs/INTERVIEW-IMPLEMENTATION-TRACKER.md` | Antigravity AI |
+| 2026-09-17 | `INT-17` | Implemented `company-dossier-agent.ts` with both high-fidelity LLM synthesis and resilient deterministic fallbacks. Compiles company overview, tech stack highlights, interview questions, and reverse-interview questions directly into `interviewNotes` and triggers in-app notification. Connected automated trigger in `application.repository.ts` when status changes to "Interview", created Inngest event listener `company-dossier-pipeline.ts`, and mounted on-demand endpoint `POST /api/applications/[id]/dossier`. Created unit test suite `src/__tests__/company-dossier-agent.test.ts`. | `src/lib/ai/agents/company-dossier-agent.ts`, `src/inngest/functions/company-dossier-pipeline.ts`, `src/app/api/applications/[id]/dossier/route.ts`, `src/features/applications/application.repository.ts`, `src/app/api/inngest/route.ts`, `src/__tests__/company-dossier-agent.test.ts`, `docs/INTERVIEW-IMPLEMENTATION-TRACKER.md` | Antigravity AI |
 
 
 
