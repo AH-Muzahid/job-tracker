@@ -365,7 +365,7 @@ describe("INT-20: Comprehensive End-to-End Voice & Prep Test Suite", () => {
     expect(englishRes.status).toBe(200)
     expect(englishRes.headers.get("content-type")).toBe("audio/mpeg")
 
-    // B. Bengali text -> 204 No Content for native browser speech synthesis
+    // B. Bengali text -> 200 audio/mpeg for real spoken Bengali voice
     const bengaliReq = new NextRequest("http://localhost:3000/api/ai/tts", {
       method: "POST",
       body: JSON.stringify({
@@ -375,7 +375,8 @@ describe("INT-20: Comprehensive End-to-End Voice & Prep Test Suite", () => {
     })
 
     const bengaliRes = await ttsPost(bengaliReq)
-    expect(bengaliRes.status).toBe(204)
+    expect(bengaliRes.status).toBe(200)
+    expect(bengaliRes.headers.get("content-type")).toBe("audio/mpeg")
 
     global.fetch = originalFetch
   })

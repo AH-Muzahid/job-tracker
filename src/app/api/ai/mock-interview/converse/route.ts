@@ -362,14 +362,17 @@ PERSONA & TONE (Friendly & Encouraging Mentor / সহায়ক ও আন্ত
     let languageInstructions = ""
     if (language === "bn") {
       languageInstructions = `
-LANGUAGE INSTRUCTIONS (সহজ সাবলীল চলতি কথ্য বাংলা):
-- সম্পূর্ণ স্বাভাবিক "চলতি কথ্য বাংলা" ব্যবহার করুন (যেমন: "দারুণ!", "আচ্ছা বুঝলাম", "আপনার ওই প্রজেক্টে...").
-- টেকনিক্যাল শব্দগুলো (React, Redis, PostgreSQL, API, Microservices, Next.js, Docker) স্বাভাবিক ইংরেজি টেক টার্মেই বলুন।`
+LANGUAGE INSTRUCTIONS (কড়া নির্দেশ - সম্পূর্ণ চলতি কথ্য বাংলা):
+- আপনি একজন বাংলাদেশি সিনিয়র ইঞ্জিনিয়ারিং লিড।
+- আপনার প্রতিটি কথা ও প্রশ্ন ১০০% সাবলীল চলতি কথ্য বাংলায় লিখুন (যেমন: "দারুণ!", "বুঝতে পেরেছি।", "আপনার প্রজেক্টের আর্কিটেকচার নিয়ে কিছু বলুন...").
+- শুধুমাত্র প্রোগ্রামিং এবং আর্কিটেকচারাল কীওয়ার্ড (যেমন: React, Next.js, Redux, PostgreSQL, API, Redis, Docker, Kafka) স্বাভাবিক ইংরেজি টেক টার্মে রাখবেন।
+- কোনো বাক্য ইংরেজিতে বলা সম্পূর্ণ নিষিদ্ধ! ক্যান্ডিডেটকে বাংলায় ইন্টারভিউ নিতে হবে।`
     } else if (language === "mixed") {
       languageInstructions = `
-LANGUAGE INSTRUCTIONS (সহজ বাংলিশ ও দ্বিভাষিক ফ্রেন্ডলি কথোপকথন):
-- একজন বন্ধুভাবাপন্ন বাংলাদেশি সিনিয়র ইঞ্জিনিয়ার যেভাবে অফিসে কথা বলেন সেভাবে কথা বলুন (বাংলা বাক্যের ভেতর ইংরেজি টেক টার্ম মিশিয়ে).
-- যেমন: "দারুণ পয়েন্ট! ওই সার্ভিসে যখন হাই ট্রাফিক আসে তখন রেট লিমিটিং কীভাবে হ্যান্ডেল করেছিলেন?"`
+LANGUAGE INSTRUCTIONS (সহজ দ্বিভাষিক বাংলিশ ও প্রফেশনাল কথ্য বাংলা):
+- বাংলাদেশি টেক অফিসের সিনিয়র ইঞ্জিনিয়ার যেভাবে কথা বলেন, সেভাবে বাংলা বাক্যের মধ্যে স্বাভাবিক টেকনিক্যাল ইংরেজি শব্দ মিশিয়ে কথা বলুন।
+- উদাহরণ: "দারুণ পয়েন্ট! ওই প্রজেক্টে যখন হাই ট্রাফিক আসত তখন ডেটা ক্যাশিং কীভাবে হ্যান্ডেল করেছিলেন?"
+- বাক্য সবসময় বাংলায় শুরু ও শেষ করবেন। কোনো অবস্থাতেই পুরো বাক্য ইংরেজিতে বলবেন না।`
     } else {
       languageInstructions = `
 LANGUAGE INSTRUCTIONS (Natural Modern English):
@@ -432,10 +435,17 @@ ${phaseInstruction}
 ## STRICT CONVERSATIONAL VOICE RULES:
 1. YOU ARE ON A LIVE SPOKEN CALL. Speak ONLY in 1 to 2 short, lifelike conversational sentences.
 2. NEVER output markdown code blocks, JSON, suggestions tags, bullet points, asterisks (*), hashtags, or lists.
-3. Use natural conversational nods at the start ("Got it.", "Makes sense!", "দারুণ!").
+3. Use natural conversational nods at the start ("Got it.", "Makes sense!", "দারুণ!", "বুঝতে পেরেছি।").
 4. Candidate's Known Skills: ${knownSkills || "Fullstack Engineering"}.
 5. Speech-to-Text Tolerance: Candidate's speech is captured via live STT. Intelligently interpret their core technical intent and ignore phonetic voice typos.
-6. ${isFinalWrapUp ? "CRITICAL: DO NOT ASK A QUESTION. THIS IS THE FINAL WRAP-UP CLOSING." : "Ask ONE specific question aligned with the current stage."}`
+6. ${isFinalWrapUp ? "CRITICAL: DO NOT ASK A QUESTION. THIS IS THE FINAL WRAP-UP CLOSING." : "Ask ONE specific question aligned with the current stage."}
+7. LANGUAGE MANDATE (CRITICAL): ${
+  language === "bn"
+    ? "MANDATORY: Output strictly in colloquial Bengali (বাংলা). It is strictly forbidden to output English sentences. Keep technical terms (e.g. Next.js, API, Redis) in English."
+    : language === "mixed"
+    ? "MANDATORY: Output in conversational Bengali/Banglish (বাংলায় কথা বলুন টেক শব্দ ইংরেজিতে রেখে). Never output pure English sentences."
+    : "Speak in clear, natural English."
+}`
 
     // Format conversation history with sanitization and role alternation guarantee
     const messages: Array<{ role: "user" | "assistant"; content: string }> = []
@@ -454,16 +464,24 @@ ${phaseInstruction}
 
     if (userAnswer && userAnswer.trim()) {
       const sanitizedUserAnswer = sanitizeUntrustedContext(userAnswer).trim()
+      const langHint =
+        language === "bn"
+          ? "\n\n(অনুগ্রহ করে বাংলায় ১-২ বাক্যে উত্তর দিন ও পরবর্তী প্রশ্ন করুন)"
+          : language === "mixed"
+          ? "\n\n(দয়া করে বাংলিশ/বাংলায় ১-২ বাক্যে উত্তর দিন ও পরবর্তী প্রশ্ন করুন)"
+          : ""
+      const fullAnswerText = `${sanitizedUserAnswer}${langHint}`
+
       if (
         messages.length === 0 ||
         messages[messages.length - 1].role === "assistant"
       ) {
         messages.push({
           role: "user",
-          content: sanitizedUserAnswer,
+          content: fullAnswerText,
         })
       } else if (messages[messages.length - 1].content !== sanitizedUserAnswer) {
-        messages[messages.length - 1].content += `\n${sanitizedUserAnswer}`
+        messages[messages.length - 1].content += `\n${fullAnswerText}`
       }
     } else if (messages.length === 0) {
       const langPrompt =

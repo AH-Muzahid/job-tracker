@@ -54,10 +54,11 @@ describe("TTS API Route (INT-09)", () => {
     expect(res.status).toBe(400)
   })
 
-  it("returns 204 No Content for Bengali text to trigger native browser speech synthesis", async () => {
+  it("returns 200 audio stream for Bengali text via high-fidelity synthesis", async () => {
     const req = new NextRequest("http://localhost/api/ai/tts?text=" + encodeURIComponent("আপনি কেমন আছেন?"))
     const res = await GET(req)
-    expect(res.status).toBe(204)
+    expect(res.status).toBe(200)
+    expect(res.headers.get("content-type")).toBe("audio/mpeg")
   })
 
   it("returns 204 No Content when no OpenAI API key is configured", async () => {

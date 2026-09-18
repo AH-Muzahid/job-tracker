@@ -378,16 +378,24 @@ export function ConversationalVoiceInterviewModal({
               audioSourceNodeRef.current = source
               source.buffer = audioBuffer
 
-              // Detune -520 cents for deep male pitch
-              source.detune.value = -520
-              source.playbackRate.value = speechRate * 0.95
+              const isBengaliLang = language === "bn" || language === "mixed" || /[\u0980-\u09FF]/.test(textToSpeak)
 
-              const filter = ctx.createBiquadFilter()
-              filter.type = "lowpass"
-              filter.frequency.value = 2600
+              if (!isBengaliLang) {
+                // Detune -520 cents for deep English male pitch
+                source.detune.value = -520
+                source.playbackRate.value = speechRate * 0.95
 
-              source.connect(filter)
-              filter.connect(ctx.destination)
+                const filter = ctx.createBiquadFilter()
+                filter.type = "lowpass"
+                filter.frequency.value = 2600
+
+                source.connect(filter)
+                filter.connect(ctx.destination)
+              } else {
+                // Natural pitch preservation for Bengali speech clarity
+                source.playbackRate.value = speechRate
+                source.connect(ctx.destination)
+              }
 
               source.onended = () => {
                 setIsAiSpeaking(false)
