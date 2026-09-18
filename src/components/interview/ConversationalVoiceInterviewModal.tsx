@@ -814,7 +814,8 @@ export function ConversationalVoiceInterviewModal({
       })
 
       if (!res.ok) {
-        throw new Error("Failed to generate interview report.")
+        const errData = await res.json().catch(() => null)
+        throw new Error(errData?.error || "Failed to generate interview report.")
       }
 
       const reportData = await res.json()
@@ -942,6 +943,7 @@ export function ConversationalVoiceInterviewModal({
             isGeneratingReport={isGeneratingReport}
             report={report}
             dialogueCount={dialogue.length}
+            onRetry={handleEndInterview}
             onPracticeAgain={() => {
               setStep("setup")
               setDialogue([])

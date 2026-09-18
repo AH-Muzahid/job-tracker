@@ -12,15 +12,8 @@ vi.mock("@/lib/ai/config", () => ({
   }),
 }))
 
-vi.mock("@/lib/ai/provider", () => ({
-  getProvider: vi.fn().mockReturnValue({
-    model: vi.fn().mockReturnValue("mock-model"),
-    defaultModel: "gemini-2.5-flash",
-  }),
-}))
-
-vi.mock("ai", () => ({
-  generateText: vi.fn().mockResolvedValue({
+vi.mock("@/lib/ai/resilience", () => ({
+  resilientGenerateText: vi.fn().mockResolvedValue({
     text: JSON.stringify({
       overallScore: 88,
       verdict: "Strong Hire",
@@ -35,6 +28,8 @@ vi.mock("ai", () => ({
       knowledgeGaps: [],
       executiveSummary: "Great candidate",
     }),
+    modelUsed: "gemini-3.6-flash",
+    fallbackTriggered: false,
   }),
 }))
 

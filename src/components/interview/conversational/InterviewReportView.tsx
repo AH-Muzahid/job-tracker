@@ -16,6 +16,7 @@ interface InterviewReportViewProps {
   report: InterviewReportData | null
   dialogueCount: number
   onPracticeAgain: () => void
+  onRetry?: () => void
   onClose: () => void
 }
 
@@ -26,6 +27,7 @@ export function InterviewReportView({
   report,
   dialogueCount,
   onPracticeAgain,
+  onRetry,
   onClose,
 }: InterviewReportViewProps) {
   const getVerdictBadge = (verdict: string) => {
@@ -63,6 +65,33 @@ export function InterviewReportView({
           <RotateCcw className="h-7 w-7 sm:h-8 sm:w-8 text-primary animate-spin mx-auto" />
           <p className="text-xs sm:text-sm font-semibold">Analyzing interview dialogue with STAR method...</p>
           <p className="text-[11px] sm:text-xs text-muted-foreground">Calculating hiring bar scores and growth areas...</p>
+        </div>
+      )}
+
+      {!isGeneratingReport && !report && (
+        <div className="py-12 sm:py-16 text-center space-y-4 max-w-md mx-auto">
+          <div className="h-12 w-12 rounded-2xl bg-destructive/10 text-destructive flex items-center justify-center mx-auto">
+            <AlertTriangle className="h-6 w-6" />
+          </div>
+          <div className="space-y-1">
+            <h4 className="text-sm sm:text-base font-semibold text-foreground">
+              Report Generation Incomplete
+            </h4>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              We encountered an issue communicating with the AI evaluation provider. Your transcript is preserved.
+            </p>
+          </div>
+          <div className="flex items-center justify-center gap-2 pt-2">
+            {onRetry && (
+              <Button onClick={onRetry} size="sm" className="gap-2">
+                <RotateCcw className="h-4 w-4" />
+                Retry Generation
+              </Button>
+            )}
+            <Button onClick={onPracticeAgain} variant="outline" size="sm">
+              Practice Again
+            </Button>
+          </div>
         </div>
       )}
 

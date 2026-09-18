@@ -63,7 +63,48 @@ const mockConverseResponses: Record<number, string> = {
 }
 
 let currentTurnCounter = 1
-const mockResilientGenerateText = vi.fn().mockImplementation(async () => {
+const mockReportJson = JSON.stringify({
+  verdict: "Strong Hire",
+  overallScore: 88,
+  technicalScore: 90,
+  clarityScore: 86,
+  starBreakdown: {
+    situation: "Designed a multi-region distributed messaging bus handling 10M peak concurrent WebSockets.",
+    task: "Resolve cross-datacenter connection synchronization and partition failover.",
+    action: "Used Raft consensus for leader leases, Redis Cluster for localized session state, and Kafka for persistent ordering.",
+    result: "Prevented split-brain split quorums and achieved sub-50ms cross-region latency.",
+  },
+  strengths: [
+    "Deep familiarity with distributed consensus",
+    "Crisp articulation of failure scenarios",
+  ],
+  improvementAreas: [
+    "Could provide more concrete memory sizing calculations",
+  ],
+  executiveSummary: "Candidate demonstrated Staff-level systems thinking with excellent partition resilience.",
+  knowledgeGaps: [
+    {
+      id: "gap-raft-1",
+      topic: "Raft Consensus & Leader Lease Expiry",
+      type: "technical",
+      severity: "high",
+      questionAsked: "How do you prevent split-brain during partition isolation?",
+      candidateAnswerSummary: "Used lease timers with monotonic clocks.",
+      weaknessReason: "Omitted clock drift compensation.",
+      idealAnswer: "Use true monotonic clocks with safe lease bound intervals.",
+      keyTakeaways: ["Account for NTP skew", "Enforce majority quorums"],
+    },
+  ],
+})
+
+const mockResilientGenerateText = vi.fn().mockImplementation(async (options?: any) => {
+  if (options?.systemPrompt?.includes("Bar Raiser")) {
+    return {
+      text: mockReportJson,
+      modelUsed: "gpt-4o",
+      fallbackTriggered: false,
+    }
+  }
   const text = mockConverseResponses[currentTurnCounter] || "Can you elaborate further?"
   return {
     text,
