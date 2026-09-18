@@ -114,8 +114,12 @@ export async function retrieveCandidateJobsTier1(params: {
       `
     )
   } catch (error) {
-    console.warn("[Tier1 Retrieval] pgvector query failed or no embeddings found. Falling back to active catalog:", (error as Error)?.message)
-    // Fallback query: Explicitly select fields without embedding to prevent Prisma deserialization error
+    console.warn("[Tier1 Retrieval] pgvector query failed or error occurred:", (error as Error)?.message)
+  }
+
+  // 3.5 Resilient catalog fallback: If pgvector returned 0 matches (e.g. embeddings still backfilling, or zero rows found),
+  // immediately load active catalog jobs with role/skill matching so candidates never see an empty feed.
+  if (rawResults.length === 0) {
     const fallbackJobs = await withDbRetry(() =>
       prisma.canonicalJob.findMany({
         where: { isExpired: false },
@@ -140,7 +144,6 @@ export async function retrieveCandidateJobsTier1(params: {
     )
 
     rawResults = fallbackJobs.map((j) => {
-      // Basic keyword overlap similarity for graceful fallback
       const lowerTitle = j.title.toLowerCase()
       const roleMatch = targetRoles.some((r) => lowerTitle.includes(r.toLowerCase()))
       return {

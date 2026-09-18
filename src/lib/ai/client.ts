@@ -93,7 +93,7 @@ export function getProvider(config: AIProviderConfig): { model: ModelFn; default
     case "google": {
       return {
         model: createGoogle({ apiKey: config.apiKey }),
-        defaultModel: "gemini-2.0-flash",
+        defaultModel: "gemini-3.6-flash",
       }
     }
     case "custom-openai": {

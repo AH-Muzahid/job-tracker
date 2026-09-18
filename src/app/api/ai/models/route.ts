@@ -71,10 +71,9 @@ export async function GET() {
   if (models.length === 0) {
     if (providerType === "google") {
       models.push(
-        { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash (Fast & Accurate)" },
-        { id: "gemini-2.0-flash-thinking-exp-01-21", name: "Gemini 2.0 Flash Thinking" },
-        { id: "gemini-1.5-pro", name: "Gemini 1.5 Pro (Deep Context)" },
-        { id: "gemini-1.5-flash", name: "Gemini 1.5 Flash" }
+        { id: "gemini-3.6-flash", name: "Gemini 3.6 Flash (Fast & Intelligent)" },
+        { id: "gemini-3.1-pro-preview", name: "Gemini 3.1 Pro (Deep Reasoning)" },
+        { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash (Legacy)" }
       )
     } else if (providerType === "anthropic" || providerType === "custom-anthropic") {
       models.push(

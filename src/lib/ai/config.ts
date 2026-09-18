@@ -167,7 +167,7 @@ export async function getUserAIConfig(
     return {
       providerType: "google",
       apiKey: (process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY)!,
-      model: "gemini-2.0-flash",
+      model: process.env.GEMINI_MODEL || "gemini-3.6-flash",
     }
   }
   if (process.env.GROQ_API_KEY) {

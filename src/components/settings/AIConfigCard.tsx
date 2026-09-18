@@ -139,7 +139,12 @@ export function AIConfigCard({ initialData, isLoading = false }: AIConfigCardPro
       setShowForm(false)
       loadAiConfig()
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Failed to save profile"
+      let message = "Failed to save profile"
+      if (err instanceof TypeError && err.message === "Failed to fetch") {
+        message = "Network error: Unable to reach the CareerTrack server. Please ensure the dev server is running."
+      } else if (err instanceof Error) {
+        message = err.message
+      }
       toast.error(message)
     } finally {
       setSavingAi(false)

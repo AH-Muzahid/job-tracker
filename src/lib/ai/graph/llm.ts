@@ -51,7 +51,7 @@ export function getLangChainChatModel(
     case "google": {
       return new ChatOpenAI({
         apiKey: config.apiKey,
-        modelName: options?.modelName || config.model || "gemini-2.0-flash",
+        modelName: options?.modelName || config.model || "gemini-3.6-flash",
         temperature,
         streaming,
         ...(config.baseUrl ? { configuration: { baseURL: config.baseUrl } } : {}),

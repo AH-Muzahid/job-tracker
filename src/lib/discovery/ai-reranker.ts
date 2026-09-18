@@ -5,7 +5,8 @@ import { VectorCandidateJob } from "./vector-retrieval"
 
 const googleApiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY || ""
 const googleProvider = createGoogle({ apiKey: googleApiKey })
-const RERANK_MODEL = googleProvider("gemini-2.0-flash")
+const modelName = process.env.GEMINI_MODEL || "gemini-3.6-flash"
+const RERANK_MODEL = googleProvider(modelName)
 
 export const ReRankResponseSchema = z.object({
   rankings: z.array(
