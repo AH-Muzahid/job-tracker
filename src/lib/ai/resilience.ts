@@ -2,8 +2,62 @@
 import { generateText, streamText } from "ai"
 import type { LanguageModelV4 } from "@ai-sdk/provider"
 import { getProvider, AIProviderConfig } from "./client"
-import { getUserAIConfig, getAllUserAIProfiles } from "./config"
+import { getUserAIConfig, getAllUserAIProfiles, updateUserAIProfileModel } from "./config"
 import { getToolRisk, ToolRisk } from "./tool-registry"
+
+/**
+ * Deprecated → Successor model mapping.
+ * When a provider says "model X is no longer available", we auto-retry with the successor.
+ * Add entries here as providers deprecate models.
+ */
+const MODEL_UPGRADE_MAP: Record<string, string> = {
+  // Google Gemini deprecations
+  "gemini-2.0-flash": "gemini-3.6-flash",
+  "gemini-2.0-flash-exp": "gemini-3.6-flash",
+  "gemini-2.0-flash-lite": "gemini-3.6-flash",
+  "gemini-1.5-flash": "gemini-3.6-flash",
+  "gemini-1.5-pro": "gemini-3.1-pro-preview",
+  "gemini-2.5-flash": "gemini-3.6-flash",
+  "gemini-2.5-pro": "gemini-3.1-pro-preview",
+  // OpenAI deprecations
+  "gpt-4-turbo": "gpt-4o",
+  "gpt-4-turbo-preview": "gpt-4o",
+  "gpt-3.5-turbo": "gpt-4o-mini",
+  // Anthropic deprecations
+  "claude-3-sonnet-20240229": "claude-3-5-sonnet-20241022",
+  "claude-3-haiku-20240307": "claude-3-5-haiku-20241022",
+}
+
+/**
+ * Detect if an error indicates the model is deprecated/unavailable (not a transient error)
+ */
+function isModelDeprecatedError(err: unknown): boolean {
+  if (!err) return false
+  const msg = ((err as any)?.message || "").toLowerCase()
+  return (
+    msg.includes("no longer available") ||
+    msg.includes("has been deprecated") ||
+    msg.includes("model not found") ||
+    msg.includes("does not exist") ||
+    msg.includes("is not available") ||
+    msg.includes("decommissioned") ||
+    msg.includes("please update your code to use")
+  )
+}
+
+/**
+ * Extract the deprecated model ID from an error message, if possible
+ */
+function extractDeprecatedModelFromError(err: unknown): string | null {
+  const msg = (err as any)?.message || ""
+  // Pattern: "models/gemini-2.0-flash is no longer available"
+  const match = msg.match(/models\/([a-z0-9._-]+)\s+(?:is|has)/i)
+  if (match) return match[1]
+  // Pattern: "model 'gpt-4-turbo' does not exist"
+  const match2 = msg.match(/model\s+['"]?([a-z0-9._-]+)['"]?\s+(?:does|is|has)/i)
+  if (match2) return match2[1]
+  return null
+}
 
 class LoopDetector {
   private calls = new Map<string, number>()
@@ -24,6 +78,8 @@ export interface ResilientModelCandidate {
   name: string
   providerType: AIProviderConfig["providerType"]
   model: LanguageModelV4
+  /** Provider's model factory — used for auto-switching deprecated models to successors */
+  modelFactory: (id: string) => LanguageModelV4
 }
 
 export interface ResilientExecutionResult {
@@ -106,6 +162,7 @@ export async function getFallbackModelCascade(
         name: `${activeConfig.providerType.toUpperCase()} (${modelId})`,
         providerType: activeConfig.providerType,
         model: provider.model(modelId),
+        modelFactory: provider.model,
       })
       seenKeys.add(`${activeConfig.providerType}:${modelId}`)
     } catch {
@@ -130,6 +187,7 @@ export async function getFallbackModelCascade(
           name: `${prof.name} (${modelId})`,
           providerType: prof.providerType,
           model: provider.model(modelId),
+          modelFactory: provider.model,
         })
         seenKeys.add(keyTag)
       } catch {
@@ -153,6 +211,7 @@ export async function getFallbackModelCascade(
         name: `Anthropic Claude (${modelId}) (Server Fallback)`,
         providerType: "anthropic",
         model: provider.model(modelId),
+        modelFactory: provider.model,
       })
       seenKeys.add(`anthropic:${modelId}`)
     } catch {}
@@ -160,18 +219,19 @@ export async function getFallbackModelCascade(
 
   // Google Gemini Backup (supports GEMINI_API_KEY or GOOGLE_GENERATIVE_AI_API_KEY)
   const googleKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY
-  if (googleKey && !seenKeys.has("google:gemini-2.5-flash")) {
+  if (googleKey && !seenKeys.has("google:gemini-3.6-flash")) {
     try {
       const provider = getProvider({
         providerType: "google",
         apiKey: googleKey,
       })
-      const modelId = process.env.GEMINI_MODEL || "gemini-2.5-flash"
+      const modelId = process.env.GEMINI_MODEL || "gemini-3.6-flash"
       candidates.push({
         id: modelId,
         name: `Google Gemini (${modelId}) (Server Fallback)`,
         providerType: "google",
         model: provider.model(modelId),
+        modelFactory: provider.model,
       })
       seenKeys.add(`google:${modelId}`)
     } catch {}
@@ -189,6 +249,7 @@ export async function getFallbackModelCascade(
         name: "OpenAI GPT-4o-mini (Server Fallback)",
         providerType: "openai",
         model: provider.model("gpt-4o-mini"),
+        modelFactory: provider.model,
       })
       seenKeys.add("openai:gpt-4o-mini")
     } catch {}
@@ -209,6 +270,7 @@ export async function getFallbackModelCascade(
         name: `OpenRouter (${modelId}) (Server Fallback)`,
         providerType: "custom-openai",
         model: provider.model(modelId),
+        modelFactory: provider.model,
       })
       seenKeys.add("openrouter:default")
     } catch {}
@@ -228,6 +290,7 @@ export async function getFallbackModelCascade(
         name: "Groq Llama 3.3 70B (Server Fallback)",
         providerType: "custom-openai",
         model: provider.model("llama-3.3-70b-versatile"),
+        modelFactory: provider.model,
       })
       seenKeys.add("groq:default")
     } catch {}
@@ -299,6 +362,46 @@ export async function resilientGenerateText(options: {
         }
       } catch (err: unknown) {
         lastError = err
+
+        // ── Auto-switch: deprecated model → successor ──
+        if (isModelDeprecatedError(err)) {
+          const depModel = extractDeprecatedModelFromError(err) || candidate.id
+          const successor = MODEL_UPGRADE_MAP[depModel]
+          if (successor && successor !== candidate.id) {
+            console.warn(
+              `[ModelAutoSwitch] ${depModel} deprecated → upgrading to ${successor}`
+            )
+            try {
+              // Use the same provider's model factory to create successor model
+              const timeoutSignal2 = AbortSignal.timeout(timeoutMs)
+              const result2 = await generateText({
+                model: candidate.modelFactory(successor),
+                system: systemPrompt,
+                messages: messages as any,
+                temperature,
+                abortSignal: timeoutSignal2,
+              })
+              if (result2.text && result2.text.trim().length > 0) {
+                // Persist the upgrade so user never hits this again
+                void updateUserAIProfileModel(userId, successor).catch(() => {})
+                return {
+                  text: result2.text.trim(),
+                  modelUsed: successor,
+                  providerUsed: `${candidate.name} (auto-upgraded from ${depModel})`,
+                  attemptsCount: totalAttempts + 1,
+                  fallbackTriggered: isFallback,
+                  durationMs: Date.now() - startTime,
+                }
+              }
+            } catch (upgradeErr) {
+              console.warn(`[ModelAutoSwitch] Successor ${successor} also failed:`, upgradeErr)
+              lastError = upgradeErr
+            }
+          }
+          // Deprecated and no successor → skip retries, move to next provider
+          break
+        }
+
         const retryable = isRetryableError(err)
 
         if (!retryable || attempt === maxRetriesPerModel) {
@@ -483,6 +586,42 @@ export async function resilientStreamText(options: {
       }
     } catch (err) {
       lastError = err
+
+      // ── Auto-switch: deprecated model → successor (streaming) ──
+      if (isModelDeprecatedError(err)) {
+        const depModel = extractDeprecatedModelFromError(err) || candidate.id
+        const successor = MODEL_UPGRADE_MAP[depModel]
+        if (successor && successor !== candidate.id) {
+          console.warn(
+            `[Stream ModelAutoSwitch] ${depModel} deprecated → upgrading to ${successor}`
+          )
+          try {
+            const result = (streamText as any)({
+              model: candidate.modelFactory(successor),
+              system: options.system,
+              messages: options.messages as any,
+              temperature: options.temperature ?? 0.35,
+              tools: options.tools,
+              maxSteps: options.maxSteps ?? 5,
+              onError: options.onError,
+              onFinish: options.onFinish,
+              onStepFinish: options.onStepFinish,
+            })
+            // Persist the upgrade
+            void updateUserAIProfileModel(options.userId, successor).catch(() => {})
+            console.log(`[Stream] Auto-upgraded ${depModel} → ${successor} successfully`)
+            return {
+              result,
+              modelUsed: successor,
+              providerUsed: `${candidate.name} (auto-upgraded from ${depModel})`,
+            }
+          } catch (upgradeErr) {
+            console.warn(`[Stream ModelAutoSwitch] Successor ${successor} also failed:`, upgradeErr)
+            lastError = upgradeErr
+          }
+        }
+      }
+
       console.warn(`[Stream Fallback] Provider ${candidate.name} failed initialization:`, err)
     }
   }

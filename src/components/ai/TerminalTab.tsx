@@ -9,7 +9,7 @@ import { DecorIcon } from "@/components/decor-icon"
 export default function TerminalTab() {
   const { toolInvocations, isStreaming } = useWorkspace()
   const [modelInfo, setModelInfo] = useState<{ model: string; provider: string }>({
-    model: "gemini-2.0-flash",
+    model: "gemini-3.6-flash",
     provider: "google",
   })
 

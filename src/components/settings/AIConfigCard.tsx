@@ -437,12 +437,12 @@ export function AIConfigCard({ initialData, isLoading = false }: AIConfigCardPro
                     placeholder={
                       aiProvider === "custom-anthropic"
                         ? "claude-3-5-sonnet-20241022"
-                        : "google/gemini-2.0-flash-exp:free or openrouter/auto"
+                        : "google/gemini-3.6-flash:free or openrouter/auto"
                     }
                     className="rounded-none text-xs h-8 font-mono border-border bg-background"
                   />
                   <p className="text-[10px] font-mono text-muted-foreground">
-                    Examples: <code className="bg-muted px-1 py-0.5 border border-border">openrouter/auto</code>, <code className="bg-muted px-1 py-0.5 border border-border">google/gemini-2.0-flash-exp:free</code>
+                    Examples: <code className="bg-muted px-1 py-0.5 border border-border">openrouter/auto</code>, <code className="bg-muted px-1 py-0.5 border border-border">google/gemini-3.6-flash:free</code>
                   </p>
                 </div>
               </div>
