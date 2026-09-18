@@ -336,6 +336,11 @@ export function ConversationalVoiceInterviewModal({
           // Gracefully fallback to browser speech synthesis if server has no audio or is unsupported
           if (typeof window !== "undefined" && window.speechSynthesis) {
             const utterance = new SpeechSynthesisUtterance(cleanTextForSpeech(textToSpeak))
+            if (language === "bn" || language === "mixed" || /[\u0980-\u09FF]/.test(textToSpeak)) {
+              utterance.lang = "bn-BD"
+            } else {
+              utterance.lang = "en-US"
+            }
             utterance.rate = speechRate
             utterance.pitch = voiceGender === "female" ? 1.05 : 0.88
             utterance.onstart = () => {

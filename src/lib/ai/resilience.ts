@@ -139,22 +139,45 @@ export async function getFallbackModelCascade(
   }
 
   // 2. Add Server Environment Backups if available
-  if (process.env.GOOGLE_GENERATIVE_AI_API_KEY && !seenKeys.has("google:gemini-2.0-flash")) {
+  // Anthropic Claude Backup (e.g. from server ANTHROPIC_API_KEY)
+  const anthropicKey = process.env.ANTHROPIC_API_KEY
+  if (anthropicKey && !seenKeys.has("anthropic:claude-3-5-sonnet-20241022")) {
     try {
       const provider = getProvider({
-        providerType: "google",
-        apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
+        providerType: "anthropic",
+        apiKey: anthropicKey,
       })
+      const modelId = process.env.ANTHROPIC_MODEL || "claude-3-5-sonnet-20241022"
       candidates.push({
-        id: "gemini-2.0-flash",
-        name: "Google Gemini 2.0 Flash (Server Fallback)",
-        providerType: "google",
-        model: provider.model("gemini-2.0-flash"),
+        id: modelId,
+        name: `Anthropic Claude (${modelId}) (Server Fallback)`,
+        providerType: "anthropic",
+        model: provider.model(modelId),
       })
-      seenKeys.add("google:gemini-2.0-flash")
+      seenKeys.add(`anthropic:${modelId}`)
     } catch {}
   }
 
+  // Google Gemini Backup (supports GEMINI_API_KEY or GOOGLE_GENERATIVE_AI_API_KEY)
+  const googleKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY
+  if (googleKey && !seenKeys.has("google:gemini-2.5-flash")) {
+    try {
+      const provider = getProvider({
+        providerType: "google",
+        apiKey: googleKey,
+      })
+      const modelId = process.env.GEMINI_MODEL || "gemini-2.5-flash"
+      candidates.push({
+        id: modelId,
+        name: `Google Gemini (${modelId}) (Server Fallback)`,
+        providerType: "google",
+        model: provider.model(modelId),
+      })
+      seenKeys.add(`google:${modelId}`)
+    } catch {}
+  }
+
+  // OpenAI Backup
   if (process.env.OPENAI_API_KEY && !seenKeys.has("openai:gpt-4o-mini")) {
     try {
       const provider = getProvider({
@@ -168,6 +191,45 @@ export async function getFallbackModelCascade(
         model: provider.model("gpt-4o-mini"),
       })
       seenKeys.add("openai:gpt-4o-mini")
+    } catch {}
+  }
+
+  // OpenRouter Backup
+  if (process.env.OPENROUTER_API_KEY && !seenKeys.has("openrouter:default")) {
+    try {
+      const provider = getProvider({
+        providerType: "custom-openai",
+        apiKey: process.env.OPENROUTER_API_KEY,
+        baseUrl: "https://openrouter.ai/api/v1",
+        model: process.env.OPENROUTER_MODEL || "anthropic/claude-3.5-sonnet",
+      })
+      const modelId = process.env.OPENROUTER_MODEL || "anthropic/claude-3.5-sonnet"
+      candidates.push({
+        id: modelId,
+        name: `OpenRouter (${modelId}) (Server Fallback)`,
+        providerType: "custom-openai",
+        model: provider.model(modelId),
+      })
+      seenKeys.add("openrouter:default")
+    } catch {}
+  }
+
+  // Groq Backup
+  if (process.env.GROQ_API_KEY && !seenKeys.has("groq:default")) {
+    try {
+      const provider = getProvider({
+        providerType: "custom-openai",
+        apiKey: process.env.GROQ_API_KEY,
+        baseUrl: "https://api.groq.com/openai/v1",
+        model: "llama-3.3-70b-versatile",
+      })
+      candidates.push({
+        id: "llama-3.3-70b-versatile",
+        name: "Groq Llama 3.3 70B (Server Fallback)",
+        providerType: "custom-openai",
+        model: provider.model("llama-3.3-70b-versatile"),
+      })
+      seenKeys.add("groq:default")
     } catch {}
   }
 
@@ -263,42 +325,69 @@ export function getEmergencyInterviewTurn(
   targetRole: string,
   targetCompany: string,
   currentPhase: string,
-  turnNumber: number
+  turnNumber: number,
+  language: string = "en"
 ): string {
   const phaseLower = (currentPhase || "").toLowerCase()
+  const isBengali = language === "bn" || language === "mixed"
 
   if (phaseLower.includes("wrap-up") || phaseLower.includes("closing") || turnNumber >= 5) {
+    if (isBengali) {
+      return `আজকের ইন্টারভিউ সেশন এখানেই সম্পন্ন হলো! ${targetCompany}-র ${targetRole} পজিশনের জন্য আপনার মূল্যবান সময় এবং উত্তরের জন্য অনেক ধন্যবাদ। আপনার ইভ্যালুয়েশন রিপোর্ট তৈরি হচ্ছে।`
+    }
     return `That concludes our interview session today! Thank you so much for your time and thoughtful responses regarding the ${targetRole} role at ${targetCompany}. Your evaluation report is now being prepared.`
   }
 
   if (phaseLower.includes("star") || phaseLower.includes("behavioral")) {
     if (phaseLower.includes("situation") || phaseLower.includes("challenge")) {
-      return `Could you describe a challenging project or high-pressure situation you navigated in your recent engineering work, and what your exact responsibility was?`
+      return isBengali
+        ? `আপনার সাম্প্রতিক কাজের এমন একটি চ্যালেঞ্জিং প্রজেক্ট বা হাই-প্রেসার সিচুয়েশনের কথা বলুন, যেখানে আপনার মূল দায়িত্ব কী ছিল?`
+        : `Could you describe a challenging project or high-pressure situation you navigated in your recent engineering work, and what your exact responsibility was?`
     }
     if (phaseLower.includes("action") || phaseLower.includes("conflict")) {
-      return `When facing that hurdle, what specific actions did you personally take to align your team, resolve conflict, and drive the solution forward?`
+      return isBengali
+        ? `সেই চ্যালেঞ্জ মোকাবেলায় আপনি নিজে কী কী সুনির্দিষ্ট পদক্ষেপ নিয়েছিলেন এবং কীভাবে টিমকে অ্যালাইন করেছিলেন?`
+        : `When facing that hurdle, what specific actions did you personally take to align your team, resolve conflict, and drive the solution forward?`
     }
     if (phaseLower.includes("result") || phaseLower.includes("impact")) {
-      return `What was the measurable outcome of your actions, and what key lesson did you take away from that experience?`
+      return isBengali
+        ? `এর মেজারেবল আউটকাম কী হয়েছিল, এবং এই অভিজ্ঞতা থেকে আপনার সবচেয়ে বড় লার্নিং কী ছিল?`
+        : `What was the measurable outcome of your actions, and what key lesson did you take away from that experience?`
     }
   }
 
   if (phaseLower.includes("system design") || phaseLower.includes("architecture") || phaseLower.includes("partitioning")) {
     if (phaseLower.includes("requirements") || phaseLower.includes("scope")) {
-      return `Let's design a core service for ${targetCompany}. How would you define the functional and non-functional requirements, specifically around availability, throughput, and consistency?`
+      return isBengali
+        ? `চলুন ${targetCompany}-র একটি কোর সার্ভিসের ডিজাইন নিয়ে কথা বলি। অ্যাভেইল্যাবিলিটি, থ্রুপুট এবং কনসিস্টেন্সির রিকোয়ারমেন্টস আপনি কীভাবে ডিফাইন করবেন?`
+        : `Let's design a core service for ${targetCompany}. How would you define the functional and non-functional requirements, specifically around availability, throughput, and consistency?`
     }
     if (phaseLower.includes("architecture") || phaseLower.includes("entities")) {
-      return `Walk me through the high-level architecture and core data entities: what services, API contracts, and database models would you create for ${targetCompany}?`
+      return isBengali
+        ? `সিস্টেমটির হাই-লেভেল আর্কিটেকচার এবং কোর ডেটা এন্ট্রিগুলো আমাকে বুঝিয়ে বলুন: কী কী মাইক্রোসার্ভিস, এপিআই কন্ট্রাক্ট এবং ডেটাবেজ মডেল তৈরি করবেন?`
+        : `Walk me through the high-level architecture and core data entities: what services, API contracts, and database models would you create for ${targetCompany}?`
     }
     if (phaseLower.includes("partition") || phaseLower.includes("bottleneck")) {
-      return `As traffic scales 10x, how would you partition the data layer, handle caching strategies, and mitigate hot-key bottlenecks?`
+      return isBengali
+        ? `ট্রাফিক যখন ১০ গুণ বাড়বে, তখন ডেটা লেয়ার পার্টিশনিং, ক্যাশিং স্ট্র্যাটেজি এবং হট-কি বটলনেক কীভাবে হ্যান্ডেল করবেন?`
+        : `As traffic scales 10x, how would you partition the data layer, handle caching strategies, and mitigate hot-key bottlenecks?`
     }
     if (phaseLower.includes("failure") || phaseLower.includes("resiliency")) {
-      return `What happens if a primary database node or downstream dependency fails during peak hours? How do you ensure high availability and graceful degradation?`
+      return isBengali
+        ? `পিক আওয়ারে প্রাইমারি ডেটাবেজ নোড বা ডাউনস্ট্রিম সার্ভিস ফেইল করলে কীভাবে হাই অ্যাভেইল্যাবিলিটি ও গ্রেসফুল ডিগ্রেডেশন নিশ্চিত করবেন?`
+        : `What happens if a primary database node or downstream dependency fails during peak hours? How do you ensure high availability and graceful degradation?`
     }
   }
 
-  const fallbackBank: Record<number, string> = {
+  const fallbackBankBn: Record<number, string> = {
+    1: `স্বাগতম! আপনার সাথে পরিচিত হয়ে খুব ভালো লাগল। ${targetCompany}-তে ${targetRole} রোলের জন্য আপনার সাম্প্রতিক টেক স্ট্যাক এবং মূল প্রজেক্টগুলো সম্পর্কে সংক্ষেপে কিছু বলুন।`,
+    2: `ধন্যবাদ শেয়ার করার জন্য। আর্কিটেকচার প্রসঙ্গে: ${targetCompany}-র সার্ভিসের জন্য হাই অ্যাভেইল্যাবিলিটি, কনসিস্টেন্সি এবং লো-লেটেন্সি আপনি কীভাবে নিশ্চিত করেন?`,
+    3: `দারুণ পয়েন্ট! ট্রেড-অফ নিয়ে কথা বলি: সম্প্রতি কোনো ক্রিটিক্যাল আর্কিটেকচারাল কম্প্রোমাইজ বা পারফরম্যান্স বটলনেক ফেস করেছিলেন কি? কীভাবে সলভ করেছিলেন?`,
+    4: `বুঝতে পেরেছি। ধরুন প্রোডাকশনে সাডেন ট্রাফিক সার্জ বা সিস্টেম ডাউনটাইম দেখা দিল। তখন আপনার স্টেপ-বাই-স্টেপ ডিবাগিং এবং ট্রায়াজ প্রসেস কেমন হবে?`,
+    5: `খুবই চমৎকার আলোচনা হলো আজ! ${targetCompany}-তে ${targetRole} পজিশনের জন্য প্রয়োজনীয় ফাউন্ডেশন সম্পর্কে দারুণ বলেছেন। এই রাউন্ডের প্রশ্ন এখানেই শেষ করছি।`,
+  }
+
+  const fallbackBankEn: Record<number, string> = {
     1: `Glad to meet you! Let's start with your core background. Can you share an overview of your recent technical stack and key projects related to ${targetRole}?`,
     2: `Thanks for sharing. Diving into engineering design: when architecting services for ${targetCompany}, how do you ensure high availability, data consistency, and low latency?`,
     3: `Great points. Let's discuss trade-offs: what is a critical architectural compromise or performance bottleneck you tackled recently, and why did you choose that solution?`,
@@ -306,9 +395,13 @@ export function getEmergencyInterviewTurn(
     5: `Excellent discussion today! You've covered some strong engineering foundations for the ${targetRole} position at ${targetCompany}. That wraps up our questions for this round.`,
   }
 
+  const bank = isBengali ? fallbackBankBn : fallbackBankEn
+
   return (
-    fallbackBank[turnNumber] ||
-    `Could you walk me through your technical approach and how you'd implement that for ${targetCompany}?`
+    bank[turnNumber] ||
+    (isBengali
+      ? `${targetCompany}-র জন্য আপনার টেকনিক্যাল অ্যাপ্রোচ এবং ইমপ্লিমেন্টেশন প্ল্যান সম্পর্কে বিস্তারিত বলুন।`
+      : `Could you walk me through your technical approach and how you'd implement that for ${targetCompany}?`)
   )
 }
 

@@ -288,10 +288,19 @@ export async function POST(request: NextRequest) {
       userAnswer,
     } = body
 
-    // Calculate candidate answer count
+    // Calculate candidate answer count accurately without double-counting
     const candidatePastCount = history.filter((item) => item.role === "candidate").length
-    const currentCandidateTurn = candidatePastCount + (userAnswer ? 1 : 0)
-    const isFinalWrapUp = currentCandidateTurn >= targetTurnCount
+    const lastHistoryItem = history.length > 0 ? history[history.length - 1] : null
+    const isCurrentAnswerInHistory =
+      lastHistoryItem &&
+      lastHistoryItem.role === "candidate" &&
+      userAnswer &&
+      lastHistoryItem.text.trim() === userAnswer.trim()
+
+    const currentCandidateTurn = isCurrentAnswerInHistory
+      ? candidatePastCount
+      : candidatePastCount + (userAnswer && userAnswer.trim() ? 1 : 0)
+    const isFinalWrapUp = currentCandidateTurn >= targetTurnCount - 1
     const currentQuestionNumber = Math.min(currentCandidateTurn + 1, targetTurnCount)
 
     // Retrieve candidate knowledge graph for personalized questioning
@@ -428,22 +437,45 @@ ${phaseInstruction}
 5. Speech-to-Text Tolerance: Candidate's speech is captured via live STT. Intelligently interpret their core technical intent and ignore phonetic voice typos.
 6. ${isFinalWrapUp ? "CRITICAL: DO NOT ASK A QUESTION. THIS IS THE FINAL WRAP-UP CLOSING." : "Ask ONE specific question aligned with the current stage."}`
 
-    // Format conversation history with sanitization
-    const formattedHistory = history.map((item) => ({
-      role: item.role === "interviewer" ? ("assistant" as const) : ("user" as const),
-      content: sanitizeUntrustedContext(item.text),
-    }))
+    // Format conversation history with sanitization and role alternation guarantee
+    const messages: Array<{ role: "user" | "assistant"; content: string }> = []
 
-    const messages = [...formattedHistory]
+    for (const item of history) {
+      const role = item.role === "interviewer" ? ("assistant" as const) : ("user" as const)
+      const content = sanitizeUntrustedContext(item.text).trim()
+      if (!content) continue
+
+      if (messages.length > 0 && messages[messages.length - 1].role === role) {
+        messages[messages.length - 1].content += `\n${content}`
+      } else {
+        messages.push({ role, content })
+      }
+    }
+
     if (userAnswer && userAnswer.trim()) {
-      messages.push({
-        role: "user" as const,
-        content: sanitizeUntrustedContext(userAnswer).trim(),
-      })
+      const sanitizedUserAnswer = sanitizeUntrustedContext(userAnswer).trim()
+      if (
+        messages.length === 0 ||
+        messages[messages.length - 1].role === "assistant"
+      ) {
+        messages.push({
+          role: "user",
+          content: sanitizedUserAnswer,
+        })
+      } else if (messages[messages.length - 1].content !== sanitizedUserAnswer) {
+        messages[messages.length - 1].content += `\n${sanitizedUserAnswer}`
+      }
     } else if (messages.length === 0) {
+      const langPrompt =
+        language === "bn"
+          ? "দয়া করে সম্পূর্ণ সহজ সাবলীল চলতি কথ্য বাংলায় কথা বলুন এবং প্রথম প্রশ্নটি করুন।"
+          : language === "mixed"
+          ? "দয়া করে সাবলীল দ্বিভাষিক বাংলিশে (বাংলা বাক্যের ভেতর টেকনিক্যাল ইংরেজি শব্দ মিশিয়ে) কথা বলুন এবং প্রথম প্রশ্নটি করুন।"
+          : "Please speak in clear, natural English and ask your opening question."
+
       messages.push({
-        role: "user" as const,
-        content: `Start the ${interviewType} mock interview for the ${targetRole} position at ${targetCompany}.`,
+        role: "user",
+        content: `Start the ${interviewType} mock interview for the ${targetRole} position at ${targetCompany}. ${langPrompt}`.trim(),
       })
     }
 
@@ -467,7 +499,8 @@ ${phaseInstruction}
         targetRole,
         targetCompany,
         currentPhaseTitle,
-        currentQuestionNumber
+        currentQuestionNumber,
+        language
       )
       fallbackTriggered = true
     }
