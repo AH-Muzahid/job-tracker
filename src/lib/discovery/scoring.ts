@@ -17,6 +17,8 @@ import {
   calculateJobFreshness,
   detectVisaSponsorship,
   detectEmploymentType,
+  isSeniorOrLeadRole,
+  ELITE_BIG_TECH_COMPANIES,
   type VisaSponsorshipStatus,
 } from "./matching"
 import {
@@ -428,27 +430,35 @@ export async function executeSearchExternalJobs(
 
       // Factor 4: Seniority & Experience Level Alignment (up to 15 pts)
       const jobSeniority = detectJobSeniority(position, description)
+      const isJuniorCandidate = userExperienceLevel === "junior" || userExperienceLevel === "entry" || userStatus.includes("studying")
 
-      if ((userExperienceLevel === "junior" || userExperienceLevel === "entry" || userStatus.includes("studying")) && jobSeniority === "lead") {
-        continue
+      if (isJuniorCandidate) {
+        // 1. Strict Disqualification: Drop all Senior, Lead, Staff, Principal, Director, Manager, Architect, or 3+ yrs roles
+        if (jobSeniority === "senior" || jobSeniority === "lead" || isSeniorOrLeadRole(position, description)) {
+          continue
+        }
+
+        // 2. Disqualify elite US Big Tech hiring exclusively senior remote engineers outside the US
+        if (ELITE_BIG_TECH_COMPANIES.has(company.toLowerCase().trim())) {
+          const isExplicitEarlyCareer = /\b(intern|internship|apprentice|junior|jr\.?|trainee|graduate|fresh)\b/i.test(position)
+          if (!isExplicitEarlyCareer) {
+            continue
+          }
+        }
       }
 
       let experienceScore = 10
       let experienceRationale = ""
 
-      if (userExperienceLevel === "junior" || userExperienceLevel === "entry" || userStatus.includes("studying")) {
+      if (isJuniorCandidate) {
         if (jobSeniority === "junior" || jobSeniority === "entry") {
           experienceScore = 15
           experienceRationale = "Junior / Early-career: Ideal seniority match for your current academic & portfolio stage"
         } else if (jobSeniority === "mid") {
           experienceScore = 11
-          experienceRationale = "Mid-level growth role: Attainable progression matching your verified full-stack projects"
-        } else if (jobSeniority === "senior") {
-          experienceScore = 4
-          experienceRationale = "Senior position: High seniority requirement; role demands seasoned autonomy"
+          experienceRationale = "Early-career accessible role: Welcomes developers with verified practical projects"
         } else {
-          experienceScore = 1
-          experienceRationale = "Staff/Lead position: Demands multi-year enterprise leadership beyond early-career scope"
+          continue
         }
       } else if (userExperienceLevel === "mid") {
         if (jobSeniority === "mid") {

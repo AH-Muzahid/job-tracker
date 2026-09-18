@@ -80,6 +80,8 @@ RULES:
 2. If the candidate has proven experience in their projects matching the tech stack, award high skillMatchScore.
 3. Total Fit Score (1-99) = roleMatchScore (0-25) + skillMatchScore (0-40) + locationMatchScore (0-20) + seniorityMatchScore (0-15).
 4. Identify which project proves their fit.
+5. If candidate Seniority is junior or entry, any Senior, Lead, Staff, Principal, Director, or 3+ years experience role MUST receive seniorityMatchScore = 0 and total fitScore MUST NOT exceed 30.
+
 
 JOBS TO EVALUATE:
 ${JSON.stringify(compactJobs, null, 2)}

@@ -749,3 +749,37 @@ export function isValidJobPostingUrl(url?: string | null): boolean {
     return false
   }
 }
+
+export const SENIOR_LEAD_ROLE_REGEX =
+  /\b(senior|sr\.?|sr\b|lead|staff|principal|director|head of|vp|vp of|manager|chief|architect|specialist|expert)\b/i
+
+export const ELITE_BIG_TECH_COMPANIES = new Set([
+  "vercel",
+  "figma",
+  "datadog",
+  "cloudflare",
+  "anthropic",
+  "stripe",
+  "palantir",
+  "scale ai",
+  "scaleai",
+  "mongodb",
+  "gitlab",
+  "spotify",
+  "openai",
+])
+
+/**
+ * Detects whether a job title or description indicates a senior, lead, staff, or executive role
+ */
+export function isSeniorOrLeadRole(title: string, description?: string): boolean {
+  if (!title) return false
+  if (SENIOR_LEAD_ROLE_REGEX.test(title)) return true
+  if (description) {
+    if (/\b([3-9]|1[0-9]|three|four|five|six|seven|eight|ten)\+?\s*years?\s*(of\s*)?experience\b/i.test(description)) {
+      return true
+    }
+  }
+  return false
+}
+
