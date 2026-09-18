@@ -18,6 +18,7 @@ export interface VectorCandidateJob {
   postedAt: Date | null
   visaSponsorship: string
   cosineSimilarity: number
+  sourceBoard?: string | null
 }
 
 /**
@@ -104,6 +105,7 @@ export async function retrieveCandidateJobsTier1(params: {
           description,
           "postedAt",
           "visaSponsorship",
+          "sourceBoard",
           (1 - (embedding <=> ${vectorString}::vector)) AS similarity
         FROM "CanonicalJob"
         WHERE 
@@ -137,6 +139,7 @@ export async function retrieveCandidateJobsTier1(params: {
           description: true,
           postedAt: true,
           visaSponsorship: true,
+          sourceBoard: true,
         },
         orderBy: [{ postedAt: "desc" }, { createdAt: "desc" }],
         take: limit * 2,

@@ -294,9 +294,15 @@ export async function executeSearchExternalJobs(
       // Gate 1F: Two-Stage Elimination - Candidate Profile Relevance Gate
       if (!isExplicitSearch && (targetRolesLower.length > 0 || userSkills.size > 0)) {
         const posLower = position.toLowerCase()
+        const roleTokens = [primaryTargetRole, ...targetRolesLower]
+          .filter(Boolean)
+          .flatMap((r: string) => r.toLowerCase().split(/\s+/))
+          .filter((t: string) => t.length > 3 && !["developer", "engineer", "software"].includes(t))
+
         const hasTargetRoleMatch =
           (primaryTargetRole && posLower.includes(primaryTargetRole.toLowerCase())) ||
-          targetRolesLower.some((r: string) => posLower.includes(r))
+          targetRolesLower.some((r: string) => posLower.includes(r)) ||
+          roleTokens.some((tok) => posLower.includes(tok))
         const hasSkillMatch = matchedSkillNames.length > 0
         const isSalesforceOrArchitect = /\b(salesforce|crm|solutions architect|enterprise architect)\b/i.test(position)
 

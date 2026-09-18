@@ -11,6 +11,9 @@ import {
   detectVisaSponsorship,
   detectEmploymentType,
   isValidJobPostingUrl,
+  isLegitimateTechDevRole,
+  TECH_ROLE_FILTER_REGEX,
+  NON_TECH_ROLE_DISQUALIFIER_REGEX,
 } from "./matching"
 import { generateBatchJobEmbeddings } from "./embedding"
 
@@ -128,16 +131,10 @@ export const COMMON_TECH_TAGS = [
   "devops", "ai", "llm", "machine learning", "ml", "security", "mobile", "ios", "android",
 ]
 
-export const TECH_ROLE_FILTER_REGEX =
-  /\b(software|developer|engineer|fullstack|full-stack|frontend|front-end|backend|back-end|devops|data engineer|data science|data scientist|ai|machine learning|ml|cloud|platform|security|systems|qa|sre|architect|mobile|ios|android|product design|ui\/ux)\b/i
-
-export const NON_TECH_ROLE_DISQUALIFIER_REGEX =
-  /\b(bartender|barista|waiter|waitress|maid|cleaner|janitor|cashier|clerk|driver|nurse|physician|therapist|realtor|mechanic|technician|receptionist|payroll|account executive|sales representative|sales rep|account manager|human resources|recruiter|executive assistant|virtual assistant|customer support|customer experience|customer care|content writer|copywriter|social media manager|legal counsel|paralegal|data entry|entry specialist|data quality analyst|transcriptionist)\b/i
-
-export function isLegitimateTechDevRole(title: string): boolean {
-  if (!title || typeof title !== "string") return false
-  if (NON_TECH_ROLE_DISQUALIFIER_REGEX.test(title)) return false
-  return TECH_ROLE_FILTER_REGEX.test(title)
+export {
+  TECH_ROLE_FILTER_REGEX,
+  NON_TECH_ROLE_DISQUALIFIER_REGEX,
+  isLegitimateTechDevRole,
 }
 
 /**
@@ -446,8 +443,24 @@ export async function fetchLinkedInGuestJobs(query: string, location?: string): 
       const jobIdMatch = rawLink.match(/-(\d+)(?:$|\/)/)
       const jobId = jobIdMatch ? jobIdMatch[1] : `li-${i}-${Date.now()}`
 
-      const description = `${title} at ${company} in ${loc}. Verified LinkedIn opening.`
-      const postTags = [toCanonical(title), "linkedin", "developer"]
+      const extractedTags = extractTechTagsFromText(`${title} ${searchKeyword}`)
+      const titleLower = title.toLowerCase()
+      const postTags = Array.from(
+        new Set([
+          toCanonical(title),
+          "linkedin",
+          "developer",
+          ...extractedTags,
+          ...(titleLower.includes("front") ? ["frontend", "react"] : []),
+          ...(titleLower.includes("react") ? ["react", "frontend", "javascript"] : []),
+          ...(titleLower.includes("next") ? ["nextjs", "react"] : []),
+          ...(titleLower.includes("full") ? ["fullstack", "react", "node"] : []),
+          ...(titleLower.includes("intern") ? ["intern", "internship"] : []),
+          ...(titleLower.includes("junior") || titleLower.includes("trainee") ? ["junior", "entry-level"] : []),
+        ])
+      )
+
+      const description = `${title} at ${company} in ${loc}. Verified LinkedIn developer opening for ${extractedTags.length > 0 ? extractedTags.join(", ") : "developers"}. Apply directly on LinkedIn.`
       jobs.push({
         id: `li-guest-${jobId}`,
         title,
@@ -968,4 +981,10 @@ export async function ingestGlobalJobsToCatalog(options: {
     expiredCount,
   }
 }
+
+export {
+  synthesizeLinkedInSearchQueries,
+  harvestLinkedInOpportunities,
+  ingestLinkedInOpportunitiesToCatalog,
+} from "./linkedin-harvester"
 

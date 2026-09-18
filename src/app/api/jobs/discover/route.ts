@@ -25,6 +25,10 @@ import { generateApplicationMaterialsAgent } from "@/lib/discovery/cover-letter-
 import { getCompanyEnrichment } from "@/lib/discovery/company-enrichment"
 import { retrieveCandidateJobsTier1 } from "@/lib/discovery/vector-retrieval"
 import { deepReRankCandidateJobs } from "@/lib/discovery/ai-reranker"
+import {
+  harvestLinkedInOpportunities,
+  ingestLinkedInOpportunitiesToCatalog,
+} from "@/lib/discovery/linkedin-harvester"
 
 export async function GET(request: NextRequest) {
   const userId = await getInternalUserId()
@@ -126,6 +130,29 @@ export async function GET(request: NextRequest) {
     for (const app of userApplications) {
       const key = `${normalizeCompany(app.companyName)}:${normalizeTitle(app.jobTitle)}`
       appMap.set(key, { id: app.id, status: app.status })
+    }
+
+    // 2.5 Automated LinkedIn Post Harvesting: If forceRefresh is requested, synchronously harvest 2 targeted queries
+    if (forceRefresh) {
+      try {
+        console.log(`[JobDiscovery API] Force refresh requested. Harvesting targeted LinkedIn posts for userId=${userId}...`)
+        const freshLinkedInJobs = await harvestLinkedInOpportunities(
+          {
+            skills: userSkills,
+            targetRoles,
+            experienceLevel,
+            location,
+            workPreference,
+          },
+          { maxQueries: 2 }
+        )
+        if (freshLinkedInJobs.length > 0) {
+          const res = await ingestLinkedInOpportunitiesToCatalog(freshLinkedInJobs)
+          console.log(`[JobDiscovery API] Force refresh LinkedIn harvest: ${freshLinkedInJobs.length} fetched, ${res.upserted} upserted.`)
+        }
+      } catch (err) {
+        console.warn("[JobDiscovery API] Force refresh LinkedIn harvest failed:", err)
+      }
     }
 
     // 3. TIER 1: Dense Vector Retrieval (<30ms)
@@ -252,17 +279,43 @@ export async function GET(request: NextRequest) {
       batchSummary
     )
 
-    // Fire-and-forget telemetry logging (non-blocking, zero latency impact on GET)
-    logDiscoveryEvent({
-      userId,
-      eventType: "FEED_VIEWED",
-      metadata: {
-        count: filteredOpportunities.length,
-        totalActive: opportunities.length,
-        topPicksCount,
-        query: query || undefined,
-        forceRefresh,
-      },
+    // Non-blocking after() tasks: Fire-and-forget telemetry logging and background LinkedIn post harvesting
+    after(async () => {
+      try {
+        logDiscoveryEvent({
+          userId,
+          eventType: "FEED_VIEWED",
+          metadata: {
+            count: filteredOpportunities.length,
+            totalActive: opportunities.length,
+            topPicksCount,
+            query: query || undefined,
+            forceRefresh,
+          },
+        })
+
+        // On normal visits (when not forceRefresh), keep catalog fresh by harvesting in background
+        if (!forceRefresh) {
+          const bgLinkedInJobs = await harvestLinkedInOpportunities(
+            {
+              skills: userSkills,
+              targetRoles,
+              experienceLevel,
+              location,
+              workPreference,
+            },
+            { maxQueries: 3 }
+          )
+          if (bgLinkedInJobs.length > 0) {
+            const bgRes = await ingestLinkedInOpportunitiesToCatalog(bgLinkedInJobs)
+            console.log(
+              `[JobDiscovery API] Background LinkedIn harvest completed: ${bgLinkedInJobs.length} fetched, ${bgRes.upserted} upserted.`
+            )
+          }
+        }
+      } catch (bgError) {
+        console.warn("[JobDiscovery API] Background tasks failed:", bgError)
+      }
     })
 
     return ResponseUtil.success({

@@ -783,3 +783,16 @@ export function isSeniorOrLeadRole(title: string, description?: string): boolean
   return false
 }
 
+export const TECH_ROLE_FILTER_REGEX =
+  /\b(software|developer|engineer|fullstack|full-stack|frontend|front-end|backend|back-end|devops|data engineer|data science|data scientist|ai|machine learning|ml|cloud|platform|security|systems|qa|sre|architect|mobile|ios|android|product design|ui\/ux)\b/i
+
+export const NON_TECH_ROLE_DISQUALIFIER_REGEX =
+  /\b(bartender|barista|waiter|waitress|maid|cleaner|janitor|cashier|clerk|driver|nurse|physician|therapist|realtor|mechanic|technician|receptionist|payroll|account executive|sales representative|sales rep|account manager|human resources|recruiter|executive assistant|virtual assistant|customer support|customer experience|customer care|content writer|copywriter|social media manager|legal counsel|paralegal|data entry|entry specialist|data quality analyst|transcriptionist)\b/i
+
+export function isLegitimateTechDevRole(title: string): boolean {
+  if (!title || typeof title !== "string") return false
+  if (NON_TECH_ROLE_DISQUALIFIER_REGEX.test(title)) return false
+  return TECH_ROLE_FILTER_REGEX.test(title)
+}
+
+
