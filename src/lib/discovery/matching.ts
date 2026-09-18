@@ -694,24 +694,44 @@ export function isValidJobPostingUrl(url?: string | null): boolean {
       return false
     }
 
-    // 2. Generic directory landing pages without job slug or ID
-    const genericLandingRegex = /^\/(careers|career|jobs|job|about\/careers|work-with-us|join-us|join-our-team|open-roles|open-positions|vacancies)$/i
+    // 2. Generic directory landing pages ending in /careers, /jobs, etc. anywhere in the path
+    const genericLandingRegex = /(?:^|\/)(careers|career|jobs|job|about\/careers|work-with-us|join-us|join-our-team|open-roles|open-positions|vacancies)$/i
     if (genericLandingRegex.test(pathname)) {
       return false
     }
 
-    // 3. Known aggregator board root landing pages
-    if (hostname.includes("jobicy.com") && pathname === "/jobs") {
-      return false
+    // 3. LinkedIn specific strict rejection
+    if (hostname.includes("linkedin.com")) {
+      // Reject generic company pages (e.g. linkedin.com/company/brain-station-23 or linkedin.com/company/pathao/jobs)
+      if (pathname.includes("/company/")) {
+        return false
+      }
+      // Reject search result or generic jobs index
+      if (pathname.includes("/jobs/search") || pathname === "/jobs" || pathname === "/feed") {
+        return false
+      }
+      // For jobs/view, ensure it has a valid numerical ID segment of at least 8 digits
+      if (pathname.includes("/jobs/view/")) {
+        if (!/\d{8,}/.test(pathname)) return false
+      }
     }
-    if (hostname.includes("remoteok.com") && (pathname === "/remote-jobs" || pathname === "")) {
-      return false
+
+    // 4. Known aggregator board root landing pages
+    if (hostname.includes("jobicy.com")) {
+      if (pathname === "/jobs" || !pathname.startsWith("/jobs/")) {
+        return false
+      }
+    }
+    if (hostname.includes("remoteok.com")) {
+      if (pathname === "/remote-jobs" || pathname === "" || !pathname.startsWith("/remote-jobs/")) {
+        return false
+      }
     }
     if (hostname.includes("weworkremotely.com") && (pathname === "/categories" || pathname === "/remote-jobs")) {
       return false
     }
     if (hostname.includes("greenhouse.io")) {
-      // Must contain /jobs/<id> or similar specific path
+      // Must contain /jobs/<id> or similar specific path with digits
       if (!pathname.includes("/jobs/") && !/\/\d+$/.test(pathname)) {
         return false
       }

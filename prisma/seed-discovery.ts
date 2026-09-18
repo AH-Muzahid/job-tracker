@@ -6,7 +6,7 @@ import {
   fetchArbeitnowJobs,
   fetchLinkedInGuestJobs,
   CURATED_SEED_RESERVOIR,
-  DAILY_LINKEDIN_SOCIAL_POSTS,
+  isLegitimateTechDevRole,
 } from "../src/lib/discovery/scrapers"
 import {
   normalizeJobFingerprint,
@@ -71,12 +71,11 @@ async function main() {
     fetchedJobs.push(...liFrontendRes.value)
   }
 
-  // Include curated verified remote jobs AND organic LinkedIn founder hiring posts
+  // Include curated verified remote jobs
   fetchedJobs.push(...CURATED_SEED_RESERVOIR)
-  fetchedJobs.push(...DAILY_LINKEDIN_SOCIAL_POSTS)
 
-  // Deduplicate and filter dead links
-  const combined = deduplicateJobs(fetchedJobs).filter((j) => isValidJobPostingUrl(j.url))
+  // Deduplicate and filter dead links and non-tech roles
+  const combined = deduplicateJobs(fetchedJobs).filter((j) => isValidJobPostingUrl(j.url) && isLegitimateTechDevRole(j.title))
   console.log(`Total unique verified opportunities: ${combined.length}`)
 
   // 2. Clean out old fake placeholder jobs with generic /careers or homepage URLs

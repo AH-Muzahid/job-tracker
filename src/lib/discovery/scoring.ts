@@ -21,7 +21,6 @@ import {
 } from "./matching"
 import {
   CURATED_SEED_RESERVOIR,
-  DAILY_LINKEDIN_SOCIAL_POSTS,
 } from "./scrapers"
 import { computeSemanticSimilarity } from "./semantic-match"
 import { getCompanyEnrichment } from "./company-enrichment"
@@ -178,7 +177,7 @@ export async function executeSearchExternalJobs(
 
     // If database has 0 canonical jobs, fall back to in-memory seeds
     if (rawJobs.length === 0) {
-      rawJobs = [...CURATED_SEED_RESERVOIR, ...DAILY_LINKEDIN_SOCIAL_POSTS]
+      rawJobs = [...CURATED_SEED_RESERVOIR]
     }
 
     // 3. Extract search tokens for query matching (applied strictly only if user explicitly searched)
@@ -528,9 +527,7 @@ export async function executeSearchExternalJobs(
         }
       )
 
-      // Boost direct leads (LinkedIn organic founder/team posts) by +6 pts
-      const linkedinPostBoost = (job.sourceBoard === "linkedin_post" || job.sourceBoard === "linkedin") ? 6 : 0
-      const rawPoints = locationScore + skillScore + roleScore + experienceScore + implicitAdj.scoreDelta + freshness.scoreDelta + visaScore + linkedinPostBoost + semanticResult.bonus
+      const rawPoints = locationScore + skillScore + roleScore + experienceScore + implicitAdj.scoreDelta + freshness.scoreDelta + visaScore + semanticResult.bonus
       const finalFitScore = Math.max(1, Math.min(99, Math.round(rawPoints)))
 
       // Realistic ATS Keyword Matching Simulation
