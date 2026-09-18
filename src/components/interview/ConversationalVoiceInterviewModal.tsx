@@ -28,7 +28,7 @@ export function ConversationalVoiceInterviewModal({
   initialCompany = "Google / Tech Company",
   initialType = "Technical",
   initialTone = "friendly",
-  initialTurns = 5,
+  initialTurns = 8,
   applicationId,
   onSessionSaved,
 }: ConversationalVoiceInterviewModalProps) {
@@ -793,6 +793,16 @@ export function ConversationalVoiceInterviewModal({
     await sendTurnToAi(undefined, [])
   }
 
+  // Extend Interview Session by 3 Questions
+  const handleExtendInterview = useCallback(() => {
+    setTargetTurnCount((prev) => {
+      const next = prev + 3
+      toast.success(`Interview extended! ${next} total questions scheduled.`)
+      return next
+    })
+    setIsInterviewComplete(false)
+  }, [])
+
   // End Interview & Generate Full Report
   const handleEndInterview = async () => {
     stopAllAudioAndMic()
@@ -940,6 +950,7 @@ export function ConversationalVoiceInterviewModal({
             targetTurnCount={targetTurnCount}
             currentPhase={currentPhase}
             isInterviewComplete={isInterviewComplete}
+            onExtendInterview={handleExtendInterview}
           />
         )}
 

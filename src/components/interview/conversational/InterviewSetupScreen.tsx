@@ -167,11 +167,12 @@ export function InterviewSetupScreen({
           <Label className="text-xs font-medium text-foreground">Round Structure & Length</Label>
           <span className="text-[10px] font-mono text-muted-foreground">{targetTurnCount} structured questions</span>
         </div>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           {[
-            { count: 4, label: "Express", time: "4 Questions (~4 mins)" },
-            { count: 5, label: "Standard", time: "5 Questions (Recommended)" },
-            { count: 7, label: "In-Depth", time: "7 Questions (~10 mins)" },
+            { count: 5, label: "Screening", time: "5 Questions (~5 mins)" },
+            { count: 8, label: "Standard", time: "8 Questions (Recommended)" },
+            { count: 12, label: "In-Depth", time: "12 Questions (~15 mins)" },
+            { count: 16, label: "Full Loop", time: "16 Questions (~22 mins)" },
           ].map((item) => {
             const isSelected = targetTurnCount === item.count
             return (

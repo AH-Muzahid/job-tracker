@@ -15,7 +15,7 @@ const ConversationTurnSchema = z.object({
   interviewerTone: z.enum(["friendly", "strict", "startup-cto", "architect"]).optional().default("friendly"),
   voiceGender: z.enum(["female", "male"]).optional().default("female"),
   language: z.enum(["en", "bn", "mixed"]).optional().default("en"),
-  targetTurnCount: z.number().int().min(1).max(20).optional().default(5),
+  targetTurnCount: z.number().int().min(1).max(25).optional().default(8),
   applicationId: z.string().optional(),
   history: z
     .array(

@@ -11,6 +11,7 @@ import {
   BrainCircuit,
   Loader2,
   Award,
+  Plus,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
@@ -33,19 +34,20 @@ interface ActiveInterviewRoomProps {
   isPaused: boolean
   togglePause: () => void
   showTranscriptDrawer: boolean
-  setShowTranscriptDrawer: (val: boolean) => void
+  setShowTranscriptDrawer: (show: boolean) => void
   onEndInterview: () => void
+  onExtendInterview?: () => void
   isAiSpeaking: boolean
   isListening: boolean
   isAiThinking: boolean
   autoTurnActive: boolean
   onMicClick: () => void
   speechInputLang: "bn-BD" | "en-US"
-  setSpeechInputLang: (val: "bn-BD" | "en-US") => void
+  setSpeechInputLang: (lang: "bn-BD" | "en-US") => void
   onToggleMute: () => void
   currentTranscript: string
   setCurrentTranscript: (val: string) => void
-  onSendTurn: (text?: string) => void
+  onSendTurn: (customAnswer?: string) => void
   dialogue: DialogueMessage[]
   messagesEndRef: RefObject<HTMLDivElement | null>
   currentQuestionNumber: number
@@ -66,6 +68,7 @@ export function ActiveInterviewRoom({
   showTranscriptDrawer,
   setShowTranscriptDrawer,
   onEndInterview,
+  onExtendInterview,
   isAiSpeaking,
   isListening,
   isAiThinking,
@@ -144,6 +147,18 @@ export function ActiveInterviewRoom({
               {isPaused ? <Play className="h-3 w-3 fill-current" /> : <Pause className="h-3 w-3" />}
               <span>{isPaused ? "Resume" : "Pause"}</span>
             </Button>
+            {onExtendInterview && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onExtendInterview}
+                className="text-[11px] sm:text-xs h-7 sm:h-8 px-2 sm:px-3 gap-1 hover:border-primary hover:text-primary transition-colors cursor-pointer"
+                title="Add 3 more questions to this interview round"
+              >
+                <Plus className="h-3 w-3 text-primary" />
+                <span>+3 Questions</span>
+              </Button>
+            )}
             <Button
               variant="outline"
               size="sm"
