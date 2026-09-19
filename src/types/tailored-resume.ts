@@ -35,5 +35,10 @@ export interface TailoredResumeData {
   targetCompany?: string
   targetRole?: string
   matchScore?: number
+  weaknessMitigations?: Array<{
+    weaknessTopic: string
+    mitigationStrategy: string
+  }>
   generatedAt?: string
 }
+

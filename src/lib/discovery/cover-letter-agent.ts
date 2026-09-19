@@ -4,6 +4,7 @@ import { getUserAIConfig } from "@/lib/ai/config"
 import { getProvider } from "@/lib/ai/client"
 import { generateText } from "ai"
 import { toCanonical } from "@/lib/ai/knowledge-graph"
+import { getUserWeaknesses } from "@/lib/ai/memory"
 
 export interface GeneratedApplicationMaterials {
   coverLetter: string
@@ -94,12 +95,17 @@ export async function generateApplicationMaterialsAgent(
     salary?: string
   }
 ): Promise<GeneratedApplicationMaterials> {
-  const [profile, user] = await Promise.all([
+  const [profile, user, weaknesses] = await Promise.all([
     withDbRetry<any>(() => prisma.userProfile.findUnique({ where: { userId } })),
     withDbRetry<any>(() => prisma.user.findUnique({ where: { id: userId }, select: { name: true } })),
+    getUserWeaknesses(userId, 3).catch(() => []),
   ])
 
   const candidateName = user?.name || profile?.fullName || "Applicant"
+  const weaknessNotes =
+    weaknesses && weaknesses.length > 0
+      ? weaknesses.map((w: any) => `- ${w.content}`).join("\n")
+      : ""
 
   let materials: GeneratedApplicationMaterials
 
@@ -119,6 +125,7 @@ Candidate Profile:
 - Strengths & Tech: ${profile?.strengths || "React, TypeScript, Node.js"}
 - Best Projects: ${JSON.stringify(profile?.bestProjects || [])}
 - Experience Level: ${profile?.experienceLevel || "Mid-level"}
+${weaknessNotes ? `- Areas of Prior Technical Weakness / Feedback (Counteract with verifiable proof or avoid unsubstantiated claims):\n${weaknessNotes}` : ""}
 
 Respond in valid JSON format:
 {
@@ -154,15 +161,15 @@ Respond in valid JSON format:
     const outreachBody = materials.outreachPitch
     const outreachChecklist = [
       "Verified GitHub/LinkedIn/portfolio links included",
-      `Mentioned core technical strengths: ${materials.atsKeywords.slice(0, 3).join(", ") || "TypeScript, React"}`,
+      `Mentioned core technical strengths: ${(materials.atsKeywords || []).slice(0, 3).join(", ") || "TypeScript, React"}`,
       "Highlighted top demonstrated projects",
       "Tailored application to company's stated tech stack",
     ]
     const tailoredResumeJson = {
       targetRole: context.jobTitle,
       company: context.companyName,
-      highlights: materials.highlights,
-      atsKeywords: materials.atsKeywords,
+      highlights: materials.highlights || [],
+      atsKeywords: materials.atsKeywords || [],
       strategyTip: materials.strategyTip,
     }
 

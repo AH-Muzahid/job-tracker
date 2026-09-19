@@ -356,6 +356,45 @@ async function longitudinalTrackingNode(
     )
   }
 
+  // Synchronize interview evaluation findings to active ApplicationAnalysis if linked
+  if (state.applicationId && state.userId && state.evaluationReport) {
+    try {
+      const { prisma, withDbRetry } = await import("@/lib/prisma")
+      const gapRecord = {
+        interviewScore: state.evaluationReport.overallScore,
+        verdict: state.evaluationReport.verdict,
+        interviewType: state.roundType,
+        knowledgeGaps: state.evaluationReport.knowledgeGaps || [],
+        evaluatedAt: new Date().toISOString(),
+      }
+
+      await withDbRetry(async () => {
+        const existingAnalysis = await prisma.applicationAnalysis.findUnique({
+          where: { applicationId: state.applicationId },
+        })
+
+        if (existingAnalysis) {
+          await prisma.applicationAnalysis.update({
+            where: { applicationId: state.applicationId },
+            data: { gapAnalysis: gapRecord },
+          })
+        } else {
+          await prisma.applicationAnalysis.create({
+            data: {
+              applicationId: state.applicationId!,
+              matchScore: state.evaluationReport?.overallScore || 75,
+              confidence: "medium",
+              verdict: state.evaluationReport?.verdict || "Interview Evaluated",
+              gapAnalysis: gapRecord,
+            },
+          })
+        }
+      })
+    } catch {
+      // Non-fatal if application analysis sync fails
+    }
+  }
+
   return {
     status: "completed",
     auditLog: [

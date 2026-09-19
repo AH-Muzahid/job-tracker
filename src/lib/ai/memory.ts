@@ -128,6 +128,7 @@ export async function getUserWeaknesses(
   limit: number = 5
 ): Promise<WeaknessMemory[]> {
   if (!userId) return []
+  if (!prisma?.userMemory?.findMany) return []
 
   try {
     const weaknesses = await withDbRetry<WeaknessMemory[]>(() =>
@@ -177,5 +178,24 @@ PROBING DIRECTIVE FOR THIS QUESTION:
 - Acknowledge their previous answer in 2-3 words.
 - Actively probe or challenge the candidate around this known weakness area to test whether they have improved.
 - Seamlessly weave this challenge into the current conversation (e.g., "In your last session, you touched on this topic, but let's test how you'd handle...").`
+}
+
+/**
+ * Formats historical interview weaknesses into strategic resume tailoring counter-measures.
+ */
+export function formatWeaknessMitigationForResume(weaknesses: WeaknessMemory[]): string {
+  if (!weaknesses || weaknesses.length === 0) return ""
+
+  const items = weaknesses
+    .map((w, i) => `${i + 1}. ${w.content}`)
+    .join("\n")
+
+  return `## CANDIDATE HISTORICAL INTERVIEW WEAKNESSES TO PROACTIVELY COUNTERACT:
+The candidate had the following areas flagged as weak, insufficient, or lacking depth in recent mock interviews:
+${items}
+
+TAILORING COUNTER-STRATEGY MANDATE:
+1. Ensure the generated experience bullet points and project highlights explicitly provide concrete, verifiable evidence and quantifiable metrics (e.g. latency numbers, throughput, uptime SLAs, or STAR-framed results) that directly counteract these known gaps.
+2. Provide a "weaknessMitigations" array in the JSON response explaining how the tailored resume specifically mitigates each identified weakness for this job description.`
 }
 

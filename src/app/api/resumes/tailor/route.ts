@@ -12,6 +12,7 @@ import {
   traverseGraphForJD,
   formatGraphForContext 
 } from "@/lib/ai/knowledge-graph"
+import { getUserWeaknesses, formatWeaknessMitigationForResume } from "@/lib/ai/memory"
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit"
 import type { TailoredResumeData } from "@/types/tailored-resume"
 
@@ -58,8 +59,8 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  // 1. Fetch user data in parallel
-  const [user, profile, defaultResume, cachedGraph] = await Promise.all([
+  // 1. Fetch user data and historical interview weaknesses in parallel
+  const [user, profile, defaultResume, cachedGraph, weaknesses] = await Promise.all([
     prisma.user.findUnique({
       where: { id: userId },
       select: { name: true, email: true },
@@ -72,6 +73,7 @@ export async function POST(req: NextRequest) {
       select: { title: true, fileName: true, textContent: true },
     }),
     getCachedKnowledgeGraph(userId),
+    getUserWeaknesses(userId, 5),
   ])
 
   let activeGraph = cachedGraph
@@ -92,9 +94,10 @@ export async function POST(req: NextRequest) {
     graphEvidence = formatGraphForContext(activeGraph)
   }
 
-  // 3. Construct System Prompt & User Prompt
+  // 3. Construct System Prompt & User Prompt with Weakness Mitigation Context
   const displayName = user?.name || profile?.targetRoles?.[0] || "Candidate"
   const candidateEmail = user?.email || "candidate@email.com"
+  const weaknessPromptContext = formatWeaknessMitigationForResume(weaknesses)
 
   const systemPrompt = `You are an expert Technical Resume Strategist and ATS Optimization Engine.
 Your task is to generate a pristine, single-page, ATS-optimized technical resume in strict JSON format.
@@ -123,6 +126,7 @@ CANDIDATE INFORMATION:
 - Target Roles: ${profile?.targetRoles?.join(", ") || ""}
 
 ${graphEvidence ? `CANDIDATE CAREER KNOWLEDGE GRAPH (EVIDENCE):\n${graphEvidence}` : `RESUME EXCERPT:\n${defaultResume?.textContent?.slice(0, 3000) || "Standard software developer background"}`}
+${weaknessPromptContext ? `\n${weaknessPromptContext}\n` : ""}
 
 Generate the tailored resume JSON in this exact structure:
 {
@@ -170,6 +174,12 @@ Generate the tailored resume JSON in this exact structure:
       "institution": "University",
       "year": "2022"
     }
+  ],
+  "weaknessMitigations": [
+    {
+      "weaknessTopic": "Historical Weakness Topic",
+      "mitigationStrategy": "Concrete way the tailored resume bullet points and evidence address this gap."
+    }
   ]
 }`
 
@@ -203,6 +213,16 @@ Generate the tailored resume JSON in this exact structure:
     parsedData.targetRole = targetRole
     parsedData.matchScore = matchScore
     parsedData.generatedAt = new Date().toISOString()
+
+    if ((!parsedData.weaknessMitigations || parsedData.weaknessMitigations.length === 0) && weaknesses.length > 0) {
+      parsedData.weaknessMitigations = weaknesses.slice(0, 3).map((w) => {
+        const topic = w.content.match(/\[Weakness:\s*([^\]]+)\]/i)?.[1] || "Core Architecture & Metrics"
+        return {
+          weaknessTopic: topic,
+          mitigationStrategy: "Proactively reinforced with quantifiable project outcomes and production metrics.",
+        }
+      })
+    }
 
     return NextResponse.json({
       success: true,

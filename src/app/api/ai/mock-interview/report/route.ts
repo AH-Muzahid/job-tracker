@@ -283,6 +283,57 @@ ${dialogueTranscript}
         }
       }
 
+      // Synchronize interview evaluation findings into ApplicationAnalysis & Application
+      if (verifiedAppId && prisma?.applicationAnalysis?.findUnique) {
+        try {
+          const gapRecord = {
+            interviewScore: report.overallScore,
+            verdict: report.verdict,
+            interviewType: interviewType || "Technical",
+            knowledgeGaps: report.knowledgeGaps || [],
+            evaluatedAt: new Date().toISOString(),
+          }
+
+          const existingAnalysis = await prisma.applicationAnalysis.findUnique({
+            where: { applicationId: verifiedAppId },
+          })
+
+          if (existingAnalysis) {
+            await prisma.applicationAnalysis.update({
+              where: { applicationId: verifiedAppId },
+              data: {
+                gapAnalysis: gapRecord,
+              },
+            })
+          } else {
+            await prisma.applicationAnalysis.create({
+              data: {
+                applicationId: verifiedAppId,
+                matchScore: report.overallScore || 75,
+                confidence: "medium",
+                verdict: report.verdict || "Interview Evaluated",
+                gapAnalysis: gapRecord,
+              },
+            })
+          }
+
+          const summaryNote = `[Interview ${interviewType || "Technical"} - Score: ${
+            report.overallScore || "N/A"
+          }/100, Verdict: ${report.verdict || "Evaluated"}]: ${report.executiveSummary || ""}`
+          if (prisma?.application?.update) {
+            await prisma.application.update({
+              where: { id: verifiedAppId },
+              data: {
+                interviewNotes: summaryNote,
+                updatedAt: new Date(),
+              },
+            })
+          }
+        } catch (analysisErr) {
+          console.warn("[ApplicationAnalysis Sync Error (non-fatal)]:", analysisErr)
+        }
+      }
+
       return NextResponse.json({ ...report, sessionId: session.id })
     } catch (saveErr) {
       console.warn("[Session Save Error (non-fatal)]:", saveErr)

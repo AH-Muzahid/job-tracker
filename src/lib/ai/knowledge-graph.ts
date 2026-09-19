@@ -397,6 +397,8 @@ export async function getCachedKnowledgeGraph(userId: string): Promise<CareerGra
   if (cached) return cached
 
   try {
+    if (!prisma?.careerKnowledgeGraph?.findUnique) return null
+
     const record = await withDbRetry<{ id: string; userId: string; nodes: any; edges: any; summary: string | null } | null>(() =>
       prisma.careerKnowledgeGraph.findUnique({
         where: { userId },
