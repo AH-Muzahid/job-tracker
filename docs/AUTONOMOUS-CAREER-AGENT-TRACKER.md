@@ -182,15 +182,19 @@ Whenever ANY architectural change, refactor, deletion, endpoint modification, or
   - **Owner**: Antigravity AI
   - **Status**: `Release Ready`
 
-- [ ] **`CAG-08` [Integration / Agent] Autonomous Gmail Recruiter Reply Status Ingestion**
-  - **Description**: Use existing Gmail sync to detect confirmation emails, interview invites, and rejections, automatically transitioning application status.
+- [x] **`CAG-08` [Integration / Agent] Autonomous Gmail Recruiter Reply Status Ingestion**
+  - **Description**: Connect inbound Gmail sync pipeline (`src/lib/gmail-sync.ts` & Inngest cron `src/inngest/functions/inbox-sync.ts`) to detect confirmation emails, interview invitations (with meeting URL, round, and scheduled date extraction), and rejections, automatically transitioning application status, initializing mock interview prep sessions, and invalidating caches.
   - **Target Files**:
-    - `src/lib/gmail-sync.ts` (MODIFY - add structured classification node)
-    - `src/components/applications/MilestoneTimeline.tsx` (MODIFY - add "Updated via Email Sync" badge)
-  - **Acceptance Criteria**: When a recruiter email containing an interview link arrives, application moves to `INTERVIEWING`, records `interviewDate`, and schedules mock prep.
+    - `src/lib/gmail-sync.ts` (MODIFIED - added `extractMeetingUrl`, `extractInterviewRound`, `extractInterviewDate`, `extractBodyText`, `CONFIRMATION` intent detection, interview round/date/link updates on `Application`, `StatusChange` rich metadata, `InterviewSession` auto-initialization, and Redis cache invalidation)
+    - `src/components/applications/MilestoneTimeline.tsx` (MODIFIED - rendered "Updated via Email Sync" badge, recruiter sender info, meeting URL button, and interview prep launcher with zero Sparkles icons)
+    - `src/components/applications/types.ts` (MODIFIED - extended `StatusChange.metadata` schema)
+    - `src/features/applications/components/types.ts` (MODIFIED - extended `StatusChange.metadata` schema)
+    - `src/__tests__/gmail-inbound-sync.test.ts` (MODIFIED - comprehensive 14-test suite covering extraction helpers, confirmation progression, interview session creation, and cache invalidation)
+    - `src/__tests__/milestone-timeline.test.tsx` (CREATED - 5 unit tests verifying email sync badge, meeting link, prep link, and 0-Sparkles compliance)
+  - **Acceptance Criteria**: When a recruiter email containing an interview link arrives, application moves to `Interview`, records `interviewRound`, `interviewMeetingUrl`, and `interviewDate`, schedules/initializes `InterviewSession`, and invalidates dashboard caches.
   - **Priority**: `P1`
-  - **Owner**: TBD
-  - **Status**: `Pending`
+  - **Owner**: Antigravity AI
+  - **Status**: `Release Ready`
 
 ---
 

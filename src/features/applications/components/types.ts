@@ -3,6 +3,17 @@ export interface StatusChange {
   fromStatus: string | null
   toStatus: string
   changedAt: string
+  metadata?: {
+    source?: string
+    sender?: string
+    subject?: string
+    intent?: string
+    meetingUrl?: string
+    round?: string
+    interviewDate?: string
+    snippet?: string
+    [key: string]: unknown
+  } | null
 }
 
 export interface TagItem {

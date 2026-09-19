@@ -1,6 +1,7 @@
 "use client"
 
-import { Bookmark, Mail, Clock, Target, Trash2, CheckCircle2 } from "lucide-react"
+import { Bookmark, Mail, Clock, Target, Trash2, CheckCircle2, Video, Calendar, ExternalLink } from "lucide-react"
+import Link from "next/link"
 import { Application } from "./types"
 
 const STATUS_CONFIG: Record<string, { color: string; bg: string; icon: React.ReactNode }> = {
@@ -23,6 +24,8 @@ export function MilestoneTimeline({ application }: MilestoneTimelineProps) {
       <div className="relative border-l border-border pl-5 space-y-6">
         {application.statusChanges.map((change) => {
           const cfg = STATUS_CONFIG[change.toStatus] || STATUS_CONFIG.Saved
+          const isEmailSync = change.metadata?.source === "gmail_inbox_sync"
+
           return (
             <div key={change.id} className="relative">
               {/* Dot indicator */}
@@ -39,6 +42,12 @@ export function MilestoneTimeline({ application }: MilestoneTimelineProps) {
                     {cfg.icon}
                     {change.toStatus}
                   </span>
+                  {isEmailSync && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-mono bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
+                      <Mail className="h-3 w-3" />
+                      Updated via Email Sync
+                    </span>
+                  )}
                 </div>
                 <p className="text-xs text-muted-foreground">
                   {change.fromStatus ? (
@@ -49,6 +58,65 @@ export function MilestoneTimeline({ application }: MilestoneTimelineProps) {
                     <>Application created and set to status <span className="font-medium text-foreground">{change.toStatus}</span>.</>
                   )}
                 </p>
+
+                {isEmailSync && change.metadata && (
+                  <div className="mt-2 p-2.5 rounded-lg border border-border/70 bg-muted/40 space-y-2 text-xs">
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-muted-foreground text-[11px]">
+                      {change.metadata.sender && (
+                        <span className="truncate">
+                          <strong className="text-foreground font-medium">From:</strong> {change.metadata.sender}
+                        </span>
+                      )}
+                      {change.metadata.subject && (
+                        <span className="truncate italic">
+                          &ldquo;{change.metadata.subject}&rdquo;
+                        </span>
+                      )}
+                      {change.metadata.round && (
+                        <span className="inline-flex items-center gap-1 font-medium text-foreground">
+                          <Target className="h-3 w-3 text-violet-500" />
+                          {change.metadata.round}
+                        </span>
+                      )}
+                      {change.metadata.interviewDate && (
+                        <span className="inline-flex items-center gap-1 text-muted-foreground font-mono">
+                          <Calendar className="h-3 w-3 text-amber-500" />
+                          {new Date(change.metadata.interviewDate).toLocaleString(undefined, {
+                            weekday: "short",
+                            month: "short",
+                            day: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2 pt-1">
+                      {change.metadata.meetingUrl && (
+                        <a
+                          href={change.metadata.meetingUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors"
+                        >
+                          <Video className="h-3.5 w-3.5" />
+                          Join Meeting
+                          <ExternalLink className="h-3 w-3 opacity-70" />
+                        </a>
+                      )}
+                      {(change.toStatus === "Interview" || change.metadata.intent === "INTERVIEW") && (
+                        <Link
+                          href={`/interview-prep?applicationId=${application.id}`}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium bg-violet-500/10 text-violet-600 dark:text-violet-400 border border-violet-500/20 hover:bg-violet-500/20 transition-colors"
+                        >
+                          <Target className="h-3.5 w-3.5" />
+                          Launch Interview Prep
+                        </Link>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )
