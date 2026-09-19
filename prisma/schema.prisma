@@ -49,6 +49,7 @@ model Application {
   interviewRound      String?
   interviewMeetingUrl String?
   interviewNotes      String?   @db.Text
+  offerDetails        Json?
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
