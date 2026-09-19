@@ -3,12 +3,13 @@
 import { cn } from "@/lib/utils";
 import { CustomSidebarTrigger } from "@/components/custom-sidebar-trigger";
 import { NavUser } from "@/components/nav-user";
-import { SearchIcon } from "lucide-react";
+import { SearchIcon, Zap } from "lucide-react";
 import { NotificationCenter } from "@/components/notifications/NotificationCenter";
 import { useUI } from "@/lib/store";
 
 export function AppHeader() {
 	const setSearchOpen = useUI((s) => s.setSearchOpen);
+	const setEvaluatorModal = useUI((s) => s.setEvaluatorModal);
 
 	return (
 		<header
@@ -33,6 +34,16 @@ export function AppHeader() {
 					<kbd className="ml-auto pointer-events-none inline-flex h-5 select-none items-center gap-0.5 rounded-md border border-slate-200/80 dark:border-slate-700 bg-white dark:bg-slate-900 px-1.5 font-sans text-[10px] font-medium text-slate-500 shadow-2xs">
 						⌘ K
 					</kbd>
+				</button>
+
+				{/* Universal Evaluator Quick Intake Pill */}
+				<button
+					onClick={() => setEvaluatorModal(true)}
+					className="hidden lg:flex items-center gap-1.5 h-9.5 sm:h-10 rounded-full border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900/60 hover:bg-slate-50 dark:hover:bg-slate-800/80 px-3.5 text-xs font-medium text-foreground transition-colors cursor-pointer shadow-2xs"
+					title="Evaluate external job posting or paste JD"
+				>
+					<Zap className="h-3.5 w-3.5 text-primary" />
+					<span>Evaluate Job</span>
 				</button>
 			</div>
 

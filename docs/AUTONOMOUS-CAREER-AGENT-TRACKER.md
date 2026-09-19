@@ -88,18 +88,25 @@ Whenever ANY architectural change, refactor, deletion, endpoint modification, or
   - **Owner**: Antigravity AI
   - **Status**: `Release Ready`
 
-- [ ] **`CAG-03` [Ingestion / Agent] Activate Orphaned `JDIntakePanel.tsx` & Build Unified `/api/discovery/evaluate`**
+- [x] **`CAG-03` [Ingestion / Agent] Activate Orphaned `JDIntakePanel.tsx` & Build Unified `/api/discovery/evaluate`**
   - **Description**: Unify the 4 disparate JD inputs into a single universal opportunity evaluator with web scraping, scam risk gating, and tech stack extraction inside the Discovery Hub.
   - **Target Files**:
-    - `src/components/ai/JDIntakePanel.tsx` (RENAME & REFACTOR to `src/components/discovery/UniversalJDEvaluator.tsx`)
-    - `src/app/api/discovery/evaluate/route.ts` (NEW)
-    - `src/components/dashboard/DashboardQuickIntake.tsx` (MODIFY)
-    - `src/components/dashboard/CommandZone.tsx` (MODIFY)
-    - `src/components/CommandPalette.tsx` (MODIFY)
+    - `src/components/ai/JDIntakePanel.tsx` (DEPRECATED & RE-EXPORTED `UniversalJDEvaluator`)
+    - `src/components/discovery/UniversalJDEvaluator.tsx` (CREATED)
+    - `src/components/discovery/UniversalJDEvaluatorModal.tsx` (CREATED)
+    - `src/app/api/discovery/evaluate/route.ts` (CREATED)
+    - `src/components/app-header.tsx` (MODIFIED - added Evaluate Job action)
+    - `src/components/CommandPalette.tsx` (MODIFIED - added /evaluate command & search item)
+    - `src/components/discovery/DiscoveryPage.tsx` (MODIFIED - added Evaluate JD header action)
+    - `src/components/dashboard/DashboardQuickIntake.tsx` (MODIFIED)
+    - `src/components/dashboard/CommandZone.tsx` (MODIFIED)
+    - `src/components/app-shell.tsx` (MODIFIED - mounted modal globally)
+    - `src/stores/store.ts` (MODIFIED - added evaluatorModal state to useUI)
+    - `src/__tests__/discovery-evaluate-api.test.ts` (CREATED)
   - **Acceptance Criteria**: Candidates can paste any job post URL or raw text in a single evaluator modal to receive an instant fit dossier with 1-click stage action. Validated with Zod schema.
   - **Priority**: `P0`
-  - **Owner**: TBD
-  - **Status**: `Pending`
+  - **Owner**: Antigravity AI
+  - **Status**: `Release Ready`
 
 - [ ] **`CAG-04` [Data Model / Pipeline] Formalize `STAGED` Application Status in Database & UI**
   - **Description**: Provide a formal staging area between discovering a job and submitting an application.
@@ -284,4 +291,6 @@ Get-ChildItem -Path src -Recurse -Include *.tsx,*.ts | Select-String "Sparkles"
 | 2026-09-18 | `CAG-01` | Purged legacy SaaS billing artifacts and deployed pixel-perfect Career Operating System dashboard matching user mockup. Verified with 69 test files (387 tests passing) and production build. | `src/components/dashboard.tsx`, `src/app/api/dashboard/stats/route.ts`, `src/components/dashboard/*`, `src/components/app-shared.tsx`, `src/components/app-sidebar.tsx` | Antigravity AI |
 | 2026-09-19 | `CAG-01` | Pixel-perfect UI cockpit refinement matching media_1789757539889.png: permanent dark navy #0c1322 sidebar, isometric cube logo, Box icon for Interviews, wide search bar + red notification badge, #f8fafc canvas with rounded-2xl white cards, authentic SVGs via CompanyBrandLogo (Google, Stripe, Notion, Anthropic, Linear, Figma), padding to guarantee full rows, 0 sparkles guardrail. 70 test files (395 tests) and next build passed. | `src/app/globals.css`, `src/components/app-sidebar.tsx`, `src/components/app-header.tsx`, `src/components/app-shell.tsx`, `src/components/app-shared.tsx`, `src/components/dashboard/*`, `src/components/CompanyBrandLogo.tsx`, `src/__tests__/dashboard-pixel-perfect.test.tsx` | Antigravity AI |
 | 2026-09-19 | `CAG-02` | Eradicated localStorage outreach drafts and migrated persistence to PostgreSQL ApplicationAnalysis. Added outreachSubject, outreachBody, outreachChecklist, outreachGeneratedAt, tailoredResumeJson. Added PATCH endpoint with Zod validation, tenant isolation (userId check), and Prisma JsonNull safety. Implemented React Query mutation with debounced cloud auto-save and 'Draft saved to cloud' indicator. One-time auto-migration for legacy localStorage drafts. Verified with 71 test files (402 tests passing), tsc --noEmit, eslint, and next build. | `prisma/schema.prisma`, `src/app/api/applications/[id]/analysis/route.ts`, `src/app/api/applications/[id]/outreach/route.ts`, `src/components/applications/types.ts`, `src/features/applications/application.hooks.ts`, `src/lib/api.ts`, `src/components/applications/ApplicationWorkbench.tsx`, `src/components/applications/OutreachAssistantCard.tsx`, `src/__tests__/application-outreach-persistence.test.ts` | Antigravity AI |
+| 2026-09-19 | `CAG-03` | Activated orphaned JD intake UI and built unified Ingestion & Evaluation API (`POST /api/discovery/evaluate`). Consolidates URL scraping, SSRF loopback/private protection, autonomous scam heuristic gating (`evaluateJobScamRisk`), canonical tech stack extraction (`extractTechTagsFromText`), career knowledge graph traversal, and resilient AI fit evaluation with deterministic heuristic fallback. Refactored into `UniversalJDEvaluator.tsx` and `UniversalJDEvaluatorModal.tsx` globally accessible via AppHeader ('Evaluate Job' pill), CommandPalette (`Cmd+K` & `/evaluate`), DiscoveryPage header ('Evaluate JD' CTA), and DashboardQuickIntake. Persists directly to Application and ApplicationAnalysis upon 1-click stage/apply action. Verified with 72 test files (409 tests passing), 0 TypeScript errors, 0 ESLint warnings/errors, and production next build. | `src/app/api/discovery/evaluate/route.ts`, `src/components/discovery/UniversalJDEvaluator.tsx`, `src/components/discovery/UniversalJDEvaluatorModal.tsx`, `src/components/discovery/DiscoveryPage.tsx`, `src/components/app-header.tsx`, `src/components/CommandPalette.tsx`, `src/components/dashboard/DashboardQuickIntake.tsx`, `src/components/dashboard/CommandZone.tsx`, `src/components/ai/JDIntakePanel.tsx`, `src/stores/store.ts`, `src/components/app-shell.tsx`, `src/__tests__/discovery-evaluate-api.test.ts`, `docs/AUTONOMOUS-CAREER-AGENT-TRACKER.md`, `docs/JOB-DISCOVERY-TRACKER.md` | Antigravity AI |
+
 

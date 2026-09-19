@@ -47,9 +47,11 @@ interface UIState {
   detailModal: { open: boolean; id: string | null }
   formModal: { open: boolean; editId?: string }
   deleteModal: { open: boolean; id: string | null }
+  evaluatorModal: { open: boolean; initialText?: string; initialUrl?: string }
   setDetailModal: (open: boolean, id?: string | null) => void
   setFormModal: (open: boolean, editId?: string) => void
   setDeleteModal: (open: boolean, id?: string | null) => void
+  setEvaluatorModal: (open: boolean, initialText?: string, initialUrl?: string) => void
 }
 
 export const useUI = create<UIState>((set) => ({
@@ -90,9 +92,16 @@ export const useUI = create<UIState>((set) => ({
   detailModal: { open: false, id: null },
   formModal: { open: false },
   deleteModal: { open: false, id: null },
+  evaluatorModal: { open: false },
   setDetailModal: (open, id = null) => set({ detailModal: { open, id } }),
   setFormModal: (open, editId) => set({ formModal: open ? { open, editId } : { open: false } }),
   setDeleteModal: (open, id = null) => set({ deleteModal: { open, id } }),
+  setEvaluatorModal: (open, initialText, initialUrl) =>
+    set({
+      evaluatorModal: open
+        ? { open: true, initialText, initialUrl }
+        : { open: false, initialText: undefined, initialUrl: undefined },
+    }),
 }))
 
 export const useAI = create<AIState>((set) => ({

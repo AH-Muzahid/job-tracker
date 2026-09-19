@@ -72,16 +72,14 @@ export function Dashboard() {
 
       {/* Quick Intake Modal triggered from Copilot "Analyze a job description" */}
       <Dialog open={isQuickIntakeOpen} onOpenChange={setIsQuickIntakeOpen}>
-        <DialogContent className="sm:max-w-xl">
-          <DialogHeader>
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto p-4 sm:p-6 border border-border bg-card">
+          <DialogHeader className="sr-only">
             <DialogTitle>Analyze Job Description</DialogTitle>
             <DialogDescription>
               Paste any job post to get an instant match evaluation and stage it to your pipeline.
             </DialogDescription>
           </DialogHeader>
-          <div className="pt-2">
-            <DashboardQuickIntake />
-          </div>
+          <DashboardQuickIntake onFinished={() => setIsQuickIntakeOpen(false)} />
         </DialogContent>
       </Dialog>
     </div>

@@ -70,22 +70,23 @@ export default function CommandZone({ activePipeline, totalThisWeek = 0 }: Comma
     }, 1500)
 
     try {
-      const response = await fetch("/api/ai/scan-jd", {
+      const isUrl = /^https?:\/\/[^\s]+$/i.test(jdText.trim())
+      const response = await fetch("/api/discovery/evaluate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ jdText }),
+        body: JSON.stringify(isUrl ? { url: jdText.trim() } : { rawText: jdText.trim() }),
       })
 
       clearInterval(stepInterval)
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.error || "Failed to scan JD")
+        throw new Error(errorData.error || "Failed to evaluate job")
       }
 
       const data = await response.json()
       setAnalysisResult(data)
-      toast.success("AI Fit Analysis Complete!")
+      toast.success("Opportunity Dossier Complete!")
     } catch (error: unknown) {
       clearInterval(stepInterval)
       const errMsg = error instanceof Error ? error.message : "Something went wrong"

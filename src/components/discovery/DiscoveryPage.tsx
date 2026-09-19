@@ -1,6 +1,6 @@
 "use client"
 
-import { Search, X, RefreshCw, Filter, Sliders } from "lucide-react"
+import { Search, X, RefreshCw, Filter, Sliders, Zap } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import {
@@ -19,9 +19,11 @@ import { DiscoveryTrackModal } from "./DiscoveryTrackModal"
 import { DiscoveryDismissModal } from "./DiscoveryDismissModal"
 import { AgentAuditFeed } from "./AgentAuditFeed"
 import { useJobDiscovery } from "@/hooks/use-job-discovery"
+import { useUI } from "@/lib/store"
 import type { ExternalJobOpportunity } from "@/lib/ai/graph/tools/discovery-tools"
 
 export function DiscoveryPage() {
+  const setEvaluatorModal = useUI((s) => s.setEvaluatorModal)
   const {
     searchQuery,
     setSearchQuery,
@@ -76,6 +78,17 @@ export function DiscoveryPage() {
 
         {/* Header Action Buttons */}
         <div className="flex items-center gap-2 shrink-0">
+          <Button
+            variant="default"
+            size="sm"
+            onClick={() => setEvaluatorModal(true)}
+            className="h-8 text-xs gap-1.5 rounded-none cursor-pointer font-medium bg-primary text-primary-foreground hover:bg-primary/90"
+            title="Evaluate external job posting or paste raw JD"
+          >
+            <Zap className="size-3.5" />
+            <span>Evaluate JD</span>
+          </Button>
+
           <Button
             variant="outline"
             size="sm"

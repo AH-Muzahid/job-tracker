@@ -8,6 +8,7 @@ import { AppHeader } from "@/components/app-header";
 import { AppSidebar } from "@/components/app-sidebar";
 import CommandPalette from "@/components/CommandPalette";
 import GlobalAISidebar from "@/components/ai/GlobalAISidebar";
+import { UniversalJDEvaluatorModal } from "@/components/discovery/UniversalJDEvaluatorModal";
 import { useUI } from "@/lib/store";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -36,6 +37,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 			</SidebarInset>
 			{!isFullscreen && <GlobalAISidebar />}
 			<CommandPalette />
+			<UniversalJDEvaluatorModal />
 		</SidebarProvider>
 	);
 }

@@ -2,13 +2,15 @@
 
 import { useEffect, useState, useRef, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import { Search, LayoutDashboard, Briefcase, Building2, Brain, FileText, CalendarDays, Settings, ArrowRight, Plus, Mail } from "lucide-react"
+import { Search, LayoutDashboard, Briefcase, Building2, Brain, FileText, CalendarDays, Settings, ArrowRight, Plus, Mail, Zap } from "lucide-react"
 import { useUI } from "@/lib/store"
 import { toast } from "sonner"
 
 const pages = [
   { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { title: "Applications", href: "/applications", icon: Briefcase },
+  { title: "Job Discovery Feed", href: "/discovery", icon: Zap },
+  { title: "Evaluate Job Description / URL", href: "action:evaluate", icon: Zap },
   { title: "Companies", href: "/companies", icon: Building2 },
   { title: "Interview Prep", href: "/interview-prep", icon: Brain },
   { title: "Resumes", href: "/resumes", icon: FileText },
@@ -17,6 +19,7 @@ const pages = [
 ]
 
 const slashCommands = [
+  { title: "/evaluate", placeholder: "/evaluate", description: "Open Universal Opportunity Evaluator to scan URL or JD text", icon: Zap },
   { title: "/status", placeholder: "/status [Company] [Status]", description: "Change status of a job (e.g. /status Acme Applied)", icon: Briefcase },
   { title: "/add", placeholder: "/add [Company] [Title]", description: "Add a new job application (e.g. /add Google Frontend)", icon: Plus },
   { title: "/outreach", placeholder: "/outreach [Company]", description: "Open AI outreach draft workbench", icon: Mail },
@@ -35,6 +38,7 @@ export default function CommandPalette() {
   const router = useRouter()
   const searchOpen = useUI((s) => s.searchOpen)
   const setSearchOpen = useUI((s) => s.setSearchOpen)
+  const setEvaluatorModal = useUI((s) => s.setEvaluatorModal)
   const [query, setQuery] = useState("")
   const [selectedIndex, setSelectedIndex] = useState(0)
   const [results, setResults] = useState<SearchResult[]>([])
@@ -199,6 +203,9 @@ export default function CommandPalette() {
       } finally {
         setLoading(false)
       }
+    } else if (command === "/evaluate" || command === "/scan") {
+      setSearchOpen(false)
+      setEvaluatorModal(true)
     } else {
       toast.error("Unknown command")
     }
@@ -245,8 +252,16 @@ export default function CommandPalette() {
 
   const handleSelect = (item: typeof allItems[0]) => {
     if (item.isCmd) {
+      if (item.id === "/evaluate") {
+        setSearchOpen(false)
+        setEvaluatorModal(true)
+        return
+      }
       setQuery(item.href)
       setTimeout(() => inputRef.current?.focus(), 50)
+    } else if (item.href === "action:evaluate") {
+      setSearchOpen(false)
+      setEvaluatorModal(true)
     } else {
       router.push(item.href)
       setSearchOpen(false)
