@@ -8,6 +8,14 @@ import {
 } from "@/inngest/functions/batch-job-pipeline"
 import { prisma } from "@/lib/prisma"
 import * as discoveryTools from "@/lib/ai/graph/tools/discovery-tools"
+import { inngest } from "@/inngest/client"
+
+vi.mock("@/inngest/client", () => ({
+  inngest: {
+    send: vi.fn().mockResolvedValue({ ids: ["evt-mock-1"] }),
+    createFunction: vi.fn((opts, handler) => ({ opts, handler })),
+  },
+}))
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
@@ -156,6 +164,13 @@ describe("6-Hour Staged Batch Pipeline & 24h Rolling Window", () => {
         }),
       })
     )
+
+    // Verify autonomous career orchestrator triggered for high-fit opportunity (fitScore 92 >= 85)
+    expect(result.orchestratorTriggered).toBe(true)
+    expect(inngest.send).toHaveBeenCalledWith({
+      name: "career/orchestrator.execute",
+      data: { userId: testUserId },
+    })
   })
 
   it("revives previously ARCHIVED jobs back to STAGED/PUBLISHED instead of silently dropping", async () => {
@@ -239,6 +254,47 @@ describe("6-Hour Staged Batch Pipeline & 24h Rolling Window", () => {
           publishedAt: null,
           dismissReason: null,
         }),
+      })
+    )
+  })
+
+  it("does not trigger Career Orchestrator if all opportunities have fitScore < 85", async () => {
+    vi.spyOn(discoveryTools, "executeSearchExternalJobs").mockResolvedValue({
+      success: true,
+      count: 1,
+      query: "dev",
+      opportunities: [
+        {
+          id: "job-low-fit",
+          title: "Junior Support Assistant",
+          company: "Acme",
+          location: "Remote",
+          url: "https://acme.com/jobs/low",
+          sourceBoard: "curated",
+          tags: ["support"],
+          fitScore: 78,
+          matchRationale: "Moderate match",
+          descriptionSnippet: "Support role",
+        },
+      ],
+    })
+
+    vi.mocked(prisma.canonicalJob.findMany).mockResolvedValue([{ id: "job-low-fit" }] as any)
+    vi.mocked(prisma.userJobMatch.findMany).mockResolvedValue([])
+    vi.mocked(prisma.userJobMatch.createMany).mockResolvedValue({ count: 1 } as any)
+    vi.mocked(prisma.userJobMatch.updateMany)
+      .mockResolvedValueOnce({ count: 0 })
+      .mockResolvedValueOnce({ count: 1 })
+
+    const result = await processUserJobBatch(testUserId, {
+      batchId: "batch-2026-09-03T18:00:00.000Z",
+      notify: false,
+    })
+
+    expect(result.orchestratorTriggered).toBe(false)
+    expect(inngest.send).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "career/orchestrator.execute",
       })
     )
   })

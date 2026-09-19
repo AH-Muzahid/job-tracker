@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { ExternalLink, CheckSquare, Trash2 } from "lucide-react"
+import { ExternalLink, CheckSquare, Trash2, Bot } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import StatusBadge from "@/components/StatusBadge"
@@ -213,7 +213,14 @@ export default function TableView({ applications, onSelect, onBulkSuccess }: Pro
                       </div>
                     </td>
                     <td className="px-4 py-3 hidden lg:table-cell">
-                      <span className="inline-flex items-center rounded-md border border-border bg-muted/40 px-2 py-0.5 text-[11px] font-mono text-muted-foreground">{application.source}</span>
+                      {application.source === "Career Orchestrator" ? (
+                        <span className="inline-flex items-center gap-1 rounded-md border border-primary/20 bg-primary/10 px-2 py-0.5 text-[11px] font-mono text-primary font-semibold">
+                          <Bot className="h-3 w-3" />
+                          Auto-Staged
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center rounded-md border border-border bg-muted/40 px-2 py-0.5 text-[11px] font-mono text-muted-foreground">{application.source}</span>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-muted-foreground font-mono text-xs whitespace-nowrap">
                       {new Date(application.applicationDate).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}

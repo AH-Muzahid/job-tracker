@@ -211,12 +211,28 @@ export async function processUserJobBatch(
     ).catch((err) => console.warn("[Batch Job Notification Error]:", err))
   }
 
+  // 7. Step D: Trigger Autonomous Career Orchestrator if any opportunities meet >= 85% fit threshold
+  const highFitOpportunities = opportunities.filter((opp) => opp.fitScore >= 85)
+  let orchestratorTriggered = false
+  if (highFitOpportunities.length > 0) {
+    try {
+      await inngest.send({
+        name: "career/orchestrator.execute",
+        data: { userId },
+      })
+      orchestratorTriggered = true
+    } catch (inngestErr) {
+      console.warn("[BatchJobPipeline] Failed to trigger career/orchestrator.execute:", inngestErr)
+    }
+  }
+
   return {
     userId,
     batchId,
     stagedCount: stagedCount || opportunities.length,
     publishedCount: publishResult.count,
     archivedCount: archiveResult.count,
+    orchestratorTriggered,
   }
 }
 

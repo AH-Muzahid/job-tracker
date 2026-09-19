@@ -7,6 +7,13 @@ import * as aiReranker from "@/lib/discovery/ai-reranker"
 import * as coverLetterAgent from "@/lib/discovery/cover-letter-agent"
 import * as preferences from "@/lib/discovery/preferences"
 import * as telemetry from "@/lib/discovery/telemetry"
+import { invalidateCache } from "@/lib/redis"
+
+vi.mock("@/lib/redis", () => ({
+  invalidateCache: vi.fn().mockResolvedValue(true),
+  getCachedJson: vi.fn().mockResolvedValue(null),
+  setCachedJson: vi.fn().mockResolvedValue(true),
+}))
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
@@ -205,10 +212,29 @@ describe("Career Orchestrator State Machine (REC-18)", () => {
         data: expect.objectContaining({
           userId: testUserId,
           companyName: "Stripe",
+          source: "Career Orchestrator",
           status: "STAGED",
+          statusChanges: expect.any(Object),
         }),
       })
     )
+
+    // Verify outreach materials persisted to ApplicationAnalysis
+    expect(prisma.applicationAnalysis.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          outreachSubject: expect.stringContaining("Senior Fullstack Engineer"),
+          outreachBody: expect.any(String),
+          outreachChecklist: expect.any(Array),
+          tailoredResumeJson: expect.any(Object),
+        }),
+      })
+    )
+
+    // Verify cache invalidation
+    expect(invalidateCache).toHaveBeenCalledWith(`dashboard:stats:${testUserId}`)
+    expect(invalidateCache).toHaveBeenCalledWith(`applications:${testUserId}`)
+    expect(invalidateCache).toHaveBeenCalledWith(`user:stats:${testUserId}`)
 
     // Verify notification was dispatched
     expect(prisma.notification.create).toHaveBeenCalledWith(
@@ -239,7 +265,7 @@ describe("Career Orchestrator State Machine (REC-18)", () => {
     expect(actions).toContain("UPDATE_PREFERENCES_AND_TELEMETRY")
   })
 
-  it("early-exits cleanly when no opportunities meet the >=80% fit threshold", async () => {
+  it("early-exits cleanly when no opportunities meet the >=85% fit threshold", async () => {
     vi.mocked(vectorRetrieval.retrieveCandidateJobsTier1).mockResolvedValue([
       {
         id: "job-low-1",
@@ -475,5 +501,60 @@ describe("Career Orchestrator State Machine (REC-18)", () => {
 
     // Both applications still persisted
     expect(prisma.application.create).toHaveBeenCalledTimes(2)
+  })
+
+  it("gates opportunities with fitScore between 80% and 84% (below autonomous 85% zero-touch bar)", async () => {
+    vi.mocked(vectorRetrieval.retrieveCandidateJobsTier1).mockResolvedValue([
+      {
+        id: "job-borderline",
+        title: "Platform Engineer",
+        company: "MidCo",
+        location: "Remote",
+        isRemote: true,
+        url: "https://midco.example.com/apply/1",
+        salary: "$140k",
+        salaryMin: 140000,
+        salaryMax: 140000,
+        tags: ["typescript"],
+        description: "Standard platform engineering role.",
+        postedAt: new Date(),
+        visaSponsorship: "unknown",
+        cosineSimilarity: 0.82,
+      },
+    ])
+
+    // Fit score is 82% — would pass old 80% threshold, but must be gated by the 85% zero-touch bar
+    vi.mocked(aiReranker.deepReRankCandidateJobs).mockResolvedValue([
+      {
+        id: "job-borderline",
+        title: "Platform Engineer",
+        company: "MidCo",
+        location: "Remote",
+        isRemote: true,
+        url: "https://midco.example.com/apply/1",
+        salary: "$140k",
+        salaryMin: 140000,
+        salaryMax: 140000,
+        tags: ["typescript"],
+        description: "Standard platform engineering role.",
+        postedAt: new Date(),
+        visaSponsorship: "unknown",
+        cosineSimilarity: 0.82,
+        fitScore: 82,
+        matchRationale: "Good match but not outstanding enough for zero-touch staging.",
+        missingSkills: ["kubernetes"],
+        scoreBreakdown: { skills: 32, role: 22, location: 20, seniority: 8 },
+      },
+    ])
+
+    const graph = createCareerOrchestratorGraph()
+    const result = await graph.invoke({
+      userId: testUserId,
+      candidateGoal: { targetRole: "Platform Engineer" },
+    })
+
+    expect(result.approvedOpportunities).toHaveLength(0)
+    expect(coverLetterAgent.generateApplicationMaterialsAgent).not.toHaveBeenCalled()
+    expect(prisma.application.create).not.toHaveBeenCalled()
   })
 })

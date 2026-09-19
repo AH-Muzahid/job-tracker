@@ -12,6 +12,7 @@ import { generateApplicationMaterialsAgent } from "@/lib/discovery/cover-letter-
 import { invalidateUserImplicitPreferences } from "@/lib/discovery/preferences"
 import { logDiscoveryEvent } from "@/lib/discovery/telemetry"
 import { prisma, withDbRetry } from "@/lib/prisma"
+import { invalidateCache } from "@/lib/redis"
 
 /**
  * Node 1: Two-Tier RecSys Discovery Node (pgvector + Gemini Cross-Encoder)
@@ -110,7 +111,7 @@ async function evaluationNode(
   state: CareerOrchestratorStateType
 ): Promise<Partial<CareerOrchestratorStateType>> {
   const approved = state.discoveredJobs.filter((job) => {
-    if (job.fitScore < 80) return false
+    if (job.fitScore < 85) return false
 
     const scamEvaluation = evaluateJobScamRisk({
       title: job.title,
@@ -139,7 +140,7 @@ async function evaluationNode(
         agent: "evaluation",
         action: "EVALUATE_AND_GATE",
         timestamp: new Date(),
-        rationale: `Evaluated ${state.discoveredJobs.length} opportunities: ${approved.length} approved (fitScore >= 80, scamScore < 0.3).`,
+        rationale: `Evaluated ${state.discoveredJobs.length} opportunities: ${approved.length} approved (fitScore >= 85, scamScore < 0.3).`,
         metadata: {
           totalEvaluated: state.discoveredJobs.length,
           approvedCount: approved.length,
@@ -162,7 +163,7 @@ async function earlyExitNode(
     agent: "early_exit",
     action: "NO_OPPORTUNITIES_QUALIFIED",
     timestamp: new Date(),
-    rationale: "Zero opportunities met the minimum 80% fit and <0.3 scam risk threshold. Workflow completed.",
+    rationale: "Zero opportunities met the minimum 85% fit and <0.3 scam risk threshold. Workflow completed.",
     metadata: {
       totalEvaluated: state.discoveredJobs.length,
       approvedCount: 0,
@@ -219,6 +220,8 @@ async function assetGeneratorNode(
           coverLetter: materials.coverLetter,
           resumeBullets: materials.highlights,
           outreachPitch: materials.outreachPitch,
+          strategyTip: materials.strategyTip,
+          atsKeywords: materials.atsKeywords,
         },
       }
     })
@@ -275,8 +278,19 @@ async function persistenceNode(
           where: { id: existing.id },
           data: {
             status: "STAGED",
+            source: "Career Orchestrator",
             jobUrl: opp.url,
             notes: `Discovered & staged via Career Orchestrator (Fit: ${opp.fitScore}%)`,
+            statusChanges: {
+              create: {
+                fromStatus: existing.status,
+                toStatus: "STAGED",
+                metadata: {
+                  reason: "Autonomous Career Orchestrator staged high-fit application",
+                  agent: "career_orchestrator",
+                },
+              },
+            },
           },
         })
       )
@@ -292,6 +306,15 @@ async function persistenceNode(
             status: "STAGED",
             applicationDate: new Date(),
             notes: `Discovered & staged via Career Orchestrator (Fit: ${opp.fitScore}%)`,
+            statusChanges: {
+              create: {
+                toStatus: "STAGED",
+                metadata: {
+                  reason: "Autonomous Career Orchestrator staged high-fit application",
+                  agent: "career_orchestrator",
+                },
+              },
+            },
           },
         })
       )
@@ -302,6 +325,22 @@ async function persistenceNode(
 
     const pkg = state.applicationPackages[opp.id]
     if (pkg && applicationId) {
+      const outreachSubject = `Application for ${opp.title} - Career Orchestrator Draft`
+      const outreachBody = pkg.outreachPitch
+      const outreachChecklist = [
+        "Verified GitHub/LinkedIn/portfolio links included",
+        `Mentioned core technical strengths: ${(pkg.atsKeywords || []).slice(0, 3).join(", ") || "TypeScript, React"}`,
+        "Highlighted top demonstrated projects",
+        "Tailored application to company's stated tech stack",
+      ]
+      const tailoredResumeJson = {
+        targetRole: opp.title,
+        company: opp.company,
+        highlights: pkg.resumeBullets,
+        atsKeywords: pkg.atsKeywords || [],
+        strategyTip: pkg.strategyTip,
+      }
+
       await withDbRetry(() =>
         prisma.applicationAnalysis.upsert({
           where: { applicationId },
@@ -309,16 +348,40 @@ async function persistenceNode(
             applicationId,
             matchScore: opp.fitScore,
             confidence: "high",
-            verdict: "Ready to Submit",
+            verdict: "AI Application Draft Ready",
             rawAnalysis: pkg.coverLetter,
-            resumeAdvice: { highlights: pkg.resumeBullets },
-            applyStrategy: { outreachPitch: pkg.outreachPitch },
+            resumeAdvice: {
+              highlights: pkg.resumeBullets,
+              atsKeywords: pkg.atsKeywords || [],
+            },
+            applyStrategy: {
+              outreachPitch: pkg.outreachPitch,
+              strategyTip: pkg.strategyTip,
+            },
+            outreachSubject,
+            outreachBody,
+            outreachChecklist,
+            outreachGeneratedAt: new Date(),
+            tailoredResumeJson,
           },
           update: {
             matchScore: opp.fitScore,
+            confidence: "high",
+            verdict: "AI Application Draft Ready",
             rawAnalysis: pkg.coverLetter,
-            resumeAdvice: { highlights: pkg.resumeBullets },
-            applyStrategy: { outreachPitch: pkg.outreachPitch },
+            resumeAdvice: {
+              highlights: pkg.resumeBullets,
+              atsKeywords: pkg.atsKeywords || [],
+            },
+            applyStrategy: {
+              outreachPitch: pkg.outreachPitch,
+              strategyTip: pkg.strategyTip,
+            },
+            outreachSubject,
+            outreachBody,
+            outreachChecklist,
+            outreachGeneratedAt: new Date(),
+            tailoredResumeJson,
           },
         })
       )
@@ -348,6 +411,12 @@ async function persistenceNode(
   }
 
   if (stagedCount > 0) {
+    await Promise.allSettled([
+      invalidateCache(`dashboard:stats:${state.userId}`),
+      invalidateCache(`applications:${state.userId}`),
+      invalidateCache(`user:stats:${state.userId}`),
+    ])
+
     await withDbRetry(() =>
       prisma.notification.create({
         data: {

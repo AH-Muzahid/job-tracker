@@ -166,16 +166,21 @@ Whenever ANY architectural change, refactor, deletion, endpoint modification, or
   - **Owner**: TBD
   - **Status**: `Pending`
 
-- [ ] **`CAG-07` [Automation / Inngest] Wire `career-orchestrator.ts` Autonomous Inngest Pipeline to User Feed**
-  - **Description**: Connect the autonomous background LangGraph orchestrator to stage high-fit applications (>85% fit) automatically.
+- [x] **`CAG-07` [Automation / Inngest] Wire `career-orchestrator.ts` Autonomous Inngest Pipeline to User Feed**
+  - **Description**: Connect the autonomous background LangGraph orchestrator to stage high-fit applications (>=85% fit) automatically during the 6-hour batch cycle, populating custom cover letter, tailored resume highlights, and LinkedIn outreach pitch.
   - **Target Files**:
-    - `src/inngest/functions/batch-job-pipeline.ts` (MODIFY)
-    - `src/lib/ai/graph/workflows/career-orchestrator.ts` (MODIFY)
-    - `src/components/dashboard/BoardView.tsx` (MODIFY - add "Staged by Agent" badge)
-  - **Acceptance Criteria**: Active users wake up to 1–3 pre-packaged applications in their staging inbox with in-app notifications.
+    - `src/lib/ai/graph/state/career-orchestrator-state.ts` (MODIFIED - added `strategyTip` and `atsKeywords` to `ApplicationPackageItem`)
+    - `src/lib/ai/graph/workflows/career-orchestrator.ts` (MODIFIED - zero-touch >= 85% fitScore threshold, `statusChanges` audit trail, complete `ApplicationAnalysis` outreach persistence, and Redis cache invalidation)
+    - `src/inngest/functions/batch-job-pipeline.ts` (MODIFIED - Step 7 dispatches `career/orchestrator.execute` when curated batch opportunities have `fitScore >= 85`)
+    - `src/components/dashboard/BoardCard.tsx` (MODIFIED - rendered subtle `Auto-Staged` badge with `Bot` icon when `source === "Career Orchestrator"`)
+    - `src/components/dashboard/ListView.tsx` (MODIFIED - rendered `Auto-Staged` badge with `Bot` icon)
+    - `src/components/dashboard/TableView.tsx` (MODIFIED - rendered `Auto-Staged` badge with `Bot` icon)
+    - `src/__tests__/career-orchestrator.test.ts` (MODIFIED - 5 unit & workflow tests verifying >= 85% gating, borderline 80-84% rejection, outreach persistence, and cache invalidation)
+    - `src/__tests__/batch-job-pipeline.test.ts` (MODIFIED - 6 unit & pipeline tests verifying orchestrator trigger on >= 85% fit opportunities)
+  - **Acceptance Criteria**: Active users wake up to 1–3 pre-packaged applications in their staging inbox with in-app notifications, pre-generated cover letter, resume highlights, and outreach draft in PostgreSQL, with zero Sparkles icons.
   - **Priority**: `P1`
-  - **Owner**: TBD
-  - **Status**: `Pending`
+  - **Owner**: Antigravity AI
+  - **Status**: `Release Ready`
 
 - [ ] **`CAG-08` [Integration / Agent] Autonomous Gmail Recruiter Reply Status Ingestion**
   - **Description**: Use existing Gmail sync to detect confirmation emails, interview invites, and rejections, automatically transitioning application status.

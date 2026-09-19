@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { ExternalLink, Plus, Inbox } from "lucide-react"
+import { ExternalLink, Plus, Inbox, Bot } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import { DecorIcon } from "@/components/decor-icon"
@@ -77,7 +77,16 @@ function ListItem({ application, onClick }: { application: Application; onClick:
         ))}
       </div>
       <StatusBadge status={application.status} />
-      <span className="hidden md:inline-flex items-center rounded-md border border-border bg-muted/40 px-2 py-0.5 text-[11px] font-mono text-muted-foreground">{application.source}</span>
+      {application.source === "Career Orchestrator" ? (
+        <span className="hidden md:inline-flex items-center gap-1 rounded-md border border-primary/20 bg-primary/10 px-2 py-0.5 text-[11px] font-mono text-primary font-semibold">
+          <Bot className="h-3 w-3" />
+          Auto-Staged
+        </span>
+      ) : (
+        <span className="hidden md:inline-flex items-center rounded-md border border-border bg-muted/40 px-2 py-0.5 text-[11px] font-mono text-muted-foreground">
+          {application.source}
+        </span>
+      )}
       <span className="hidden sm:inline-block shrink-0 text-xs font-mono text-muted-foreground">
         {new Date(application.applicationDate).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
       </span>

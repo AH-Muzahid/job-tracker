@@ -11,6 +11,8 @@ export interface ApplicationPackageItem {
   coverLetter: string
   resumeBullets: string[]
   outreachPitch: string
+  strategyTip?: string
+  atsKeywords?: string[]
 }
 
 export interface ExecutionAuditLogItem {

@@ -1,7 +1,7 @@
 "use client"
 
 import { memo } from "react"
-import { ExternalLink, MoreHorizontal, Pencil, Trash2, ArrowRight, Calendar } from "lucide-react"
+import { ExternalLink, MoreHorizontal, Pencil, Trash2, ArrowRight, Calendar, Bot } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -160,9 +160,16 @@ const BoardCard = memo(function BoardCard({ application, onClick, onEdit, onDele
 
         {/* Bottom Meta Row: Source & Date */}
         <div className="mt-3 flex items-center justify-between text-[11px] text-muted-foreground border-t border-border/40 pt-2 font-mono">
-          <span className="truncate max-w-[130px] font-medium text-muted-foreground/90">
-            {application.source || "Direct"}
-          </span>
+          {application.source === "Career Orchestrator" ? (
+            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-primary bg-primary/10 border border-primary/20 px-1.5 py-0.5 rounded">
+              <Bot className="h-3 w-3" />
+              Auto-Staged
+            </span>
+          ) : (
+            <span className="truncate max-w-[130px] font-medium text-muted-foreground/90">
+              {application.source || "Direct"}
+            </span>
+          )}
           <span className="shrink-0 flex items-center gap-1 text-muted-foreground/75">
             <Calendar className="h-3 w-3" />
             {formattedDate}
