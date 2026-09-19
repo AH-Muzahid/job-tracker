@@ -21,7 +21,7 @@ describe("Pixel-Perfect Dashboard Components & Strict Constraints", () => {
 
   it("renders DashboardKpis with exact mockup numbers when data is empty or defaults", () => {
     const html = renderToString(<DashboardKpis />);
-    expect(html).toContain("Opportunities Found");
+    expect(html).toContain("Opportunities");
     expect(html).toContain("28");
     expect(html).toContain("Applications");
     expect(html).toContain("12");

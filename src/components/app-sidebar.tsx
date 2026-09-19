@@ -288,7 +288,7 @@ export function AppSidebar() {
 			) : (
 				<SidebarFooter className="p-3 pt-0 pb-3 border-none bg-transparent">
 					{/* Your Progress Momentum Card matching mockup */}
-					<div className="rounded-2xl bg-[#131c2d] ring-1 ring-[#182338] p-4 group-data-[collapsible=icon]:hidden transition-all">
+					<div className="rounded-xl bg-[#131c2d] ring-1 ring-[#182338] p-4 group-data-[collapsible=icon]:hidden transition-all">
 						<div className="flex items-center justify-between">
 							<span className="text-xs font-semibold text-white tracking-tight">Your Progress</span>
 						</div>

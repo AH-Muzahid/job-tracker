@@ -90,7 +90,7 @@ export function NavGroup({ label, items }: SidebarNavGroup) {
 										isActive={isItemActive}
 										tooltip={item.title}
 										className={cn(
-											"h-10 px-3 rounded-xl text-[13px] transition-all duration-150 cursor-pointer border-0 ring-0 outline-none shadow-none",
+											"h-10 px-3 rounded-lg text-[13px] transition-all duration-150 cursor-pointer border-0 ring-0 outline-none shadow-none",
 											isItemActive
 												? "bg-[#152033]! text-white! font-medium hover:bg-[#152033]!"
 												: "text-[#94a3b8]! hover:text-white! hover:bg-[#152033]/50! font-normal"
@@ -99,7 +99,7 @@ export function NavGroup({ label, items }: SidebarNavGroup) {
 										<Link href={item.path || "#"} className="flex items-center gap-3 w-full">
 											{isItemActive ? (
 												<div className="size-6.5 rounded-lg bg-[#4f70e8] flex items-center justify-center text-white shrink-0 shadow-xs">
-													{item.activeIcon || item.icon}
+													{item.icon}
 												</div>
 											) : (
 												<span className="shrink-0 text-[#94a3b8]">{item.icon}</span>

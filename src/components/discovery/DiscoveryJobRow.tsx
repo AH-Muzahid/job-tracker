@@ -1,10 +1,12 @@
 "use client"
 
 import { useState, useMemo } from "react"
+import Link from "next/link"
 import {
   BookmarkPlus, Check, ExternalLink, MapPin,
   RefreshCw, EyeOff, ShieldCheck, Globe, Briefcase,
-  BrainCircuit, ChevronDown, ChevronUp, Zap, Banknote
+  BrainCircuit, ChevronDown, ChevronUp, Zap, Banknote,
+  ArrowUpRight,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -23,7 +25,11 @@ interface DiscoveryJobRowProps {
   isSaved: boolean
   isSaving: boolean
   isDismissing?: boolean
+  isPackaging?: boolean
+  isStaged?: boolean
+  stagedApplicationId?: string | null
   onSave: () => void
+  onPackage?: () => void
   onDismiss?: () => void
   onApplyClick?: () => void
 }
@@ -33,7 +39,11 @@ export function DiscoveryJobRow({
   isSaved,
   isSaving,
   isDismissing = false,
+  isPackaging = false,
+  isStaged = false,
+  stagedApplicationId,
   onSave,
+  onPackage,
   onDismiss,
   onApplyClick,
 }: DiscoveryJobRowProps) {
@@ -161,27 +171,75 @@ export function DiscoveryJobRow({
             </button>
           )}
 
-          {job.appliedStatus ? (
+          {/* Staged State: Packaged & Staged into Workbench */}
+          {isStaged || job.appliedStatus === "STAGED" || job.appliedStatus === "Staged" ? (
+            <Link
+              href={stagedApplicationId || job.applicationId ? `/applications/${stagedApplicationId || job.applicationId}` : "/applications"}
+              className="inline-flex items-center justify-center gap-1.5 h-8 px-3 rounded-none text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25 hover:bg-emerald-500/20 hover:border-emerald-500/40 transition-colors flex-1 sm:flex-initial"
+              title="Packaged into Staged status. Click to view application in Workbench"
+            >
+              <Check className="size-3 text-emerald-500 stroke-[2.5]" />
+              <span>Staged</span>
+              <ArrowUpRight className="size-3 text-emerald-500/70" />
+            </Link>
+          ) : job.appliedStatus ? (
             <span className="inline-flex items-center justify-center gap-1 h-8 px-3 rounded-none text-xs font-medium bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 flex-1 sm:flex-initial">
               <Check className="size-3" />
               <span>Applied</span>
             </span>
           ) : (
-            <Button
-              size="sm"
-              variant={isSaved ? "secondary" : "default"}
-              disabled={isSaved || isSaving}
-              onClick={onSave}
-              className="h-8 text-xs px-3 gap-1.5 cursor-pointer font-medium rounded-none flex-1 sm:flex-initial"
-            >
-              {isSaved ? (
-                <><Check className="size-3 text-emerald-500" /><span>Saved</span></>
-              ) : isSaving ? (
-                <><RefreshCw className="size-3 animate-spin" /><span>Saving...</span></>
-              ) : (
-                <><BookmarkPlus className="size-3" /><span>Save</span></>
+            <>
+              {/* 1-Click Package & Stage Primary CTA */}
+              {onPackage && (
+                <Button
+                  size="sm"
+                  variant="default"
+                  disabled={isPackaging || isSaving}
+                  onClick={onPackage}
+                  className="h-8 text-xs px-3 gap-1.5 cursor-pointer font-semibold rounded-none flex-1 sm:flex-initial bg-primary hover:bg-primary/90 text-primary-foreground shadow-xs"
+                  title="Package application: auto-stages to Workbench with tailored cover letter, resume highlights & outreach pitch"
+                >
+                  {isPackaging ? (
+                    <>
+                      <RefreshCw className="size-3 animate-spin" />
+                      <span>Packaging...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Zap className="size-3.5 fill-current" />
+                      <span>Package &amp; Stage</span>
+                    </>
+                  )}
+                </Button>
               )}
-            </Button>
+
+              {/* Secondary Quick-Bookmark / Save Button */}
+              <Button
+                size="sm"
+                variant={isSaved ? "secondary" : "outline"}
+                disabled={isSaved || isSaving || isPackaging}
+                onClick={onSave}
+                className="h-8 text-xs px-2.5 gap-1.5 cursor-pointer font-medium rounded-none flex-1 sm:flex-initial"
+                title={isSaved ? "Saved to your Tracker" : "Bookmark without packaging materials"}
+              >
+                {isSaved ? (
+                  <>
+                    <Check className="size-3 text-emerald-500" />
+                    <span className="hidden sm:inline">Saved</span>
+                  </>
+                ) : isSaving ? (
+                  <>
+                    <RefreshCw className="size-3 animate-spin" />
+                    <span className="hidden sm:inline">Saving...</span>
+                  </>
+                ) : (
+                  <>
+                    <BookmarkPlus className="size-3" />
+                    <span className="hidden sm:inline">Save</span>
+                  </>
+                )}
+              </Button>
+            </>
           )}
 
           {/* Direct Link to Origin Source */}

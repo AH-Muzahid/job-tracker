@@ -82,8 +82,11 @@ export function RecommendedOpportunities({
   const [packagingId, setPackagingId] = useState<string | null>(null);
   const [stagedIds, setStagedIds] = useState<Set<string>>(new Set());
 
-  // Use dynamic opportunities with reference fallbacks
-  const list = opportunities && opportunities.length > 0 ? opportunities.slice(0, 3) : referenceOpportunities;
+  // Use dynamic opportunities, pad with reference fallbacks to always show 3
+  const apiList = opportunities && opportunities.length > 0 ? opportunities.slice(0, 3) : [];
+  const list = apiList.length >= 3
+    ? apiList
+    : [...apiList, ...referenceOpportunities.slice(0, 3 - apiList.length)];
 
   const toggleBookmark = async (job: Opportunity) => {
     const isCurrentlySaved = savedIds.has(job.id) || job.isSaved;
@@ -140,7 +143,7 @@ export function RecommendedOpportunities({
         <div className="h-6 w-48 bg-muted rounded animate-pulse" />
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-64 rounded-2xl border bg-card animate-pulse" />
+            <div key={i} className="h-64 rounded-xl border bg-card animate-pulse" />
           ))}
         </div>
       </div>
@@ -176,14 +179,14 @@ export function RecommendedOpportunities({
           return (
             <div
               key={job.id}
-              className="relative rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-4.5 shadow-2xs hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-200 flex flex-col justify-between group"
+              className="relative rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-4.5 shadow-2xs hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-200 flex flex-col justify-between group"
             >
               <div>
                 {/* Header: Logo + Match Score Badge + Bookmark */}
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2.5">
                     <CompanyBrandLogo company={job.company} size={32} />
-                    <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-[#dcfce7] text-[#15803d] dark:bg-emerald-950/60 dark:text-emerald-400">
+                    <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400">
                       {job.fitScore}% match
                     </span>
                   </div>
@@ -221,7 +224,7 @@ export function RecommendedOpportunities({
                     {job.tags.slice(0, 3).map((tag) => (
                       <span
                         key={tag}
-                        className="inline-flex items-center rounded-md bg-[#eff1f4] dark:bg-slate-800 px-2 py-0.5 text-[11px] font-medium text-slate-600 dark:text-slate-300"
+                        className="inline-flex items-center rounded-md bg-slate-100 dark:bg-slate-800 px-2 py-0.5 text-[11px] font-medium text-slate-600 dark:text-slate-300"
                       >
                         {tag}
                       </span>
@@ -256,7 +259,7 @@ export function RecommendedOpportunities({
                       "h-9 text-xs font-semibold rounded-xl transition-all shadow-2xs cursor-pointer",
                       isStaged
                         ? "bg-emerald-600 hover:bg-emerald-600 text-white"
-                        : "bg-[#0f172a] hover:bg-slate-800 text-white dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
+                        : "bg-slate-900 hover:bg-slate-800 text-white dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
                     )}
                   >
                     {isStaged ? (

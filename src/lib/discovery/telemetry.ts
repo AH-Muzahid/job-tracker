@@ -11,6 +11,7 @@ export type DiscoveryEventType =
   | "JOB_CLICK_EXTERNAL"
   | "FEED_REFRESHED"
   | "CAREER_ORCHESTRATOR_RUN"
+  | "JOB_PACKAGED"
 
 export interface LogEventParams {
   userId: string

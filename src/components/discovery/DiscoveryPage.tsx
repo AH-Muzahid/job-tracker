@@ -49,6 +49,10 @@ export function DiscoveryPage() {
     sortedOpportunities,
     activeFiltersCount,
     saveMutation,
+    onPackage,
+    packagingJobId,
+    stagedJobs,
+    stagedAppMap,
     forceRefreshMutation,
     dismissMutation,
     handleApplyClick,
@@ -196,6 +200,10 @@ export function DiscoveryPage() {
             onRefetch={() => refetch()}
             onOpenPreferences={() => setPreferencesModalOpen(true)}
             searchQuery={searchQuery}
+            onPackage={(job) => onPackage(job)}
+            packagingJobId={packagingJobId}
+            stagedJobs={stagedJobs}
+            stagedAppMap={stagedAppMap}
           />
         </div>
       </div>

@@ -87,6 +87,12 @@ describe("Autonomous Cover Letter & Application Materials Agent (REC-16)", () =>
           applicationId: "app-100",
           matchScore: 85,
           rawAnalysis: expect.stringContaining("Dear Hiring Team at Vercel"),
+          outreachSubject: "Application for Senior Frontend Engineer - Alex Rivera",
+          outreachBody: expect.stringContaining("Senior Frontend Engineer at Vercel"),
+          tailoredResumeJson: expect.objectContaining({
+            targetRole: "Senior Frontend Engineer",
+            company: "Vercel",
+          }),
         }),
       })
     )

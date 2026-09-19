@@ -38,19 +38,21 @@ export function AICareerCopilotCard({ onAnalyzeJD }: AICareerCopilotCardProps) {
   ];
 
   return (
-    <div className="rounded-2xl border border-emerald-200/60 dark:border-emerald-900/40 bg-[#f0fdf9] dark:bg-slate-900/90 p-4 sm:p-5 shadow-2xs transition-all">
-      {/* Header: Exact dual-star sparkle icon from reference screenshot */}
+    <div className="rounded-xl border border-slate-200/60 dark:border-slate-800 bg-[#f8fafb] dark:bg-slate-900/80 p-4 sm:p-5 shadow-2xs transition-all">
+      {/* Header: Dual-star icon matching reference */}
       <div className="flex items-center gap-2.5">
-        <svg viewBox="0 0 24 24" className="size-5 shrink-0" fill="none">
-          <path d="M7.5 2L9 6.5L13.5 8L9 9.5L7.5 14L6 9.5L1.5 8L6 6.5L7.5 2Z" fill="#3B82F6" />
-          <path d="M16 11L17.2 14.5L20.5 16L17.2 17.5L16 21L14.8 17.5L11.5 16L14.8 14.5L16 11Z" fill="#F59E0B" />
-        </svg>
+        <div className="relative size-5 shrink-0">
+          <svg viewBox="0 0 24 24" className="size-5" fill="none">
+            <path d="M7.5 2L9 6.5L13.5 8L9 9.5L7.5 14L6 9.5L1.5 8L6 6.5L7.5 2Z" fill="#3B82F6" />
+            <path d="M16 11L17.2 14.5L20.5 16L17.2 17.5L16 21L14.8 17.5L11.5 16L14.8 14.5L16 11Z" fill="#F59E0B" />
+          </svg>
+        </div>
         <h2 className="text-[15px] font-bold text-slate-900 dark:text-white">
           Your AI Career Copilot
         </h2>
       </div>
 
-      <p className="mt-1.5 text-xs text-slate-600 dark:text-slate-400 leading-relaxed font-normal">
+      <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-normal">
         I&apos;m here to help you find, apply, and land your next opportunity.
       </p>
 

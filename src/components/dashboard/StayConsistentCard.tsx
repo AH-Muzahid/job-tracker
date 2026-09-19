@@ -34,15 +34,15 @@ export function StayConsistentCard({
 
   if (isLoading) {
     return (
-      <div className="rounded-2xl border border-slate-200/80 bg-white p-4 sm:p-5 shadow-2xs animate-pulse">
-        <div className="h-5 w-32 bg-slate-100 rounded mb-3" />
-        <div className="h-10 bg-slate-50 rounded-lg" />
+      <div className="rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-5 shadow-2xs animate-pulse">
+        <div className="h-5 w-32 bg-slate-100 dark:bg-slate-800 rounded mb-3" />
+        <div className="h-10 bg-slate-50 dark:bg-slate-800/50 rounded-lg" />
       </div>
     );
   }
 
   return (
-    <div className="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-[#fbfcfd] dark:bg-slate-900 p-4 sm:p-5 shadow-2xs hover:border-slate-300 dark:hover:border-slate-700 transition-all">
+    <div className="rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-5 shadow-2xs hover:border-slate-300 dark:hover:border-slate-700 transition-all">
       {/* Header with Target icon */}
       <div className="flex items-center gap-2.5">
         <div className="flex size-7 items-center justify-center shrink-0">

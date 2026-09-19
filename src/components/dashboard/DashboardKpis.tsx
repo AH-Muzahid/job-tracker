@@ -1,6 +1,6 @@
 "use client";
 
-import { Atom, FileText, Calendar, Trophy } from "lucide-react";
+import { Layers, FileText, Calendar, Trophy } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export type DashboardKpisData = {
@@ -50,11 +50,11 @@ export function DashboardKpis({ data, isLoading }: DashboardKpisProps) {
   const cards = [
     {
       id: "opportunities",
-      title: "Opportunities Found",
+      title: "Opportunities",
       value: oppCount,
       delta: `↑ ${oppDelta}%`,
       subtext: `New this week: ${oppNew}`,
-      icon: Atom,
+      icon: Layers,
       iconBg: "bg-blue-50 text-blue-600 dark:bg-blue-950/50 dark:text-blue-400",
     },
     {
@@ -92,7 +92,7 @@ export function DashboardKpis({ data, isLoading }: DashboardKpisProps) {
         {[1, 2, 3, 4].map((i) => (
           <div
             key={i}
-            className="h-24 rounded-2xl border border-slate-200/80 bg-white p-4 animate-pulse"
+            className="h-24 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 animate-pulse"
           />
         ))}
       </div>
@@ -106,12 +106,12 @@ export function DashboardKpis({ data, isLoading }: DashboardKpisProps) {
         return (
           <div
             key={card.id}
-            className="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-3.5 sm:p-4 shadow-2xs hover:border-slate-300 dark:hover:border-slate-700 transition-all flex items-center gap-3.5"
+            className="rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-3.5 sm:p-4 shadow-2xs hover:border-slate-300 dark:hover:border-slate-700 transition-all flex items-center gap-3.5"
           >
             {/* Left squircle icon container */}
             <div
               className={cn(
-                "flex size-11 items-center justify-center rounded-2xl shrink-0 transition-transform",
+                "flex size-11 items-center justify-center rounded-xl shrink-0 transition-transform",
                 card.iconBg
               )}
             >

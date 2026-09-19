@@ -20,11 +20,16 @@ interface DiscoveryJobListProps {
   onRefetch: () => void
   onOpenPreferences?: () => void
   searchQuery: string
+  onPackage?: (job: ExternalJobOpportunity) => void
+  packagingJobId?: string | null
+  stagedJobs?: Set<string>
+  stagedAppMap?: Record<string, string>
 }
 
 export function DiscoveryJobList({
   opportunities, isLoading, savedJobs, saveMutation,
   onSave, onDismiss, dismissingJobId, onApplyClick, onClearAll, onRefetch, onOpenPreferences, searchQuery,
+  onPackage, packagingJobId, stagedJobs, stagedAppMap,
 }: DiscoveryJobListProps) {
   if (isLoading) {
     return (
@@ -105,10 +110,26 @@ export function DiscoveryJobList({
           <DiscoveryJobRow
             key={job.id}
             job={job}
-            isSaved={savedJobs.has(job.id)}
+            isSaved={savedJobs.has(job.id) || Boolean(job.jobId && savedJobs.has(job.jobId))}
             isSaving={saveMutation.isPending && saveMutation.variables?.id === job.id}
+            isPackaging={packagingJobId === job.id || Boolean(job.jobId && packagingJobId === job.jobId)}
+            isStaged={
+              Boolean(
+                stagedJobs?.has(job.id) ||
+                (job.jobId && stagedJobs?.has(job.jobId)) ||
+                job.appliedStatus === "STAGED" ||
+                job.appliedStatus === "Staged"
+              )
+            }
+            stagedApplicationId={
+              stagedAppMap?.[job.id] ||
+              (job.jobId ? stagedAppMap?.[job.jobId] : null) ||
+              job.applicationId ||
+              null
+            }
             isDismissing={dismissingJobId === job.id}
             onSave={() => onSave(job)}
+            onPackage={onPackage ? () => onPackage(job) : undefined}
             onDismiss={onDismiss ? () => onDismiss(job) : undefined}
             onApplyClick={onApplyClick ? () => onApplyClick(job) : undefined}
           />

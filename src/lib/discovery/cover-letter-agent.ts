@@ -150,6 +150,22 @@ Respond in valid JSON format:
 
   // Persist the generated materials to ApplicationAnalysis
   try {
+    const outreachSubject = `Application for ${context.jobTitle} - ${candidateName}`
+    const outreachBody = materials.outreachPitch
+    const outreachChecklist = [
+      "Verified GitHub/LinkedIn/portfolio links included",
+      `Mentioned core technical strengths: ${materials.atsKeywords.slice(0, 3).join(", ") || "TypeScript, React"}`,
+      "Highlighted top demonstrated projects",
+      "Tailored application to company's stated tech stack",
+    ]
+    const tailoredResumeJson = {
+      targetRole: context.jobTitle,
+      company: context.companyName,
+      highlights: materials.highlights,
+      atsKeywords: materials.atsKeywords,
+      strategyTip: materials.strategyTip,
+    }
+
     await withDbRetry(() =>
       prisma.applicationAnalysis.upsert({
         where: { applicationId },
@@ -167,6 +183,11 @@ Respond in valid JSON format:
             strategyTip: materials.strategyTip,
           },
           rawAnalysis: materials.coverLetter,
+          outreachSubject,
+          outreachBody,
+          outreachChecklist,
+          outreachGeneratedAt: new Date(),
+          tailoredResumeJson,
         },
         update: {
           resumeAdvice: {
@@ -178,6 +199,11 @@ Respond in valid JSON format:
             strategyTip: materials.strategyTip,
           },
           rawAnalysis: materials.coverLetter,
+          outreachSubject,
+          outreachBody,
+          outreachChecklist,
+          outreachGeneratedAt: new Date(),
+          tailoredResumeJson,
         },
       })
     )

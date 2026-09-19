@@ -34,6 +34,8 @@ export function useJobDiscovery() {
   })
   const [sortBy, setSortBy] = useState<SortOption>("score-desc")
   const [savedJobs, setSavedJobs] = useState<Set<string>>(new Set())
+  const [stagedJobs, setStagedJobs] = useState<Set<string>>(new Set())
+  const [stagedAppMap, setStagedAppMap] = useState<Record<string, string>>({})
   const [dismissedJobIds, setDismissedJobIds] = useState<Set<string>>(new Set())
   const [dismissModalJob, setDismissModalJob] = useState<ExternalJobOpportunity | null>(null)
   const [preferencesModalOpen, setPreferencesModalOpen] = useState(false)
@@ -59,17 +61,39 @@ export function useJobDiscovery() {
     staleTime: 60_000,
   })
 
-  // Synchronize previously saved jobs from the backend payload
+  // Synchronize previously saved & staged jobs from the backend payload
   useEffect(() => {
     if (data?.opportunities) {
       const initialSaved = new Set<string>()
+      const initialStaged = new Set<string>()
+      const initialMap: Record<string, string> = {}
+
       for (const opp of data.opportunities) {
         if (opp.isSaved) {
           initialSaved.add(opp.id)
+          if (opp.jobId) initialSaved.add(opp.jobId)
+        }
+        if (
+          opp.appliedStatus === "STAGED" ||
+          opp.appliedStatus === "Staged" ||
+          opp.appliedStatus === "staged"
+        ) {
+          initialStaged.add(opp.id)
+          if (opp.jobId) initialStaged.add(opp.jobId)
+          if (opp.applicationId) {
+            initialMap[opp.id] = opp.applicationId
+            if (opp.jobId) initialMap[opp.jobId] = opp.applicationId
+          }
         }
       }
       if (initialSaved.size > 0) {
         setSavedJobs((prev) => new Set([...prev, ...initialSaved]))
+      }
+      if (initialStaged.size > 0) {
+        setStagedJobs((prev) => new Set([...prev, ...initialStaged]))
+      }
+      if (Object.keys(initialMap).length > 0) {
+        setStagedAppMap((prev) => ({ ...prev, ...initialMap }))
       }
     }
   }, [data?.opportunities])
@@ -164,6 +188,66 @@ export function useJobDiscovery() {
       )
     },
     onError: (err: Error) => toast.error(err?.message || "Failed to save"),
+  })
+
+  const packageMutation = useMutation({
+    mutationFn: async (job: ExternalJobOpportunity) => {
+      const targetId = job.jobId || job.id
+      const res = await fetch(`/api/discovery/${targetId}/package`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          companyName: job.company,
+          jobTitle: job.title,
+          jobUrl: job.url,
+          location: job.location,
+          salary: job.salary,
+          notes: `Fit Score: ${job.fitScore}%\n${job.matchRationale}`,
+        }),
+      })
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => null)
+        throw new Error(errJson?.error || "Failed to package application")
+      }
+      return res.json()
+    },
+    onSuccess: (res, job) => {
+      const appId = res?.data?.applicationId || res?.applicationId
+      setSavedJobs((prev) => {
+        const next = new Set(prev).add(job.id)
+        if (job.jobId) next.add(job.jobId)
+        return next
+      })
+      setStagedJobs((prev) => {
+        const next = new Set(prev).add(job.id)
+        if (job.jobId) next.add(job.jobId)
+        return next
+      })
+      if (appId) {
+        setStagedAppMap((prev) => ({
+          ...prev,
+          [job.id]: appId,
+          ...(job.jobId ? { [job.jobId]: appId } : {}),
+        }))
+      }
+      queryClient.invalidateQueries({ queryKey: ["discovery"] })
+      queryClient.invalidateQueries({ queryKey: ["applications"] })
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] })
+      toast.success(`Packaged & staged "${job.title}"!`, {
+        description: "Application materials & outreach pitch ready in Workbench.",
+        action: appId
+          ? {
+              label: "View Workbench",
+              onClick: () => {
+                window.location.href = `/applications/${appId}`
+              },
+            }
+          : undefined,
+      })
+    },
+    onError: (err: Error) => {
+      toast.error(err?.message || "Failed to package application")
+    },
   })
 
   const handleApplyClick = useCallback((job: ExternalJobOpportunity) => {
@@ -310,6 +394,11 @@ export function useJobDiscovery() {
     sortedOpportunities,
     activeFiltersCount,
     saveMutation,
+    packageMutation,
+    onPackage: (job: ExternalJobOpportunity) => packageMutation.mutate(job),
+    packagingJobId: packageMutation.isPending ? (packageMutation.variables as ExternalJobOpportunity)?.id : null,
+    stagedJobs,
+    stagedAppMap,
     forceRefreshMutation,
     dismissMutation,
     handleApplyClick,

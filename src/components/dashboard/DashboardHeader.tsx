@@ -21,11 +21,11 @@ export function DashboardHeader() {
         </p>
       </div>
 
-      <div className="hidden sm:block rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white/80 dark:bg-slate-900/60 px-4 py-2 text-right shadow-2xs">
+      <div className="hidden sm:block rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-2.5 text-right shadow-2xs">
         <p className="text-[11px] sm:text-xs text-slate-600 dark:text-slate-300 font-normal leading-relaxed">
           &quot;A better career is a series of intentional steps.&quot;
         </p>
-        <span className="text-[10px] sm:text-[11px] font-normal text-slate-500 dark:text-slate-400 mt-0.5 block">
+        <span className="text-[10px] sm:text-[11px] font-normal text-slate-400 dark:text-slate-500 mt-0.5 block">
           — CareerTrack
         </span>
       </div>

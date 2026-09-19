@@ -55,11 +55,11 @@ export function TodayTasksCard({ tasks, isLoading }: TodayTasksCardProps) {
 
   if (isLoading) {
     return (
-      <div className="rounded-2xl border border-slate-200/80 bg-white p-4 sm:p-5 shadow-2xs animate-pulse">
-        <div className="h-5 w-32 bg-slate-100 rounded mb-4" />
+      <div className="rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-5 shadow-2xs animate-pulse">
+        <div className="h-5 w-32 bg-slate-100 dark:bg-slate-800 rounded mb-4" />
         <div className="space-y-2.5">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-10 bg-slate-50 rounded-lg" />
+            <div key={i} className="h-10 bg-slate-50 dark:bg-slate-800/50 rounded-lg" />
           ))}
         </div>
       </div>
@@ -67,7 +67,7 @@ export function TodayTasksCard({ tasks, isLoading }: TodayTasksCardProps) {
   }
 
   return (
-    <div className="rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-5 shadow-2xs hover:border-slate-300 dark:hover:border-slate-700 transition-all">
+    <div className="rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-5 shadow-2xs hover:border-slate-300 dark:hover:border-slate-700 transition-all">
       {/* Header */}
       <div className="flex items-center gap-2 pb-1">
         <h2 className="text-[15px] font-bold text-slate-900 dark:text-white">
@@ -88,7 +88,7 @@ export function TodayTasksCard({ tasks, isLoading }: TodayTasksCardProps) {
           >
             <div
               className={cn(
-                "mt-0.5 flex size-4 shrink-0 items-center justify-center rounded border transition-colors",
+                "mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-md border transition-colors",
                 task.completed
                   ? "border-emerald-600 bg-emerald-600 text-white"
                   : "border-slate-300 dark:border-slate-600 hover:border-slate-400 bg-white dark:bg-slate-900"

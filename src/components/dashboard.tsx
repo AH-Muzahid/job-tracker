@@ -27,8 +27,8 @@ export function Dashboard() {
     <div className="w-full max-w-full">
       {/* 2-Column Master Layout matching Reference Screenshot */}
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">
-        {/* Left Column (Main Cockpit: ~73% on desktop / 8 cols) */}
-        <div className="xl:col-span-8 flex flex-col space-y-5 min-w-0">
+        {/* Left Column (Main Cockpit: ~75% on desktop / 9 cols) */}
+        <div className="xl:col-span-9 flex flex-col space-y-5 min-w-0">
           {/* 1. Personalized Greeting & Daily Motivation Quote */}
           <DashboardHeader />
 
@@ -54,8 +54,8 @@ export function Dashboard() {
           </div>
         </div>
 
-        {/* Right Rail Column (~27% on desktop / 4 cols) starting at the top */}
-        <div className="xl:col-span-4 flex flex-col space-y-4 min-w-0">
+        {/* Right Rail Column (~25% on desktop / 3 cols) starting at the top */}
+        <div className="xl:col-span-3 flex flex-col space-y-4 min-w-0 xl:sticky xl:top-20">
           {/* AI Career Copilot Card */}
           <AICareerCopilotCard onAnalyzeJD={() => setIsQuickIntakeOpen(true)} />
 
