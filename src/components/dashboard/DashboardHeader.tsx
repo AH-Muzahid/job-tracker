@@ -1,42 +1,34 @@
-"use client"
+"use client";
 
-import { CalendarDays, Plus, TrendingUp } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import ReminderBell from "@/components/notifications/ReminderBell"
+import { useUser } from "@clerk/nextjs";
 
-export default function DashboardHeader({
-  dateRange,
-  onAddNew,
-}: {
-  dateRange: string
-  onAddNew: () => void
-}) {
+export function DashboardHeader() {
+  const { user } = useUser();
+
+  const firstName = user?.firstName || user?.fullName?.split(" ")[0] || "Tanvir";
+
   return (
-    <div className="flex flex-col gap-4 border-b pb-4 lg:flex-row lg:items-center lg:justify-between">
-      <div className="space-y-1">
-        <div className="inline-flex items-center gap-2 text-xs font-medium text-muted-foreground">
-          <TrendingUp className="h-3.5 w-3.5" />
-          Job pipeline overview
-        </div>
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Jobs</h1>
-          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-            Keep track of your applied jobs all in one place.
-          </p>
-        </div>
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between pt-1 pb-1">
+      <div>
+        <h1 className="text-2xl sm:text-[26px] font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
+          <span>Good morning, {firstName}</span>
+          <span className="inline-block select-none text-2xl" role="img" aria-label="waving hand">
+            👋
+          </span>
+        </h1>
+        <p className="mt-1 text-xs sm:text-[13px] text-slate-500 dark:text-slate-400 font-normal">
+          Make progress today. Small steps lead to big opportunities.
+        </p>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <ReminderBell />
-        <div className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm text-muted-foreground">
-          <CalendarDays className="h-4 w-4" />
-          <span>{dateRange}</span>
-        </div>
-        <Button onClick={onAddNew}>
-          <Plus className="h-4 w-4" />
-          Add Job
-        </Button>
+      <div className="hidden sm:block rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white/80 dark:bg-slate-900/60 px-4 py-2 text-right shadow-2xs">
+        <p className="text-[11px] sm:text-xs text-slate-600 dark:text-slate-300 font-normal leading-relaxed">
+          &quot;A better career is a series of intentional steps.&quot;
+        </p>
+        <span className="text-[10px] sm:text-[11px] font-normal text-slate-500 dark:text-slate-400 mt-0.5 block">
+          — CareerTrack
+        </span>
       </div>
     </div>
-  )
+  );
 }

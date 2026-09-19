@@ -676,8 +676,10 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
           </div>
         )}
 
-        {/* Multi-Step Execution Plan */}
-        {message.plan && message.plan.length > 0 && (
+        {/* Multi-Step Execution Plan (shown only when concrete tools are executed) */}
+        {message.plan &&
+          message.plan.length > 0 &&
+          message.plan.some((s) => Boolean(s.toolName) && s.toolName !== "null") && (
           <div className="my-2 p-2.5 bg-muted/30 border border-border font-sans text-xs space-y-1.5 not-prose">
             <div className="text-[10px] font-mono font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between border-b border-border/50 pb-1">
               <span>Agent Execution Plan ({message.plan.filter((p) => p.status === "completed").length}/{message.plan.length})</span>

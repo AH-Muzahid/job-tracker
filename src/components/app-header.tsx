@@ -1,119 +1,46 @@
 "use client";
 
-import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { DecorIcon } from "@/components/decor-icon";
-import { AppBreadcrumbs } from "@/components/app-breadcrumbs";
-import { navLinks } from "@/components/app-shared";
 import { CustomSidebarTrigger } from "@/components/custom-sidebar-trigger";
 import { NavUser } from "@/components/nav-user";
-import { SearchIcon, SunIcon, MoonIcon, Bot, Briefcase } from "lucide-react";
+import { SearchIcon } from "lucide-react";
 import { NotificationCenter } from "@/components/notifications/NotificationCenter";
 import { useUI } from "@/lib/store";
-import Link from "next/link";
 
 export function AppHeader() {
-	const pathname = usePathname();
-	const dark = useUI((s) => s.dark);
-	const toggleTheme = useUI((s) => s.toggleTheme);
 	const setSearchOpen = useUI((s) => s.setSearchOpen);
-
-	const activeItem = navLinks.find(
-		(item) => item.path && (pathname === item.path || (item.path !== "/" && pathname.startsWith(item.path)))
-	) || {
-		title: pathname.split("/").filter(Boolean).map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(" / ") || "Dashboard",
-	};
 
 	return (
 		<header
 			className={cn(
-				"sticky top-0 z-50 flex h-14 w-full shrink-0 items-center justify-between gap-2 border-b border-border px-3 sm:px-4 md:px-6",
-				"bg-background/90 backdrop-blur-md supports-backdrop-filter:bg-background/70"
+				"sticky top-0 z-40 flex h-14 sm:h-15 w-full shrink-0 items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800/80 px-4 sm:px-6",
+				"bg-white/95 dark:bg-slate-900/90 backdrop-blur-md"
 			)}
 		>
-			<DecorIcon className="hidden md:block" position="bottom-left" />
-			<div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
-				<CustomSidebarTrigger />
-				<Separator
-					className="h-4 data-[orientation=vertical]:self-center shrink-0"
-					orientation="vertical"
-				/>
-				<Link
-					href="/dashboard"
-					className="flex items-center gap-2 shrink-0 group hover:opacity-90 transition-opacity"
-					title="CareerTrack Dashboard"
-				>
-					<div className="flex size-7 items-center justify-center rounded-md bg-primary text-primary-foreground font-bold text-xs shadow-2xs">
-						<Briefcase className="size-3.5" />
-					</div>
-					<span className="font-bold text-sm text-foreground tracking-tight hidden sm:inline-block">
-						CareerTrack
-					</span>
-				</Link>
-				<Separator
-					className="h-4 data-[orientation=vertical]:self-center shrink-0 hidden md:block"
-					orientation="vertical"
-				/>
-				<div className="min-w-0 truncate hidden md:block">
-					<AppBreadcrumbs page={activeItem} />
+			<div className="flex items-center gap-3 min-w-0">
+				{/* Mobile Sidebar Trigger */}
+				<div className="md:hidden">
+					<CustomSidebarTrigger />
 				</div>
-			</div>
-			<div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+
+				{/* Rounded Pill Search Bar matching reference screenshot */}
 				<button
 					onClick={() => setSearchOpen(true)}
-					className="hidden md:flex items-center gap-2 h-8 rounded-md border bg-muted/40 px-2.5 text-xs text-muted-foreground hover:bg-muted/70 transition-colors w-44 lg:w-56 cursor-pointer"
+					className="flex items-center gap-2.5 h-9.5 sm:h-10 rounded-full border border-slate-200/70 dark:border-slate-800 bg-[#f1f5f9]/80 dark:bg-slate-800/40 hover:bg-slate-100 dark:hover:bg-slate-800/70 px-4 text-xs text-slate-400 transition-colors w-64 sm:w-80 md:w-[380px] cursor-pointer shadow-2xs"
 				>
-					<SearchIcon className="h-3.5 w-3.5 shrink-0" />
-					<span className="truncate">Search commands...</span>
-					<kbd className="ml-auto pointer-events-none inline-flex h-4.5 select-none items-center gap-0.5 rounded border bg-background px-1 font-mono text-[9px] font-medium text-muted-foreground">
-						⌘K
+					<SearchIcon className="h-4 w-4 text-slate-400 shrink-0 stroke-[2]" />
+					<span className="truncate text-slate-400 font-normal">Search jobs, companies, or anything...</span>
+					<kbd className="ml-auto pointer-events-none inline-flex h-5 select-none items-center gap-0.5 rounded-md border border-slate-200/80 dark:border-slate-700 bg-white dark:bg-slate-900 px-1.5 font-sans text-[10px] font-medium text-slate-500 shadow-2xs">
+						⌘ K
 					</kbd>
 				</button>
+			</div>
 
-				{/* Mobile Search Icon Trigger */}
-				<Button
-					aria-label="Search"
-					className="md:hidden size-8 cursor-pointer"
-					onClick={() => setSearchOpen(true)}
-					size="icon"
-					variant="ghost"
-				>
-					<SearchIcon className="size-4" />
-				</Button>
-
-				<Button
-					asChild
-					className="hidden sm:inline-flex text-xs h-8 gap-1.5 bg-muted/40 border border-border text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer"
-					size="sm"
-					variant="ghost"
-				>
-					<Link href="/ai-assistant">
-						<Bot className="size-3.5" />
-						<span>Ask AI</span>
-					</Link>
-				</Button>
-
-				<Button
-					aria-label="Toggle theme"
-					className="size-8 cursor-pointer"
-					onClick={toggleTheme}
-					size="icon"
-					variant="ghost"
-				>
-					{dark ? <SunIcon className="size-4" /> : <MoonIcon className="size-4" />}
-				</Button>
-
+			{/* Right side: Notification Bell + User Profile */}
+			<div className="flex items-center gap-4 shrink-0">
 				<NotificationCenter />
-
-				<Separator
-					className="h-4 data-[orientation=vertical]:self-center"
-					orientation="vertical"
-				/>
 				<NavUser />
 			</div>
 		</header>
 	);
 }
-

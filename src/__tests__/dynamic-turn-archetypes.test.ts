@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { getTurnArchetypePhase } from "@/app/api/ai/mock-interview/converse/route"
+import { getTurnArchetypePhase } from "@/app/api/ai/mock-interview/converse/archetypes"
 import { getEmergencyInterviewTurn } from "@/lib/ai/resilience"
 
 describe("Dynamic Turn Archetypes (INT-10)", () => {

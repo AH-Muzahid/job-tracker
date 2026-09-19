@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 import withBundleAnalyzer from "@next/bundle-analyzer";
+import { withSentryConfig } from "@sentry/nextjs/config";
 
 const bundleAnalyzer = withBundleAnalyzer({ enabled: process.env.ANALYZE === "true" });
 
@@ -7,7 +8,7 @@ const nextConfig: NextConfig = {
   output: "standalone",
   serverExternalPackages: ["pdf-parse", "inngest"],
   poweredByHeader: false,
-  reactStrictMode: true,
+  devIndicators: false,
   experimental: {
     optimizePackageImports: ['lucide-react', '@tabler/icons-react', 'recharts', '@hello-pangea/dnd'],
   },
@@ -27,4 +28,22 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default bundleAnalyzer(nextConfig);
+export default withSentryConfig(bundleAnalyzer(nextConfig), {
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  silent: !process.env.CI,
+  widenClientFileUpload: true,
+  tunnelRoute: "/monitoring",
+  sourcemaps: {
+    deleteSourcemapsAfterUpload: true,
+  },
+  bundleSizeOptimizations: {
+    excludeDebugStatements: true,
+  },
+  webpack: {
+    reactComponentAnnotation: {
+      enabled: true,
+    },
+    automaticVercelMonitors: true,
+  },
+});

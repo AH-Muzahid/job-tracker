@@ -274,6 +274,7 @@ export default function ModelSelector({
       if (raw.toLowerCase().includes("gemini-3.1-pro")) return "3.1 Pro"
       if (raw.toLowerCase().includes("gemini-3.6-flash")) return "3.6 Flash"
       if (raw.toLowerCase().includes("gemini-2.5-pro")) return "2.5 Pro"
+      if (raw.toLowerCase().includes("gemini-2.5-flash")) return "2.5 Flash"
       if (raw.toLowerCase().includes("gemini-2.0-flash")) return "2.0 Flash (Legacy)"
       if (raw.toLowerCase().includes("claude-sonnet-4-6")) return "Sonnet 4.6"
       if (raw.toLowerCase().includes("claude-sonnet-5")) return "Sonnet 5"

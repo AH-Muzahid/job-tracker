@@ -3,6 +3,18 @@ import { BaseChatModel } from "@langchain/core/language_models/chat_models"
 import type { AIProviderConfig } from "@/lib/ai/client"
 
 /**
+ * Normalizes known broken combos or invalid model IDs across custom gateways
+ */
+export function normalizeModelId(modelId?: string): string | undefined {
+  if (!modelId) return undefined
+  // OmniRoute advertises auto/gemini in /models, but rejects it with 400 (unknown built-in auto combo)
+  if (modelId === "auto/gemini") {
+    return "antigravity/gemini-2.5-flash"
+  }
+  return modelId
+}
+
+/**
  * Returns a LangChain Chat Model configured from user's AIProviderConfig
  */
 export function getLangChainChatModel(
@@ -20,7 +32,7 @@ export function getLangChainChatModel(
     case "openai": {
       return new ChatOpenAI({
         apiKey: config.apiKey,
-        modelName: options?.modelName || config.model || "gpt-4o-mini",
+        modelName: normalizeModelId(options?.modelName || config.model) || "gpt-4o-mini",
         temperature,
         streaming,
       })
@@ -28,7 +40,7 @@ export function getLangChainChatModel(
     case "custom-openai": {
       return new ChatOpenAI({
         apiKey: config.apiKey,
-        modelName: options?.modelName || config.model || "gpt-4o-mini",
+        modelName: normalizeModelId(options?.modelName || config.model) || "gpt-4o-mini",
         temperature,
         streaming,
         configuration: {

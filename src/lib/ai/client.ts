@@ -75,12 +75,20 @@ const smartOpenAIFetch: typeof fetch = async (url, init) => {
   return res
 }
 
+export function normalizeModelId(modelId?: string): string | undefined {
+  if (!modelId) return undefined
+  if (modelId === "auto/gemini") {
+    return "antigravity/gemini-2.5-flash"
+  }
+  return modelId
+}
+
 export function getProvider(config: AIProviderConfig): { model: ModelFn; defaultModel: string } {
   switch (config.providerType) {
     case "openai": {
       const openai = createOpenAI({ apiKey: config.apiKey })
       return {
-        model: (id) => openai.chat(id),
+        model: (id) => openai.chat(normalizeModelId(id) || id),
         defaultModel: "gpt-4o-mini",
       }
     }
@@ -102,16 +110,17 @@ export function getProvider(config: AIProviderConfig): { model: ModelFn; default
         apiKey: config.apiKey,
         fetch: smartOpenAIFetch,
       })
+      const defaultModel = normalizeModelId(config.model) || "gpt-4o-mini"
       return {
-        model: (id) => openai.chat(id),
-        defaultModel: config.model || "gpt-4o-mini",
+        model: (id) => openai.chat(normalizeModelId(id) || id),
+        defaultModel,
       }
     }
     case "custom-anthropic": {
       const anthropic = createAnthropic({ baseURL: config.baseUrl, apiKey: config.apiKey })
       return {
         model: anthropic,
-        defaultModel: config.model || "claude-3-5-sonnet-20241022",
+        defaultModel: normalizeModelId(config.model) || "claude-3-5-sonnet-20241022",
       }
     }
   }

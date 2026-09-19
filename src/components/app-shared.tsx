@@ -1,24 +1,82 @@
 import type { ReactNode } from "react";
 import {
-	LayoutGridIcon,
-	BriefcaseIcon,
-	Building2Icon,
-	TargetIcon,
-	CalendarDaysIcon,
-	BotIcon,
-	BrainIcon,
-	FileTextIcon,
-	UserCircle2Icon,
-	CompassIcon,
-	SettingsIcon,
-	PlusCircleIcon,
-	HelpCircleIcon,
+	User,
+	Settings,
+	PlusCircle,
+	HelpCircle,
 } from "lucide-react";
+
+// Exact SVGs matching reference screenshot
+function DashboardNavIcon({ active }: { active?: boolean }) {
+	return (
+		<svg
+			viewBox="0 0 24 24"
+			className="size-3.5 shrink-0"
+			fill={active ? "#0c1322" : "currentColor"}
+		>
+			<path d="M 5 18 L 8.5 18 L 8.5 14 C 8.5 13 9.5 12.5 11 12.5 L 11 8.5 L 12 5.5 L 13 8.5 L 13 12.5 C 14.5 12.5 15.5 13 15.5 14 L 15.5 18 L 19 18 L 19 13 C 19 11 17.5 9.5 15.5 9.5 L 13 9.5 L 13 8 L 12 4.5 L 11 8 L 11 9.5 L 8.5 9.5 C 6.5 9.5 5 11 5 13 Z" />
+		</svg>
+	);
+}
+
+function OpportunitiesNavIcon() {
+	return (
+		<svg
+			viewBox="0 0 24 24"
+			className="size-4 shrink-0"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth="1.8"
+			strokeLinecap="round"
+			strokeLinejoin="round"
+		>
+			<path d="M12 3 L3 7.5 V18.5 C3 19.3 3.7 20 4.5 20 H19.5 C20.3 20 21 19.3 21 18.5 V7.5 L12 3 Z" />
+			<path d="M3 7.5 L12 12.5 L21 7.5" />
+			<path d="M12 12.5 V20" />
+		</svg>
+	);
+}
+
+function ApplicationsNavIcon() {
+	return (
+		<svg
+			viewBox="0 0 24 24"
+			className="size-4 shrink-0"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth="1.8"
+			strokeLinecap="round"
+			strokeLinejoin="round"
+		>
+			<rect width="18" height="18" x="3" y="3" rx="3.5" />
+			<path d="M5.5 7.5 L12 12.5 L18.5 7.5" />
+		</svg>
+	);
+}
+
+function InterviewsNavIcon() {
+	return (
+		<svg
+			viewBox="0 0 24 24"
+			className="size-4 shrink-0"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth="1.8"
+			strokeLinecap="round"
+			strokeLinejoin="round"
+		>
+			<rect width="18" height="18" x="3" y="3" rx="4" />
+			<line x1="3" y1="9" x2="21" y2="9" />
+			<line x1="12" y1="9" x2="12" y2="16" />
+		</svg>
+	);
+}
 
 export type SidebarNavItem = {
 	title: string;
 	path?: string;
 	icon?: ReactNode;
+	activeIcon?: ReactNode;
 	isActive?: boolean;
 	hasDrilldown?: boolean;
 	subItems?: SidebarNavItem[];
@@ -31,73 +89,43 @@ export type SidebarNavGroup = {
 
 export const navGroups: SidebarNavGroup[] = [
 	{
-		label: "Core Pipeline",
+		label: undefined,
 		items: [
 			{
 				title: "Dashboard",
 				path: "/dashboard",
-				icon: <LayoutGridIcon className="size-4" />,
+				icon: <DashboardNavIcon />,
+				activeIcon: <DashboardNavIcon active />,
+			},
+			{
+				title: "Opportunities",
+				path: "/discovery",
+				icon: <OpportunitiesNavIcon />,
 			},
 			{
 				title: "Applications",
 				path: "/applications",
-				icon: <BriefcaseIcon className="size-4" />,
+				icon: <ApplicationsNavIcon />,
 			},
 			{
-				title: "Job Discovery",
-				path: "/discovery",
-				icon: <CompassIcon className="size-4" />,
-			},
-			{
-				title: "Companies",
-				path: "/companies",
-				icon: <Building2Icon className="size-4" />,
-			},
-			{
-				title: "Weekly Goals",
-				path: "/weekly-goals",
-				icon: <TargetIcon className="size-4" />,
-			},
-			{
-				title: "Calendar",
-				path: "/calendar",
-				icon: <CalendarDaysIcon className="size-4" />,
-			},
-		],
-	},
-	{
-		label: "AI & Preparation",
-		items: [
-			{
-				title: "AI Assistant",
-				path: "/ai-assistant",
-				icon: <BotIcon className="size-4" />,
-				hasDrilldown: true,
-			},
-			{
-				title: "Interview Prep",
+				title: "Interviews",
 				path: "/interview-prep",
-				icon: <BrainIcon className="size-4" />,
-			},
-			{
-				title: "Resumes",
-				path: "/resumes",
-				icon: <FileTextIcon className="size-4" />,
+				icon: <InterviewsNavIcon />,
 			},
 		],
 	},
 	{
-		label: "Account",
+		label: "TOOLS",
 		items: [
 			{
-				title: "Profile Setup",
+				title: "Career Profile",
 				path: "/profile-setup",
-				icon: <UserCircle2Icon className="size-4" />,
+				icon: <User className="size-4" />,
 			},
 			{
 				title: "Settings",
 				path: "/settings",
-				icon: <SettingsIcon className="size-4" />,
+				icon: <Settings className="size-4" />,
 			},
 		],
 	},
@@ -107,12 +135,12 @@ export const footerNavLinks: SidebarNavItem[] = [
 	{
 		title: "New Application",
 		path: "/applications/new",
-		icon: <PlusCircleIcon className="size-4" />,
+		icon: <PlusCircle className="size-4" />,
 	},
 	{
 		title: "Help & Guide",
 		path: "/profile-setup",
-		icon: <HelpCircleIcon className="size-4" />,
+		icon: <HelpCircle className="size-4" />,
 	},
 ];
 
@@ -124,4 +152,3 @@ export const navLinks: SidebarNavItem[] = [
 	),
 	...footerNavLinks,
 ];
-

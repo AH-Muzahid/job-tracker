@@ -98,14 +98,14 @@
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar: #0c1322;
+  --sidebar-foreground: #f1f5f9;
+  --sidebar-primary: #3b82f6;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #1b263b;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #182338;
+  --sidebar-ring: #3b82f6;
   --status-saved: oklch(0.6 0.14 250);
   --status-applied: oklch(0.55 0.18 265);
   --status-assessment: oklch(0.7 0.16 75);
@@ -146,14 +146,14 @@
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.21 0.008 260);
-  --sidebar-foreground: oklch(0.93 0.005 260);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.28 0.008 260);
-  --sidebar-accent-foreground: oklch(0.93 0.005 260);
-  --sidebar-border: oklch(1 0 0 / 12%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --sidebar: #0c1322;
+  --sidebar-foreground: #f1f5f9;
+  --sidebar-primary: #3b82f6;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #1b263b;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #182338;
+  --sidebar-ring: #3b82f6;
   --status-saved: oklch(0.7 0.12 250);
   --status-applied: oklch(0.68 0.15 265);
   --status-assessment: oklch(0.78 0.14 75);
@@ -175,10 +175,26 @@
   --svg-done-stroke: rgba(16,185,129,0.9);
 }
 
-* {
-  border-color: var(--border);
-  -webkit-tap-highlight-color: transparent;
+@layer base {
+  * {
+    border-color: var(--border);
+    -webkit-tap-highlight-color: transparent;
+  }
 }
+
+/* Suppress Next.js 15 dev overlay badge and indicator */
+nextjs-portal,
+[data-nextjs-toast],
+[data-nextjs-dev-overlay],
+[data-next-badge],
+#__next-build-watcher,
+div[data-nextjs-dev-overlay-container] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
 body {
   background-color: var(--background);
   color: var(--foreground);

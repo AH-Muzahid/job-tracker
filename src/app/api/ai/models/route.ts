@@ -51,9 +51,11 @@ export async function GET() {
           ? data.models
           : []
 
+        const INVALID_MODELS = new Set(["auto/gemini", "auto/google"])
+
         for (const item of rawList) {
           const id = typeof item === "string" ? item : item.id || item.name
-          if (id && typeof id === "string") {
+          if (id && typeof id === "string" && !INVALID_MODELS.has(id.toLowerCase())) {
             models.push({
               id,
               name: (typeof item === "object" && item.name) || id,
@@ -91,9 +93,19 @@ export async function GET() {
     }
   }
 
+  let resolvedActiveModel = activeModel || ""
+  if (resolvedActiveModel === "auto/gemini" || resolvedActiveModel === "auto/google") {
+    resolvedActiveModel =
+      models.find((m) => m.id.includes("gemini-2.5-flash") || m.id.includes("gemini-3.5-flash"))?.id ||
+      models[0]?.id ||
+      ""
+  } else if (!resolvedActiveModel) {
+    resolvedActiveModel = models[0]?.id || ""
+  }
+
   return NextResponse.json({
     models,
-    activeModel: activeModel || models[0]?.id || "",
+    activeModel: resolvedActiveModel,
     baseUrl: baseUrl || null,
     providerType,
   })

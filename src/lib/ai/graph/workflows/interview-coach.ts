@@ -2,7 +2,7 @@
 import { StateGraph, START, END, Annotation } from "@langchain/langgraph"
 import { getUserWeaknesses, persistInterviewWeaknesses, type WeaknessMemory } from "@/lib/ai/memory"
 import { compileCompanyDossier, type CompanyDossier } from "@/lib/ai/agents/company-dossier-agent"
-import { getTurnArchetypePhase } from "@/app/api/ai/mock-interview/converse/route"
+import { getTurnArchetypePhase } from "@/app/api/ai/mock-interview/converse/archetypes"
 import { resilientGenerateText } from "@/lib/ai/resilience"
 import { getSystemBase } from "@/lib/ai/prompts/system-base"
 import type { ExecutionAuditLogItem } from "../state/career-orchestrator-state"

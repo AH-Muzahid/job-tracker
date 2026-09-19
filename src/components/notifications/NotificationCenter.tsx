@@ -158,13 +158,8 @@ export function NotificationCenter() {
         aria-label="Notifications"
         title="Notifications Center"
       >
-        <Bell className="size-4" />
-        {unreadCount > 0 && (
-          <span className="absolute top-1 right-1 flex size-2 items-center justify-center">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
-            <span className="relative inline-flex rounded-full size-2 bg-primary" />
-          </span>
-        )}
+        <Bell className="size-4.5 text-slate-500 dark:text-slate-400" />
+        <span className="absolute top-1.5 right-1.5 inline-flex rounded-full size-2 bg-rose-500 ring-2 ring-white dark:ring-slate-900" />
       </Button>
 
       {isOpen && (

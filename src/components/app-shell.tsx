@@ -22,12 +22,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 	return (
 		<SidebarProvider className={cn("[--app-wrapper-max-width:86rem]")}>
 			<AppSidebar />
-			<SidebarInset className="min-w-0 max-w-full flex flex-col">
+			<SidebarInset className="min-w-0 max-w-full flex flex-col bg-[#f8fafc] dark:bg-background">
 				<AppHeader />
 				<div
 					className={cn(
 						"flex flex-1 flex-col min-w-0 max-w-full",
-						isFullscreen ? "p-0" : "p-2.5 sm:p-4 md:p-6",
+						isFullscreen ? "p-0" : "px-4 sm:px-5 lg:px-6 py-4 sm:py-5",
 						"mx-auto w-full max-w-(--app-wrapper-max-width)"
 					)}
 				>

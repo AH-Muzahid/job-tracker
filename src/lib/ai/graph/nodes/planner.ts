@@ -5,7 +5,11 @@ import type { BaseChatModel } from "@langchain/core/language_models/chat_models"
 import { getCachedSessionSummary } from "@/lib/ai/conversation-summarizer"
 
 const PLANNER_SYSTEM_PROMPT = `You are the CareerTrack AI Master Planner.
-Your job is to analyze the user's career/job tracking request and generate a structured step-by-step execution plan.
+Your job is to analyze the user's career/job tracking request and determine if external tool actions are needed.
+
+CRITICAL INSTRUCTIONS:
+1. If the user's request is a greeting (e.g. "hi", "hello", "hey"), casual chat, general advice question, or conversational guidance, DO NOT generate any tool steps. Return "steps": [].
+2. Only generate execution steps when the user asks to perform specific tool-assisted actions (e.g., search jobs, create/update/delete applications, tailor resume, fetch profile or memories, send outreach).
 
 Available Tools:
 - searchExternalJobs: { query?: string, tags?: string[], location?: string, limit?: number }
@@ -32,7 +36,7 @@ Output strictly valid JSON with the format:
     {
       "id": "step-1",
       "task": "Description of step",
-      "toolName": "toolName or null if no tool needed",
+      "toolName": "toolName or null",
       "toolInput": {}
     }
   ]
@@ -47,6 +51,18 @@ export function createPlannerNode(model: BaseChatModel) {
       .find((m) => m._getType() === "human" || (m as any).role === "user")
 
     const userText = lastUserMessage ? String(lastUserMessage.content) : state.goal || ""
+
+    // Fast-path: Greetings or brief conversational queries don't need tool execution
+    const cleanUserText = userText.trim().toLowerCase()
+    const isGreeting = /^(hi|hello|hey|hey there|hi there|halo|good morning|good afternoon|good evening|sup|yo|assalamu|salaam|kemon acho)[\s!.?]*$/i.test(cleanUserText)
+    if (isGreeting) {
+      return {
+        goal: userText,
+        plan: [],
+        currentStepIndex: 0,
+      }
+    }
+
     const sessionSummary = state.sessionId ? await getCachedSessionSummary(state.sessionId).catch(() => null) : null
 
     const promptText = sessionSummary
@@ -63,13 +79,15 @@ export function createPlannerNode(model: BaseChatModel) {
       const jsonMatch = content.match(/\{[\s\S]*\}/)
       if (jsonMatch) {
         const parsed = JSON.parse(jsonMatch[0])
-        const steps: AgentPlanStep[] = (parsed.steps || []).map((s: any, idx: number) => ({
-          id: s.id || `step-${idx + 1}`,
-          task: s.task,
-          status: "pending",
-          toolName: s.toolName || undefined,
-          toolInput: s.toolInput || undefined,
-        }))
+        const steps: AgentPlanStep[] = (parsed.steps || [])
+          .filter((s: any) => s && (s.toolName || s.task))
+          .map((s: any, idx: number) => ({
+            id: s.id || `step-${idx + 1}`,
+            task: s.task,
+            status: "pending",
+            toolName: s.toolName || undefined,
+            toolInput: s.toolInput || undefined,
+          }))
 
         return {
           goal: parsed.goal || userText,
@@ -81,16 +99,10 @@ export function createPlannerNode(model: BaseChatModel) {
       console.warn("[Planner Node Warning]:", err)
     }
 
-    // Fallback simple plan
+    // Fallback: Direct conversational response without dummy steps
     return {
       goal: userText,
-      plan: [
-        {
-          id: "step-1",
-          task: "Respond to user inquiry",
-          status: "pending",
-        },
-      ],
+      plan: [],
       currentStepIndex: 0,
     }
   }
