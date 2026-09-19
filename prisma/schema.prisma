@@ -218,8 +218,8 @@ model WeeklyGoal {
 }
 
 model ApplicationAnalysis {
-  id                  String   @id @default(uuid())
-  applicationId       String   @unique
+  id                  String    @id @default(uuid())
+  applicationId       String    @unique
   matchScore          Int?
   confidence          String?
   verdict             String?
@@ -231,7 +231,12 @@ model ApplicationAnalysis {
   finalRecommendation String?
   rawJd               String?
   rawAnalysis         String?
-  analyzedAt          DateTime @default(now())
+  outreachSubject     String?
+  outreachBody        String?   @db.Text
+  outreachChecklist   Json?
+  outreachGeneratedAt DateTime?
+  tailoredResumeJson  Json?
+  analyzedAt          DateTime  @default(now())
 
   application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
 }

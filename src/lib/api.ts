@@ -8,6 +8,7 @@ export {
   useCreateApplication,
   useUpdateApplication,
   useApplicationAnalysis,
+  useUpdateApplicationAnalysis,
 } from "@/features/applications/application.hooks"
 
 

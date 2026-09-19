@@ -13,6 +13,8 @@ interface OutreachAssistantCardProps {
   draftBody: string
   copiedSubject: boolean
   copiedBody: boolean
+  saveStatus?: "idle" | "saving" | "saved" | "error"
+  onManualSave?: () => void
   setDraftSubject: (val: string) => void
   setDraftBody: (val: string) => void
   onGenerateOutreach: () => void
@@ -31,6 +33,8 @@ export function OutreachAssistantCard({
   draftBody,
   copiedSubject,
   copiedBody,
+  saveStatus = "idle",
+  onManualSave,
   setDraftSubject,
   setDraftBody,
   onGenerateOutreach,
@@ -140,16 +144,48 @@ export function OutreachAssistantCard({
         {/* Message Body */}
         <div className="p-4 space-y-2">
           <div className="flex justify-between items-center text-sm text-foreground font-medium">
-            <span>Message Content</span>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={() => onCopyToClipboard(draftBody, "body")}
-              className="h-7 text-xs gap-1.5 px-2.5 rounded-md text-muted-foreground hover:text-foreground cursor-pointer"
-            >
-              {copiedBody ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
-              {copiedBody ? "Copied" : "Copy Body"}
-            </Button>
+            <div className="flex items-center gap-2.5">
+              <span>Message Content</span>
+              {saveStatus === "saving" && (
+                <span className="inline-flex items-center gap-1 text-xs text-muted-foreground font-mono">
+                  <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" /> Saving...
+                </span>
+              )}
+              {saveStatus === "saved" && (
+                <span className="inline-flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400 font-mono">
+                  <Check className="h-3 w-3" /> Draft saved to cloud
+                </span>
+              )}
+              {saveStatus === "error" && (
+                <span className="inline-flex items-center gap-1 text-xs text-rose-500 font-mono">
+                  Cloud save failed
+                </span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              {onManualSave && (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={onManualSave}
+                  disabled={saveStatus === "saving"}
+                  className="h-7 text-xs gap-1 px-2 rounded-md text-muted-foreground hover:text-foreground cursor-pointer"
+                  title="Save draft immediately to Postgres"
+                >
+                  Save
+                </Button>
+              )}
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => onCopyToClipboard(draftBody, "body")}
+                className="h-7 text-xs gap-1.5 px-2.5 rounded-md text-muted-foreground hover:text-foreground cursor-pointer"
+              >
+                {copiedBody ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+                {copiedBody ? "Copied" : "Copy Body"}
+              </Button>
+            </div>
           </div>
           <textarea
             value={draftBody}
@@ -195,7 +231,7 @@ export function OutreachAssistantCard({
         </div>
         <Button 
           variant="ghost" 
-          size="sm"
+          size="sm" 
           onClick={onGenerateOutreach}
           className="text-sm h-9 px-3 rounded-md text-muted-foreground hover:text-foreground cursor-pointer gap-1.5 font-medium"
         >

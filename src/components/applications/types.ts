@@ -29,6 +29,8 @@ export interface Application {
 }
 
 export interface WorkbenchAnalysis {
+  id?: string
+  applicationId?: string
   matchScore: number
   verdict?: string
   confidence?: string
@@ -42,6 +44,14 @@ export interface WorkbenchAnalysis {
     emphasize?: string[]
     foregroundProjects?: string[]
   }
+  rawJd?: string | null
+  rawAnalysis?: string | null
+  outreachSubject?: string | null
+  outreachBody?: string | null
+  outreachChecklist?: string[] | null
+  outreachGeneratedAt?: string | null
+  tailoredResumeJson?: Record<string, unknown> | null
+  analyzedAt?: string
 }
 
 export interface OutreachDrafts {

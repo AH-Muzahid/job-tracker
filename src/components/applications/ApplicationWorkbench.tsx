@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { ExternalLink, Plus, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -14,7 +14,7 @@ import { FitAssessmentCard } from "./FitAssessmentCard"
 import { OutreachAssistantCard } from "./OutreachAssistantCard"
 import { MilestoneTimeline } from "./MilestoneTimeline"
 
-import { useTags, useCreateTag } from "@/lib/api"
+import { useTags, useCreateTag, useUpdateApplicationAnalysis } from "@/lib/api"
 import { DecorIcon } from "@/components/decor-icon"
 import { DashboardCard } from "@/components/dashboard-card"
 
@@ -54,13 +54,18 @@ export function ApplicationWorkbench({
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>(application.tags.map((t) => t.tag.id))
   const [newTagName, setNewTagName] = useState("")
 
-  // Outreach Drafts
+  // Outreach Drafts & Cloud Persistence
   const [outreachLoading, setOutreachLoading] = useState(false)
   const [outreachDrafts, setOutreachDrafts] = useState<OutreachDrafts | null>(null)
   const [draftSubject, setDraftSubject] = useState("")
   const [draftBody, setDraftBody] = useState("")
   const [copiedSubject, setCopiedSubject] = useState(false)
   const [copiedBody, setCopiedBody] = useState(false)
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle")
+
+  const updateAnalysisMutation = useUpdateApplicationAnalysis()
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const initialPopulatedRef = useRef(false)
 
   // Sync state if application updates
   useEffect(() => {
@@ -73,30 +78,139 @@ export function ApplicationWorkbench({
     setSelectedTagIds(application.tags.map((t) => t.tag.id))
   }, [application])
 
-  // Restore saved outreach drafts from localStorage on mount/load
+  // Populate outreach draft from Postgres ApplicationAnalysis
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem(`outreach_${application.id}`)
-      if (saved) {
-        const parsed = JSON.parse(saved)
-        if (parsed.subject || parsed.email) {
-          setDraftSubject(parsed.subject || "")
-          setDraftBody(parsed.email || "")
-          setOutreachDrafts({
-            recommendation: "Saved outreach email draft",
-            email: parsed.email || "",
-            subjectLines: [parsed.subject || `Application for ${application.jobTitle}`],
-            beforeSendChecklist: [
-              "Verified GitHub/LinkedIn/portfolio links included",
-              "Mentioned 3+ matching skills from JD",
-              "Highlighted best projects from profile",
-              "Addressed key requirements & work setup preference",
-            ],
-          })
+    if (analysis && (analysis.outreachBody || analysis.outreachSubject)) {
+      const subject = analysis.outreachSubject || `Application for ${application.jobTitle}`
+      const body = analysis.outreachBody || ""
+      setDraftSubject(subject)
+      setDraftBody(body)
+      setOutreachDrafts({
+        recommendation: "Saved outreach email draft",
+        email: body,
+        subjectLines: [subject],
+        beforeSendChecklist: (analysis.outreachChecklist as string[]) || [
+          "Verified GitHub/LinkedIn/portfolio links included",
+          "Mentioned 3+ matching skills from JD",
+          "Highlighted best projects from profile",
+          "Addressed key requirements & work setup preference",
+        ],
+      })
+      setSaveStatus("saved")
+      initialPopulatedRef.current = true
+    }
+  }, [analysis, application.jobTitle])
+
+  // One-time legacy migration: if user has old localStorage draft not in DB, sync it & delete localStorage key
+  useEffect(() => {
+    if (typeof window === "undefined" || initialPopulatedRef.current) return
+    if (!analysis?.outreachBody && !analysis?.outreachSubject) {
+      try {
+        const saved = localStorage.getItem(`outreach_${application.id}`)
+        if (saved) {
+          const parsed = JSON.parse(saved)
+          if (parsed.subject || parsed.email) {
+            const subject = parsed.subject || `Application for ${application.jobTitle}`
+            const body = parsed.email || ""
+            setDraftSubject(subject)
+            setDraftBody(body)
+            setOutreachDrafts({
+              recommendation: "Saved outreach email draft",
+              email: body,
+              subjectLines: [subject],
+              beforeSendChecklist: [
+                "Verified GitHub/LinkedIn/portfolio links included",
+                "Mentioned 3+ matching skills from JD",
+                "Highlighted best projects from profile",
+                "Addressed key requirements & work setup preference",
+              ],
+            })
+            // Persist to Postgres immediately and remove legacy key
+            updateAnalysisMutation.mutate(
+              {
+                applicationId: application.id,
+                data: {
+                  outreachSubject: subject,
+                  outreachBody: body,
+                  outreachChecklist: [
+                    "Verified GitHub/LinkedIn/portfolio links included",
+                    "Mentioned 3+ matching skills from JD",
+                    "Highlighted best projects from profile",
+                    "Addressed key requirements & work setup preference",
+                  ],
+                  outreachGeneratedAt: new Date().toISOString(),
+                },
+              },
+              {
+                onSuccess: () => {
+                  try {
+                    localStorage.removeItem(`outreach_${application.id}`)
+                  } catch {}
+                  setSaveStatus("saved")
+                },
+              }
+            )
+          }
         }
+      } catch {}
+    }
+  }, [analysis, application.id, application.jobTitle, updateAnalysisMutation])
+
+  // Debounced auto-save to Postgres
+  const triggerDebouncedSave = useCallback(
+    (subject: string, body: string) => {
+      if (!subject && !body) return
+      setSaveStatus("saving")
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current)
       }
-    } catch {}
-  }, [application.id, application.jobTitle])
+
+      saveTimeoutRef.current = setTimeout(async () => {
+        try {
+          await updateAnalysisMutation.mutateAsync({
+            applicationId: application.id,
+            data: {
+              outreachSubject: subject,
+              outreachBody: body,
+            },
+          })
+          setSaveStatus("saved")
+        } catch {
+          setSaveStatus("error")
+        }
+      }, 1000)
+    },
+    [application.id, updateAnalysisMutation]
+  )
+
+  const handleDraftSubjectChange = (val: string) => {
+    setDraftSubject(val)
+    triggerDebouncedSave(val, draftBody)
+  }
+
+  const handleDraftBodyChange = (val: string) => {
+    setDraftBody(val)
+    triggerDebouncedSave(draftSubject, val)
+  }
+
+  const handleManualSaveDraft = async () => {
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
+    setSaveStatus("saving")
+    try {
+      await updateAnalysisMutation.mutateAsync({
+        applicationId: application.id,
+        data: {
+          outreachSubject: draftSubject,
+          outreachBody: draftBody,
+        },
+      })
+      setSaveStatus("saved")
+      toast.success("Outreach draft saved to cloud")
+    } catch {
+      setSaveStatus("error")
+      toast.error("Failed to save draft to cloud")
+    }
+  }
 
   const handleUpdateDetails = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -180,14 +294,6 @@ export function ApplicationWorkbench({
       if (finalSubject) setDraftSubject(finalSubject)
       setOutreachLoading(false)
 
-      // Persist in localStorage per application ID
-      try {
-        localStorage.setItem(
-          `outreach_${application.id}`,
-          JSON.stringify({ subject: finalSubject, email: fullEmail })
-        )
-      } catch {}
-
       let charIdx = 0
       const timer = setInterval(() => {
         if (charIdx < fullEmail.length) {
@@ -196,11 +302,13 @@ export function ApplicationWorkbench({
         } else {
           setDraftBody(fullEmail)
           clearInterval(timer)
-          toast.success("Outreach email generated successfully!")
+          setSaveStatus("saved")
+          toast.success("Outreach email generated and saved to cloud!")
         }
       }, 15)
     } catch (err: unknown) {
       setOutreachLoading(false)
+      setSaveStatus("error")
       const errMsg = err instanceof Error ? err.message : "Outreach generation failed"
       toast.error(errMsg)
     }
@@ -442,8 +550,10 @@ export function ApplicationWorkbench({
                     draftBody={draftBody}
                     copiedSubject={copiedSubject}
                     copiedBody={copiedBody}
-                    setDraftSubject={setDraftSubject}
-                    setDraftBody={setDraftBody}
+                    saveStatus={saveStatus}
+                    onManualSave={handleManualSaveDraft}
+                    setDraftSubject={handleDraftSubjectChange}
+                    setDraftBody={handleDraftBodyChange}
                     onGenerateOutreach={handleGenerateOutreach}
                     onOpenMailClient={handleOpenMailClient}
                     onMarkAppliedManually={handleMarkAppliedManually}

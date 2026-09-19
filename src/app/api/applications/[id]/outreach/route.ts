@@ -137,7 +137,41 @@ Write line 1 as SUBJECT: ..., then write the email body.`
     const rawText = textResult.text || ""
     const result = parseOutreachText(rawText, app.companyName, candidateName, app.jobTitle)
 
-    return NextResponse.json(result)
+    const defaultChecklist = [
+      "Verified GitHub/LinkedIn/portfolio links included",
+      "Mentioned 3+ matching skills from JD",
+      "Highlighted best projects from profile",
+      "Addressed key requirements & work setup preference",
+    ]
+
+    const now = new Date()
+
+    // Persist generated outreach materials directly to PostgreSQL
+    await withDbRetry(() =>
+      prisma.applicationAnalysis.upsert({
+        where: { applicationId: id },
+        create: {
+          applicationId: id,
+          outreachSubject: result.subject,
+          outreachBody: result.email,
+          outreachChecklist: defaultChecklist,
+          outreachGeneratedAt: now,
+        },
+        update: {
+          outreachSubject: result.subject,
+          outreachBody: result.email,
+          outreachChecklist: defaultChecklist,
+          outreachGeneratedAt: now,
+        },
+      })
+    )
+
+    return NextResponse.json({
+      subject: result.subject,
+      email: result.email,
+      beforeSendChecklist: defaultChecklist,
+      outreachGeneratedAt: now.toISOString(),
+    })
   } catch (error: unknown) {
     console.error("Outreach generation error:", error)
     const errMsg = error instanceof Error ? error.message : "Failed to generate outreach email"

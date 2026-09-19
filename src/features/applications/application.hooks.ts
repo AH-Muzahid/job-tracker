@@ -150,3 +150,26 @@ export function useApplicationAnalysis(applicationId: string | null) {
     staleTime: 60_000,
   })
 }
+
+export function useUpdateApplicationAnalysis() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ applicationId, data }: { applicationId: string; data: Record<string, unknown> }) => {
+      const res = await fetch(`/api/applications/${applicationId}/analysis`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || "Failed to update analysis")
+      }
+      return res.json()
+    },
+    onSuccess: (_result, { applicationId }) => {
+      qc.invalidateQueries({ queryKey: ["application-analysis", applicationId] })
+      qc.invalidateQueries({ queryKey: ["application", applicationId] })
+    },
+  })
+}
+
