@@ -7,6 +7,10 @@ import {
   type DailyDigestJobItem,
 } from "@/lib/email"
 import { detectEmploymentType } from "@/lib/discovery/matching"
+import {
+  generateFollowUpDraft,
+  stageFollowUpForApplication,
+} from "@/lib/applications/follow-up-engine"
 
 /**
  * 1. Master Fan-out Dispatcher (Cron Triggered / Event Triggered)
@@ -100,7 +104,7 @@ export const processUserAuditBatch = inngest.createFunction(
                 status: { in: ["Applied", "Interview"] },
                 updatedAt: { lte: sevenDaysAgo },
               },
-              include: { company: true },
+              include: { company: true, analysis: true },
               take: 5,
             })
           ),
@@ -133,6 +137,32 @@ export const processUserAuditBatch = inngest.createFunction(
         ])
 
         if (!user) return { skipped: true, reason: "User not found" }
+
+        // CAG-15: Automatically pre-draft tailored follow-up emails for dormant applications
+        for (const app of staleApps) {
+          try {
+            const hasRecentDraft =
+              app.analysis?.outreachGeneratedAt &&
+              Date.now() - new Date(app.analysis.outreachGeneratedAt).getTime() < 5 * 24 * 60 * 60 * 1000
+
+            if (!hasRecentDraft) {
+              const draft = await generateFollowUpDraft({
+                userId,
+                applicationId: app.id,
+                companyName: app.company?.name || app.companyName,
+                jobTitle: app.jobTitle,
+                candidateName: user.name || undefined,
+                applicationDate: app.applicationDate || app.updatedAt,
+                jdSnippet: app.analysis?.rawJd || app.notes || undefined,
+              })
+
+              await stageFollowUpForApplication(app.id, draft)
+            }
+          } catch (draftErr) {
+            console.warn(`[Auto FollowUp Draft Error for app ${app.id}]:`, draftErr)
+          }
+        }
+
         const hasTopMatches = topMatches && topMatches.length > 0
         if (staleApps.length === 0 && appliedCount === 0 && !hasTopMatches) {
           return { skipped: true, reason: "No active or stale applications and no new opportunities" }

@@ -1,7 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import { ExternalLink, CheckSquare, Trash2, Bot } from "lucide-react"
+import { ExternalLink, CheckSquare, Trash2, Bot, Clock } from "lucide-react"
+import { isFollowUpDue } from "@/lib/applications/follow-up-engine"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import StatusBadge from "@/components/StatusBadge"
@@ -226,7 +227,18 @@ export default function TableView({ applications, onSelect, onBulkSuccess }: Pro
                       {new Date(application.applicationDate).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
                     </td>
                     <td className="px-4 py-3">
-                      <StatusBadge status={application.status} />
+                      <div className="flex items-center gap-2">
+                        <StatusBadge status={application.status} />
+                        {isFollowUpDue(application) && (
+                          <span
+                            className="inline-flex items-center gap-1 text-[9.5px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded shrink-0 font-mono"
+                            title="Application silent for 5+ business days"
+                          >
+                            <Clock className="h-2.5 w-2.5" />
+                            Follow-up Due
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-3">
                       {application.jobUrl && (

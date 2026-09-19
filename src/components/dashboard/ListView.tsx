@@ -1,7 +1,8 @@
 "use client"
 
 import Link from "next/link"
-import { ExternalLink, Plus, Inbox, Bot } from "lucide-react"
+import { ExternalLink, Plus, Inbox, Bot, Clock } from "lucide-react"
+import { isFollowUpDue } from "@/lib/applications/follow-up-engine"
 import { Button } from "@/components/ui/button"
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import { DecorIcon } from "@/components/decor-icon"
@@ -76,7 +77,18 @@ function ListItem({ application, onClick }: { application: Application; onClick:
           </span>
         ))}
       </div>
-      <StatusBadge status={application.status} />
+      <div className="flex items-center gap-1.5 shrink-0">
+        <StatusBadge status={application.status} />
+        {isFollowUpDue(application) && (
+          <span
+            className="hidden md:inline-flex items-center gap-1 rounded-md border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 text-[10.5px] font-mono text-amber-600 dark:text-amber-400 font-semibold shrink-0"
+            title="Application silent for 5+ business days"
+          >
+            <Clock className="h-3 w-3" />
+            Follow-up Due
+          </span>
+        )}
+      </div>
       {application.source === "Career Orchestrator" ? (
         <span className="hidden md:inline-flex items-center gap-1 rounded-md border border-primary/20 bg-primary/10 px-2 py-0.5 text-[11px] font-mono text-primary font-semibold">
           <Bot className="h-3 w-3" />

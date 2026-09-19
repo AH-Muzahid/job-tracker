@@ -1,7 +1,8 @@
 "use client"
 
 import { memo } from "react"
-import { ExternalLink, MoreHorizontal, Pencil, Trash2, ArrowRight, Calendar, Bot } from "lucide-react"
+import { ExternalLink, MoreHorizontal, Pencil, Trash2, ArrowRight, Calendar, Bot, Clock } from "lucide-react"
+import { isFollowUpDue } from "@/lib/applications/follow-up-engine"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -160,16 +161,27 @@ const BoardCard = memo(function BoardCard({ application, onClick, onEdit, onDele
 
         {/* Bottom Meta Row: Source & Date */}
         <div className="mt-3 flex items-center justify-between text-[11px] text-muted-foreground border-t border-border/40 pt-2 font-mono">
-          {application.source === "Career Orchestrator" ? (
-            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-primary bg-primary/10 border border-primary/20 px-1.5 py-0.5 rounded">
-              <Bot className="h-3 w-3" />
-              Auto-Staged
-            </span>
-          ) : (
-            <span className="truncate max-w-[130px] font-medium text-muted-foreground/90">
-              {application.source || "Direct"}
-            </span>
-          )}
+          <div className="flex items-center gap-1.5 truncate max-w-[150px]">
+            {application.source === "Career Orchestrator" ? (
+              <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-primary bg-primary/10 border border-primary/20 px-1.5 py-0.5 rounded">
+                <Bot className="h-3 w-3" />
+                Auto-Staged
+              </span>
+            ) : (
+              <span className="truncate font-medium text-muted-foreground/90">
+                {application.source || "Direct"}
+              </span>
+            )}
+            {isFollowUpDue(application) && (
+              <span
+                className="inline-flex items-center gap-1 text-[9.5px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded shrink-0"
+                title="Application silent for 5+ business days"
+              >
+                <Clock className="h-2.5 w-2.5" />
+                Follow-up Due
+              </span>
+            )}
+          </div>
           <span className="shrink-0 flex items-center gap-1 text-muted-foreground/75">
             <Calendar className="h-3 w-3" />
             {formattedDate}

@@ -1,7 +1,9 @@
 "use client"
 
 import { useMemo, useCallback } from "react"
+import { Clock } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import { isFollowUpDue } from "@/lib/applications/follow-up-engine"
 import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd"
 import { DecorIcon } from "@/components/decor-icon"
 import { DashboardCard } from "@/components/dashboard-card"
@@ -114,6 +116,10 @@ function BoardColumnCard({
   onMoveTo: (id: string, status: string) => void
 }) {
   const Icon = column.icon
+  const followUpCount = useMemo(
+    () => column.items.filter((app) => isFollowUpDue(app)).length,
+    [column.items]
+  )
 
   return (
     <DashboardCard className="flex flex-col min-h-[550px] h-full flex-1 bg-background">
@@ -124,9 +130,20 @@ function BoardColumnCard({
           <Icon className="h-4 w-4 text-muted-foreground" />
           <h2 className="text-sm font-semibold uppercase tracking-wider text-foreground">{column.title}</h2>
         </div>
-        <Badge variant="outline" className="text-xs px-2 py-0.5 font-mono border-border bg-muted/30">
-          {column.items.length}
-        </Badge>
+        <div className="flex items-center gap-1.5">
+          {followUpCount > 0 && (
+            <span
+              className="inline-flex items-center gap-1 text-[10px] font-medium font-mono px-1.5 py-0.5 rounded border border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400"
+              title={`${followUpCount} application(s) need follow-up`}
+            >
+              <Clock className="h-2.5 w-2.5" />
+              {followUpCount} due
+            </span>
+          )}
+          <Badge variant="outline" className="text-xs px-2 py-0.5 font-mono border-border bg-muted/30">
+            {column.items.length}
+          </Badge>
+        </div>
       </div>
 
       {/* Droppable Card List */}

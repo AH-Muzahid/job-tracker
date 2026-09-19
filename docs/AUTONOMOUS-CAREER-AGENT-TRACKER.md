@@ -274,15 +274,20 @@ Whenever ANY architectural change, refactor, deletion, endpoint modification, or
   - **Owner**: Antigravity AI
   - **Status**: `Release Ready`
 
-- [ ] **`CAG-15` [Automation / Inngest] Automated 5-Day Follow-Up Dispatch Engine**
+- [x] **`CAG-15` [Automation / Inngest] Automated 5-Day Follow-Up Dispatch Engine**
   - **Description**: Automatically detect applications silent for 5 business days and pre-draft personalized follow-up emails.
   - **Target Files**:
+    - `src/lib/applications/follow-up-engine.ts` (NEW)
+    - `src/app/api/applications/[id]/follow-up/route.ts` (NEW)
     - `src/inngest/functions/daily-job-hunt.ts` (MODIFY)
-    - `src/components/dashboard/BoardView.tsx` (MODIFY - add "Follow-up Due" chip)
+    - `src/components/dashboard/BoardCard.tsx` (MODIFY - add "Follow-up Due" chip)
+    - `src/components/dashboard/BoardView.tsx` (MODIFY - add "Follow-up Due" column counter)
+    - `src/components/dashboard/TableView.tsx` (MODIFY - add "Follow-up Due" badge)
+    - `src/components/dashboard/ListView.tsx` (MODIFY - add "Follow-up Due" badge)
   - **Acceptance Criteria**: Candidate receives an alert with a 1-click review and send follow-up action for dormant applications.
   - **Priority**: `P2`
-  - **Owner**: TBD
-  - **Status**: `Pending`
+  - **Owner**: Antigravity AI
+  - **Status**: `Release Ready`
 
 - [ ] **`CAG-16` [Negotiation / AI] Offer Benchmarking & Counter-Offer Strategy Assistant**
   - **Description**: Provide data-driven leverage and scripts when an application reaches the `OFFER` stage.
