@@ -193,10 +193,10 @@ export function UniversalJDEvaluator({
     }
   }
 
-  const handleStageOrSave = async (targetStatus: "Saved" | "Applied") => {
+  const handleStageOrSave = async (targetStatus: "Staged" | "Saved" | "Applied") => {
     if (!dossier) return
     setActionLoading(true)
-    const toastId = toast.loading(targetStatus === "Saved" ? "Staging application..." : "Marking as applied...")
+    const toastId = toast.loading(targetStatus === "Staged" ? "Staging application for review..." : targetStatus === "Saved" ? "Saving application..." : "Marking as applied...")
 
     try {
       // 1. Create Application in PostgreSQL
@@ -247,7 +247,11 @@ export function UniversalJDEvaluator({
       }
 
       toast.success(
-        targetStatus === "Saved" ? "Application staged to active pipeline!" : "Application logged as applied!",
+        targetStatus === "Staged"
+          ? "Application staged to review pipeline!"
+          : targetStatus === "Saved"
+          ? "Application saved to tracker!"
+          : "Application logged as applied!",
         { id: toastId }
       )
 
@@ -496,12 +500,12 @@ export function UniversalJDEvaluator({
         <div className="p-4 border-t border-border/80 bg-muted/20 flex flex-col gap-2">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <Button
-              onClick={() => handleStageOrSave("Saved")}
+              onClick={() => handleStageOrSave("Staged")}
               disabled={actionLoading}
               className="text-xs h-9 font-semibold bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer flex items-center justify-center gap-1.5"
             >
               <Zap className="h-3.5 w-3.5" />
-              <span>Save & Stage Application</span>
+              <span>Package & Stage Application</span>
             </Button>
             <Button
               onClick={() => handleStageOrSave("Applied")}

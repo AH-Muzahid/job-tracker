@@ -209,7 +209,7 @@ export default function ApplicationFormModal({
                     <SelectValue placeholder="Select" />
                   </SelectTrigger>
                   <SelectContent>
-                    {["Saved", "Applied", "Assessment", "Interview", "Rejected", "Offer"].map((s) => (
+                    {["Staged", "Saved", "Applied", "Assessment", "Interview", "Rejected", "Offer"].map((s) => (
                       <SelectItem key={s} value={s}>{s}</SelectItem>
                     ))}
                   </SelectContent>

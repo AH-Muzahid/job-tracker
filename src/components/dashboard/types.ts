@@ -3,6 +3,7 @@ import {
   BriefcaseBusiness,
   Clock3,
   CircleCheck,
+  Layers,
   XCircle,
 } from "lucide-react"
 
@@ -29,6 +30,7 @@ export type Application = {
 
 export interface Stats {
   total: number
+  staged?: number
   saved: number
   applied: number
   assessment: number
@@ -54,6 +56,7 @@ export interface DashboardFilters {
 }
 
 export const STATUS_OPTIONS = [
+  "Staged",
   "Saved",
   "Applied",
   "Assessment",
@@ -81,9 +84,18 @@ export const SORT_OPTIONS: { value: SortOption; label: string }[] = [
 
 export const boardColumns = [
   {
+    key: "staged",
+    title: "Staged",
+    statuses: ["Staged", "STAGED"],
+    icon: Layers,
+    accent: "from-purple-50 to-white dark:from-purple-500/10 dark:to-card",
+    iconBg: "bg-purple-100 text-purple-700 dark:bg-purple-500/15 dark:text-purple-300",
+    dot: "bg-purple-500",
+  },
+  {
     key: "saved",
     title: "Saved Jobs",
-    statuses: ["Saved"],
+    statuses: ["Saved", "SAVED"],
     icon: Bookmark,
     accent: "from-sky-50 to-white dark:from-sky-500/10 dark:to-card",
     iconBg: "bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300",
@@ -92,7 +104,7 @@ export const boardColumns = [
   {
     key: "applied",
     title: "Applied Jobs",
-    statuses: ["Applied"],
+    statuses: ["Applied", "APPLIED"],
     icon: BriefcaseBusiness,
     accent: "from-indigo-50 to-white dark:from-indigo-500/10 dark:to-card",
     iconBg: "bg-indigo-100 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300",
@@ -101,7 +113,7 @@ export const boardColumns = [
   {
     key: "interviews",
     title: "Interviews",
-    statuses: ["Assessment", "Interview"],
+    statuses: ["Assessment", "ASSESSMENT", "Interview", "INTERVIEW", "Interviewing"],
     icon: Clock3,
     accent: "from-amber-50 to-white dark:from-amber-500/10 dark:to-card",
     iconBg: "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300",
@@ -110,7 +122,7 @@ export const boardColumns = [
   {
     key: "rejected",
     title: "Rejected Jobs",
-    statuses: ["Rejected"],
+    statuses: ["Rejected", "REJECTED"],
     icon: XCircle,
     accent: "from-rose-50 to-white dark:from-rose-500/10 dark:to-card",
     iconBg: "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300",
@@ -119,7 +131,7 @@ export const boardColumns = [
   {
     key: "offer",
     title: "Offered Jobs",
-    statuses: ["Offer"],
+    statuses: ["Offer", "OFFER", "Accepted"],
     icon: CircleCheck,
     accent: "from-emerald-50 to-white dark:from-emerald-500/10 dark:to-card",
     iconBg: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300",

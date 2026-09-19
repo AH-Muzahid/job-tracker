@@ -16,13 +16,13 @@ interface Props {
 }
 
 const ALL_STATUSES = [
-  "Bookmarked",
-  "Applying",
+  "Staged",
+  "Saved",
   "Applied",
-  "Interviewing",
-  "Negotiating",
-  "Accepted",
+  "Assessment",
+  "Interview",
   "Rejected",
+  "Offer",
 ]
 
 export default function TableView({ applications, onSelect, onBulkSuccess }: Props) {

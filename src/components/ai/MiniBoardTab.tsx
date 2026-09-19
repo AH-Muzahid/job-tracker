@@ -7,7 +7,7 @@ import type { Application } from "@/features/applications/application.types"
 import { DecorIcon } from "@/components/decor-icon"
 import { getCompanyColor, getInitials } from "@/components/dashboard/utils"
 
-const COLUMNS = ["Saved", "Applied", "Assessment", "Interview", "Offer"] as const
+const COLUMNS = ["Staged", "Saved", "Applied", "Assessment", "Interview", "Offer"] as const
 
 interface ApplicationsResponse {
   data: Application[]

@@ -145,11 +145,11 @@ export default function CommandPalette() {
     } else if (command === "/status") {
       const status = parts[parts.length - 1]
       const queryName = parts.slice(1, parts.length - 1).join(" ")
-      const validStatuses = ["Saved", "Applied", "Assessment", "Interview", "Rejected", "Offer"]
+      const validStatuses = ["Staged", "Saved", "Applied", "Assessment", "Interview", "Rejected", "Offer"]
       const matchedStatus = validStatuses.find(s => s.toLowerCase() === status.toLowerCase())
 
       if (!queryName || !matchedStatus) {
-        toast.error("Format: /status [Company] [Saved|Applied|Assessment|Interview|Rejected|Offer]")
+        toast.error("Format: /status [Company] [Staged|Saved|Applied|Assessment|Interview|Rejected|Offer]")
         return
       }
 

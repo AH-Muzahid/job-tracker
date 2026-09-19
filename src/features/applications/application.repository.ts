@@ -22,7 +22,26 @@ export class ApplicationRepository {
     }
 
     if (status) {
-      where.status = status
+      const lower = status.toLowerCase()
+      if (lower === "staged") {
+        where.status = { in: ["Staged", "STAGED"] }
+      } else if (lower === "saved") {
+        where.status = { in: ["Saved", "SAVED"] }
+      } else if (lower === "applied") {
+        where.status = { in: ["Applied", "APPLIED"] }
+      } else if (lower === "assessment") {
+        where.status = { in: ["Assessment", "ASSESSMENT"] }
+      } else if (lower === "interview" || lower === "interviewing") {
+        where.status = { in: ["Interview", "INTERVIEW", "Interviewing"] }
+      } else if (lower === "rejected") {
+        where.status = { in: ["Rejected", "REJECTED"] }
+      } else if (lower === "offer" || lower === "offered") {
+        where.status = { in: ["Offer", "OFFER", "Accepted"] }
+      } else if (lower === "archived") {
+        where.status = { in: ["Archived", "ARCHIVED"] }
+      } else {
+        where.status = status
+      }
     }
 
     if (source) {

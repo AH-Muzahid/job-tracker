@@ -446,7 +446,7 @@ export function ApplicationWorkbench({
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent className="bg-popover border-border text-foreground rounded-md">
-                            {["Saved", "Applied", "Assessment", "Interview", "Rejected", "Offer"].map((s) => (
+                            {["Staged", "Saved", "Applied", "Assessment", "Interview", "Rejected", "Offer"].map((s) => (
                               <SelectItem key={s} value={s} className="text-sm">{s}</SelectItem>
                             ))}
                           </SelectContent>

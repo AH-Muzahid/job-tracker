@@ -1,10 +1,31 @@
-export const VALID_STATUSES = [
+export const CANONICAL_STATUSES = [
+  "Staged",
   "Saved",
   "Applied",
   "Assessment",
   "Interview",
   "Rejected",
   "Offer",
+  "Archived",
+] as const
+
+export const VALID_STATUSES = [
+  "Staged",
+  "STAGED",
+  "Saved",
+  "SAVED",
+  "Applied",
+  "APPLIED",
+  "Assessment",
+  "ASSESSMENT",
+  "Interview",
+  "INTERVIEW",
+  "Rejected",
+  "REJECTED",
+  "Offer",
+  "OFFER",
+  "Archived",
+  "ARCHIVED",
 ] as const
 
 export const VALID_SOURCES = [
@@ -17,6 +38,7 @@ export const VALID_SOURCES = [
   "Other",
 ] as const
 
+export type CanonicalStatus = (typeof CANONICAL_STATUSES)[number]
 export type ValidStatus = (typeof VALID_STATUSES)[number]
 export type ValidSource = (typeof VALID_SOURCES)[number]
 

@@ -108,16 +108,30 @@ Whenever ANY architectural change, refactor, deletion, endpoint modification, or
   - **Owner**: Antigravity AI
   - **Status**: `Release Ready`
 
-- [ ] **`CAG-04` [Data Model / Pipeline] Formalize `STAGED` Application Status in Database & UI**
+- [x] **`CAG-04` [Data Model / Pipeline] Formalize `STAGED` Application Status in Database & UI**
   - **Description**: Provide a formal staging area between discovering a job and submitting an application.
   - **Target Files**:
-    - `prisma/schema.prisma` (MODIFY - document `STAGED` enum on `Application.status`)
-    - `src/app/api/applications/route.ts` (MODIFY - support filtering by STAGED)
-    - `src/components/dashboard/BoardView.tsx` (MODIFY - add Staged column or quick tab)
-  - **Acceptance Criteria**: Applications can be stored in `STAGED` state without skewing active `APPLIED` velocity metrics.
+    - `prisma/schema.prisma` (MODIFIED - documented formalized pipeline statuses on `Application.status`)
+    - `src/features/applications/application.constants.ts` (MODIFIED - added `Staged`, `STAGED`, `Archived`, `ARCHIVED` to `VALID_STATUSES` and `CANONICAL_STATUSES`)
+    - `src/features/applications/application.repository.ts` (MODIFIED - case-insensitive and synonym status query mapping in `findManyByUser`)
+    - `src/app/api/dashboard/stats/route.ts` (MODIFIED - aggregated `staged` counts while strictly isolating `activeApplications` from staging)
+    - `src/app/api/applications/bulk/route.ts` (MODIFIED - validated `VALID_STATUSES` on bulk status updates)
+    - `src/components/dashboard/types.ts` (MODIFIED - added `Staged` to `STATUS_OPTIONS` and 1st `staged` column to `boardColumns` with `Layers` icon)
+    - `src/components/dashboard/BoardView.tsx` (MODIFIED - updated responsive layout to 6 columns with snap horizontal scroll and quick-jump chips)
+    - `src/components/dashboard/TableView.tsx` (MODIFIED - aligned `ALL_STATUSES` with canonical pipeline statuses including `Staged`)
+    - `src/components/StatusBadge.tsx` (MODIFIED - added distinctive purple styling for `Staged` and case-insensitive color resolution)
+    - `src/app/(app)/applications/page.tsx` (MODIFIED - added `staged: "Staged"` to drag-and-drop `columnMap`)
+    - `src/components/dashboard/ApplicationFormModal.tsx` (MODIFIED - added `Staged` option to status selector)
+    - `src/features/applications/components/ApplicationForm.tsx` (MODIFIED - added `Staged` option to status selector)
+    - `src/components/applications/ApplicationWorkbench.tsx` (MODIFIED - added `Staged` option to status selector)
+    - `src/components/CommandPalette.tsx` (MODIFIED - added `Staged` to `/status` command)
+    - `src/components/ai/MiniBoardTab.tsx` (MODIFIED - added `Staged` column to AI Copilot MiniBoard)
+    - `src/components/discovery/UniversalJDEvaluator.tsx` (MODIFIED - updated primary action to "Package & Stage Application" with `status: "Staged"`)
+    - `src/__tests__/staged-application-status.test.ts` (CREATED - 8 unit and integration tests)
+  - **Acceptance Criteria**: Applications can be stored in `STAGED` state without skewing active `APPLIED` velocity metrics. Dedicated Kanban column, table, list, and form support.
   - **Priority**: `P1`
-  - **Owner**: TBD
-  - **Status**: `Pending`
+  - **Owner**: Antigravity AI
+  - **Status**: `Release Ready`
 
 ---
 
@@ -292,5 +306,6 @@ Get-ChildItem -Path src -Recurse -Include *.tsx,*.ts | Select-String "Sparkles"
 | 2026-09-19 | `CAG-01` | Pixel-perfect UI cockpit refinement matching media_1789757539889.png: permanent dark navy #0c1322 sidebar, isometric cube logo, Box icon for Interviews, wide search bar + red notification badge, #f8fafc canvas with rounded-2xl white cards, authentic SVGs via CompanyBrandLogo (Google, Stripe, Notion, Anthropic, Linear, Figma), padding to guarantee full rows, 0 sparkles guardrail. 70 test files (395 tests) and next build passed. | `src/app/globals.css`, `src/components/app-sidebar.tsx`, `src/components/app-header.tsx`, `src/components/app-shell.tsx`, `src/components/app-shared.tsx`, `src/components/dashboard/*`, `src/components/CompanyBrandLogo.tsx`, `src/__tests__/dashboard-pixel-perfect.test.tsx` | Antigravity AI |
 | 2026-09-19 | `CAG-02` | Eradicated localStorage outreach drafts and migrated persistence to PostgreSQL ApplicationAnalysis. Added outreachSubject, outreachBody, outreachChecklist, outreachGeneratedAt, tailoredResumeJson. Added PATCH endpoint with Zod validation, tenant isolation (userId check), and Prisma JsonNull safety. Implemented React Query mutation with debounced cloud auto-save and 'Draft saved to cloud' indicator. One-time auto-migration for legacy localStorage drafts. Verified with 71 test files (402 tests passing), tsc --noEmit, eslint, and next build. | `prisma/schema.prisma`, `src/app/api/applications/[id]/analysis/route.ts`, `src/app/api/applications/[id]/outreach/route.ts`, `src/components/applications/types.ts`, `src/features/applications/application.hooks.ts`, `src/lib/api.ts`, `src/components/applications/ApplicationWorkbench.tsx`, `src/components/applications/OutreachAssistantCard.tsx`, `src/__tests__/application-outreach-persistence.test.ts` | Antigravity AI |
 | 2026-09-19 | `CAG-03` | Activated orphaned JD intake UI and built unified Ingestion & Evaluation API (`POST /api/discovery/evaluate`). Consolidates URL scraping, SSRF loopback/private protection, autonomous scam heuristic gating (`evaluateJobScamRisk`), canonical tech stack extraction (`extractTechTagsFromText`), career knowledge graph traversal, and resilient AI fit evaluation with deterministic heuristic fallback. Refactored into `UniversalJDEvaluator.tsx` and `UniversalJDEvaluatorModal.tsx` globally accessible via AppHeader ('Evaluate Job' pill), CommandPalette (`Cmd+K` & `/evaluate`), DiscoveryPage header ('Evaluate JD' CTA), and DashboardQuickIntake. Persists directly to Application and ApplicationAnalysis upon 1-click stage/apply action. Verified with 72 test files (409 tests passing), 0 TypeScript errors, 0 ESLint warnings/errors, and production next build. | `src/app/api/discovery/evaluate/route.ts`, `src/components/discovery/UniversalJDEvaluator.tsx`, `src/components/discovery/UniversalJDEvaluatorModal.tsx`, `src/components/discovery/DiscoveryPage.tsx`, `src/components/app-header.tsx`, `src/components/CommandPalette.tsx`, `src/components/dashboard/DashboardQuickIntake.tsx`, `src/components/dashboard/CommandZone.tsx`, `src/components/ai/JDIntakePanel.tsx`, `src/stores/store.ts`, `src/components/app-shell.tsx`, `src/__tests__/discovery-evaluate-api.test.ts`, `docs/AUTONOMOUS-CAREER-AGENT-TRACKER.md`, `docs/JOB-DISCOVERY-TRACKER.md` | Antigravity AI |
+| 2026-09-19 | `CAG-04` | Formalized `STAGED` application pipeline status across data model, backend API, Inngest/orchestrator pipelines, and UI views. Documented in `prisma/schema.prisma`. Updated `VALID_STATUSES` and `CANONICAL_STATUSES` to accept `Staged`, `STAGED`, `Archived`, `ARCHIVED`. Implemented case-insensitive and synonym status query filtering in `ApplicationRepository.findManyByUser`. Updated `GET /api/dashboard/stats` to aggregate `staged` counts while strictly isolating `activeApplications` so pre-application staged opportunities never artificially inflate active velocity. Validated `VALID_STATUSES` in `POST /api/applications/bulk`. Added dedicated 1st `staged` column to `boardColumns` with functional `Layers` icon (0 sparkles rule strictly enforced). Updated `BoardView.tsx` with responsive 6-column grid and mobile/tablet snap-scroll quick-jump chips. Supported `Staged` in `TableView.tsx`, `FilterBar.tsx`, `StatusBadge.tsx` (with purple styling), `ApplicationsPage` drag-and-drop `columnMap`, `ApplicationFormModal.tsx`, `ApplicationForm.tsx`, `ApplicationWorkbench.tsx`, `CommandPalette.tsx` (`/status`), `MiniBoardTab.tsx`, and `UniversalJDEvaluator.tsx` primary action. Verified with 73 test files (417 tests passing), 0 TypeScript errors (`tsc --noEmit`), 0 ESLint errors, and clean Next.js build (57 routes). | `prisma/schema.prisma`, `src/features/applications/application.constants.ts`, `src/features/applications/application.repository.ts`, `src/app/api/dashboard/stats/route.ts`, `src/app/api/applications/bulk/route.ts`, `src/components/dashboard/types.ts`, `src/components/dashboard/BoardView.tsx`, `src/components/dashboard/TableView.tsx`, `src/components/StatusBadge.tsx`, `src/app/(app)/applications/page.tsx`, `src/components/dashboard/ApplicationFormModal.tsx`, `src/features/applications/components/ApplicationForm.tsx`, `src/components/applications/ApplicationWorkbench.tsx`, `src/components/CommandPalette.tsx`, `src/components/ai/MiniBoardTab.tsx`, `src/components/discovery/UniversalJDEvaluator.tsx`, `src/__tests__/staged-application-status.test.ts` | Antigravity AI |
 
 

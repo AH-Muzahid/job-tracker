@@ -101,8 +101,12 @@ function ApplicationsContent() {
     if (destination.droppableId === source.droppableId && destination.index === source.index) return
 
     const columnMap: Record<string, string> = {
-      saved: "Saved", applied: "Applied", interviews: "Assessment",
-      rejected: "Rejected", offer: "Offer",
+      staged: "Staged",
+      saved: "Saved",
+      applied: "Applied",
+      interviews: "Assessment",
+      rejected: "Rejected",
+      offer: "Offer",
     }
 
     const newStatus = columnMap[destination.droppableId]

@@ -41,6 +41,7 @@ model Application {
   jobUrl          String?
   source          String
   applicationDate DateTime
+  // Formalized Application Status Pipeline: STAGED | SAVED | APPLIED | ASSESSMENT | INTERVIEW | REJECTED | OFFER | ARCHIVED
   status          String
   notes           String?
   companyId           String?

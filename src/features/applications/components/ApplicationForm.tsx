@@ -251,6 +251,7 @@ export default function ApplicationForm({
             <SelectValue placeholder="Select status" />
           </SelectTrigger>
           <SelectContent>
+            <SelectItem value="Staged">Staged</SelectItem>
             <SelectItem value="Saved">Saved</SelectItem>
             <SelectItem value="Applied">Applied</SelectItem>
             <SelectItem value="Assessment">Assessment</SelectItem>

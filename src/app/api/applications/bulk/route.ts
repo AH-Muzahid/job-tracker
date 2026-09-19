@@ -3,6 +3,7 @@ import { getInternalUserId } from "@/lib/auth"
 import { prisma, withDbRetry } from "@/lib/prisma"
 import { ResponseUtil } from "@/lib/api-response"
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit"
+import { VALID_STATUSES } from "@/features/applications/application.constants"
 
 export async function POST(req: NextRequest) {
   const userId = await getInternalUserId()
@@ -54,6 +55,10 @@ export async function POST(req: NextRequest) {
       const newStatus = payload?.status
       if (!newStatus || typeof newStatus !== "string") {
         return ResponseUtil.badRequest("Valid status string is required for update_status")
+      }
+
+      if (!VALID_STATUSES.includes(newStatus as (typeof VALID_STATUSES)[number])) {
+        return ResponseUtil.badRequest(`Invalid status. Must be one of: ${VALID_STATUSES.join(", ")}`)
       }
 
       await withDbRetry(async () => {

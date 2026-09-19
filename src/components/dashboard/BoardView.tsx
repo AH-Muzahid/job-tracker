@@ -34,8 +34,8 @@ export default function BoardView({ applications, onSelect, onEdit, onDelete, on
 
   return (
     <DragDropContext onDragEnd={onDragEnd}>
-      {/* Mobile Column Quick-Jump Chips (Visible only on mobile) */}
-      <div className="flex md:hidden items-center gap-1.5 overflow-x-auto pb-2 -mt-1 no-scrollbar w-full max-w-full">
+      {/* Mobile & Tablet Column Quick-Jump Chips */}
+      <div className="flex lg:hidden items-center gap-1.5 overflow-x-auto pb-2 -mt-1 no-scrollbar w-full max-w-full">
         {board.map((col) => (
           <a
             key={col.key}
@@ -52,10 +52,10 @@ export default function BoardView({ applications, onSelect, onEdit, onDelete, on
       <div className="relative border border-border bg-border w-full max-w-full overflow-hidden">
         <DecorIcon className="hidden md:block" position="top-left" />
         <DecorIcon className="hidden md:block" position="top-right" />
-        {/* Responsive Kanban container: Snap horizontal scroll on mobile, 5-col border divided on desktop */}
-        <div className="flex md:grid md:grid-cols-5 divide-y md:divide-y-0 md:divide-x divide-border bg-background overflow-x-auto md:overflow-visible snap-x snap-mandatory scroll-smooth no-scrollbar w-full">
+        {/* Responsive Kanban container: Snap horizontal scroll on mobile/tablet, 6-col border divided on desktop */}
+        <div className="flex lg:grid lg:grid-cols-6 divide-y lg:divide-y-0 divide-x divide-border bg-background overflow-x-auto lg:overflow-visible snap-x snap-mandatory scroll-smooth no-scrollbar w-full">
           {board.map((column) => (
-            <div key={column.key} id={`col-${column.key}`} className="w-[82vw] sm:w-[320px] md:w-auto shrink-0 md:shrink md:flex-1 snap-start flex flex-col h-full bg-background">
+            <div key={column.key} id={`col-${column.key}`} className="w-[82vw] sm:w-[300px] lg:w-auto shrink-0 lg:shrink lg:flex-1 snap-start flex flex-col h-full bg-background">
               <BoardColumnCard
                 column={column}
                 onSelect={onSelect}

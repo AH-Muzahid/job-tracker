@@ -3,7 +3,7 @@ import { prisma, withDbRetry } from "@/lib/prisma"
 import { getInternalUserId } from "@/lib/auth"
 import { getCachedJson, setCachedJson } from "@/lib/redis"
 
-const statuses = ["Saved", "Applied", "Assessment", "Interview", "Rejected", "Offer"] as const
+const statuses = ["Staged", "Saved", "Applied", "Assessment", "Interview", "Rejected", "Offer"] as const
 
 export async function GET() {
   const userId = await getInternalUserId()
@@ -212,12 +212,16 @@ export async function GET() {
     ]
   }
 
-  // Active applications
-  const activeApplications = (countMap["Applied"] ?? 0) + (countMap["Assessment"] ?? 0) + (countMap["Interview"] ?? 0)
-  const interviewsCount = countMap["Interview"] ?? 0
-  const offersCount = countMap["Offer"] ?? 0
+  // Staged and Active applications (Staged is pre-pipeline review, strictly excluded from active velocity)
+  const stagedCount = (countMap["Staged"] ?? 0) + (countMap["STAGED"] ?? 0)
+  const appliedCount = (countMap["Applied"] ?? 0) + (countMap["APPLIED"] ?? 0)
+  const assessmentCount = (countMap["Assessment"] ?? 0) + (countMap["ASSESSMENT"] ?? 0)
+  const interviewsCount = (countMap["Interview"] ?? 0) + (countMap["INTERVIEW"] ?? 0) + (countMap["Interviewing"] ?? 0)
+  const offersCount = (countMap["Offer"] ?? 0) + (countMap["OFFER"] ?? 0) + (countMap["Accepted"] ?? 0)
+
+  const activeApplications = appliedCount + assessmentCount + interviewsCount
   const responseRatePercentage = total > 0
-    ? Math.round(((interviewsCount + (countMap["Assessment"] ?? 0) + offersCount) / total) * 100)
+    ? Math.round(((interviewsCount + assessmentCount + offersCount) / total) * 100)
     : 0
 
   // Opportunities stats
@@ -334,7 +338,13 @@ export async function GET() {
 
     // Backward-Compatible Stats for other callers
     total,
-    ...Object.fromEntries(statuses.map((s) => [s.toLowerCase(), countMap[s] ?? 0])),
+    staged: stagedCount,
+    ...Object.fromEntries(
+      statuses.map((s) => [
+        s.toLowerCase(),
+        (countMap[s] ?? 0) + (countMap[s.toUpperCase()] ?? 0),
+      ])
+    ),
     recent,
     trend,
     bySource,
