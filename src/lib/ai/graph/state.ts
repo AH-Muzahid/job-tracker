@@ -25,6 +25,14 @@ export interface AgentInterruptPayload {
   payload: Record<string, any>
 }
 
+export interface AgentRouteContext {
+  currentRoute?: string
+  entityId?: string
+  entityType?: "application" | "opportunity" | "general" | string
+  entitySummary?: Record<string, any>
+  metadata?: Record<string, any>
+}
+
 /**
  * CareerTrack LangGraph Core Agent State Schema
  */
@@ -64,6 +72,10 @@ export const AgentState = Annotation.Root({
   responseContent: Annotation<string>({
     reducer: (_, update) => update,
     default: () => "",
+  }),
+  routeContext: Annotation<AgentRouteContext | null>({
+    reducer: (_, update) => update,
+    default: () => null,
   }),
 })
 

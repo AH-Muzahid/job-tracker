@@ -28,14 +28,25 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  let body: { message?: string; sessionId?: string; resumeAction?: string; resumePayload?: any }
+  let body: {
+    message?: string
+    sessionId?: string
+    resumeAction?: string
+    resumePayload?: any
+    routeContext?: {
+      currentRoute?: string
+      entityId?: string
+      entityType?: "application" | "opportunity" | "general" | string
+      metadata?: Record<string, any>
+    }
+  }
   try {
     body = await request.json()
   } catch {
     return new Response(JSON.stringify({ error: "Invalid JSON body" }), { status: 400 })
   }
 
-  const { message, sessionId = crypto.randomUUID(), resumeAction, resumePayload } = body
+  const { message, sessionId = crypto.randomUUID(), resumeAction, resumePayload, routeContext } = body
 
   if (!message && !resumeAction) {
     return new Response(JSON.stringify({ error: "Message or resume action is required" }), { status: 400 })
@@ -70,6 +81,86 @@ export async function POST(request: NextRequest) {
     }
   } catch (dbErr) {
     console.warn("[Session Upsert Warning]:", dbErr)
+  }
+
+  // Ambient Copilot: Enrich route context with verified tenant-isolated entity data
+  let enrichedRouteContext: any = null
+  if (routeContext) {
+    const { currentRoute, entityId, entityType, metadata } = routeContext
+    let entitySummary: Record<string, any> | undefined = undefined
+
+    if (entityId && entityType === "application") {
+      try {
+        const app = await withDbRetry(() =>
+          prisma.application.findFirst({
+            where: { id: entityId, userId },
+            select: {
+              id: true,
+              companyName: true,
+              jobTitle: true,
+              status: true,
+              interviewDate: true,
+              interviewRound: true,
+              notes: true,
+            },
+          })
+        )
+        if (app) {
+          entitySummary = {
+            applicationId: app.id,
+            companyName: app.companyName,
+            jobTitle: app.jobTitle,
+            status: app.status,
+            interviewDate: app.interviewDate ? app.interviewDate.toISOString() : null,
+            interviewRound: app.interviewRound || null,
+            notes: app.notes || null,
+          }
+        }
+      } catch (appErr) {
+        console.warn("[RouteContext App Lookup Warning]:", appErr)
+      }
+    } else if (entityId && entityType === "opportunity") {
+      try {
+        const match = await withDbRetry(async () => {
+          if (!prisma.userJobMatch?.findFirst) return null
+          return await prisma.userJobMatch.findFirst({
+            where: { id: entityId, userId },
+            include: {
+              job: {
+                select: {
+                  id: true,
+                  title: true,
+                  company: true,
+                  location: true,
+                  salary: true,
+                  url: true,
+                },
+              },
+            },
+          })
+        })
+        if (match) {
+          entitySummary = {
+            matchId: match.id,
+            fitScore: match.fitScore,
+            jobTitle: match.job?.title,
+            companyName: match.job?.company,
+            location: match.job?.location,
+            salary: match.job?.salary,
+          }
+        }
+      } catch (matchErr) {
+        console.warn("[RouteContext Match Lookup Warning]:", matchErr)
+      }
+    }
+
+    enrichedRouteContext = {
+      currentRoute,
+      entityId,
+      entityType,
+      entitySummary,
+      metadata,
+    }
   }
 
   const encoder = new TextEncoder()
@@ -110,6 +201,7 @@ export async function POST(request: NextRequest) {
             plan: [],
             currentStepIndex: 0,
             reflection: { passed: true, retryCount: 0 },
+            routeContext: enrichedRouteContext,
           }
         }
 

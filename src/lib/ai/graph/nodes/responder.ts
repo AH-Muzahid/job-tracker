@@ -31,9 +31,19 @@ export function createResponderNode(model: BaseChatModel) {
     const sessionSummary = sessionId ? await getCachedSessionSummary(sessionId).catch(() => null) : null
     const summaryHeader = sessionSummary ? `Prior Conversation Summary:\n${sessionSummary}\n\n` : ""
 
+    let routeContextText = ""
+    if (state.routeContext) {
+      const { currentRoute, entityType, entityId, entitySummary } = state.routeContext
+      routeContextText = `Active Screen Context:\n- Route: ${currentRoute || "Unknown"}`
+      if (entityType) routeContextText += `\n- Entity Type: ${entityType}`
+      if (entityId) routeContextText += `\n- Entity ID: ${entityId}`
+      if (entitySummary) routeContextText += `\n- Entity Details: ${JSON.stringify(entitySummary)}`
+      routeContextText += "\n\n"
+    }
+
     const promptText = hasToolOutcomes
-      ? `${summaryHeader}User Request: "${goal}"\n\nExecution Outcomes:\n${planSummary}\n\nPlease synthesize a clear, comprehensive, and proactive response for the user.`
-      : `${summaryHeader}User Message: "${goal}"\n\nPlease provide a direct, natural, and helpful response to the user as their CareerTrack AI assistant.`
+      ? `${summaryHeader}${routeContextText}User Request: "${goal}"\n\nExecution Outcomes:\n${planSummary}\n\nPlease synthesize a clear, comprehensive, and proactive response for the user.`
+      : `${summaryHeader}${routeContextText}User Message: "${goal}"\n\nPlease provide a direct, natural, and helpful response to the user as their CareerTrack AI assistant.`
 
     try {
       const response = await model.invoke([

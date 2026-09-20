@@ -65,9 +65,18 @@ export function createPlannerNode(model: BaseChatModel) {
 
     const sessionSummary = state.sessionId ? await getCachedSessionSummary(state.sessionId).catch(() => null) : null
 
-    const promptText = sessionSummary
-      ? `Previous Session Context Summary:\n${sessionSummary}\n\nCurrent User Request: "${userText}"`
-      : `User Request: "${userText}"`
+    let routeContextText = ""
+    if (state.routeContext) {
+      const { currentRoute, entityType, entityId, entitySummary } = state.routeContext
+      routeContextText = `Active Screen Context:\n- Route: ${currentRoute || "Unknown"}`
+      if (entityType) routeContextText += `\n- Entity Type: ${entityType}`
+      if (entityId) routeContextText += `\n- Entity ID: ${entityId}`
+      if (entitySummary) routeContextText += `\n- Entity Details: ${JSON.stringify(entitySummary)}`
+      routeContextText += "\n\n"
+    }
+
+    const summarySection = sessionSummary ? `Previous Session Context Summary:\n${sessionSummary}\n\n` : ""
+    const promptText = `${summarySection}${routeContextText}User Request: "${userText}"`
 
     try {
       const response = await model.invoke([
