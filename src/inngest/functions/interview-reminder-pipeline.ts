@@ -10,6 +10,7 @@ export const interviewReminderPipeline = inngest.createFunction(
   {
     id: "interview-reminder-pipeline",
     name: "Interview 24h & 2h Reminder & Briefing Pipeline",
+    retries: 2,
     triggers: [
       { cron: "*/30 * * * *" }, // Every 30 minutes
       { event: "app/interview-reminders.check" },

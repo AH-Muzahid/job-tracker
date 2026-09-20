@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useStats } from "@/lib/api";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
+import { DailyBriefingCard } from "@/components/dashboard/DailyBriefingCard";
 import { DashboardKpis } from "@/components/dashboard/DashboardKpis";
 import { RecommendedOpportunities } from "@/components/dashboard/RecommendedOpportunities";
 import { RecentApplicationsList } from "@/components/dashboard/RecentApplicationsList";
@@ -31,6 +32,9 @@ export function Dashboard() {
         <div className="xl:col-span-9 flex flex-col space-y-5 min-w-0">
           {/* 1. Personalized Greeting & Daily Motivation Quote */}
           <DashboardHeader />
+
+          {/* 1.5. Autonomous Daily Strategic Executive Briefing Card (CAG-12) */}
+          <DailyBriefingCard />
 
           {/* 2. Top 4 Core Career KPIs in horizontal card format */}
           <DashboardKpis data={stats?.kpi} isLoading={isLoading} />

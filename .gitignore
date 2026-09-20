@@ -53,3 +53,11 @@ next-env.d.ts
 playwright-report/
 test-results/
 .originkit/
+
+# scratch scripts & local tests
+*.mjs
+test-*.js
+test-*.ts
+!src/**/test-*
+!src/**/*.test.ts
+!src/**/*.test.tsx

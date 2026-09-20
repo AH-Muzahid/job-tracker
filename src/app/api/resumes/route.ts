@@ -48,11 +48,17 @@ export async function POST(req: Request) {
       fileSize = fileObj.size
       isDefault = isDefaultVal === "true"
 
+      // Enforce 5MB payload limit to prevent memory exhaustion DoS
+      const MAX_FILE_SIZE = 5 * 1024 * 1024
+      if (fileObj.size > MAX_FILE_SIZE) {
+        return NextResponse.json({ error: "File size exceeds 5MB limit" }, { status: 400 })
+      }
+
       // Read file buffer
       const buffer = Buffer.from(await fileObj.arrayBuffer())
 
-      // Create uploads directory
-      const uploadDir = path.join(process.cwd(), "public", "uploads", "resumes")
+      // Store in private server directory outside public web root to prevent unauthorized public exposure
+      const uploadDir = path.join(process.cwd(), "storage", "resumes")
       await mkdir(uploadDir, { recursive: true })
 
       // Generate unique name
@@ -60,9 +66,9 @@ export async function POST(req: Request) {
       const finalFileName = `${crypto.randomUUID()}.${fileExt}`
       const filePath = path.join(uploadDir, finalFileName)
 
-      // Write to disk
+      // Write to private storage disk
       await writeFile(filePath, new Uint8Array(buffer))
-      fileUrl = `/uploads/resumes/${finalFileName}`
+      fileUrl = `/storage/resumes/${finalFileName}`
 
       // Extract text content
       if (fileObj.type === "application/pdf" || fileExt.toLowerCase() === "pdf") {

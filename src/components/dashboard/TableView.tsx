@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { ExternalLink, CheckSquare, Trash2, Bot, Clock } from "lucide-react"
-import { isFollowUpDue } from "@/lib/applications/follow-up-engine"
+import { isFollowUpDue } from "@/lib/applications/follow-up-utils"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import StatusBadge from "@/components/StatusBadge"

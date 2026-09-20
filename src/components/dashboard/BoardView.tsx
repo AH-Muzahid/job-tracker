@@ -3,7 +3,7 @@
 import { useMemo, useCallback } from "react"
 import { Clock } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
-import { isFollowUpDue } from "@/lib/applications/follow-up-engine"
+import { isFollowUpDue } from "@/lib/applications/follow-up-utils"
 import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd"
 import { DecorIcon } from "@/components/decor-icon"
 import { DashboardCard } from "@/components/dashboard-card"
@@ -20,9 +20,10 @@ interface Props {
   onDelete: (id: string) => void
   onMoveTo: (id: string, status: string) => void
   onDragEnd: (result: DropResult) => void
+  onOpenFollowUp?: (id: string) => void
 }
 
-export default function BoardView({ applications, onSelect, onEdit, onDelete, onMoveTo, onDragEnd }: Props) {
+export default function BoardView({ applications, onSelect, onEdit, onDelete, onMoveTo, onDragEnd, onOpenFollowUp }: Props) {
   const board = useMemo(
     () =>
       boardColumns.map((column) => ({
@@ -44,9 +45,9 @@ export default function BoardView({ applications, onSelect, onEdit, onDelete, on
             href={`#col-${col.key}`}
             className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium border border-border bg-card/60 text-muted-foreground hover:text-foreground whitespace-nowrap active:bg-muted shrink-0"
           >
-            <span className={`h-2 w-2 rounded-full ${col.dot}`} />
-            <span>{col.title}</span>
-            <span className="font-mono text-[10px] text-muted-foreground">({col.items.length})</span>
+            <span className={`h-1.5 w-1.5 rounded-full ${col.dot}`} />
+            {col.title}
+            <span className="text-[10px] text-muted-foreground font-mono">({col.items.length})</span>
           </a>
         ))}
       </div>
@@ -54,7 +55,6 @@ export default function BoardView({ applications, onSelect, onEdit, onDelete, on
       <div className="relative border border-border bg-border w-full max-w-full overflow-hidden">
         <DecorIcon className="hidden md:block" position="top-left" />
         <DecorIcon className="hidden md:block" position="top-right" />
-        {/* Responsive Kanban container: Snap horizontal scroll on mobile/tablet, 6-col border divided on desktop */}
         <div className="flex lg:grid lg:grid-cols-6 divide-y lg:divide-y-0 divide-x divide-border bg-background overflow-x-auto lg:overflow-visible snap-x snap-mandatory scroll-smooth no-scrollbar w-full">
           {board.map((column) => (
             <div key={column.key} id={`col-${column.key}`} className="w-[82vw] sm:w-[300px] lg:w-auto shrink-0 lg:shrink lg:flex-1 snap-start flex flex-col h-full bg-background">
@@ -64,6 +64,7 @@ export default function BoardView({ applications, onSelect, onEdit, onDelete, on
                 onEdit={onEdit}
                 onDelete={onDelete}
                 onMoveTo={onMoveTo}
+                onOpenFollowUp={onOpenFollowUp}
               />
             </div>
           ))}
@@ -79,12 +80,14 @@ function DraggableCard({
   onEdit,
   onDelete,
   onMoveTo,
+  onOpenFollowUp,
 }: {
   application: Application
   onSelect: (id: string) => void
   onEdit: (id: string) => void
   onDelete: (id: string) => void
   onMoveTo: (id: string, status: string) => void
+  onOpenFollowUp?: (id: string) => void
 }) {
   const handleClick = useCallback(() => onSelect(application.id), [onSelect, application.id])
   const handleEdit = useCallback(() => onEdit(application.id), [onEdit, application.id])
@@ -98,6 +101,7 @@ function DraggableCard({
       onEdit={handleEdit}
       onDelete={handleDelete}
       onMoveTo={handleMoveTo}
+      onOpenFollowUp={onOpenFollowUp}
     />
   )
 }
@@ -108,12 +112,14 @@ function BoardColumnCard({
   onEdit,
   onDelete,
   onMoveTo,
+  onOpenFollowUp,
 }: {
   column: BoardColumn & { items: Application[] }
   onSelect: (id: string) => void
   onEdit: (id: string) => void
   onDelete: (id: string) => void
   onMoveTo: (id: string, status: string) => void
+  onOpenFollowUp?: (id: string) => void
 }) {
   const Icon = column.icon
   const followUpCount = useMemo(
@@ -179,6 +185,7 @@ function BoardColumnCard({
                           onEdit={onEdit}
                           onDelete={onDelete}
                           onMoveTo={onMoveTo}
+                          onOpenFollowUp={onOpenFollowUp}
                         />
                       </div>
                   )}

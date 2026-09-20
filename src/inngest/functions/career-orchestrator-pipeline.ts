@@ -6,6 +6,7 @@ export const careerOrchestratorPipeline = inngest.createFunction(
   {
     id: "career-orchestrator-pipeline",
     name: "Career Orchestrator Autonomous Pipeline (REC-18)",
+    retries: 2,
     triggers: [{ event: "career/orchestrator.execute" }],
   },
   async ({ step, event }) => {

@@ -2,6 +2,7 @@
 import { prisma, withDbRetry } from "@/lib/prisma"
 import { getAuthenticatedGmailClient } from "@/lib/gmail"
 import { invalidateCache } from "@/lib/redis"
+import { inngest } from "@/inngest/client"
 
 export interface EmailClassification {
   intent: "INTERVIEW" | "OFFER" | "REJECTION" | "CONFIRMATION" | "GENERAL"
@@ -515,6 +516,23 @@ export async function syncUserInbox(userId: string): Promise<InboundSyncResult> 
                       dialogue: [],
                     },
                   })
+                }
+
+                // 4b-ii. Trigger automated company research dossier pipeline via Inngest
+                try {
+                  await inngest.send({
+                    name: "application/interview.scheduled",
+                    data: {
+                      applicationId: matchedApp.id,
+                      userId,
+                      companyName: matchedApp.companyName,
+                      jobTitle: matchedApp.jobTitle,
+                      interviewDate: classification.interviewDate ? classification.interviewDate.toISOString() : undefined,
+                      interviewRound: classification.round,
+                    },
+                  })
+                } catch (inngestErr) {
+                  console.warn("[gmail-sync] Failed to dispatch dossier inngest event:", inngestErr)
                 }
               }
 

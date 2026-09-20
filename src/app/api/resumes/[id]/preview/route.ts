@@ -19,9 +19,16 @@ export async function GET(
 
   if (!resume) return new NextResponse("Not found", { status: 404 })
 
-  // fileUrl is like /uploads/resumes/uuid.pdf
+  // fileUrl can be /storage/resumes/uuid.pdf or legacy /uploads/resumes/uuid.pdf
   const relPath = resume.fileUrl.replace(/^[/\\]+/, "")
-  const filePath = path.join(process.cwd(), "public", relPath)
+  let filePath = path.join(process.cwd(), relPath)
+  
+  // If not found in primary path, check fallback legacy public directory
+  try {
+    await readFile(filePath)
+  } catch {
+    filePath = path.join(process.cwd(), "public", relPath)
+  }
 
   try {
     const fileBuffer = await readFile(filePath)

@@ -13,6 +13,8 @@ import { Application, WorkbenchAnalysis, OutreachDrafts } from "./types"
 import { FitAssessmentCard } from "./FitAssessmentCard"
 import { OutreachAssistantCard } from "./OutreachAssistantCard"
 import { MilestoneTimeline } from "./MilestoneTimeline"
+import { PackageStudioTab } from "./PackageStudioTab"
+import { NegotiationStudioTab } from "./NegotiationStudioTab"
 
 import { useTags, useCreateTag, useUpdateApplicationAnalysis } from "@/lib/api"
 import { DecorIcon } from "@/components/decor-icon"
@@ -36,7 +38,10 @@ export function ApplicationWorkbench({
   onUpdate,
 }: Props) {
   const router = useRouter()
-  const [activeTab, setActiveTab] = useState<"details" | "timeline" | "outreach">("details")
+  const isOffer = application.status.toLowerCase() === "offer"
+  const [activeTab, setActiveTab] = useState<"package" | "details" | "timeline" | "outreach" | "negotiate">(
+    isOffer ? "negotiate" : "package"
+  )
 
   // Edit Form Fields
   const [companyName, setCompanyName] = useState(application.companyName)
@@ -369,6 +374,17 @@ export function ApplicationWorkbench({
                 <div className="flex items-center gap-1.5 shrink-0">
                   <button
                     type="button"
+                    onClick={() => setActiveTab("package")}
+                    className={`text-xs sm:text-sm px-3 sm:px-4 py-1.5 rounded-md font-medium transition-colors cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                      activeTab === "package"
+                        ? "bg-muted text-foreground border border-border"
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
+                    }`}
+                  >
+                    Package Studio
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => setActiveTab("details")}
                     className={`text-xs sm:text-sm px-3 sm:px-4 py-1.5 rounded-md font-medium transition-colors cursor-pointer whitespace-nowrap ${
                       activeTab === "details"
@@ -400,6 +416,19 @@ export function ApplicationWorkbench({
                   >
                     Status History
                   </button>
+                  {isOffer && (
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab("negotiate")}
+                      className={`text-xs sm:text-sm px-3 sm:px-4 py-1.5 rounded-md font-medium transition-colors cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                        activeTab === "negotiate"
+                          ? "bg-primary/10 text-primary border border-primary/30"
+                          : "text-primary/80 hover:text-primary hover:bg-primary/5"
+                      }`}
+                    >
+                      Negotiation Studio
+                    </button>
+                  )}
                 </div>
                 {onDelete && (
                   <Button
@@ -415,6 +444,14 @@ export function ApplicationWorkbench({
               </div>
 
               <div className="p-4 sm:p-6 min-h-[580px] flex-1 flex flex-col justify-start">
+                {activeTab === "package" && (
+                  <PackageStudioTab applicationId={application.id} />
+                )}
+
+                {activeTab === "negotiate" && (
+                  <NegotiationStudioTab applicationId={application.id} />
+                )}
+
                 {activeTab === "details" && (
                   <form onSubmit={handleUpdateDetails} className="space-y-4">
                     <div className="grid gap-4 sm:grid-cols-2">

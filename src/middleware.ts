@@ -18,7 +18,12 @@ const PROTECTED_API_PATHS = [
 export default clerkMiddleware(async (auth, req) => {
   const { pathname } = req.nextUrl
 
-  if (process.env.PLAYWRIGHT_TEST === "true" || req.cookies.get("playwright_test_auth")?.value === "1") {
+  const isPlaywrightBypass =
+    process.env.NODE_ENV !== "production" &&
+    process.env.PLAYWRIGHT_TEST === "true" &&
+    req.cookies.get("playwright_test_auth")?.value === "1"
+
+  if (isPlaywrightBypass) {
     return
   }
 

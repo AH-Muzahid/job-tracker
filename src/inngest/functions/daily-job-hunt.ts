@@ -20,6 +20,7 @@ export const dailyJobHuntScheduler = inngest.createFunction(
   {
     id: "daily-job-hunt-scheduler",
     name: "Daily Job Hunt Scheduler",
+    retries: 2,
     triggers: [
       { cron: "0 9 * * 1-5" }, // Every Mon-Fri at 9 AM UTC
       { event: "app/job-hunt.trigger" },
@@ -72,6 +73,7 @@ export const processUserAuditBatch = inngest.createFunction(
   {
     id: "process-user-audit-batch",
     name: "Process User Audit Batch",
+    retries: 2,
     triggers: [{ event: "career/batch.audit.process" }],
   },
   async ({ event, step }) => {
@@ -85,7 +87,7 @@ export const processUserAuditBatch = inngest.createFunction(
         const sevenDaysAgo = new Date()
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
 
-        const [user, appliedCount, staleApps, topMatches] = await Promise.all([
+        const [user, appliedCount, staleApps, stagedApps, topMatches] = await Promise.all([
           withDbRetry(() =>
             prisma.user.findUnique({
               where: { id: userId },
@@ -105,6 +107,17 @@ export const processUserAuditBatch = inngest.createFunction(
                 updatedAt: { lte: sevenDaysAgo },
               },
               include: { company: true, analysis: true },
+              take: 5,
+            })
+          ),
+          withDbRetry(() =>
+            prisma.application.findMany({
+              where: {
+                userId,
+                status: { in: ["STAGED", "Staged"] },
+              },
+              include: { company: true, analysis: true },
+              orderBy: { createdAt: "desc" },
               take: 5,
             })
           ),
@@ -164,12 +177,17 @@ export const processUserAuditBatch = inngest.createFunction(
         }
 
         const hasTopMatches = topMatches && topMatches.length > 0
-        if (staleApps.length === 0 && appliedCount === 0 && !hasTopMatches) {
-          return { skipped: true, reason: "No active or stale applications and no new opportunities" }
+        const hasStaged = stagedApps && stagedApps.length > 0
+        if (staleApps.length === 0 && appliedCount === 0 && !hasTopMatches && !hasStaged) {
+          return { skipped: true, reason: "No active, staged, or stale applications and no new opportunities" }
         }
 
         const staleSummary = staleApps
           .map((app) => `- ${app.jobTitle} at ${app.company?.name || app.companyName} (${app.status})`)
+          .join("\n")
+
+        const stagedSummary = (stagedApps || [])
+          .map((app) => `- ${app.jobTitle} at ${app.company?.name || app.companyName} (STAGED - Ready for submission)`)
           .join("\n")
 
         interface DiscoveredJobMatchRecord {
@@ -195,17 +213,23 @@ export const processUserAuditBatch = inngest.createFunction(
           .join("\n")
 
         const taskPrompt = `Generate a concise, proactive daily career briefing for ${user.name || "the candidate"}.
-Current Pipeline: ${appliedCount} active applications.
+Current Pipeline: ${appliedCount} active applied applications.
+${hasStaged ? `Applications currently STAGED (packaged and ready to submit):\n${stagedSummary}` : "No staged applications currently pending submission."}
 ${staleApps.length > 0 ? `Stale applications needing follow-up:\n${staleSummary}` : "No stale applications needing immediate follow-up."}
 ${hasTopMatches ? `Top high-fit job opportunities discovered today (>=75% match):\n${opportunitiesSummary}` : "No new job opportunities discovered in this cycle."}
 
-Provide 2-3 specific, actionable recommendations prioritizing highest-impact moves (e.g. applying to top matched jobs or following up on stale applications).`
+Provide 2-3 specific, actionable recommendations prioritizing highest-impact moves:
+1. Submitting pre-packaged staged applications to get them in recruiters' queues.
+2. Following up on stale applications that have gone quiet.
+3. Reviewing newly discovered top-fit opportunities.`
 
         const evaluation = await runHeadlessEvaluation(userId, taskPrompt)
         const aiBriefing = evaluation.content
 
         const notifTitle =
-          hasTopMatches && staleApps.length > 0
+          hasStaged
+            ? `Action Required: ${stagedApps.length} Staged Application${stagedApps.length > 1 ? "s" : ""} Ready to Submit`
+            : hasTopMatches && staleApps.length > 0
             ? `Daily Briefing: ${topMatches.length} Top Matches & Stale Follow-ups`
             : hasTopMatches
             ? `Daily Briefing: ${topMatches.length} High-Fit Jobs Discovered`
@@ -213,7 +237,7 @@ Provide 2-3 specific, actionable recommendations prioritizing highest-impact mov
             ? "Action Required: Stale Applications Follow-up"
             : "Daily Career Pipeline Briefing"
 
-        const notifType = staleApps.length > 0 ? "FOLLOW_UP" : "DAILY_HUNT"
+        const notifType = hasStaged ? "STAGE_PROMPT" : staleApps.length > 0 ? "FOLLOW_UP" : "DAILY_HUNT"
 
         // Create in-app notification
         await withDbRetry(() =>
@@ -223,7 +247,7 @@ Provide 2-3 specific, actionable recommendations prioritizing highest-impact mov
               title: notifTitle,
               message: aiBriefing,
               type: notifType,
-              link: hasTopMatches ? "/discovery" : "/applications",
+              link: hasStaged ? "/applications" : hasTopMatches ? "/discovery" : "/applications",
             },
           })
         )

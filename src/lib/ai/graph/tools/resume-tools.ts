@@ -185,43 +185,51 @@ export async function executeTailorResumeForJob(
           skills: ["System Design", "TDD", "CI/CD", "Distributed Caching", "API Design"],
         },
       ],
-      experience: [
-        {
-          role: targetRole,
-          company: "Enterprise Engineering Solutions",
-          duration: "2022 - Present",
-          location: "Remote",
-          bullets: [
-            `Architected high-throughput services utilizing ${matchedSkillNames.slice(0, 2).join(" & ") || "modern tech stack"} resulting in 40% reduction in query latency.`,
-            `Engineered robust CI/CD deployment workflows and automated test coverage across core production microservices.`,
-            `Spearheaded cross-functional delivery cycles to ship critical product capabilities ahead of scheduled milestones.`,
+      experience: (profile?.recentRoles && Array.isArray(profile.recentRoles) && profile.recentRoles.length > 0)
+        ? profile.recentRoles.map((r: any) => ({
+            role: r.title || targetRole,
+            company: r.company || "Previous Experience",
+            duration: r.duration || "2022 - Present",
+            location: r.location || "Remote",
+            bullets: [
+              `Delivered engineering solutions leveraging ${matchedSkillNames.slice(0, 2).join(" & ") || "core technologies"} aligning with technical standards.`,
+              `Collaborated across cross-functional engineering teams to ship high-reliability features and maintain robust code quality.`,
+            ],
+          }))
+        : [
+            {
+              role: profile?.targetRoles?.[0] || targetRole,
+              company: profile?.currentCompany || "Independent Engineering & Projects",
+              duration: "Recent",
+              location: profile?.location || "Remote",
+              bullets: [
+                `Engineered full-stack and distributed capabilities utilizing ${matchedSkillNames.slice(0, 3).join(", ") || "modern technical stack"}.`,
+                `Applied scalable architecture patterns and automated testing to ensure high quality and production reliability.`,
+              ],
+            },
           ],
-        },
-        {
-          role: "Software Engineer",
-          company: "Scale Systems Inc.",
-          duration: "2020 - 2022",
-          location: "San Francisco, CA",
-          bullets: [
-            `Developed resilient REST & event-driven APIs handling over 50,000 requests per second with 99.9% uptime.`,
-            `Optimized relational PostgreSQL schema indexing cutting slow queries by 65%.`,
+      projects: (profile?.projects && Array.isArray(profile.projects) && profile.projects.length > 0)
+        ? profile.projects.map((p: any) => ({
+            name: p.name || `${targetRole} Production Suite`,
+            stack: p.stack ? (Array.isArray(p.stack) ? p.stack : [p.stack]) : allSkills.slice(0, 4),
+            bullets: [
+              p.description || `Engineered production-grade solution utilizing ${matchedSkillNames.slice(0, 2).join(" and ") || "modern software practices"}.`,
+            ],
+          }))
+        : [
+            {
+              name: `${targetRole} Technical Implementation`,
+              stack: allSkills.slice(0, 4),
+              bullets: [
+                `Designed and implemented robust architecture addressing key competencies in ${matchedSkillNames.slice(0, 2).join(" and ") || "software engineering"}.`,
+              ],
+            },
           ],
-        },
-      ],
-      projects: [
-        {
-          name: `${targetRole} Autonomous Suite`,
-          stack: allSkills.slice(0, 4),
-          bullets: [
-            `Engineered production-grade web application with real-time state orchestration and high-performance vector search.`,
-          ],
-        },
-      ],
       education: [
         {
-          degree: "B.S. in Computer Science or Equivalent Experience",
-          institution: "Accredited University",
-          year: "2020",
+          degree: profile?.education || "Bachelor of Science in Computer Science or Equivalent Practical Experience",
+          institution: profile?.university || "Verified Academic / Industry Background",
+          year: "Verified",
         },
       ],
       targetCompany,

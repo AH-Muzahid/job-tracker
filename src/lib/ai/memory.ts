@@ -199,3 +199,80 @@ TAILORING COUNTER-STRATEGY MANDATE:
 2. Provide a "weaknessMitigations" array in the JSON response explaining how the tailored resume specifically mitigates each identified weakness for this job description.`
 }
 
+/**
+ * Resolves previously identified interview weaknesses when a candidate achieves a passing or high STAR score (>= 80%)
+ * in a subsequent mock interview or debrief.
+ * Transitions category from 'weakness' -> 'resolved_weakness' and logs resolution context.
+ */
+export async function resolveInterviewWeaknesses(
+  userId: string,
+  options: {
+    targetRole?: string
+    topics?: string[]
+    overallScore?: number
+  } = {}
+): Promise<number> {
+  if (!userId) return 0
+  if (!prisma?.userMemory?.findMany || !prisma?.userMemory?.update) return 0
+
+  const score = options.overallScore ?? 100
+  if (score < 80) return 0 // Only resolve when candidate demonstrated strong performance (>= 80%)
+
+  try {
+    const activeWeaknesses = await withDbRetry<WeaknessMemory[]>(() =>
+      prisma.userMemory.findMany({
+        where: {
+          userId,
+          category: "weakness",
+        },
+      })
+    )
+
+    if (!activeWeaknesses || activeWeaknesses.length === 0) return 0
+
+    const toResolve: WeaknessMemory[] = []
+    const topicsLower = (options.topics || []).map((t) => t.toLowerCase())
+    const roleLower = options.targetRole?.toLowerCase()
+
+    for (const mem of activeWeaknesses) {
+      const contentLower = mem.content.toLowerCase()
+      const topicMatches = topicsLower.some((t) => contentLower.includes(t))
+      const roleMatches = roleLower ? contentLower.includes(roleLower) : false
+
+      if (topicMatches || (topicsLower.length === 0 && (roleMatches || score >= 85))) {
+        toResolve.push(mem)
+      }
+    }
+
+    if (toResolve.length === 0) return 0
+
+    let resolvedCount = 0
+    for (const mem of toResolve) {
+      await withDbRetry(() =>
+        prisma.userMemory.update({
+          where: { id: mem.id },
+          data: {
+            category: "resolved_weakness",
+            content: `${mem.content} [RESOLVED with score ${score}% on ${new Date().toISOString().split("T")[0]}]`,
+          },
+        })
+      )
+      resolvedCount++
+    }
+
+    if (resolvedCount > 0) {
+      try {
+        await invalidateCache(`user:memories:${userId}`)
+      } catch {
+        // Non-fatal if redis fails
+      }
+    }
+
+    return resolvedCount
+  } catch (err) {
+    console.warn("[resolveInterviewWeaknesses] Error resolving weaknesses:", err)
+    return 0
+  }
+}
+
+

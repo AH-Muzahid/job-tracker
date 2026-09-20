@@ -69,12 +69,18 @@ export async function touchMemory(memoryId: string): Promise<void> {
   })
 }
 
+// Categories reserved for system integration configurations that must NEVER be pruned or merged
+const EXCLUDED_HYGIENE_CATEGORIES = ["integration_google_sheets", "google_sheets_config", "settings"]
+
 /**
  * Automatically consolidates duplicate user memories in the database for a user.
  */
 export async function consolidateUserMemories(userId: string): Promise<number> {
   const memories = await prisma.userMemory.findMany({
-    where: { userId },
+    where: { 
+      userId,
+      category: { notIn: EXCLUDED_HYGIENE_CATEGORIES },
+    },
     select: { id: true, content: true, category: true },
   })
 
@@ -101,6 +107,7 @@ export async function consolidateUserMemories(userId: string): Promise<number> {
 /**
  * Remove low-scoring memories below threshold.
  * Only prunes memories older than minAgeDays to avoid deleting new ones.
+ * Excludes critical integration configurations.
  */
 export async function pruneStaleMemories(
   userId: string,
@@ -111,7 +118,11 @@ export async function pruneStaleMemories(
   cutoff.setDate(cutoff.getDate() - minAgeDays)
 
   const memories = await prisma.userMemory.findMany({
-    where: { userId, createdAt: { lt: cutoff } },
+    where: { 
+      userId, 
+      createdAt: { lt: cutoff },
+      category: { notIn: EXCLUDED_HYGIENE_CATEGORIES },
+    },
   })
 
   const scored = memories.map((m: {

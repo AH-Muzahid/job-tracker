@@ -3,6 +3,7 @@ import {
   persistInterviewWeaknesses,
   getUserWeaknesses,
   formatWeaknessProbingContext,
+  resolveInterviewWeaknesses,
 } from "@/lib/ai/memory"
 import { prisma } from "@/lib/prisma"
 import { invalidateCache } from "@/lib/redis"
@@ -12,6 +13,7 @@ vi.mock("@/lib/prisma", () => ({
     userMemory: {
       findMany: vi.fn(),
       create: vi.fn(),
+      update: vi.fn(),
     },
   },
   withDbRetry: vi.fn((fn) => fn()),
@@ -166,4 +168,47 @@ describe("INT-13: Cross-Session Interview Weakness & Memory Persistence", () => 
     expect(formatted).toContain("1. [Weakness: Kafka]: Struggles with rebalancing")
     expect(formatted).toContain("Probe the candidate on one of these areas")
   })
+
+  it("resolves active weaknesses when candidate scores >= 80% with matching topics/role", async () => {
+    const existingWeaknesses = [
+      {
+        id: "mem-kafka",
+        userId: "user-123",
+        category: "weakness",
+        content: "[Weakness: Kafka Partitions] at Stripe for Backend Engineer: Poor understanding",
+      },
+    ]
+
+    vi.mocked(prisma.userMemory.findMany).mockResolvedValueOnce(existingWeaknesses as any)
+    vi.mocked(prisma.userMemory.update).mockResolvedValue({ id: "mem-kafka" } as any)
+
+    const resolved = await resolveInterviewWeaknesses("user-123", {
+      targetRole: "Backend Engineer",
+      topics: ["Kafka Partitions", "System Architecture"],
+      overallScore: 88,
+    })
+
+    expect(resolved).toBe(1)
+    expect(prisma.userMemory.update).toHaveBeenCalledWith({
+      where: { id: "mem-kafka" },
+      data: {
+        category: "resolved_weakness",
+        content: expect.stringContaining("[RESOLVED with score 88%"),
+      },
+    })
+    expect(invalidateCache).toHaveBeenCalledWith("user:memories:user-123")
+  })
+
+  it("does not resolve weaknesses if candidate score is below 80%", async () => {
+    const resolved = await resolveInterviewWeaknesses("user-123", {
+      targetRole: "Backend Engineer",
+      topics: ["Kafka Partitions"],
+      overallScore: 65,
+    })
+
+    expect(resolved).toBe(0)
+    expect(prisma.userMemory.findMany).not.toHaveBeenCalled()
+    expect(prisma.userMemory.update).not.toHaveBeenCalled()
+  })
 })
+

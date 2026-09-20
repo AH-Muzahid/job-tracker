@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { ExternalLink, Plus, Inbox, Bot, Clock } from "lucide-react"
-import { isFollowUpDue } from "@/lib/applications/follow-up-engine"
+import { isFollowUpDue } from "@/lib/applications/follow-up-utils"
 import { Button } from "@/components/ui/button"
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import { DecorIcon } from "@/components/decor-icon"

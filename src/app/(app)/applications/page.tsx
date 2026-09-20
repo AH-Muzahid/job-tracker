@@ -1,6 +1,6 @@
 "use client"
 
-import { Suspense, useCallback, useMemo } from "react"
+import { Suspense, useCallback, useMemo, useState } from "react"
 import dynamic from "next/dynamic"
 import { useUser } from "@clerk/nextjs"
 import { useRouter } from "next/navigation"
@@ -18,6 +18,7 @@ import ListView from "@/components/dashboard/ListView"
 import TableView from "@/components/dashboard/TableView"
 import ApplicationDetailModal from "@/components/dashboard/ApplicationDetailModal"
 import ApplicationFormModal from "@/components/dashboard/ApplicationFormModal"
+import { FollowUpSendDrawer } from "@/components/applications/FollowUpSendDrawer"
 import { useSearchParams } from "@/hooks/use-search-params"
 import { useApplications, useMoveApplication, useDeleteApplication } from "@/lib/api"
 import { useUI } from "@/lib/store"
@@ -43,7 +44,8 @@ function ApplicationsContent() {
   }), [urlParams.search, urlParams.status, urlParams.source, urlParams.sort, urlParams.tag])
 
   const view: ViewMode = (urlParams.view as ViewMode) || "board"
-  const { data, isLoading, error } = useApplications(filters)
+  const { data, isLoading, error, refetch } = useApplications(filters)
+  const [followUpAppId, setFollowUpAppId] = useState<string | null>(null)
   const applications = useMemo(() => (data?.data ?? []) as Application[], [data])
   const total = data?.total ?? 0
 
@@ -245,6 +247,7 @@ function ApplicationsContent() {
               onDelete={(id) => setDeleteModal(true, id)}
               onMoveTo={handleMoveTo}
               onDragEnd={handleDragEnd}
+              onOpenFollowUp={(id) => setFollowUpAppId(id)}
             />
           )}
           {view === "list" && (
@@ -275,6 +278,14 @@ function ApplicationsContent() {
         onOpenChange={(open) => setFormModal(open)}
         applicationId={formModal.editId}
         onUpdated={() => setFormModal(false)}
+      />
+      <FollowUpSendDrawer
+        applicationId={followUpAppId}
+        open={!!followUpAppId}
+        onOpenChange={(open) => !open && setFollowUpAppId(null)}
+        onFollowUpSent={() => {
+          refetch()
+        }}
       />
 
       <Dialog open={deleteModal.open} onOpenChange={(open) => setDeleteModal(open, deleteModal.id)}>

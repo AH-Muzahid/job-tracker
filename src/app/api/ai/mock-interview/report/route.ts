@@ -215,26 +215,45 @@ ${dialogueTranscript}
     let report: any = null
 
     try {
-      const res = await resilientGenerateText({
+      const { runInterviewCoachPipeline } = await import("@/lib/ai/graph/workflows/interview-coach")
+      const agentResult = await runInterviewCoachPipeline({
         userId,
-        systemPrompt,
-        messages: [{ role: "user", content: promptText }],
-        temperature: 0.2,
-        timeoutMs: 35000,
+        applicationId: applicationId || undefined,
+        targetCompany,
+        targetRole,
+        roundType: interviewType,
+        dialogue: history,
       })
-
-      const cleaned = res.text.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim()
-      const jsonStart = cleaned.indexOf("{")
-      const jsonEnd = cleaned.lastIndexOf("}")
-
-      if (jsonStart !== -1 && jsonEnd !== -1) {
-        report = JSON.parse(cleaned.substring(jsonStart, jsonEnd + 1))
+      if (agentResult?.evaluationReport && typeof agentResult.evaluationReport === "object") {
+        report = agentResult.evaluationReport
       }
-    } catch (llmErr) {
-      console.warn(
-        "[Report LLM Fallback]: Resilient text generation failed or returned invalid JSON, using emergency STAR report:",
-        llmErr
-      )
+    } catch (graphErr) {
+      console.warn("[Interview Coach Graph fallback to direct resilient generator]:", graphErr)
+    }
+
+    if (!report || typeof report !== "object") {
+      try {
+        const res = await resilientGenerateText({
+          userId,
+          systemPrompt,
+          messages: [{ role: "user", content: promptText }],
+          temperature: 0.2,
+          timeoutMs: 35000,
+        })
+
+        const cleaned = res.text.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim()
+        const jsonStart = cleaned.indexOf("{")
+        const jsonEnd = cleaned.lastIndexOf("}")
+
+        if (jsonStart !== -1 && jsonEnd !== -1) {
+          report = JSON.parse(cleaned.substring(jsonStart, jsonEnd + 1))
+        }
+      } catch (llmErr) {
+        console.warn(
+          "[Report LLM Fallback]: Resilient text generation failed or returned invalid JSON, using emergency STAR report:",
+          llmErr
+        )
+      }
     }
 
     // If upstream LLM failed across all providers, use deterministic emergency report
@@ -268,6 +287,20 @@ ${dialogueTranscript}
           report,
         },
       })
+
+      // Automatically resolve previous weaknesses if candidate demonstrated strong STAR performance (>= 80%)
+      if (typeof report.overallScore === "number" && report.overallScore >= 80) {
+        try {
+          const { resolveInterviewWeaknesses } = await import("@/lib/ai/memory")
+          await resolveInterviewWeaknesses(userId, {
+            targetRole,
+            topics: Array.isArray(report.strengths) ? report.strengths : [],
+            overallScore: report.overallScore,
+          })
+        } catch (resolveErr) {
+          console.warn("[Memory Weakness Resolution Error (non-fatal)]:", resolveErr)
+        }
+      }
 
       // Persist identified knowledge gaps to long-term UserMemory
       if (Array.isArray(report.knowledgeGaps) && report.knowledgeGaps.length > 0) {

@@ -20,6 +20,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 		initTheme();
 	}, [initTheme]);
 
+	useEffect(() => {
+		const handleKeyDown = (e: KeyboardEvent) => {
+			if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "j") {
+				e.preventDefault();
+				const current = useUI.getState().aiSidebarOpen;
+				useUI.getState().setAiSidebarOpen(!current);
+			}
+		};
+		window.addEventListener("keydown", handleKeyDown);
+		return () => window.removeEventListener("keydown", handleKeyDown);
+	}, []);
+
 	return (
 		<SidebarProvider className={cn("[--app-wrapper-max-width:86rem]")}>
 			<AppSidebar />

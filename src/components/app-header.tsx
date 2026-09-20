@@ -3,13 +3,15 @@
 import { cn } from "@/lib/utils";
 import { CustomSidebarTrigger } from "@/components/custom-sidebar-trigger";
 import { NavUser } from "@/components/nav-user";
-import { SearchIcon, Zap } from "lucide-react";
+import { SearchIcon, Zap, Bot } from "lucide-react";
 import { NotificationCenter } from "@/components/notifications/NotificationCenter";
 import { useUI } from "@/lib/store";
 
 export function AppHeader() {
 	const setSearchOpen = useUI((s) => s.setSearchOpen);
 	const setEvaluatorModal = useUI((s) => s.setEvaluatorModal);
+	const aiSidebarOpen = useUI((s) => s.aiSidebarOpen);
+	const setAiSidebarOpen = useUI((s) => s.setAiSidebarOpen);
 
 	return (
 		<header
@@ -44,6 +46,19 @@ export function AppHeader() {
 				>
 					<Zap className="h-3.5 w-3.5 text-primary" />
 					<span>Evaluate Job</span>
+				</button>
+
+				{/* Ambient Copilot Trigger Pill (CAG-11) */}
+				<button
+					onClick={() => setAiSidebarOpen(!aiSidebarOpen)}
+					className="hidden md:flex items-center gap-1.5 h-9.5 sm:h-10 rounded-full border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900/60 hover:bg-slate-50 dark:hover:bg-slate-800/80 px-3 text-xs font-medium text-foreground transition-colors cursor-pointer shadow-2xs"
+					title="Open Career Copilot (⌘J / Ctrl+J)"
+				>
+					<Bot className="h-3.5 w-3.5 text-primary" />
+					<span>Copilot</span>
+					<kbd className="ml-1 pointer-events-none inline-flex h-4 select-none items-center rounded border border-slate-200/80 dark:border-slate-700 px-1 font-sans text-[9px] text-muted-foreground">
+						⌘J
+					</kbd>
 				</button>
 			</div>
 

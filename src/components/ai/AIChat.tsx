@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect, useCallback } from "react"
+import { usePathname, useParams } from "next/navigation"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Send, Square, FileText, Briefcase, Target, MessageSquare, ArrowDown, Plus, RotateCcw } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -173,6 +174,8 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
   const createdSessionIdRef = useRef<string | null>(null)
   const isStreamingRef = useRef(false)
   
+  const pathname = usePathname()
+  const params = useParams()
   const { pendingPrompt, setPendingPrompt, aiSidebarOpen } = useUI()
   const queryClient = useQueryClient()
   const { setToolInvocations, setPlan: setWorkspacePlan, setIsStreaming: setWorkspaceIsStreaming } = useWorkspace()
@@ -400,13 +403,25 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
       const controller = new AbortController()
       abortRef.current = controller
 
-      console.log(`[Chat] 4. Sending POST to /api/agent/run`)
+      const entityId = (params?.id as string) || undefined
+      const entityType = pathname.includes("/applications/")
+        ? "application"
+        : pathname.includes("/discovery")
+        ? "opportunity"
+        : "general"
+
+      console.log(`[Chat] 4. Sending POST to /api/agent/run with ambient context`)
       const res = await fetch("/api/agent/run", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           sessionId: currentSessionId,
           message: trimmed,
+          routeContext: {
+            currentRoute: pathname,
+            entityId,
+            entityType,
+          },
         }),
         signal: controller.signal,
       })

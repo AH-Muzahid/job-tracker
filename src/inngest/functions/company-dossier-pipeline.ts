@@ -9,6 +9,7 @@ export const companyDossierPipeline = inngest.createFunction(
   {
     id: "company-dossier-pipeline",
     name: "Automated Company Research & Interview Dossier Agent",
+    retries: 2,
     triggers: [
       { event: "application/interview.scheduled" },
       { event: "application/dossier.generate" },

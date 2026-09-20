@@ -10,6 +10,7 @@ export const inboxSyncScheduler = inngest.createFunction(
   {
     id: "inbox-sync-scheduler",
     name: "1-Hour Inbound Gmail Sync & Status Updater",
+    retries: 2,
     triggers: [
       { cron: "0 * * * *" }, // Runs every 1 hour
       { event: "app/inbox-sync.trigger" },

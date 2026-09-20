@@ -2,7 +2,7 @@
 
 import { memo } from "react"
 import { ExternalLink, MoreHorizontal, Pencil, Trash2, ArrowRight, Calendar, Bot, Clock } from "lucide-react"
-import { isFollowUpDue } from "@/lib/applications/follow-up-engine"
+import { isFollowUpDue } from "@/lib/applications/follow-up-utils"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -24,6 +24,7 @@ interface Props {
   onEdit: () => void
   onDelete: () => void
   onMoveTo: (status: string) => void
+  onOpenFollowUp?: (id: string) => void
 }
 
 function getTagStyle(tagName: string) {
@@ -43,7 +44,7 @@ function getTagStyle(tagName: string) {
   return "bg-muted/60 text-muted-foreground border-border/80"
 }
 
-const BoardCard = memo(function BoardCard({ application, onClick, onEdit, onDelete, onMoveTo }: Props) {
+const BoardCard = memo(function BoardCard({ application, onClick, onEdit, onDelete, onMoveTo, onOpenFollowUp }: Props) {
   const initials = getInitials(application.companyName)
   const colorClass = getCompanyColor(application.companyName)
 
@@ -173,13 +174,18 @@ const BoardCard = memo(function BoardCard({ application, onClick, onEdit, onDele
               </span>
             )}
             {isFollowUpDue(application) && (
-              <span
-                className="inline-flex items-center gap-1 text-[9.5px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded shrink-0"
-                title="Application silent for 5+ business days"
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onOpenFollowUp?.(application.id)
+                }}
+                className="inline-flex items-center gap-1 text-[9.5px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 px-1.5 py-0.5 rounded shrink-0 cursor-pointer transition-colors"
+                title="Application silent for 5+ business days. Click to open Follow-Up Studio."
               >
                 <Clock className="h-2.5 w-2.5" />
                 Follow-up Due
-              </span>
+              </button>
             )}
           </div>
           <span className="shrink-0 flex items-center gap-1 text-muted-foreground/75">

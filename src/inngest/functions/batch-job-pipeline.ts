@@ -243,6 +243,7 @@ export const batchJobReleaseScheduler = inngest.createFunction(
   {
     id: "batch-job-release-scheduler",
     name: "6-Hour Staged Job Release Scheduler",
+    retries: 2,
     triggers: [
       { cron: "0 */6 * * *" }, // Run every 6 hours on the hour (00:00, 06:00, 12:00, 18:00 UTC)
       { event: "app/job-batch.trigger" },
@@ -302,6 +303,7 @@ export const processUserJobBatchWorker = inngest.createFunction(
   {
     id: "process-user-job-batch-worker",
     name: "Process User Job Batch Worker",
+    retries: 2,
     triggers: [{ event: "career/job-batch.process" }],
   },
   async ({ event, step }) => {
@@ -330,6 +332,7 @@ export const globalJobCrawlScheduler = inngest.createFunction(
   {
     id: "global-job-crawl-scheduler",
     name: "Global Job Board Crawler & Catalog Ingest",
+    retries: 2,
     triggers: [
       { cron: "0 */4 * * *" }, // Runs every 4 hours
       { event: "discovery/global-crawl.trigger" },
