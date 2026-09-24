@@ -29,7 +29,7 @@ export function StayConsistentCard({
   activeDaysCount,
   isLoading,
 }: StayConsistentCardProps) {
-  const days = activity && activity.length === 7 ? activity : referenceActivity;
+  const days = activity && activity.length > 0 ? activity : referenceActivity;
   const count = activeDaysCount ?? days.filter((d) => d.active).length;
 
   if (isLoading) {
