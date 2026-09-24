@@ -169,6 +169,10 @@
 | 2026-09-20 | RES-01 | Antigravity | Configured `retries: 2` across all Inngest pipelines | Pass |
 | 2026-09-20 | REC-14 | Antigravity | Built `resolveInterviewWeaknesses` in `memory.ts` and integrated in `mock-interview/report/route.ts` | Pass (7/7 tests passed) |
 | 2026-09-20 | DB-01 | Antigravity | Audited catalog and match lifecycle: zero hard deletions, rolling 24h soft-archival | Pass |
+| 2026-09-20 | FIX-10 | Antigravity | Converted unhandled error on missing userId to graceful early return in `career-orchestrator-pipeline.ts` | Pass |
+| 2026-09-20 | FIX-16 | Antigravity | Computed dynamic prior-week deltas in `/api/dashboard/stats` and removed hardcoded numbers | Pass |
+| 2026-09-20 | FIX-17 | Antigravity | Replaced hardcoded "Tanvir" user fallbacks with dynamic user state across headers & navigation | Pass |
+| 2026-09-20 | FIX-18 | Antigravity | Implemented date-scoped daily task completion persistence in `TodayTasksCard.tsx` | Pass |
 | 2026-09-20 | TEST-FULL | Antigravity | Executed entire Vitest suite: 82/82 test files passed, 488/488 tests passed (100%) | Pass (100%) |
 | 2026-09-20 | BUILD-VERIFY | Antigravity | Executed `npx next build --no-lint`: all 57 static and dynamic pages compiled cleanly | Pass (0 errors) |
 
