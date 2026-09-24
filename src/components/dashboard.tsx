@@ -12,6 +12,7 @@ import { AICareerCopilotCard } from "@/components/dashboard/AICareerCopilotCard"
 import { TodayTasksCard } from "@/components/dashboard/TodayTasksCard";
 import { StayConsistentCard } from "@/components/dashboard/StayConsistentCard";
 import { DashboardQuickIntake } from "@/components/dashboard/DashboardQuickIntake";
+import { DashboardSkeleton } from "@/components/dashboard-skeleton";
 import {
   Dialog,
   DialogContent,
@@ -24,6 +25,11 @@ export function Dashboard() {
   const { data: stats, isLoading } = useStats();
   const [isQuickIntakeOpen, setIsQuickIntakeOpen] = useState(false);
 
+  // During initial load, keep the unified DashboardSkeleton until data is ready
+  if (isLoading && !stats) {
+    return <DashboardSkeleton />;
+  }
+
   return (
     <div className="w-full max-w-full">
       {/* 2-Column Master Layout matching Reference Screenshot */}
@@ -33,11 +39,11 @@ export function Dashboard() {
           {/* 1. Personalized Greeting & Daily Motivation Quote */}
           <DashboardHeader />
 
-          {/* 1.5. Autonomous Daily Strategic Executive Briefing Card (CAG-12) */}
-          <DailyBriefingCard />
-
-          {/* 2. Top 4 Core Career KPIs in horizontal card format */}
+          {/* 2. Top 4 Core Career KPIs (Moved above insights) */}
           <DashboardKpis data={stats?.kpi} isLoading={isLoading} />
+
+          {/* 3. Autonomous Daily Strategic Executive Briefing Card (CAG-12) */}
+          <DailyBriefingCard />
 
           {/* 3. Recommended Opportunities (3 cards) */}
           <RecommendedOpportunities
