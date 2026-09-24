@@ -19,6 +19,7 @@ import {
 import { inngest } from "@/inngest/client"
 import { checkDistributedRateLimit, rateLimitResponse } from "@/lib/rate-limit"
 import { ResponseUtil } from "@/lib/api-response"
+import { getCachedJson, setCachedJson, invalidateCache } from "@/lib/redis"
 import { logDiscoveryEvent } from "@/lib/discovery/telemetry"
 import { invalidateUserImplicitPreferences } from "@/lib/discovery/preferences"
 import { generateApplicationMaterialsAgent } from "@/lib/discovery/cover-letter-agent"
@@ -57,6 +58,14 @@ export async function GET(request: NextRequest) {
   console.log(`[JobDiscovery API] GET called: userId=${userId}, query="${query}", forceRefresh=${forceRefresh}`)
 
   try {
+    const cacheKey = `discovery:feed:v1:${userId}`
+    if (!forceRefresh && !query) {
+      const cached = await getCachedJson<Record<string, unknown>>(cacheKey)
+      if (cached) {
+        return ResponseUtil.success(cached)
+      }
+    }
+
     const now = new Date()
 
     // 1. Cold-start check: If CanonicalJob catalog has 0 jobs, trigger background ingest and return non-blocking syncing state (<50ms)
@@ -170,6 +179,7 @@ export async function GET(request: NextRequest) {
     // 4. TIER 2: Deep Cross-Encoder Re-Ranking (<800ms)
     const reRankedOpportunities = await deepReRankCandidateJobs({
       candidateProfile: {
+        userId,
         targetRoles,
         skills: userSkills,
         experienceLevel,
@@ -318,7 +328,7 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    return ResponseUtil.success({
+    const responsePayload = {
       count: filteredOpportunities.length,
       totalAvailable: reRankedOpportunities.length,
       topPicksCount,
@@ -326,7 +336,13 @@ export async function GET(request: NextRequest) {
       currentBatchStartedAt,
       batchSummary,
       opportunities: filteredOpportunities,
-    })
+    }
+
+    if (!query) {
+      void setCachedJson(cacheKey, responsePayload, 1800) // 30-minute server cache
+    }
+
+    return ResponseUtil.success(responsePayload)
   } catch (error: any) {
     console.error("[JobDiscovery API] GET Error:", error)
     return ResponseUtil.error(error?.message || "Internal server error", 500)
@@ -364,6 +380,14 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const safeAfter = (fn: () => Promise<void> | void) => {
+      try {
+        after(fn)
+      } catch {
+        void fn()
+      }
+    }
+
     if (action === "save") {
       const { jobId, companyName, jobTitle, jobUrl, location, salary, status, notes } = body
       const resolvedJobId = await resolveCanonicalJobId(jobId)
@@ -383,15 +407,25 @@ export async function POST(request: NextRequest) {
         return ResponseUtil.error(saveResult.error || "Failed to save job", 500)
       }
 
-      // 2. Mark UserJobMatch as isSaved: true (protected from rolling 24h archival)
+      // 2. Mark UserJobMatch as isSaved: true (protected from rolling 24h archival) and STAGED if status is Staged
+      const isStagedAction = status === "Staged" || status === "STAGED"
+      const matchUpdateData = {
+        isSaved: true,
+        ...(isStagedAction ? { status: "STAGED" } : {}),
+      }
+
       if (jobId) {
         await withDbRetry(() =>
           prisma.userJobMatch.updateMany({
             where: {
               userId,
-              OR: [{ id: jobId }, { jobId: jobId }],
+              OR: [
+                { id: jobId },
+                { jobId: jobId },
+                ...(resolvedJobId ? [{ jobId: resolvedJobId }] : []),
+              ],
             },
-            data: { isSaved: true },
+            data: matchUpdateData,
           })
         ).catch((err) => console.warn("[UserJobMatch save mark error]:", err))
       } else {
@@ -399,16 +433,19 @@ export async function POST(request: NextRequest) {
           prisma.userJobMatch.updateMany({
             where: {
               userId,
-              job: { company: companyName, title: jobTitle },
+              job: {
+                company: { equals: companyName, mode: "insensitive" },
+                title: { equals: jobTitle, mode: "insensitive" },
+              },
             },
-            data: { isSaved: true },
+            data: matchUpdateData,
           })
         ).catch((err) => console.warn("[UserJobMatch save mark error]:", err))
       }
 
       // 3. Post-response background execution via Next.js 15 after() to prevent serverless CPU freeze
       const savedAppId = (saveResult as any).applicationId
-      after(async () => {
+      safeAfter(async () => {
         try {
           await Promise.allSettled([
             Promise.resolve(
@@ -420,6 +457,10 @@ export async function POST(request: NextRequest) {
               })
             ),
             invalidateUserImplicitPreferences(userId),
+            invalidateCache(`discovery:feed:v1:${userId}`),
+            invalidateCache(`user:stats:v2:${userId}`),
+            invalidateCache(`dashboard:stats:${userId}`),
+            invalidateCache(`applications:${userId}`),
             savedAppId
               ? generateApplicationMaterialsAgent(userId, savedAppId, {
                   companyName,
@@ -439,9 +480,91 @@ export async function POST(request: NextRequest) {
       return ResponseUtil.success(saveResult)
     }
 
+    if (action === "unsave") {
+      const { jobId } = body
+      let { companyName, jobTitle } = body
+      const resolvedJobId = await resolveCanonicalJobId(jobId)
+
+      // If companyName or jobTitle not provided, look up from UserJobMatch
+      if ((!companyName || !jobTitle) && jobId) {
+        const foundMatch = await prisma.userJobMatch.findFirst({
+          where: { userId, OR: [{ id: jobId }, { jobId: jobId }] },
+          include: { job: { select: { company: true, title: true } } },
+        }).catch(() => null)
+
+        if (foundMatch?.job) {
+          companyName = companyName || foundMatch.job.company
+          jobTitle = jobTitle || foundMatch.job.title
+        }
+      }
+
+      // 1. Mark UserJobMatch as isSaved: false
+      if (jobId) {
+        await withDbRetry(() =>
+          prisma.userJobMatch.updateMany({
+            where: {
+              userId,
+              OR: [{ id: jobId }, { jobId: jobId }],
+            },
+            data: { isSaved: false },
+          })
+        ).catch((err) => console.warn("[UserJobMatch unsave mark error]:", err))
+      } else if (companyName && jobTitle) {
+        await withDbRetry(() =>
+          prisma.userJobMatch.updateMany({
+            where: {
+              userId,
+              job: { company: companyName, title: jobTitle },
+            },
+            data: { isSaved: false },
+          })
+        ).catch((err) => console.warn("[UserJobMatch unsave mark error]:", err))
+      }
+
+      // 2. Remove bookmark Application record if still in Saved status
+      if (companyName && jobTitle) {
+        await withDbRetry(() =>
+          prisma.application.deleteMany({
+            where: {
+              userId,
+              companyName: { equals: companyName, mode: "insensitive" },
+              jobTitle: { equals: jobTitle, mode: "insensitive" },
+              status: "Saved",
+            },
+          })
+        ).catch((err) => console.warn("[Application unsave remove error]:", err))
+      }
+
+      // 3. Invalidate caches and log telemetry
+      safeAfter(async () => {
+        try {
+          await Promise.allSettled([
+            invalidateCache(`discovery:feed:v1:${userId}`),
+            invalidateCache(`user:stats:v2:${userId}`),
+            invalidateCache(`dashboard:stats:${userId}`),
+            invalidateCache(`applications:${userId}`),
+            Promise.resolve(
+              logDiscoveryEvent({
+                userId,
+                eventType: "JOB_UNSAVED",
+                jobId: resolvedJobId || jobId || undefined,
+                metadata: { companyName, jobTitle },
+              })
+            ),
+            invalidateUserImplicitPreferences(userId),
+          ])
+        } catch (afterErr) {
+          console.error("[JobDiscovery API] Error in post-unsave background tasks:", afterErr)
+        }
+      })
+
+      return ResponseUtil.success({ unsaved: true })
+    }
+
     if (action === "refresh") {
       console.log(`[JobDiscovery API] Refresh batch triggered for userId=${userId}`)
-      after(async () => {
+      await invalidateCache(`discovery:feed:v1:${userId}`)
+      safeAfter(async () => {
         try {
           logDiscoveryEvent({
             userId,
@@ -487,9 +610,10 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      after(async () => {
+      safeAfter(async () => {
         try {
           await Promise.allSettled([
+            invalidateCache(`discovery:feed:v1:${userId}`),
             Promise.resolve(
               logDiscoveryEvent({
                 userId,
@@ -540,7 +664,7 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      after(async () => {
+      safeAfter(async () => {
         try {
           await Promise.allSettled([
             Promise.resolve(
@@ -566,7 +690,7 @@ export async function POST(request: NextRequest) {
       const resolvedJobId = await resolveCanonicalJobId(jobId)
       const eventType = clickType === "apply" ? "JOB_APPLIED" : "JOB_CLICK_EXTERNAL"
 
-      after(async () => {
+      safeAfter(async () => {
         try {
           await Promise.allSettled([
             Promise.resolve(
