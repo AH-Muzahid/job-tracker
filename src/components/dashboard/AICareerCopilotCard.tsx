@@ -38,8 +38,8 @@ export function AICareerCopilotCard({ onAnalyzeJD }: AICareerCopilotCardProps) {
   ];
 
   return (
-    <div className="rounded-xl border border-slate-200/60 dark:border-slate-800 bg-[#f8fafb] dark:bg-slate-900/80 p-4 sm:p-5 shadow-2xs transition-all">
-      {/* Header: Dual-star icon matching reference */}
+    <div className="rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-5 shadow-2xs transition-all">
+      {/* Header: Dual-star icon requested by user */}
       <div className="flex items-center gap-2.5">
         <div className="relative size-5 shrink-0">
           <svg viewBox="0 0 24 24" className="size-5" fill="none">
