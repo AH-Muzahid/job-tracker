@@ -56,6 +56,7 @@ describe("CAG-11: Ambient Copilot Route & Entity Context Injection", () => {
         reflection: { passed: true, retryCount: 0 },
         interruptData: null,
         responseContent: "",
+        isHeadlessMode: false,
         routeContext: {
           currentRoute: "/applications/app-stripe-999",
           entityType: "application",
@@ -110,6 +111,7 @@ describe("CAG-11: Ambient Copilot Route & Entity Context Injection", () => {
         reflection: { passed: true, retryCount: 0 },
         interruptData: null,
         responseContent: "",
+        isHeadlessMode: false,
         routeContext: null,
       }
 
@@ -154,6 +156,7 @@ describe("CAG-11: Ambient Copilot Route & Entity Context Injection", () => {
         reflection: { passed: true, retryCount: 0 },
         interruptData: null,
         responseContent: "",
+        isHeadlessMode: false,
         routeContext: {
           currentRoute: "/applications/app-linear-777",
           entityType: "application",
