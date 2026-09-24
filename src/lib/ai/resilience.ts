@@ -4,6 +4,8 @@ import type { LanguageModelV4 } from "@ai-sdk/provider"
 import { getProvider, AIProviderConfig } from "./client"
 import { getUserAIConfig, getAllUserAIProfiles, updateUserAIProfileModel } from "./config"
 import { getToolRisk, ToolRisk } from "./tool-registry"
+import { traceAIGeneration } from "./telemetry"
+import { countMessageTokens, countTokens } from "./token-counter"
 
 /**
  * Deprecated → Successor model mapping.
@@ -304,21 +306,29 @@ export async function getFallbackModelCascade(
  */
 export async function resilientGenerateText(options: {
   userId: string
+  sessionId?: string
+  traceName?: string
   preferredModelId?: string
   systemPrompt: string
   messages: Array<{ role: "user" | "assistant" | "system"; content: string }>
   temperature?: number
   maxRetriesPerModel?: number
   timeoutMs?: number
+  tags?: string[]
+  metadata?: Record<string, unknown>
 }): Promise<ResilientExecutionResult> {
   const {
     userId,
+    sessionId,
+    traceName = "resilient-generate-text",
     preferredModelId,
     systemPrompt,
     messages,
     temperature = 0.7,
     maxRetriesPerModel = 2,
     timeoutMs = 15000,
+    tags = [],
+    metadata = {},
   } = options
 
   const startTime = Date.now()
@@ -351,13 +361,38 @@ export async function resilientGenerateText(options: {
         })
 
         if (result.text && result.text.trim().length > 0) {
+          const latencyMs = Date.now() - startTime
+          const promptTokens = (result as any).usage?.promptTokens ?? countMessageTokens(messages)
+          const completionTokens = (result as any).usage?.completionTokens ?? countTokens(result.text)
+
+          void traceAIGeneration({
+            name: traceName,
+            userId,
+            sessionId,
+            model: candidate.id,
+            provider: candidate.name,
+            input: { systemPrompt, messages },
+            output: result.text.trim(),
+            promptTokens,
+            completionTokens,
+            latencyMs,
+            status: "success",
+            tags: ["resilient-cascade", ...tags],
+            metadata: {
+              attemptsCount: totalAttempts,
+              fallbackTriggered: isFallback,
+              ...metadata,
+            },
+            flush: true,
+          })
+
           return {
             text: result.text.trim(),
             modelUsed: candidate.id,
             providerUsed: candidate.name,
             attemptsCount: totalAttempts,
             fallbackTriggered: isFallback,
-            durationMs: Date.now() - startTime,
+            durationMs: latencyMs,
           }
         }
       } catch (err: unknown) {
@@ -384,13 +419,39 @@ export async function resilientGenerateText(options: {
               if (result2.text && result2.text.trim().length > 0) {
                 // Persist the upgrade so user never hits this again
                 void updateUserAIProfileModel(userId, successor).catch(() => {})
+                const latencyMs = Date.now() - startTime
+                const promptTokens = (result2 as any).usage?.promptTokens ?? countMessageTokens(messages)
+                const completionTokens = (result2 as any).usage?.completionTokens ?? countTokens(result2.text)
+
+                void traceAIGeneration({
+                  name: traceName,
+                  userId,
+                  sessionId,
+                  model: successor,
+                  provider: `${candidate.name} (auto-upgraded from ${depModel})`,
+                  input: { systemPrompt, messages },
+                  output: result2.text.trim(),
+                  promptTokens,
+                  completionTokens,
+                  latencyMs,
+                  status: "success",
+                  tags: ["resilient-cascade", "model-upgraded", ...tags],
+                  metadata: {
+                    attemptsCount: totalAttempts + 1,
+                    fallbackTriggered: isFallback,
+                    deprecatedModel: depModel,
+                    ...metadata,
+                  },
+                  flush: true,
+                })
+
                 return {
                   text: result2.text.trim(),
                   modelUsed: successor,
                   providerUsed: `${candidate.name} (auto-upgraded from ${depModel})`,
                   attemptsCount: totalAttempts + 1,
                   fallbackTriggered: isFallback,
-                  durationMs: Date.now() - startTime,
+                  durationMs: latencyMs,
                 }
               }
             } catch (upgradeErr) {
@@ -418,6 +479,24 @@ export async function resilientGenerateText(options: {
 
   const errMsg =
     lastError instanceof Error ? lastError.message : "AI generation failed across all providers"
+
+  void traceAIGeneration({
+    name: traceName,
+    userId,
+    sessionId,
+    model: preferredModelId || "unknown",
+    input: { systemPrompt, messages },
+    latencyMs: Date.now() - startTime,
+    status: "error",
+    error: errMsg,
+    tags: ["resilient-cascade", "error", ...tags],
+    metadata: {
+      attemptsCount: totalAttempts,
+      ...metadata,
+    },
+    flush: true,
+  })
+
   throw new Error(`AI Resilient Execution Failed after ${totalAttempts} attempts: ${errMsg}`)
 }
 
