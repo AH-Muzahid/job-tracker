@@ -20,6 +20,7 @@ const mockPoolInstance = {
   query: vi.fn(),
   connect: vi.fn(),
   end: vi.fn(),
+  on: vi.fn(),
 }
 
 vi.mock("pg", () => {
@@ -34,6 +35,11 @@ vi.mock("pg", () => {
 describe("PostgreSQL Persistent Checkpointer", () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    // Reset global singleton for test isolation
+    const globalObj = globalThis as any
+    globalObj.graphCheckpointer = undefined
+    globalObj.graphPool = undefined
+    globalObj.checkpointerSetupPromise = undefined
   })
 
   it("initializes PostgresSaver with Pool and runs setup()", async () => {
@@ -42,6 +48,7 @@ describe("PostgreSQL Persistent Checkpointer", () => {
 
     expect(checkpointer).toBeDefined()
     expect(mockSetupSpy).toHaveBeenCalled()
+    expect(mockPoolInstance.on).toHaveBeenCalledWith("error", expect.any(Function))
   })
 
   it("returns the singleton instance on subsequent calls", async () => {
