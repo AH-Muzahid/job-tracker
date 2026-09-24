@@ -4,6 +4,7 @@ import { getInternalUserId } from "@/lib/auth"
 import { prisma, withDbRetry } from "@/lib/prisma"
 import { getProvider } from "@/lib/ai/client"
 import { getUserAIConfig } from "@/lib/ai/config"
+import { traceAIGeneration } from "@/lib/ai/telemetry"
 
 export async function POST(
   request: NextRequest,
@@ -127,6 +128,7 @@ ${truncatedJd}
 
 Write line 1 as SUBJECT: ..., then write the email body.`
 
+  const startTime = Date.now()
   try {
     const textResult = await generateText({
       model: targetModel,
@@ -136,6 +138,21 @@ Write line 1 as SUBJECT: ..., then write the email body.`
 
     const rawText = textResult.text || ""
     const result = parseOutreachText(rawText, app.companyName, candidateName, app.jobTitle)
+
+    void traceAIGeneration({
+      name: "outreach-email-generator",
+      userId,
+      model: aiConfig.model || resolvedProvider.defaultModel,
+      provider: aiConfig.providerType,
+      input: { companyName: app.companyName, jobTitle: app.jobTitle },
+      output: { subject: result.subject },
+      promptTokens: (textResult as { usage?: { promptTokens?: number; completionTokens?: number } }).usage?.promptTokens,
+      completionTokens: (textResult as { usage?: { promptTokens?: number; completionTokens?: number } }).usage?.completionTokens,
+      latencyMs: Date.now() - startTime,
+      status: "success",
+      tags: ["outreach", "cold-email"],
+      flush: true,
+    })
 
     const defaultChecklist = [
       "Verified GitHub/LinkedIn/portfolio links included",
