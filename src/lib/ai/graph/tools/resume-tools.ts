@@ -284,3 +284,33 @@ export async function executeTailorResumeForJob(
     return { success: false, error: error?.message || "Failed to tailor resume" }
   }
 }
+
+export async function executeGetResumeSummary(userId: string) {
+  if (!userId) return { success: false, error: "Unauthorized" }
+
+  try {
+    const resume = await withDbRetry<any>(() =>
+      prisma.resume.findFirst({
+        where: { userId, isDefault: true },
+        select: { id: true, title: true, fileName: true, textContent: true },
+      })
+    )
+
+    if (!resume) {
+      return { success: false, message: "No default resume found on profile." }
+    }
+
+    const excerpt = resume.textContent ? resume.textContent.slice(0, 1000) : "No text content"
+
+    return {
+      success: true,
+      resumeId: resume.id,
+      title: resume.title,
+      fileName: resume.fileName,
+      summaryExcerpt: excerpt,
+      message: `Default resume "${resume.title}" retrieved.`,
+    }
+  } catch (error: any) {
+    return { success: false, error: error?.message || "Failed to fetch resume summary" }
+  }
+}
