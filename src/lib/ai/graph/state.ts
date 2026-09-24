@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Annotation } from "@langchain/langgraph"
 import { BaseMessage } from "@langchain/core/messages"
+import { MAX_MESSAGE_HISTORY } from "./constants"
 
 export interface AgentPlanStep {
   id: string
@@ -10,6 +11,7 @@ export interface AgentPlanStep {
   toolInput?: Record<string, any>
   result?: any
   error?: string
+  retryable?: boolean
 }
 
 export interface AgentReflection {
@@ -38,7 +40,13 @@ export interface AgentRouteContext {
  */
 export const AgentState = Annotation.Root({
   messages: Annotation<BaseMessage[]>({
-    reducer: (curr, update) => curr.concat(update),
+    reducer: (curr, update) => {
+      const combined = curr.concat(update)
+      if (combined.length > MAX_MESSAGE_HISTORY) {
+        return [combined[0], ...combined.slice(-(MAX_MESSAGE_HISTORY - 1))]
+      }
+      return combined
+    },
     default: () => [],
   }),
   userId: Annotation<string>({
@@ -76,6 +84,10 @@ export const AgentState = Annotation.Root({
   routeContext: Annotation<AgentRouteContext | null>({
     reducer: (_, update) => update,
     default: () => null,
+  }),
+  isHeadlessMode: Annotation<boolean>({
+    reducer: (_, update) => update,
+    default: () => false,
   }),
 })
 
