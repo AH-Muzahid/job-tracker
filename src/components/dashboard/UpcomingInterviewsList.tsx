@@ -43,25 +43,19 @@ const fallbackInterviews: UpcomingInterviewItem[] = [
     id: "int-1",
     companyName: "Anthropic",
     jobTitle: "Product Engineer",
-    interviewDate: new Date("2026-05-15T10:00:00"),
-    interviewDateStr: "Thu, May 15",
-    interviewTimeStr: "10:00 AM",
+    interviewDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
   },
   {
     id: "int-2",
     companyName: "Google",
     jobTitle: "Product Manager",
-    interviewDate: new Date("2026-05-19T14:00:00"),
-    interviewDateStr: "Mon, May 19",
-    interviewTimeStr: "2:00 PM",
+    interviewDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
   },
   {
     id: "int-3",
     companyName: "Stripe",
     jobTitle: "Software Engineer",
-    interviewDate: new Date("2026-05-21T11:00:00"),
-    interviewDateStr: "Wed, May 21",
-    interviewTimeStr: "11:00 AM",
+    interviewDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
   },
 ];
 
