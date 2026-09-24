@@ -9,6 +9,7 @@ import { getSystemBase } from "@/lib/ai/prompts/system-base"
 import { getJdScanPrompt } from "@/lib/ai/prompts/jd-scan"
 import { JDAnalysisSchema } from "@/lib/ai/structured-output"
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit"
+import { traceAIGeneration } from "@/lib/ai/telemetry"
 import { extractTechTagsFromText } from "@/lib/discovery/scrapers"
 import { evaluateJobScamRisk } from "@/lib/discovery/matching"
 import { getCompanyEnrichment } from "@/lib/discovery/company-enrichment"
@@ -272,6 +273,7 @@ export async function POST(request: NextRequest) {
         const systemPrompt = `${getSystemBase()}\n\n${getJdScanPrompt()}\n\n## Candidate Context\n${userContext}\n\nCRITICAL OUTPUT RULE: Respond ONLY with a single raw JSON object matching the schema. Do not write markdown backticks or text outside JSON.`
         const truncatedJd = finalJdText.length > 8000 ? finalJdText.slice(0, 8000) + "..." : finalJdText
 
+        const startTime = Date.now()
         const textResult = await generateText({
           model: targetModel,
           system: systemPrompt,
@@ -279,8 +281,43 @@ export async function POST(request: NextRequest) {
         })
 
         analysisResult = parseAndNormalizeAnalysis(textResult.text || "")
+
+        void traceAIGeneration({
+          name: "job-discovery-evaluation",
+          userId,
+          model: aiConfig.model || resolvedProvider.defaultModel,
+          provider: aiConfig.providerType,
+          input: {
+            company: overrideCompany || detectedCompanyHint,
+            title: overrideTitle || detectedTitleHint,
+            jdSnippet: truncatedJd.slice(0, 500),
+          },
+          output: {
+            matchScore: analysisResult.matchScore,
+            verdict: analysisResult.verdict,
+            role: analysisResult.roleSnapshot?.role,
+          },
+          promptTokens: (textResult as { usage?: { promptTokens?: number; completionTokens?: number } }).usage?.promptTokens,
+          completionTokens: (textResult as { usage?: { promptTokens?: number; completionTokens?: number } }).usage?.completionTokens,
+          latencyMs: Date.now() - startTime,
+          status: "success",
+          tags: ["discovery", "jd-evaluation"],
+          flush: true,
+        })
       } catch (aiErr) {
         console.warn("AI generation failed or timed out, falling back to deterministic analysis:", aiErr)
+        void traceAIGeneration({
+          name: "job-discovery-evaluation",
+          userId,
+          model: aiConfig.model || "fallback-engine",
+          provider: aiConfig.providerType,
+          input: { company: overrideCompany || detectedCompanyHint, title: overrideTitle || detectedTitleHint },
+          latencyMs: 0,
+          status: "error",
+          error: aiErr,
+          tags: ["discovery", "jd-evaluation", "fallback-triggered"],
+          flush: true,
+        })
         analysisResult = generateDeterministicAnalysis({
           finalJdText,
           overrideCompany,
