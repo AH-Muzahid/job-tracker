@@ -1,12 +1,12 @@
 "use client";
 
-import { Suspense, useEffect } from "react";
+import { useEffect } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { Dashboard } from "@/components/dashboard";
 import { DashboardSkeleton } from "@/components/dashboard-skeleton";
 
-function DashboardContent() {
+export default function DashboardPage() {
   const { isLoaded, isSignedIn } = useUser();
   const router = useRouter();
 
@@ -21,12 +21,3 @@ function DashboardContent() {
 
   return <Dashboard />;
 }
-
-export default function DashboardPage() {
-  return (
-    <Suspense fallback={<DashboardSkeleton />}>
-      <DashboardContent />
-    </Suspense>
-  );
-}
-
