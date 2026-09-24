@@ -103,13 +103,15 @@ async function runVerification() {
       dataType: "NUMERIC",
     })
 
-    console.log("4. Flushing events to Langfuse server (with timeout)...")
-    await flushLangfuse(3000)
+    console.log("4. Flushing events to Langfuse server via langfuse.flushAsync()...")
+    await langfuse.flushAsync()
+    await langfuse.shutdownAsync()
 
     const latency = Date.now() - startTime
     console.log("-------------------------------------------------")
-    console.log(`✓ Telemetry connection verified successfully in ${latency}ms!`)
+    console.log(`✓ Telemetry connection verified and flushed successfully in ${latency}ms!`)
     console.log(`✓ Trace ID: ${testTraceId}`)
+    console.log("✓ Trace URL: " + `${baseUrl}/project/traces?search=${testTraceId}`)
     console.log("=================================================\n")
     process.exit(0)
   } catch (err: unknown) {
