@@ -7,6 +7,7 @@ import { HumanMessage } from "@langchain/core/messages"
 /**
  * Executes the LangGraph agent state machine server-side (headless)
  * without an active HTTP stream. Integrates Langfuse tracing and auto-flushing.
+ * Explicitly marks isHeadlessMode: true to prevent hanging on HITL interrupts.
  */
 export async function runHeadlessEvaluation(
   userId: string,
@@ -43,6 +44,7 @@ export async function runHeadlessEvaluation(
       plan: [],
       currentStepIndex: 0,
       reflection: { passed: true, retryCount: 0 },
+      isHeadlessMode: true,
     }
 
     const finalState: any = await app.invoke(inputArg, threadConfig)
