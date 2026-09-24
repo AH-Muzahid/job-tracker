@@ -14,6 +14,7 @@ import {
 } from "@/lib/ai/knowledge-graph"
 import { getUserWeaknesses, formatWeaknessMitigationForResume } from "@/lib/ai/memory"
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit"
+import { traceAIGeneration } from "@/lib/ai/telemetry"
 import type { TailoredResumeData } from "@/types/tailored-resume"
 
 export async function POST(req: NextRequest) {
@@ -192,6 +193,7 @@ Generate the tailored resume JSON in this exact structure:
 
   const modelToUse = aiConfig.model || resolvedProvider.defaultModel
 
+  const startTime = Date.now()
   try {
     const result = await generateText({
       model: resolvedProvider.model(modelToUse),
@@ -224,6 +226,21 @@ Generate the tailored resume JSON in this exact structure:
       })
     }
 
+    void traceAIGeneration({
+      name: "ats-resume-tailor",
+      userId,
+      model: modelToUse,
+      provider: aiConfig.providerType,
+      input: { targetRole, targetCompany, matchScore },
+      output: { resumeSummary: parsedData.summary, sections: Object.keys(parsedData) },
+      promptTokens: (result as { usage?: { promptTokens?: number; completionTokens?: number } }).usage?.promptTokens,
+      completionTokens: (result as { usage?: { promptTokens?: number; completionTokens?: number } }).usage?.completionTokens,
+      latencyMs: Date.now() - startTime,
+      status: "success",
+      tags: ["ats-tailor", "resumes"],
+      flush: true,
+    })
+
     return NextResponse.json({
       success: true,
       data: parsedData,
@@ -231,6 +248,18 @@ Generate the tailored resume JSON in this exact structure:
     })
   } catch (err: unknown) {
     console.error("Tailored resume generation error:", err)
+    void traceAIGeneration({
+      name: "ats-resume-tailor",
+      userId,
+      model: modelToUse,
+      provider: aiConfig.providerType,
+      input: { targetRole, targetCompany },
+      latencyMs: Date.now() - startTime,
+      status: "error",
+      error: err,
+      tags: ["ats-tailor", "resumes", "error"],
+      flush: true,
+    })
     const message = err instanceof Error ? err.message : "Failed to generate tailored resume"
     return NextResponse.json(
       { error: message },
