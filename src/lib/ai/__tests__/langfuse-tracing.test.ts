@@ -7,7 +7,7 @@ import {
   scoreTrace,
   flushLangfuse,
 } from "../graph/telemetry"
-import { logAITransaction } from "../telemetry"
+import { logAITransaction, traceAIGeneration } from "../telemetry"
 
 describe("Langfuse AI Observability & Tracing Suite", () => {
   const originalEnv = process.env
@@ -113,5 +113,53 @@ describe("Langfuse AI Observability & Tracing Suite", () => {
 
     expect(consoleSpy).toHaveBeenCalled()
     consoleSpy.mockRestore()
+  })
+
+  it("records AI generations with PII sanitization, tokens, and metadata safely", async () => {
+    process.env.LANGFUSE_PUBLIC_KEY = "pk-lf-test-12345"
+    process.env.LANGFUSE_SECRET_KEY = "sk-lf-test-67890"
+
+    await expect(
+      traceAIGeneration({
+        name: "ats-resume-tailor",
+        userId: "user-999",
+        sessionId: "session-abc",
+        model: "gpt-4o-mini",
+        provider: "openai",
+        input: {
+          candidateEmail: "candidate@gmail.com",
+          candidatePhone: "+1 (555) 234-5678",
+          targetRole: "Full Stack Engineer",
+        },
+        output: {
+          summary: "Tailored summary without PII",
+        },
+        promptTokens: 250,
+        completionTokens: 120,
+        latencyMs: 450,
+        status: "success",
+        tags: ["ats-tailor", "test"],
+        metadata: { matchScore: 88 },
+        flush: false,
+      })
+    ).resolves.not.toThrow()
+  })
+
+  it("handles generation errors gracefully in traceAIGeneration", async () => {
+    delete process.env.LANGFUSE_PUBLIC_KEY
+    delete process.env.LANGFUSE_SECRET_KEY
+
+    await expect(
+      traceAIGeneration({
+        name: "outreach-email",
+        userId: "user-err",
+        model: "claude-3-5-sonnet",
+        input: { role: "DevOps" },
+        latencyMs: 120,
+        status: "error",
+        error: new Error("Rate limit reached"),
+        flush: false,
+      })
+    ).resolves.not.toThrow()
   })
 })
