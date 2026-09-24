@@ -5,6 +5,7 @@ export type DiscoveryEventType =
   | "BATCH_PUBLISHED"
   | "FEED_VIEWED"
   | "JOB_SAVED"
+  | "JOB_UNSAVED"
   | "JOB_DISMISSED"
   | "JOB_UNDISMISSED"
   | "JOB_APPLIED"
