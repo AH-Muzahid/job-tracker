@@ -19,27 +19,67 @@ export async function executeCreateApplication(userId: string, input: {
     const status = input.status || "Applied"
     const source = input.source || "Manual"
 
-    const application = await withDbRetry<any>(() =>
-      prisma.application.create({
-        data: {
+    const trimmedCompany = input.companyName.trim()
+    const trimmedTitle = input.jobTitle.trim()
+
+    // 1. Check for existing application to enforce strict idempotency and prevent duplicates
+    const existingApp = await withDbRetry<any>(() =>
+      prisma.application.findFirst({
+        where: {
           userId,
-          companyName: input.companyName.trim(),
-          jobTitle: input.jobTitle.trim(),
-          jobUrl: input.jobUrl?.trim() || null,
-          source,
-          status,
-          notes: input.notes?.trim() || null,
-          applicationDate: new Date(),
-          statusChanges: {
-            create: {
-              toStatus: status,
-            },
-          },
+          companyName: { equals: trimmedCompany, mode: "insensitive" },
+          jobTitle: { equals: trimmedTitle, mode: "insensitive" },
         },
       })
     )
 
+    let application: any
+    if (existingApp) {
+      application = await withDbRetry<any>(() =>
+        prisma.application.update({
+          where: { id: existingApp.id },
+          data: {
+            status,
+            updatedAt: new Date(),
+            jobUrl: input.jobUrl?.trim() || existingApp.jobUrl,
+            notes: input.notes?.trim() || existingApp.notes,
+            ...(existingApp.status !== status
+              ? {
+                  statusChanges: {
+                    create: {
+                      fromStatus: existingApp.status,
+                      toStatus: status,
+                    },
+                  },
+                }
+              : {}),
+          },
+        })
+      )
+    } else {
+      application = await withDbRetry<any>(() =>
+        prisma.application.create({
+          data: {
+            userId,
+            companyName: trimmedCompany,
+            jobTitle: trimmedTitle,
+            jobUrl: input.jobUrl?.trim() || null,
+            source,
+            status,
+            notes: input.notes?.trim() || null,
+            applicationDate: new Date(),
+            statusChanges: {
+              create: {
+                toStatus: status,
+              },
+            },
+          },
+        })
+      )
+    }
+
     await invalidateCache(`dashboard:stats:${userId}`)
+    await invalidateCache(`user:stats:v2:${userId}`)
     await invalidateCache(`applications:${userId}`)
 
     return {
@@ -361,4 +401,55 @@ export async function executeResearchCompanyIntel(userId: string, input: {
   } catch (error: any) {
     return { success: false, error: error?.message || `Failed to research company intel for ${normalizedName}` }
   }
+}
+
+export async function executeGetPipelineStats(userId: string) {
+  if (!userId) return { success: false, error: "Unauthorized" }
+
+  try {
+    const [groups, total] = await withDbRetry(() =>
+      Promise.all([
+        prisma.application.groupBy({
+          by: ["status"],
+          where: { userId },
+          _count: true,
+        }),
+        prisma.application.count({ where: { userId } }),
+      ])
+    )
+
+    const breakdown: Record<string, number> = {
+      Staged: 0,
+      Saved: 0,
+      Applied: 0,
+      Assessment: 0,
+      Interview: 0,
+      Rejected: 0,
+      Offer: 0,
+      Archived: 0,
+    }
+
+    groups.forEach((g: any) => {
+      breakdown[g.status] = g._count
+    })
+
+    return {
+      success: true,
+      total,
+      breakdown,
+      message: `Total applications: ${total}. Saved: ${breakdown.Saved || 0}, Applied: ${breakdown.Applied || 0}, Interview: ${breakdown.Interview || 0}, Offer: ${breakdown.Offer || 0}, Rejected: ${breakdown.Rejected || 0}`,
+    }
+  } catch (error: any) {
+    return { success: false, error: error?.message || "Failed to retrieve pipeline stats" }
+  }
+}
+
+export async function executeListUserApplications(
+  userId: string,
+  input: { status?: string; limit?: number } = {}
+) {
+  return await executeSearchApplications(userId, {
+    status: input.status,
+    limit: input.limit || 15,
+  })
 }
