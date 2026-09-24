@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
+import { NextRequest } from "next/server"
 import {
   generateDeterministicExecutiveSummary,
   generateExecutiveBriefing,
@@ -14,8 +15,63 @@ vi.mock("@/lib/rate-limit", () => ({
   checkDistributedRateLimit: vi.fn(),
 }))
 
+vi.mock("@/lib/redis", () => ({
+  getCachedJson: vi.fn().mockResolvedValue(null),
+  setCachedJson: vi.fn().mockResolvedValue(undefined),
+}))
+
 vi.mock("@/lib/ai/config", () => ({
   getUserAIConfig: vi.fn().mockResolvedValue(null), // Default to deterministic mode
+}))
+
+vi.mock("@/lib/api", () => ({
+  useDailyBriefing: vi.fn(() => ({
+    data: {
+      generatedAt: new Date().toISOString(),
+      candidateName: "Alex",
+      metrics: {
+        stagedCount: 1,
+        followUpsDueCount: 11,
+        upcomingInterviewsCount: 1,
+        activeApplicationsCount: 30,
+      },
+      priorityActions: [
+        {
+          id: "act-1",
+          type: "REVIEW_STAGED",
+          title: "Review 1 Staged Application",
+          description: "Submit the staged Frontend Engineer application at Over99",
+          count: 1,
+          href: "/applications?status=Staged",
+          urgency: "high",
+        },
+        {
+          id: "act-2",
+          type: "SEND_FOLLOWUP",
+          title: "Send 11 Follow-ups",
+          description: "Follow up with 11 dormant applications",
+          count: 11,
+          href: "/applications?filter=followup",
+          urgency: "medium",
+        },
+        {
+          id: "act-3",
+          type: "DISCOVER_JOBS",
+          title: "Source 2 new roles",
+          description: "Source 2 new senior frontend roles",
+          count: 2,
+          href: "/discovery",
+          urgency: "low",
+        },
+      ],
+      executiveSummary: [
+        "Your interview pipeline is slowing down: You've applied to many roles, but haven't received new interviews in the last 72 hours. Focus on follow-ups and targeted applications to improve conversion.",
+      ],
+    },
+    isLoading: false,
+    error: null,
+    refresh: vi.fn(),
+  })),
 }))
 
 vi.mock("@/lib/prisma", () => {
@@ -234,7 +290,8 @@ describe("CAG-12: Daily Strategic Executive Briefing", () => {
       const { getInternalUserId } = await import("@/lib/auth")
       vi.mocked(getInternalUserId).mockResolvedValueOnce(null)
 
-      const res = await GET()
+      const req = new NextRequest("http://localhost/api/dashboard/briefing")
+      const res = await GET(req)
       expect(res.status).toBe(401)
       const data = await res.json()
       expect(data.error).toBe("Unauthorized")
@@ -252,7 +309,8 @@ describe("CAG-12: Daily Strategic Executive Briefing", () => {
         resetInSeconds: 60,
       })
 
-      const res = await GET()
+      const req = new NextRequest("http://localhost/api/dashboard/briefing")
+      const res = await GET(req)
       expect(res.status).toBe(429)
       const data = await res.json()
       expect(data.error).toContain("Too many requests")
@@ -280,7 +338,8 @@ describe("CAG-12: Daily Strategic Executive Briefing", () => {
       vi.mocked(prisma.application.findMany).mockResolvedValueOnce([])
       vi.mocked(prisma.weeklyGoal.findFirst).mockResolvedValueOnce(null)
 
-      const res = await GET()
+      const req = new NextRequest("http://localhost/api/dashboard/briefing")
+      const res = await GET(req)
       expect(res.status).toBe(200)
       expect(res.headers.get("Cache-Control")).toBe("no-store, max-age=0")
 
@@ -289,6 +348,72 @@ describe("CAG-12: Daily Strategic Executive Briefing", () => {
       expect(data.metrics.stagedCount).toBe(0)
       expect(data.priorityActions[0].type).toBe("DISCOVER_JOBS")
       expect(data.executiveSummary).toHaveLength(3)
+    })
+  })
+
+  describe("DailyBriefingCard UI Component (Mockup Precision)", () => {
+    it("renders the 2-column layout matching reference screenshot without duplicate mini KPIs", async () => {
+      const { renderToString } = await import("react-dom/server")
+      const React = await import("react")
+      const { DailyBriefingCard } = await import("@/components/dashboard/DailyBriefingCard")
+      const html = renderToString(React.createElement(DailyBriefingCard))
+
+      expect(html).toContain("Daily Strategic Briefing")
+      expect(html).toContain("AUTONOMOUS")
+      expect(html).toContain("Top Priorities for Today")
+      expect(html).toContain("Submit the staged Frontend Engineer application at Over99")
+      expect(html).toContain("High")
+      expect(html).toContain("Follow up with 11 dormant applications")
+      expect(html).toContain("Medium")
+      expect(html).toContain("Source 2 new senior frontend roles")
+      expect(html).toContain("Low")
+      expect(html).toContain("AI Insight")
+      expect(html).toContain("Your interview pipeline is slowing down.")
+      expect(html).toMatch(/Prioritizing follow-ups could improve your interview rate by ~\d+%/)
+      expect(html).toContain("Review 1 Staged Application")
+      expect(html).toContain("Send 11 Follow-ups")
+
+      // Strict prohibition: No sparkles icon
+      expect(html).not.toContain("sparkle")
+    })
+
+    it("does not inject fabricated fallback priorities when API returns few actions", async () => {
+      const { useDailyBriefing } = await import("@/lib/api")
+      vi.mocked(useDailyBriefing).mockReturnValue({
+        data: {
+          generatedAt: new Date().toISOString(),
+          metrics: {
+            stagedCount: 0,
+            followUpsDueCount: 0,
+            upcomingInterviewsCount: 0,
+            activeApplicationsCount: 0,
+          },
+          priorityActions: [
+            {
+              id: "discover-only",
+              type: "DISCOVER_JOBS",
+              title: "Source new roles",
+              description: "Explore curated roles",
+              count: 1,
+              href: "/discovery",
+              urgency: "low",
+            },
+          ],
+          executiveSummary: [],
+        },
+        isLoading: false,
+        error: null,
+        refresh: vi.fn(),
+      } as any)
+
+      const { renderToString } = await import("react-dom/server")
+      const React = await import("react")
+      const { DailyBriefingCard } = await import("@/components/dashboard/DailyBriefingCard")
+      const html = renderToString(React.createElement(DailyBriefingCard))
+
+      expect(html).not.toContain("Over99")
+      expect(html).not.toContain("11 dormant applications")
+      expect(html).toContain("Source new roles")
     })
   })
 })
