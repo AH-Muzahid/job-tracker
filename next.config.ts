@@ -31,10 +31,13 @@ const nextConfig: NextConfig = {
 export default withSentryConfig(bundleAnalyzer(nextConfig), {
   org: process.env.SENTRY_ORG,
   project: process.env.SENTRY_PROJECT,
-  silent: !process.env.CI,
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  silent: true,
+  telemetry: false,
   widenClientFileUpload: true,
   tunnelRoute: "/monitoring",
   sourcemaps: {
+    disable: !process.env.SENTRY_AUTH_TOKEN,
     deleteSourcemapsAfterUpload: true,
   },
   bundleSizeOptimizations: {
