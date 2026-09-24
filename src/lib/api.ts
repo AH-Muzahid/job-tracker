@@ -29,6 +29,35 @@ export function useStats() {
   })
 }
 
+import type { ExecutiveBriefing } from "@/lib/dashboard/briefing-engine"
+
+export function useDailyBriefing() {
+  const qc = useQueryClient()
+  const query = useQuery<ExecutiveBriefing>({
+    queryKey: ["daily-briefing"],
+    queryFn: async () => {
+      const res = await fetch("/api/dashboard/briefing")
+      if (!res.ok) throw new Error("Failed to load executive briefing")
+      return res.json()
+    },
+    staleTime: 1000 * 60 * 30, // 30 minutes in-memory cache across tab/page switches
+    retry: 1,
+  })
+
+  const refresh = async () => {
+    const res = await fetch("/api/dashboard/briefing?refresh=true")
+    if (!res.ok) throw new Error("Failed to refresh briefing")
+    const data: ExecutiveBriefing = await res.json()
+    qc.setQueryData(["daily-briefing"], data)
+    return data
+  }
+
+  return {
+    ...query,
+    refresh,
+  }
+}
+
 // ==================== Companies ====================
 
 export function useCompanies() {
