@@ -2,11 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Bookmark, BookmarkCheck, MapPin, ArrowRight, Check } from "lucide-react";
+import { Bookmark, BookmarkCheck, MapPin, ArrowRight, ArrowUpRight, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { CompanyBrandLogo } from "@/components/CompanyBrandLogo";
+import { useQueryClient } from "@tanstack/react-query";
 
 export type Opportunity = {
   id: string;
@@ -21,6 +21,8 @@ export type Opportunity = {
   fitScore: number;
   postedAt?: string | Date;
   isSaved?: boolean;
+  status?: string;
+  applicationId?: string;
 };
 
 interface RecommendedOpportunitiesProps {
@@ -40,65 +42,111 @@ function timeAgo(date?: string | Date): string {
   return `${weeks} ${weeks === 1 ? "week" : "weeks"} ago`;
 }
 
-// Source of truth exact opportunities from reference screenshot
-const referenceOpportunities: Opportunity[] = [
-  {
-    id: "rec-1",
-    title: "Product Manager",
-    company: "Google",
-    location: "New York, NY • Remote",
-    fitScore: 92,
-    tags: ["Product", "Strategy", "Growth"],
-    postedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-    url: "https://careers.google.com",
-  },
-  {
-    id: "rec-2",
-    title: "Software Engineer",
-    company: "Stripe",
-    location: "San Francisco, CA • Hybrid",
-    fitScore: 88,
-    tags: ["Backend", "TypeScript", "AI"],
-    postedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
-    url: "https://stripe.com/jobs",
-  },
-  {
-    id: "rec-3",
-    title: "Product Designer",
-    company: "Notion",
-    location: "San Francisco, CA • Remote",
-    fitScore: 85,
-    tags: ["Design", "UX Research", "Product"],
-    postedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
-    url: "https://notion.so/careers",
-  },
-];
-
 export function RecommendedOpportunities({
   opportunities,
   isLoading,
 }: RecommendedOpportunitiesProps) {
+  const queryClient = useQueryClient();
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
+  const [unsavedIds, setUnsavedIds] = useState<Set<string>>(new Set());
   const [packagingId, setPackagingId] = useState<string | null>(null);
   const [stagedIds, setStagedIds] = useState<Set<string>>(new Set());
+  const [stagedAppMap, setStagedAppMap] = useState<Record<string, string>>({});
 
-  // Use dynamic opportunities, pad with reference fallbacks to always show 3
-  const apiList = opportunities && opportunities.length > 0 ? opportunities.slice(0, 3) : [];
-  const list = apiList.length >= 3
-    ? apiList
-    : [...apiList, ...referenceOpportunities.slice(0, 3 - apiList.length)];
+  const list = opportunities?.slice(0, 3) ?? [];
+
+  // Helper to reliably compute saved state taking user overrides into account
+  const isJobBookmarked = (job: Opportunity) => {
+    if (unsavedIds.has(job.id)) return false;
+    if (savedIds.has(job.id)) return true;
+    return Boolean(job.isSaved);
+  };
 
   const toggleBookmark = async (job: Opportunity) => {
-    const isCurrentlySaved = savedIds.has(job.id) || job.isSaved;
-    const newSet = new Set(savedIds);
+    const isCurrentlySaved = isJobBookmarked(job);
+
     if (isCurrentlySaved) {
-      newSet.delete(job.id);
+      // 1. Optimistic removal
+      setUnsavedIds((prev) => new Set(prev).add(job.id));
+      setSavedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(job.id);
+        return next;
+      });
       toast.info(`Removed ${job.company} from saved opportunities`);
+
+      try {
+        const res = await fetch("/api/jobs/discover", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "unsave",
+            jobId: job.jobId || job.id,
+            companyName: job.company,
+            jobTitle: job.title,
+          }),
+        });
+
+        if (!res.ok) {
+          throw new Error("Failed to unsave opportunity");
+        }
+
+        queryClient?.invalidateQueries({ queryKey: ["stats"] });
+        queryClient?.invalidateQueries({ queryKey: ["discovery"] });
+        queryClient?.invalidateQueries({ queryKey: ["applications"] });
+      } catch (err) {
+        console.error("[Bookmark] Failed to unsave:", err);
+        // Revert optimistic removal
+        setUnsavedIds((prev) => {
+          const next = new Set(prev);
+          next.delete(job.id);
+          return next;
+        });
+        toast.error(`Failed to remove ${job.company} from saved opportunities`);
+      }
     } else {
-      newSet.add(job.id);
+      // 2. Optimistic save
+      setSavedIds((prev) => new Set(prev).add(job.id));
+      setUnsavedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(job.id);
+        return next;
+      });
       toast.success(`Bookmarked ${job.company} opportunity`);
+
+      try {
+        const res = await fetch("/api/jobs/discover", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "save",
+            jobId: job.jobId || job.id,
+            companyName: job.company,
+            jobTitle: job.title,
+            jobUrl: job.url,
+            location: job.location,
+            status: "Saved",
+          }),
+        });
+
+        if (!res.ok) {
+          throw new Error("Failed to save opportunity");
+        }
+
+        queryClient?.invalidateQueries({ queryKey: ["stats"] });
+        queryClient?.invalidateQueries({ queryKey: ["discovery"] });
+        queryClient?.invalidateQueries({ queryKey: ["applications"] });
+      } catch (err) {
+        console.error("[Bookmark] Failed to save:", err);
+        // Revert optimistic save
+        setSavedIds((prev) => {
+          const next = new Set(prev);
+          next.delete(job.id);
+          return next;
+        });
+        toast.error(`Failed to bookmark ${job.company} opportunity`);
+      }
     }
-    setSavedIds(newSet);
   };
 
   const handlePackageAndStage = async (job: Opportunity) => {
@@ -122,15 +170,37 @@ export function RecommendedOpportunities({
         throw new Error("Failed to stage application");
       }
 
-      setStagedIds((prev) => new Set(prev).add(job.id));
+      const resJson = await res.json().catch(() => null);
+      const createdAppId = resJson?.data?.applicationId || resJson?.applicationId;
+      if (createdAppId) {
+        setStagedAppMap((prev) => ({
+          ...prev,
+          [job.id]: createdAppId,
+          ...(job.jobId ? { [job.jobId]: createdAppId } : {}),
+        }));
+      }
+
+      setStagedIds((prev) => {
+        const next = new Set(prev).add(job.id);
+        if (job.jobId) next.add(job.jobId);
+        return next;
+      });
+      setSavedIds((prev) => new Set(prev).add(job.id));
+      setUnsavedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(job.id);
+        return next;
+      });
+      queryClient?.invalidateQueries({ queryKey: ["stats"] });
+      queryClient?.invalidateQueries({ queryKey: ["discovery"] });
+      queryClient?.invalidateQueries({ queryKey: ["applications"] });
       toast.success(`Packaged & Staged ${job.title} at ${job.company}!`, {
         description: "Application materials generated & staged for final review.",
       });
-    } catch {
-      // Optimistic visual feedback
-      setStagedIds((prev) => new Set(prev).add(job.id));
-      toast.success(`Staged ${job.title} at ${job.company}!`, {
-        description: "Application moved to staged pipeline in Workbench.",
+    } catch (err) {
+      console.error("[Stage] Failed to package & stage:", err);
+      toast.error(`Failed to stage ${job.title} at ${job.company}`, {
+        description: "Please try again.",
       });
     } finally {
       setPackagingId(null);
@@ -170,11 +240,36 @@ export function RecommendedOpportunities({
         </Link>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 sm:gap-4">
+      {list.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/40 px-4 py-8 text-center">
+          <p className="text-sm font-medium text-slate-600 dark:text-slate-300">
+            No opportunities yet
+          </p>
+          <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
+            Discover roles matched to your profile to get recommendations here.
+          </p>
+          <Link
+            href="/discovery"
+            className="mt-3 inline-flex text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline"
+          >
+            Explore Discovery
+          </Link>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 sm:gap-4">
         {list.map((job) => {
-          const isBookmarked = savedIds.has(job.id) || job.isSaved;
-          const isStaged = stagedIds.has(job.id);
+          const isBookmarked = isJobBookmarked(job);
+          const isStaged =
+            stagedIds.has(job.id) ||
+            (job.jobId ? stagedIds.has(job.jobId) : false) ||
+            job.status === "Staged" ||
+            job.status === "STAGED";
           const isPackaging = packagingId === job.id;
+          const targetAppId =
+            stagedAppMap[job.id] ||
+            (job.jobId ? stagedAppMap[job.jobId] : undefined) ||
+            job.applicationId;
+          const stagedHref = targetAppId ? `/applications/${targetAppId}` : `/applications?status=Staged`;
 
           return (
             <div
@@ -194,7 +289,7 @@ export function RecommendedOpportunities({
                   <button
                     onClick={() => toggleBookmark(job)}
                     className="size-7 rounded-lg flex items-center justify-center text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                    aria-label="Bookmark job"
+                    aria-label={isBookmarked ? "Remove from saved opportunities" : "Bookmark job"}
                   >
                     {isBookmarked ? (
                       <BookmarkCheck className="size-4 text-blue-600 fill-blue-600" />
@@ -251,33 +346,43 @@ export function RecommendedOpportunities({
                     </Link>
                   </Button>
 
-                  <Button
-                    size="sm"
-                    onClick={() => handlePackageAndStage(job)}
-                    disabled={isPackaging || isStaged}
-                    className={cn(
-                      "h-9 text-xs font-semibold rounded-xl transition-all shadow-2xs cursor-pointer",
-                      isStaged
-                        ? "bg-emerald-600 hover:bg-emerald-600 text-white"
-                        : "bg-slate-900 hover:bg-slate-800 text-white dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
-                    )}
-                  >
-                    {isStaged ? (
-                      <span className="inline-flex items-center gap-1">
-                        <Check className="size-3.5" /> Staged
-                      </span>
-                    ) : isPackaging ? (
-                      "Packaging..."
-                    ) : (
-                      "Package & Stage"
-                    )}
-                  </Button>
+                  {isStaged ? (
+                    <Button
+                      asChild
+                      size="sm"
+                      className="h-9 text-xs font-semibold rounded-xl transition-all shadow-2xs cursor-pointer bg-emerald-600 hover:bg-emerald-500 text-white"
+                    >
+                      <Link
+                        href={stagedHref}
+                        title="Open staged application in Workbench"
+                        className="inline-flex items-center justify-center gap-1 w-full h-full"
+                      >
+                        <Check className="size-3.5" />
+                        <span>Staged</span>
+                        <ArrowUpRight className="size-3 text-white/80" />
+                      </Link>
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      onClick={() => handlePackageAndStage(job)}
+                      disabled={isPackaging}
+                      className="h-9 text-xs font-semibold rounded-xl transition-all shadow-2xs cursor-pointer bg-slate-900 hover:bg-slate-800 text-white dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
+                    >
+                      {isPackaging ? (
+                        "Packaging..."
+                      ) : (
+                        "Package & Stage"
+                      )}
+                    </Button>
+                  )}
                 </div>
               </div>
             </div>
           );
         })}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
