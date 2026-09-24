@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { ArrowUpDown, Check, ChevronDown } from "lucide-react"
+import { Check, ChevronDown } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { DISCOVERY_SORT_OPTIONS, type SortOption } from "./types"
 
@@ -28,12 +28,10 @@ export function DiscoverySortDropdown({ value, onChange }: DiscoverySortDropdown
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(!open)}
-        className="inline-flex h-8 items-center gap-1.5 rounded-none border border-border px-2 sm:px-2.5 text-xs font-medium bg-background text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors cursor-pointer"
+        className="inline-flex h-8 items-center gap-2 rounded-md border border-border px-3 text-sm font-medium bg-background text-foreground hover:bg-muted/40 transition-colors cursor-pointer"
       >
-        <ArrowUpDown className="h-3 w-3 shrink-0" />
-        <span className="hidden sm:inline">{selectedLabel}</span>
-        <span className="sm:hidden text-[11px]">Sort</span>
-        <ChevronDown className="h-3 w-3 opacity-60 shrink-0" />
+        <span>{selectedLabel}</span>
+        <ChevronDown className="h-4 w-4 opacity-50 shrink-0" />
       </button>
       {open && (
         <div className="absolute right-0 top-full z-50 mt-1 w-48 rounded-none border border-border bg-popover p-1 shadow-lg backdrop-blur-xl">
