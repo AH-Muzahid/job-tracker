@@ -16,7 +16,8 @@ export const careerOrchestratorPipeline = inngest.createFunction(
     }
 
     if (!userId) {
-      throw new Error("Missing required 'userId' in career/orchestrator.execute payload")
+      console.warn("[careerOrchestratorPipeline] Missing required 'userId' in career/orchestrator.execute payload; skipping execution.")
+      return { skipped: true, reason: "Missing required 'userId' in event payload" }
     }
 
     const result = await step.run("execute-orchestrator-graph", async () => {
