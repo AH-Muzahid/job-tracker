@@ -35,7 +35,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 	return (
 		<SidebarProvider className={cn("[--app-wrapper-max-width:86rem]")}>
 			<AppSidebar />
-			<SidebarInset className="min-w-0 max-w-full flex flex-col bg-[#f8fafc] dark:bg-background">
+			<SidebarInset className="min-w-0 max-w-full flex flex-col bg-white dark:bg-background">
 				<AppHeader />
 				<div
 					className={cn(
