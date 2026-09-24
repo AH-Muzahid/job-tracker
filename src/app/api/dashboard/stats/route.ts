@@ -11,13 +11,14 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  const cacheKey = `user:stats:${userId}`
+  const cacheKey = `user:stats:v2:${userId}`
   const cached = await getCachedJson<Record<string, unknown>>(cacheKey)
   if (cached) {
     return NextResponse.json(cached)
   }
 
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+  const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000)
   const eightWeeksAgo = new Date(Date.now() - 8 * 7 * 24 * 60 * 60 * 1000)
 
   // Single retry wrapper around Promise.all to fetch comprehensive career stats
@@ -34,6 +35,11 @@ export async function GET() {
     userMatches,
     upcomingInterviewsRaw,
     velocityApps,
+    userMatchPriorWeek,
+    appsThisWeek,
+    appsPriorWeek,
+    interviewsPriorWeek,
+    userExistingApps,
   ] = await withDbRetry(() =>
     Promise.all([
       prisma.application.groupBy({
@@ -49,8 +55,8 @@ export async function GET() {
       }),
       prisma.application.findMany({
         where: { userId },
-        orderBy: { createdAt: "desc" },
-        take: 5,
+        orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
+        take: 10,
       }),
       prisma.application.count({ where: { userId } }),
       prisma.$queryRaw<{ month: string; count: bigint }[]>`
@@ -135,6 +141,35 @@ export async function GET() {
         where: { userId, createdAt: { gte: eightWeeksAgo } },
         select: { createdAt: true, applicationDate: true },
       }),
+      prisma.userJobMatch.count({
+        where: {
+          userId,
+          status: { not: "DISMISSED" },
+          createdAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo },
+        },
+      }),
+      prisma.application.count({
+        where: { userId, createdAt: { gte: sevenDaysAgo } },
+      }),
+      prisma.application.count({
+        where: { userId, createdAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo } },
+      }),
+      prisma.application.count({
+        where: {
+          userId,
+          interviewDate: { gte: fourteenDaysAgo, lt: sevenDaysAgo },
+        },
+      }),
+      prisma.application.findMany({
+        where: { userId },
+        select: {
+          id: true,
+          companyName: true,
+          jobTitle: true,
+          status: true,
+        },
+        orderBy: { updatedAt: "desc" },
+      }),
     ])
   )
 
@@ -149,21 +184,52 @@ export async function GET() {
 
   const bySource = groupedSource.map((g) => ({ source: g.source, count: g._count }))
 
+  // Build lookup map for user's existing applications (normalized company:title)
+  const normalize = (str?: string) => (str || "").toLowerCase().replace(/[^a-z0-9]/g, "")
+  const appMap = new Map<string, { id: string; status: string }>()
+  for (const app of (userExistingApps || [])) {
+    const key = `${normalize(app.companyName)}:${normalize(app.jobTitle)}`
+    if (!appMap.has(key)) {
+      appMap.set(key, { id: app.id, status: app.status })
+    }
+  }
+
+  // Deduplicate recent applications by normalized company:title
+  const seenRecent = new Set<string>()
+  const deduplicatedRecent: typeof recent = []
+  for (const app of (recent || [])) {
+    const key = `${normalize(app.companyName)}:${normalize(app.jobTitle)}`
+    if (!seenRecent.has(key)) {
+      seenRecent.add(key)
+      deduplicatedRecent.push(app)
+    }
+  }
+
   // Compute recommended opportunities (fallback to top canonical jobs if no personal matches yet)
-  let recommendedOpportunities = userMatches.map((m) => ({
-    id: m.id,
-    jobId: m.jobId,
-    title: m.job.title,
-    company: m.job.company,
-    location: m.job.location,
-    isRemote: m.job.isRemote,
-    url: m.job.url,
-    salary: m.job.salary,
-    tags: m.job.tags || [],
-    fitScore: m.fitScore,
-    postedAt: m.job.postedAt || m.createdAt,
-    isSaved: m.isSaved,
-  }))
+  let recommendedOpportunities = userMatches.map((m) => {
+    const key = `${normalize(m.job.company)}:${normalize(m.job.title)}`
+    const existingApp = appMap.get(key)
+    const effectiveStatus =
+      existingApp?.status ||
+      (m.status === "STAGED" ? "Staged" : m.isSaved ? "Saved" : undefined)
+
+    return {
+      id: m.id,
+      jobId: m.jobId,
+      title: m.job.title,
+      company: m.job.company,
+      location: m.job.location,
+      isRemote: m.job.isRemote,
+      url: m.job.url,
+      salary: m.job.salary,
+      tags: m.job.tags || [],
+      fitScore: m.fitScore,
+      postedAt: m.job.postedAt || m.createdAt,
+      isSaved: m.isSaved || Boolean(existingApp),
+      status: effectiveStatus,
+      applicationId: existingApp?.id,
+    }
+  })
 
   if (recommendedOpportunities.length === 0) {
     recommendedOpportunities = [
@@ -179,7 +245,9 @@ export async function GET() {
         tags: ["Product", "Strategy", "Growth"],
         fitScore: 92,
         postedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-        isSaved: false,
+        isSaved: Boolean(appMap.get("google:productmanager")),
+        status: appMap.get("google:productmanager")?.status,
+        applicationId: appMap.get("google:productmanager")?.id,
       },
       {
         id: "rec-2",
@@ -193,7 +261,9 @@ export async function GET() {
         tags: ["Backend", "TypeScript", "AI"],
         fitScore: 88,
         postedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
-        isSaved: false,
+        isSaved: Boolean(appMap.get("stripe:softwareengineer")),
+        status: appMap.get("stripe:softwareengineer")?.status,
+        applicationId: appMap.get("stripe:softwareengineer")?.id,
       },
       {
         id: "rec-3",
@@ -207,7 +277,9 @@ export async function GET() {
         tags: ["Design", "UX Research", "Product"],
         fitScore: 85,
         postedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
-        isSaved: false,
+        isSaved: Boolean(appMap.get("notion:productdesigner")),
+        status: appMap.get("notion:productdesigner")?.status,
+        applicationId: appMap.get("notion:productdesigner")?.id,
       },
     ]
   }
@@ -302,28 +374,38 @@ export async function GET() {
     active: idx <= currentDayIndex,
   }))
 
+  const calcDelta = (current: number, prior: number): number | null => {
+    if (prior === 0) return current > 0 ? null : 0
+    return Math.round(((current - prior) / prior) * 100)
+  }
+
+  const oppDelta = calcDelta(oppNewThisWeek, userMatchPriorWeek)
+  const appDelta = calcDelta(appsThisWeek, appsPriorWeek)
+  const intDelta = calcDelta(upcomingInterviewsRaw.length, interviewsPriorWeek)
+
   const stats = {
     // 4 Primary Mockup KPIs
     kpi: {
       opportunities: {
         count: totalOppCount,
-        delta: 12,
+        delta: oppDelta,
         newThisWeek: oppNewThisWeek,
       },
       applications: {
         count: total,
-        delta: 33,
+        delta: appDelta,
         inProgress: activeApplications,
       },
       interviews: {
         count: interviewsCount,
-        delta: interviewsCount > 0 ? 50 : 0,
+        delta: intDelta,
         thisWeek: upcomingInterviewsRaw.length,
       },
       offers: {
         count: offersCount,
-        delta: 0,
+        delta: null,
         label: offersCount > 0 ? `${offersCount} Received` : "Keep going!",
+        responseRate: responseRatePercentage,
       },
     },
     // Core Domain Collections
@@ -345,7 +427,7 @@ export async function GET() {
         (countMap[s] ?? 0) + (countMap[s.toUpperCase()] ?? 0),
       ])
     ),
-    recent,
+    recent: deduplicatedRecent.slice(0, 5),
     trend,
     bySource,
     followUpApps,
