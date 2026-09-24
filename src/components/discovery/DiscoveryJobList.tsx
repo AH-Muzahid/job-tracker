@@ -3,7 +3,7 @@
 import { Briefcase, RefreshCw, Sliders } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { DecorIcon } from "@/components/decor-icon"
-import { DiscoveryJobRow } from "./DiscoveryJobRow"
+import { DiscoveryJobCard } from "./DiscoveryJobCard"
 import type { ExternalJobOpportunity } from "@/lib/ai/graph/tools/discovery-tools"
 import type { UseMutationResult } from "@tanstack/react-query"
 
@@ -13,8 +13,6 @@ interface DiscoveryJobListProps {
   savedJobs: Set<string>
   saveMutation: UseMutationResult<unknown, Error, ExternalJobOpportunity>
   onSave: (job: ExternalJobOpportunity) => void
-  onDismiss?: (job: ExternalJobOpportunity) => void
-  dismissingJobId?: string | null
   onApplyClick?: (job: ExternalJobOpportunity) => void
   onClearAll: () => void
   onRefetch: () => void
@@ -28,26 +26,25 @@ interface DiscoveryJobListProps {
 
 export function DiscoveryJobList({
   opportunities, isLoading, savedJobs, saveMutation,
-  onSave, onDismiss, dismissingJobId, onApplyClick, onClearAll, onRefetch, onOpenPreferences, searchQuery,
-  onPackage, packagingJobId, stagedJobs, stagedAppMap,
+  onSave, onApplyClick, onClearAll, onRefetch, onOpenPreferences, searchQuery,
+  onPackage, packagingJobId, stagedJobs, stagedAppMap
 }: DiscoveryJobListProps) {
   if (isLoading) {
     return (
-      <div className="space-y-1">
-        {[1, 2, 3, 4, 5, 6].map((i) => (
-          <div key={i} className="animate-pulse py-3 px-4 border-b border-border/40">
-            <div className="flex items-center gap-3">
-              <div className="size-8 bg-muted/40 rounded-none" />
-              <div className="flex-1 space-y-1.5">
-                <div className="h-4 bg-muted/40 rounded-none w-2/5" />
-                <div className="h-3 bg-muted/30 rounded-none w-1/6" />
+      <div className="space-y-4">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="animate-pulse p-5 border border-border/40 rounded-xl bg-card h-40">
+            <div className="flex gap-4">
+              <div className="size-12 bg-muted/40 rounded-lg shrink-0" />
+              <div className="flex-1 space-y-3 pt-1">
+                <div className="h-5 bg-muted/40 rounded-md w-2/3" />
+                <div className="h-4 bg-muted/30 rounded-md w-1/3" />
+                <div className="flex gap-2 mt-4">
+                  <div className="h-6 bg-muted/30 rounded-md w-16" />
+                  <div className="h-6 bg-muted/30 rounded-md w-20" />
+                  <div className="h-6 bg-muted/30 rounded-md w-24" />
+                </div>
               </div>
-              <div className="h-6 bg-muted/40 rounded-none w-16" />
-            </div>
-            <div className="flex gap-1 mt-2 ml-11">
-              <div className="h-3 bg-muted/30 rounded-none w-12" />
-              <div className="h-3 bg-muted/30 rounded-none w-16" />
-              <div className="h-3 bg-muted/30 rounded-none w-10" />
             </div>
           </div>
         ))}
@@ -99,42 +96,37 @@ export function DiscoveryJobList({
   }
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-2 px-1 border-b border-border/60 pb-2">
-        <span className="text-xs font-bold uppercase tracking-wider font-mono text-foreground">
-          Available Roles ({opportunities.length})
-        </span>
-      </div>
-      <div>
-        {opportunities.map((job) => (
-          <DiscoveryJobRow
+    <div className="space-y-1">
+      {opportunities.map((job) => {
+        const isSaved = savedJobs.has(job.id) || Boolean(job.jobId && savedJobs.has(job.jobId))
+        const isSaving = saveMutation.isPending && saveMutation.variables?.id === job.id
+        const isPackagingItem = packagingJobId === job.id || Boolean(job.jobId && packagingJobId === job.jobId)
+        const isStagedItem = Boolean(
+          stagedJobs?.has(job.id) ||
+          (job.jobId && stagedJobs?.has(job.jobId)) ||
+          job.appliedStatus === "STAGED" ||
+          job.appliedStatus === "Staged"
+        )
+        const stagedApplicationId = stagedAppMap?.[job.id] ||
+          (job.jobId ? stagedAppMap?.[job.jobId] : null) ||
+          job.applicationId ||
+          null
+
+        return (
+          <DiscoveryJobCard
             key={job.id}
             job={job}
-            isSaved={savedJobs.has(job.id) || Boolean(job.jobId && savedJobs.has(job.jobId))}
-            isSaving={saveMutation.isPending && saveMutation.variables?.id === job.id}
-            isPackaging={packagingJobId === job.id || Boolean(job.jobId && packagingJobId === job.jobId)}
-            isStaged={
-              Boolean(
-                stagedJobs?.has(job.id) ||
-                (job.jobId && stagedJobs?.has(job.jobId)) ||
-                job.appliedStatus === "STAGED" ||
-                job.appliedStatus === "Staged"
-              )
-            }
-            stagedApplicationId={
-              stagedAppMap?.[job.id] ||
-              (job.jobId ? stagedAppMap?.[job.jobId] : null) ||
-              job.applicationId ||
-              null
-            }
-            isDismissing={dismissingJobId === job.id}
+            isSaved={isSaved}
+            isSaving={isSaving}
+            isPackaging={isPackagingItem}
+            isStaged={isStagedItem}
+            stagedApplicationId={stagedApplicationId}
             onSave={() => onSave(job)}
             onPackage={onPackage ? () => onPackage(job) : undefined}
-            onDismiss={onDismiss ? () => onDismiss(job) : undefined}
             onApplyClick={onApplyClick ? () => onApplyClick(job) : undefined}
           />
-        ))}
-      </div>
+        )
+      })}
     </div>
   )
 }
