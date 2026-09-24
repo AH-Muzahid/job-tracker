@@ -6,7 +6,7 @@ import { ChevronDown } from "lucide-react";
 
 export function NavUser() {
 	const { user } = useUser();
-	const displayName = user?.fullName || user?.firstName || "Tanvir Ahmed";
+	const displayName = user?.fullName || user?.firstName || "Candidate";
 	const avatarUrl = user?.imageUrl || "/avatars/tanvir.png";
 
 	return (
