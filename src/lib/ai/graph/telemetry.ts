@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Langfuse } from "langfuse"
 import { CallbackHandler } from "@langfuse/langchain"
+import { countTokens } from "@/lib/ai/token-counter"
 
 export type TraceTaskCategory =
   | "chat_interactive"
@@ -121,6 +122,9 @@ export async function trackGraphExecution(params: {
       additionalTags: [`node:${params.nodeName}`],
     })
 
+    const inputTokenCount = params.input ? countTokens(typeof params.input === "string" ? params.input : JSON.stringify(params.input)) : 0
+    const outputTokenCount = params.output ? countTokens(typeof params.output === "string" ? params.output : JSON.stringify(params.output)) : 0
+
     const trace = langfuse.trace({
       id: `${params.sessionId}-${params.startTime}`,
       name: `career-agent-${params.nodeName}`,
@@ -129,6 +133,9 @@ export async function trackGraphExecution(params: {
       tags,
       metadata: {
         node: params.nodeName,
+        inputTokens: inputTokenCount,
+        outputTokens: outputTokenCount,
+        totalTokens: inputTokenCount + outputTokenCount,
       },
     })
 
@@ -138,6 +145,11 @@ export async function trackGraphExecution(params: {
       output: params.output,
       level: params.error ? "ERROR" : "DEFAULT",
       statusMessage: params.error ? String(params.error) : "OK",
+      metadata: {
+        inputTokens: inputTokenCount,
+        outputTokens: outputTokenCount,
+        totalTokens: inputTokenCount + outputTokenCount,
+      },
     })
   } catch (err) {
     console.warn("[Langfuse Telemetry Notice]:", err instanceof Error ? err.message : err)
