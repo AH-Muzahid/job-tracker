@@ -5,6 +5,8 @@ import { getProvider } from "@/lib/ai/client"
 import { generateText } from "ai"
 import { toCanonical } from "@/lib/ai/knowledge-graph"
 import { getUserWeaknesses } from "@/lib/ai/memory"
+import { traceAIGeneration } from "@/lib/ai/telemetry"
+import { extractJsonObject } from "@/lib/ai/json-extractor"
 
 export interface GeneratedApplicationMaterials {
   coverLetter: string
@@ -109,11 +111,16 @@ export async function generateApplicationMaterialsAgent(
 
   let materials: GeneratedApplicationMaterials
 
+  let modelToUse = "deterministic"
+  let providerType = "deterministic"
+  const startTime = Date.now()
+
   try {
     const aiConfig = await getUserAIConfig(userId)
     if (aiConfig?.apiKey) {
       const resolved = getProvider(aiConfig)
-      const modelToUse = aiConfig.model || resolved.defaultModel
+      modelToUse = aiConfig.model || resolved.defaultModel
+      providerType = aiConfig.providerType
       const prompt = `You are an elite career coach and staff software engineer.
 Draft tailored application materials for a candidate applying to:
 Job Title: ${context.jobTitle}
@@ -136,22 +143,62 @@ Respond in valid JSON format:
   "atsKeywords": ["skill1", "skill2", "skill3"]
 } `
 
-      const { text } = await generateText({
+      const result = await generateText({
         model: resolved.model(modelToUse),
         prompt,
       })
 
-      const jsonMatch = text.match(/\{[\s\S]*\}/)
-      if (jsonMatch) {
-        materials = JSON.parse(jsonMatch[0])
+      const parsed = extractJsonObject<GeneratedApplicationMaterials>(result.text)
+      if (parsed && parsed.coverLetter) {
+        materials = parsed
       } else {
         materials = generateDeterministicMaterials(candidateName, profile, context)
       }
+
+      void traceAIGeneration({
+        name: "cover-letter-agent",
+        userId,
+        model: modelToUse,
+        provider: providerType,
+        input: {
+          targetRole: context.jobTitle,
+          company: context.companyName,
+          candidateName,
+        },
+        output: {
+          coverLetterSnippet: materials.coverLetter?.slice(0, 250),
+          outreachPitch: materials.outreachPitch,
+          strategyTip: materials.strategyTip,
+          atsKeywords: materials.atsKeywords,
+        },
+        promptTokens: (result as any).usage?.promptTokens,
+        completionTokens: (result as any).usage?.completionTokens,
+        latencyMs: Date.now() - startTime,
+        status: "success",
+        tags: ["discovery", "cover-letter", "package"],
+        flush: true,
+      })
     } else {
       materials = generateDeterministicMaterials(candidateName, profile, context)
     }
   } catch (error) {
     console.warn("[CoverLetterAgent] AI generation failed, using deterministic materials:", error)
+    void traceAIGeneration({
+      name: "cover-letter-agent",
+      userId,
+      model: modelToUse,
+      provider: providerType,
+      input: {
+        targetRole: context.jobTitle,
+        company: context.companyName,
+        candidateName,
+      },
+      latencyMs: Date.now() - startTime,
+      status: "error",
+      error,
+      tags: ["discovery", "cover-letter", "error", "fallback-to-deterministic"],
+      flush: true,
+    })
     materials = generateDeterministicMaterials(candidateName, profile, context)
   }
 
