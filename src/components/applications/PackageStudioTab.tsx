@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import Link from "next/link"
-import { Layers, Bot, Zap, ArrowRight, CheckCircle2, Clock, Globe, ExternalLink, ShieldCheck, FileText, ChevronRight, RefreshCw } from "lucide-react"
+import { Layers, Zap, Globe, FileText, ChevronRight, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -17,7 +17,7 @@ export function PackageStudioTab({ applicationId }: PackageStudioTabProps) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  async function fetchPackage() {
+  const fetchPackage = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
@@ -30,13 +30,13 @@ export function PackageStudioTab({ applicationId }: PackageStudioTabProps) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [applicationId])
 
   useEffect(() => {
     if (applicationId) {
       fetchPackage()
     }
-  }, [applicationId])
+  }, [applicationId, fetchPackage])
 
   if (loading) {
     return (

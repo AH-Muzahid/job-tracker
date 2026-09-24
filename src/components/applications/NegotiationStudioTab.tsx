@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { DollarSign, ShieldAlert, TrendingUp, CheckCircle2, ChevronRight, Copy, RefreshCw, Zap } from "lucide-react"
+import { useState, useEffect, useCallback } from "react"
+import { DollarSign, Copy } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
@@ -23,7 +23,7 @@ export function NegotiationStudioTab({ applicationId }: NegotiationStudioTabProp
   const [selectedTier, setSelectedTier] = useState<number>(1) // Balanced default
   const [copied, setCopied] = useState(false)
 
-  async function fetchOfferData() {
+  const fetchOfferData = useCallback(async () => {
     setLoading(true)
     try {
       const res = await fetch(`/api/applications/${applicationId}/negotiate`)
@@ -38,11 +38,11 @@ export function NegotiationStudioTab({ applicationId }: NegotiationStudioTabProp
     } finally {
       setLoading(false)
     }
-  }
+  }, [applicationId])
 
   useEffect(() => {
     fetchOfferData()
-  }, [applicationId])
+  }, [fetchOfferData])
 
   async function handleAnalyzeOffer(e: React.FormEvent) {
     e.preventDefault()
