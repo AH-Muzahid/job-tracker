@@ -13,20 +13,24 @@ export function createReflectionNode() {
     const retryCount = reflection?.retryCount || 0
 
     if (currentStep.status === "failed") {
-      if (retryCount < 2) {
+      // Non-retryable errors (e.g. invalid inputs, user rejections, permission errors, unknown tools)
+      // should never trigger wasteful repeat execution cycles
+      const isRetryable = currentStep.retryable !== false
+
+      if (isRetryable && retryCount < 2) {
         return {
           reflection: {
             passed: false,
-            feedback: `Step ${currentStep.id} failed: ${currentStep.error}. Retrying...`,
+            feedback: `Step ${currentStep.id} failed with transient error: ${currentStep.error}. Retrying...`,
             retryCount: retryCount + 1,
           },
         }
       } else {
-        // Max retries exceeded, proceed to next step but record feedback
+        // Max retries exceeded or non-retryable error: advance to next step with recorded rationale
         return {
           reflection: {
             passed: true,
-            feedback: `Step ${currentStep.id} failed after ${retryCount} retries. Moving forward.`,
+            feedback: `Step ${currentStep.id} terminated (${currentStep.error || "Execution failed"}). Advancing workflow.`,
             retryCount: 0,
           },
           currentStepIndex: currentStepIndex + 1,
@@ -34,11 +38,16 @@ export function createReflectionNode() {
       }
     }
 
-    // Passed successfully, move to next step
+    // Quality check for completed step
+    const hasResult = currentStep.result !== undefined && currentStep.result !== null
+    const feedback = hasResult
+      ? `Step ${currentStep.id} completed with verified outcome.`
+      : `Step ${currentStep.id} completed without explicit output.`
+
     return {
       reflection: {
         passed: true,
-        feedback: "Step completed successfully.",
+        feedback,
         retryCount: 0,
       },
       currentStepIndex: currentStepIndex + 1,
