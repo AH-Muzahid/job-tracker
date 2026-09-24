@@ -75,42 +75,28 @@ function getStatusStyle(status: string) {
   };
 }
 
-const referenceApplications: RecentApplicationItem[] = [
-  {
-    id: "app-1",
-    companyName: "Stripe",
-    jobTitle: "Software Engineer",
-    status: "Application Sent",
-    applicationDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-  },
-  {
-    id: "app-2",
-    companyName: "Linear",
-    jobTitle: "Product Manager",
-    status: "In Review",
-    applicationDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
-  },
-  {
-    id: "app-3",
-    companyName: "Anthropic",
-    jobTitle: "Research Engineer",
-    status: "Interviewing",
-    applicationDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-  },
-  {
-    id: "app-4",
-    companyName: "Figma",
-    jobTitle: "Product Designer",
-    status: "Staged",
-    applicationDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-  },
-];
+function isFollowUpDue(status: string, date?: string | Date | null): boolean {
+  if (!date) return false;
+  const s = status.toLowerCase();
+  const isAwaiting = s.includes("sent") || s === "applied" || s === "assessment";
+  if (!isAwaiting) return false;
+  const diffDays = Math.floor((Date.now() - new Date(date).getTime()) / (1000 * 60 * 60 * 24));
+  return diffDays >= 5;
+}
 
 export function RecentApplicationsList({
   applications,
   isLoading,
 }: RecentApplicationsListProps) {
-  const list = applications && applications.length > 0 ? applications.slice(0, 4) : referenceApplications;
+  const seen = new Set<string>();
+  const list = (applications ?? [])
+    .filter((app) => {
+      const key = `${(app.companyName || "").toLowerCase().trim()}:${(app.jobTitle || "").toLowerCase().trim()}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, 4);
 
   if (isLoading) {
     return (
@@ -142,43 +128,67 @@ export function RecentApplicationsList({
         </div>
 
         <div className="space-y-1.5 mt-1">
-          {list.map((app) => {
-            const statusStyle = getStatusStyle(app.status);
-
-            return (
+          {list.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/40 px-4 py-8 text-center">
+              <p className="text-sm font-medium text-slate-600 dark:text-slate-300">
+                No applications yet
+              </p>
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
+                Get started by staging an opportunity or applying to a role.
+              </p>
               <Link
-                key={app.id}
-                href={`/applications/${app.id}`}
-                className="flex items-center justify-between py-2 px-1 hover:bg-slate-50 dark:hover:bg-slate-800/40 rounded-xl transition-colors group"
+                href="/discovery"
+                className="mt-3 inline-flex text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline"
               >
-                <div className="flex items-center gap-3 min-w-0">
-                  <CompanyBrandLogo company={app.companyName} size={32} />
-                  <div className="min-w-0">
-                    <p className="text-xs sm:text-[13px] font-bold text-slate-900 dark:text-white truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                      {app.companyName}
-                    </p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5 font-normal">
-                      {app.jobTitle}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3 shrink-0 ml-2">
-                  <span
-                    className={cn(
-                      "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap",
-                      statusStyle.className
-                    )}
-                  >
-                    {statusStyle.label}
-                  </span>
-                  <span className="text-xs text-slate-400 dark:text-slate-500 hidden sm:inline-block font-normal min-w-[65px] text-right">
-                    {timeAgo(app.applicationDate || app.createdAt)}
-                  </span>
-                </div>
+                Get started
               </Link>
-            );
-          })}
+            </div>
+          ) : (
+            list.map((app) => {
+              const statusStyle = getStatusStyle(app.status);
+              const needsFollowUp = isFollowUpDue(app.status, app.applicationDate || app.createdAt);
+
+              return (
+                <Link
+                  key={app.id}
+                  href={`/applications/${app.id}`}
+                  className="flex items-center justify-between py-2 px-1 hover:bg-slate-50 dark:hover:bg-slate-800/40 rounded-xl transition-colors group"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <CompanyBrandLogo company={app.companyName} size={32} />
+                    <div className="min-w-0">
+                      <p className="text-xs sm:text-[13px] font-bold text-slate-900 dark:text-white truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                        {app.companyName}
+                      </p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5 font-normal">
+                        {app.jobTitle}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0 ml-2">
+                    {needsFollowUp && (
+                      <span className="hidden sm:inline-flex items-center gap-1 rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/25 px-1.5 py-0.5 text-[10px] font-semibold leading-none">
+                        <span className="size-1.5 rounded-full bg-amber-500" />
+                        Follow-up
+                      </span>
+                    )}
+                    <span
+                      className={cn(
+                        "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap",
+                        statusStyle.className
+                      )}
+                    >
+                      {statusStyle.label}
+                    </span>
+                    <span className="text-xs text-slate-400 dark:text-slate-500 hidden sm:inline-block font-normal min-w-[65px] text-right">
+                      {timeAgo(app.applicationDate || app.createdAt)}
+                    </span>
+                  </div>
+                </Link>
+              );
+            })
+          )}
         </div>
       </div>
     </div>
