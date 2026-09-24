@@ -58,7 +58,9 @@ export function useJobDiscovery() {
       const json = await res.json()
       return json.data as DiscoveryApiResponse
     },
-    staleTime: 60_000,
+    staleTime: 15 * 60 * 1000, // 15 minutes fresh in client memory (no refetching on page switch)
+    gcTime: 30 * 60 * 1000, // 30 minutes cache retention
+    refetchOnWindowFocus: false, // Prevents re-fetching merely because user switched tabs
   })
 
   // Synchronize previously saved & staged jobs from the backend payload
