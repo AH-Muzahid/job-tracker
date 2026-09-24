@@ -382,5 +382,48 @@ describe("Two-Tier Hybrid RecSys Engine Suite", () => {
       expect(results[0].matchRationale).toBe("Direct semantic vector match")
       expect(results[0].scoreBreakdown.skills).toBe(25)
     })
+
+    it("invokes generateObject with maxRetries: 0 and abortSignal to prevent blocking real-time API requests on 503 spikes", async () => {
+      vi.mocked(generateObject).mockResolvedValueOnce({
+        object: {
+          rankings: [],
+        },
+      } as any)
+
+      await deepReRankCandidateJobs({
+        candidateProfile: {
+          targetRoles: ["Frontend Developer"],
+          skills: ["React"],
+          experienceLevel: "mid",
+          location: "Remote",
+          projects: [],
+        },
+        jobs: [
+          {
+            id: "job-1",
+            title: "Frontend Developer",
+            company: "TechHub",
+            location: "Remote",
+            isRemote: true,
+            url: "https://job-boards.greenhouse.io/techhub/jobs/101",
+            salary: "$120k",
+            salaryMin: 120000,
+            salaryMax: 120000,
+            tags: ["react"],
+            description: "Frontend developer role",
+            postedAt: new Date(),
+            visaSponsorship: "unknown",
+            cosineSimilarity: 0.85,
+          },
+        ],
+      })
+
+      expect(generateObject).toHaveBeenCalledWith(
+        expect.objectContaining({
+          maxRetries: 0,
+          abortSignal: expect.any(AbortSignal),
+        })
+      )
+    })
   })
 })
