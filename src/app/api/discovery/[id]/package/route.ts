@@ -194,9 +194,11 @@ export async function POST(
 
     // 5. Invalidate caches for dashboard stats, applications, and user metrics
     await Promise.allSettled([
+      invalidateCache(`user:stats:v2:${userId}`),
       invalidateCache(`dashboard:stats:${userId}`),
       invalidateCache(`applications:${userId}`),
       invalidateCache(`user:stats:${userId}`),
+      invalidateCache(`discovery:feed:v1:${userId}`),
     ])
 
     // 6. Non-blocking background telemetry & implicit preference learning
