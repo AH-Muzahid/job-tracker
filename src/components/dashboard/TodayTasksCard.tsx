@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Check, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -43,14 +43,64 @@ const referenceTasks: TaskItem[] = [
 ];
 
 export function TodayTasksCard({ tasks, isLoading }: TodayTasksCardProps) {
-  const [taskList, setTaskList] = useState<TaskItem[]>(() =>
-    tasks && tasks.length > 0 ? tasks : referenceTasks
-  );
+  const todayKey = typeof window !== "undefined"
+    ? `careertrack_tasks_${new Date().toISOString().slice(0, 10)}`
+    : null;
+
+  const [taskList, setTaskList] = useState<TaskItem[]>(() => {
+    const initial = tasks && tasks.length > 0 ? tasks : referenceTasks;
+    if (typeof window !== "undefined" && todayKey) {
+      try {
+        const saved = localStorage.getItem(todayKey);
+        if (saved) {
+          const completedMap: Record<string, boolean> = JSON.parse(saved);
+          return initial.map((t) => ({
+            ...t,
+            completed: completedMap[t.id] ?? t.completed,
+          }));
+        }
+      } catch {}
+    }
+    return initial;
+  });
+
+  useEffect(() => {
+    if (tasks && tasks.length > 0) {
+      if (typeof window !== "undefined" && todayKey) {
+        try {
+          const saved = localStorage.getItem(todayKey);
+          if (saved) {
+            const completedMap: Record<string, boolean> = JSON.parse(saved);
+            setTaskList(
+              tasks.map((t) => ({
+                ...t,
+                completed: completedMap[t.id] ?? t.completed,
+              }))
+            );
+            return;
+          }
+        } catch {}
+      }
+      setTaskList(tasks);
+    }
+  }, [tasks, todayKey]);
 
   const toggleTask = (taskId: string) => {
-    setTaskList((prev) =>
-      prev.map((t) => (t.id === taskId ? { ...t, completed: !t.completed } : t))
-    );
+    setTaskList((prev) => {
+      const next = prev.map((t) =>
+        t.id === taskId ? { ...t, completed: !t.completed } : t
+      );
+      if (typeof window !== "undefined" && todayKey) {
+        try {
+          const map = next.reduce(
+            (acc, t) => ({ ...acc, [t.id]: t.completed }),
+            {}
+          );
+          localStorage.setItem(todayKey, JSON.stringify(map));
+        } catch {}
+      }
+      return next;
+    });
   };
 
   if (isLoading) {
@@ -74,7 +124,7 @@ export function TodayTasksCard({ tasks, isLoading }: TodayTasksCardProps) {
           Today&apos;s Tasks
         </h2>
         <span className="flex size-5 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 text-[11px] font-semibold text-slate-600 dark:text-slate-300">
-          3
+          {taskList.length}
         </span>
       </div>
 
