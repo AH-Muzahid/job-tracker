@@ -52,6 +52,13 @@ export async function POST(request: NextRequest) {
     return new Response(JSON.stringify({ error: "Message or resume action is required" }), { status: 400 })
   }
 
+  if (message && message.length > 4000) {
+    return new Response(
+      JSON.stringify({ error: "Message exceeds maximum allowed length of 4000 characters." }),
+      { status: 400 }
+    )
+  }
+
   // Ensure ChatSession exists in DB
   try {
     await withDbRetry(() =>
@@ -221,14 +228,16 @@ export async function POST(request: NextRequest) {
         for await (const update of events) {
           for (const [nodeName, nodeState] of Object.entries(update)) {
             sendEvent(nodeName, nodeState)
-            void trackGraphExecution({
-              userId,
-              sessionId,
-              nodeName,
-              input: inputArg,
-              output: nodeState,
-              startTime: Date.now(),
-            })
+            if (!langfuseHandler) {
+              void trackGraphExecution({
+                userId,
+                sessionId,
+                nodeName,
+                input: inputArg,
+                output: nodeState,
+                startTime: Date.now(),
+              })
+            }
           }
         }
 
