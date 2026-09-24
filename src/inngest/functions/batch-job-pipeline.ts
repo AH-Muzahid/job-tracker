@@ -3,6 +3,7 @@ import { prisma, withDbRetry } from "@/lib/prisma"
 import { executeSearchExternalJobs } from "@/lib/ai/graph/tools/discovery-tools"
 import { ingestGlobalJobsToCatalog } from "@/lib/discovery/scrapers"
 import { logDiscoveryEvent } from "@/lib/discovery/telemetry"
+import { invalidateCache } from "@/lib/redis"
 
 /**
  * Generates a deterministic batch ID for the 6-hour interval
@@ -225,6 +226,9 @@ export async function processUserJobBatch(
       console.warn("[BatchJobPipeline] Failed to trigger career/orchestrator.execute:", inngestErr)
     }
   }
+
+  // Invalidate cached discovery feed so user immediately receives the fresh batch
+  await invalidateCache(`discovery:feed:v1:${userId}`).catch(() => {})
 
   return {
     userId,
