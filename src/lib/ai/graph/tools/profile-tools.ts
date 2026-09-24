@@ -1,6 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { prisma, withDbRetry } from "@/lib/prisma"
 import { generateEmbedding, serializeEmbedding } from "@/lib/ai/memory-search"
+import { sanitizeUntrustedContext } from "@/lib/ai/context-builder"
+import { invalidateCache } from "@/lib/redis"
 
 export async function executeGetUserProfile(userId: string) {
   if (!userId) return { success: false, error: "Unauthorized" }
@@ -83,12 +85,22 @@ export async function executeSaveUserMemory(userId: string, input: {
   content: string
 }) {
   if (!userId) return { success: false, error: "Unauthorized" }
-  if (!input.content) return { success: false, error: "Content is required" }
+  if (!input.content || typeof input.content !== "string") {
+    return { success: false, error: "Content is required" }
+  }
+
+  const sanitizedContent = sanitizeUntrustedContext(input.content).trim()
+  if (sanitizedContent.length < 3) {
+    return { success: false, error: "Memory content too short or invalid after sanitization" }
+  }
+  if (sanitizedContent.length > 2000) {
+    return { success: false, error: "Memory content exceeds maximum limit of 2000 characters" }
+  }
 
   try {
     let serializedEmbedding: string | null = null
     try {
-      const emb = await generateEmbedding(input.content)
+      const emb = await generateEmbedding(sanitizedContent)
       serializedEmbedding = serializeEmbedding(emb)
     } catch {
       // Embedding optional
@@ -99,12 +111,15 @@ export async function executeSaveUserMemory(userId: string, input: {
         data: {
           userId,
           category: input.category || "general",
-          content: input.content.trim(),
+          content: sanitizedContent,
           embedding: serializedEmbedding,
           source: "chat",
+          confidence: 0.85,
         },
       })
     )
+
+    await invalidateCache(`user:memories:${userId}`)
 
     return {
       success: true,
@@ -118,6 +133,7 @@ export async function executeSaveUserMemory(userId: string, input: {
 
 export async function executeForgetUserMemory(userId: string, input: { memoryId: string }) {
   if (!userId) return { success: false, error: "Unauthorized" }
+  if (!input.memoryId) return { success: false, error: "memoryId is required" }
 
   try {
     await withDbRetry(() =>
@@ -125,6 +141,9 @@ export async function executeForgetUserMemory(userId: string, input: { memoryId:
         where: { id: input.memoryId, userId },
       })
     )
+
+    await invalidateCache(`user:memories:${userId}`)
+
     return { success: true, message: "Memory forgotten successfully." }
   } catch (err: any) {
     return { success: false, error: err?.message || "Failed to forget memory" }
