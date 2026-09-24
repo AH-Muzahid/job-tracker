@@ -37,6 +37,43 @@ describe("LangGraph Agent Core Nodes", () => {
     expect(result.plan?.[0].toolName).toBe("createApplication")
   })
 
+  it("Planner node handles markdown code fences and conversational suffix gracefully", async () => {
+    const rawOutput = `Here is the execution plan:
+\`\`\`json
+{
+  "goal": "Prepare outreach email",
+  "steps": [
+    {
+      "id": "step-1",
+      "task": "Draft outreach message",
+      "toolName": "sendOutreachEmailViaResend",
+      "toolInput": { "toEmail": "recruiter@stripe.com", "subject": "Application", "bodyText": "Hello" }
+    }
+  ]
+}
+\`\`\`
+I will proceed with this plan.`
+
+    const mockModel: any = {
+      invoke: vi.fn().mockResolvedValue({
+        content: rawOutput,
+      }),
+    }
+
+    const plannerNode = createPlannerNode(mockModel)
+    const state: any = {
+      messages: [new HumanMessage("Draft an outreach message to recruiter@stripe.com")],
+      goal: "",
+      plan: [],
+      currentStepIndex: 0,
+    }
+
+    const result = await plannerNode(state)
+    expect(result.goal).toBe("Prepare outreach email")
+    expect(result.plan).toHaveLength(1)
+    expect(result.plan?.[0].toolName).toBe("sendOutreachEmailViaResend")
+  })
+
   it("Reflection node passes successful steps and increments index", async () => {
     const reflectionNode = createReflectionNode()
     const state: any = {
