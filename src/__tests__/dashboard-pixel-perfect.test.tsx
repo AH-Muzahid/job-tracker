@@ -1,6 +1,13 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import React from "react";
 import { renderToString } from "react-dom/server";
+
+vi.mock("@tanstack/react-query", () => ({
+  useQueryClient: vi.fn(() => ({
+    invalidateQueries: vi.fn(),
+  })),
+}));
+
 import { CompanyBrandLogo } from "@/components/CompanyBrandLogo";
 import { DashboardKpis } from "@/components/dashboard/DashboardKpis";
 import { RecommendedOpportunities } from "@/components/dashboard/RecommendedOpportunities";
@@ -19,40 +26,52 @@ describe("Pixel-Perfect Dashboard Components & Strict Constraints", () => {
     }
   });
 
-  it("renders DashboardKpis with exact mockup numbers when data is empty or defaults", () => {
+  it("renders DashboardKpis with zeros when data is empty or defaults (no fabricated metrics)", () => {
     const html = renderToString(<DashboardKpis />);
     expect(html).toContain("Opportunities");
-    expect(html).toContain("28");
     expect(html).toContain("Applications");
-    expect(html).toContain("12");
     expect(html).toContain("Interviews");
-    expect(html).toContain("3");
     expect(html).toContain("Offers");
-    expect(html).toContain("1");
+    expect(html).not.toContain("28");
+    expect(html).not.toContain("1 Received");
+    expect(html).toContain("Keep going!");
   });
 
-  it("renders RecommendedOpportunities with Google, Stripe, and Notion", () => {
+  it("renders RecommendedOpportunities empty state without reference jobs", () => {
     const html = renderToString(<RecommendedOpportunities />);
-    expect(html).toContain("Google");
-    expect(html).toContain("Product Manager");
-    expect(html).toContain("Stripe");
-    expect(html).toContain("Software Engineer");
-    expect(html).toContain("Notion");
-    expect(html).toContain("Product Designer");
+    expect(html).not.toContain("Google");
+    expect(html).not.toContain("Notion");
+    expect(html).not.toContain("Stripe");
+    expect(html).toContain("No opportunities yet");
+  });
+
+  it("renders RecommendedOpportunities with real opportunity data when provided", () => {
+    const html = renderToString(
+      <RecommendedOpportunities
+        opportunities={[
+          {
+            id: "real-1",
+            title: "Staff Engineer",
+            company: "Acme Corp",
+            location: "Remote",
+            fitScore: 91,
+          },
+        ]}
+      />
+    );
+    expect(html).toContain("Acme Corp");
     expect(html).toContain("Package &amp; Stage");
     expect(html).toContain("View Details");
+    expect(html).not.toContain("Notion");
   });
 
-  it("renders RecentApplicationsList with 4 rows and correct status badges", () => {
+  it("renders RecentApplicationsList empty state without reference applications", () => {
     const html = renderToString(<RecentApplicationsList />);
-    expect(html).toContain("Stripe");
-    expect(html).toContain("Application Sent");
-    expect(html).toContain("Linear");
-    expect(html).toContain("In Review");
-    expect(html).toContain("Anthropic");
-    expect(html).toContain("Interviewing");
-    expect(html).toContain("Figma");
-    expect(html).toContain("Staged");
+    expect(html).not.toContain("Stripe");
+    expect(html).not.toContain("Linear");
+    expect(html).not.toContain("Anthropic");
+    expect(html).not.toContain("Figma");
+    expect(html).toContain("No applications yet");
   });
 
   it("renders UpcomingInterviewsList with Anthropic, Google, and Stripe with prep buttons", () => {
