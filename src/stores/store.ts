@@ -30,6 +30,7 @@ interface UIState {
 
   // Theme
   dark: boolean
+  setTheme: (dark: boolean) => void
   toggleTheme: () => void
   initTheme: () => void
 
@@ -63,6 +64,11 @@ export const useUI = create<UIState>((set) => ({
 
   // Theme
   dark: false,
+  setTheme: (dark: boolean) => {
+    document.documentElement.classList.toggle("dark", dark)
+    localStorage.setItem("theme", dark ? "dark" : "light")
+    set({ dark })
+  },
   toggleTheme: () =>
     set((s) => {
       const next = !s.dark

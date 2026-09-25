@@ -2,7 +2,13 @@
 
 import React, { useState, useEffect } from "react"
 import { FileSpreadsheet, Check, Copy, ExternalLink, RefreshCw, HelpCircle, Save } from "lucide-react"
-import { DecorIcon } from "@/components/decor-icon"
+import {
+  BlueprintCard,
+  BlueprintCardHeader,
+  BlueprintCardTitle,
+  BlueprintCardContent,
+} from "@/components/primitives"
+import { StatusBadge } from "@/components/StatusBadge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -27,7 +33,7 @@ export function GoogleSheetsIntegrationCard({ initialConfig, isLoading = false }
   const [webhookUrl, setWebhookUrl] = useState(initialConfig?.webhookUrl || "")
   const [autoSyncEnabled, setAutoSyncEnabled] = useState(initialConfig?.autoSyncEnabled || false)
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(initialConfig?.lastSyncedAt || null)
-  
+
   const [loading, setLoading] = useState(isLoading && !initialConfig)
   const [saving, setSaving] = useState(false)
   const [syncing, setSyncing] = useState(false)
@@ -68,7 +74,9 @@ export function GoogleSheetsIntegrationCard({ initialConfig, isLoading = false }
         }
       }
       loadConfig()
-      return () => { isMounted = false }
+      return () => {
+        isMounted = false
+      }
     }
   }, [initialConfig])
 
@@ -90,7 +98,7 @@ export function GoogleSheetsIntegrationCard({ initialConfig, isLoading = false }
         throw new Error(data.error || "Failed to save settings")
       }
 
-      toast.success("Google Sheets configuration saved!")
+      toast.success("Google Sheets configuration saved successfully!")
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to save"
       toast.error(msg)
@@ -134,37 +142,31 @@ export function GoogleSheetsIntegrationCard({ initialConfig, isLoading = false }
     setTimeout(() => setCopied(false), 2500)
   }
 
-  return (
-    <div className="relative rounded-none border border-border bg-card/60 backdrop-blur-xl p-4 sm:p-6 transition-colors">
-      <DecorIcon position="top-right" />
-      <DecorIcon position="bottom-left" />
+  const isValidWebhook = !webhookUrl || (webhookUrl.includes("script.google.com") && webhookUrl.includes("/exec"))
 
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-border/70 gap-3">
+  return (
+    <BlueprintCard>
+      <BlueprintCardHeader>
         <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center border border-border bg-muted/40 text-foreground shrink-0">
-            <FileSpreadsheet className="h-4 w-4" />
+          <div className="flex h-8 w-8 items-center justify-center rounded-[4px] border border-border bg-muted/40 text-foreground shrink-0">
+            <FileSpreadsheet className="h-4 w-4 text-primary" />
           </div>
           <div>
             <span className="text-[10px] font-mono tracking-wider text-muted-foreground uppercase">SYNC / SHEETS</span>
-            <h3 className="text-sm font-semibold tracking-tight text-foreground">
+            <BlueprintCardTitle className="text-sm font-semibold tracking-tight text-foreground">
               Google Sheets Real-time Auto-Sync
-            </h3>
+            </BlueprintCardTitle>
           </div>
         </div>
 
-        <span
-          className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-none font-mono text-[10px] uppercase border w-fit ${
-            autoSyncEnabled && webhookUrl
-              ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
-              : "bg-muted/40 text-muted-foreground border-border"
-          }`}
-        >
-          <span className={`h-1.5 w-1.5 rounded-full ${autoSyncEnabled && webhookUrl ? "bg-emerald-500 animate-pulse" : "bg-muted-foreground"}`} />
-          {autoSyncEnabled && webhookUrl ? "Auto-Sync Active" : "Disconnected"}
-        </span>
-      </div>
+        <StatusBadge
+          status={autoSyncEnabled && webhookUrl ? "accepted" : "saved"}
+          customLabel={autoSyncEnabled && webhookUrl ? "Auto-Sync Active" : "Disconnected"}
+          size="sm"
+        />
+      </BlueprintCardHeader>
 
-      <div className="space-y-4 pt-4">
+      <BlueprintCardContent className="space-y-4 pt-4">
         {loading ? (
           <div className="py-4 text-center font-mono text-xs text-muted-foreground">Loading configuration...</div>
         ) : (
@@ -188,7 +190,7 @@ export function GoogleSheetsIntegrationCard({ initialConfig, isLoading = false }
                 placeholder="https://docs.google.com/spreadsheets/d/.../edit"
                 value={sheetUrl}
                 onChange={(e) => setSheetUrl(e.target.value)}
-                className="text-xs h-8 rounded-none font-mono border-border bg-background"
+                className="text-xs h-8 rounded-[4px] font-mono border-border bg-background"
               />
             </div>
 
@@ -206,10 +208,10 @@ export function GoogleSheetsIntegrationCard({ initialConfig, isLoading = false }
                       type="button"
                       className="inline-flex items-center gap-1 text-[11px] font-mono text-primary hover:underline cursor-pointer"
                     >
-                      <HelpCircle className="h-3.5 w-3.5" /> Setup in 30s
+                      <HelpCircle className="h-3.5 w-3.5" /> Setup Guide (30s)
                     </button>
                   </DialogTrigger>
-                  <DialogContent className="w-[calc(100vw-2rem)] max-w-xl max-h-[85vh] overflow-y-auto rounded-none border border-border bg-background p-4 sm:p-6">
+                  <DialogContent className="w-[calc(100vw-2rem)] max-w-xl max-h-[85vh] overflow-y-auto rounded-[8px] border border-border bg-background p-4 sm:p-6">
                     <DialogHeader>
                       <div className="flex items-center justify-between pr-6 pb-2 border-b border-border">
                         <DialogTitle className="text-sm font-semibold flex items-center gap-2">
@@ -221,8 +223,8 @@ export function GoogleSheetsIntegrationCard({ initialConfig, isLoading = false }
 
                     <div className="space-y-3 text-xs text-muted-foreground leading-relaxed pt-2">
                       {/* Step 1 */}
-                      <div className="flex items-start gap-2.5 p-2.5 rounded-none bg-muted/20 border border-border/60">
-                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-none bg-primary text-[10px] font-mono font-bold text-primary-foreground">
+                      <div className="flex items-start gap-2.5 p-2.5 rounded-[4px] bg-muted/20 border border-border/60">
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[4px] bg-primary text-[10px] font-mono font-bold text-primary-foreground">
                           1
                         </span>
                         <div className="space-y-1 flex-1">
@@ -243,22 +245,22 @@ export function GoogleSheetsIntegrationCard({ initialConfig, isLoading = false }
                       </div>
 
                       {/* Step 2 */}
-                      <div className="flex items-start gap-2.5 p-2.5 rounded-none bg-muted/20 border border-border/60">
-                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-none bg-primary text-[10px] font-mono font-bold text-primary-foreground">
+                      <div className="flex items-start gap-2.5 p-2.5 rounded-[4px] bg-muted/20 border border-border/60">
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[4px] bg-primary text-[10px] font-mono font-bold text-primary-foreground">
                           2
                         </span>
                         <div className="space-y-1 flex-1">
                           <p className="text-foreground font-medium">Paste the Code & Save</p>
                           <p className="text-[11px] text-muted-foreground">
                             Delete sample code, paste the script below, and press{" "}
-                            <kbd className="px-1 py-0.5 rounded-none bg-muted border border-border text-[10px] font-mono">Ctrl+S / ⌘+S</kbd>.
+                            <kbd className="px-1 py-0.5 rounded-[2px] bg-muted border border-border text-[10px] font-mono">Ctrl+S / ⌘+S</kbd>.
                           </p>
                         </div>
                       </div>
 
                       {/* Step 3 */}
-                      <div className="flex items-start gap-2.5 p-2.5 rounded-none bg-muted/20 border border-border/60">
-                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-none bg-primary text-[10px] font-mono font-bold text-primary-foreground">
+                      <div className="flex items-start gap-2.5 p-2.5 rounded-[4px] bg-muted/20 border border-border/60">
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[4px] bg-primary text-[10px] font-mono font-bold text-primary-foreground">
                           3
                         </span>
                         <div className="space-y-1 flex-1">
@@ -271,8 +273,8 @@ export function GoogleSheetsIntegrationCard({ initialConfig, isLoading = false }
                       </div>
 
                       {/* Step 4 */}
-                      <div className="flex items-start gap-2.5 p-2.5 rounded-none bg-muted/20 border border-border/60">
-                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-none bg-primary text-[10px] font-mono font-bold text-primary-foreground">
+                      <div className="flex items-start gap-2.5 p-2.5 rounded-[4px] bg-muted/20 border border-border/60">
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[4px] bg-primary text-[10px] font-mono font-bold text-primary-foreground">
                           4
                         </span>
                         <div className="space-y-1 flex-1">
@@ -284,8 +286,8 @@ export function GoogleSheetsIntegrationCard({ initialConfig, isLoading = false }
                       </div>
 
                       {/* Step 5 */}
-                      <div className="flex items-start gap-2.5 p-2.5 rounded-none bg-muted/20 border border-border/60">
-                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-none bg-primary text-[10px] font-mono font-bold text-primary-foreground">
+                      <div className="flex items-start gap-2.5 p-2.5 rounded-[4px] bg-muted/20 border border-border/60">
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[4px] bg-primary text-[10px] font-mono font-bold text-primary-foreground">
                           5
                         </span>
                         <div className="space-y-1 flex-1">
@@ -305,13 +307,13 @@ export function GoogleSheetsIntegrationCard({ initialConfig, isLoading = false }
                             variant="outline"
                             size="sm"
                             onClick={copyAppsScript}
-                            className="h-6 text-xs gap-1.5 cursor-pointer rounded-none font-mono"
+                            className="h-6 text-xs gap-1.5 cursor-pointer rounded-[4px] font-mono"
                           >
                             {copied ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
                             {copied ? "Copied" : "Copy Code"}
                           </Button>
                         </div>
-                        <pre className="p-3 rounded-none bg-muted/50 border border-border text-[10px] font-mono overflow-x-auto max-h-40 leading-relaxed text-foreground/90 select-all">
+                        <pre className="p-3 rounded-[4px] bg-muted/50 border border-border text-[10px] font-mono overflow-x-auto max-h-40 leading-relaxed text-foreground/90 select-all">
                           {GOOGLE_APPS_SCRIPT_TEMPLATE}
                         </pre>
                       </div>
@@ -324,8 +326,15 @@ export function GoogleSheetsIntegrationCard({ initialConfig, isLoading = false }
                 placeholder="https://script.google.com/macros/s/.../exec"
                 value={webhookUrl}
                 onChange={(e) => setWebhookUrl(e.target.value)}
-                className="text-xs h-8 font-mono rounded-none border-border bg-background"
+                className={`text-xs h-8 font-mono rounded-[4px] border-border bg-background ${
+                  !isValidWebhook ? "border-amber-500/80 focus-visible:ring-amber-500" : ""
+                }`}
               />
+              {!isValidWebhook && (
+                <p className="text-[11px] font-mono text-amber-500">
+                  Note: Google Apps Script Webhook URLs typically start with https://script.google.com/macros/s/ and end with /exec
+                </p>
+              )}
             </div>
 
             {/* Toggle auto-sync */}
@@ -333,7 +342,7 @@ export function GoogleSheetsIntegrationCard({ initialConfig, isLoading = false }
               <div className="space-y-0.5 pr-2">
                 <Label className="text-xs font-mono font-medium text-foreground">Automatic Live Sync</Label>
                 <p className="text-[11px] text-muted-foreground">
-                  Append new or updated applications to Google Sheets instantly upon change.
+                  Append new or updated applications to Google Sheets instantly upon pipeline change.
                 </p>
               </div>
               <button
@@ -341,12 +350,12 @@ export function GoogleSheetsIntegrationCard({ initialConfig, isLoading = false }
                 role="switch"
                 aria-checked={autoSyncEnabled}
                 onClick={() => setAutoSyncEnabled(!autoSyncEnabled)}
-                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-none border transition-colors duration-200 ease-in-out focus:outline-none ${
+                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-1 focus-visible:ring-primary ${
                   autoSyncEnabled ? "bg-primary border-primary" : "bg-muted border-border"
                 }`}
               >
                 <span
-                  className={`pointer-events-none inline-block h-3.5 w-3.5 transform rounded-none bg-background shadow-xs transition duration-200 ease-in-out m-0.5 ${
+                  className={`pointer-events-none inline-block h-3.5 w-3.5 transform rounded-full bg-background shadow-xs transition duration-200 ease-in-out m-0.5 ${
                     autoSyncEnabled ? "translate-x-4 bg-primary-foreground" : "translate-x-0"
                   }`}
                 />
@@ -367,7 +376,7 @@ export function GoogleSheetsIntegrationCard({ initialConfig, isLoading = false }
                 size="sm"
                 onClick={handleManualSync}
                 disabled={syncing || !webhookUrl}
-                className="rounded-none font-mono text-xs h-8 px-3 cursor-pointer w-full sm:w-auto"
+                className="rounded-[4px] font-mono text-xs h-8 px-3 cursor-pointer w-full sm:w-auto"
               >
                 <RefreshCw className={`h-3 w-3 mr-1.5 ${syncing ? "animate-spin" : ""}`} />
                 {syncing ? "Syncing..." : "Sync All Applications"}
@@ -378,7 +387,7 @@ export function GoogleSheetsIntegrationCard({ initialConfig, isLoading = false }
                 size="sm"
                 onClick={handleSave}
                 disabled={saving}
-                className="rounded-none font-mono text-xs h-8 px-4 cursor-pointer w-full sm:w-auto bg-primary hover:bg-primary/90 text-primary-foreground"
+                className="rounded-[4px] font-mono text-xs h-8 px-4 cursor-pointer w-full sm:w-auto bg-primary hover:bg-primary/90 text-primary-foreground"
               >
                 <Save className="h-3 w-3 mr-1.5" />
                 {saving ? "Saving..." : "Save Configuration"}
@@ -386,7 +395,7 @@ export function GoogleSheetsIntegrationCard({ initialConfig, isLoading = false }
             </div>
           </>
         )}
-      </div>
-    </div>
+      </BlueprintCardContent>
+    </BlueprintCard>
   )
 }

@@ -1,11 +1,19 @@
 "use client"
 
 import React, { useState, useEffect } from "react"
-import { Trash2, Plus, Loader2, BrainCircuit, RefreshCw, UserCheck } from "lucide-react"
-import { DecorIcon } from "@/components/decor-icon"
+import { Trash2, Plus, Loader2, BrainCircuit, RefreshCw, UserCheck, Search } from "lucide-react"
+import {
+  BlueprintCard,
+  BlueprintCardHeader,
+  BlueprintCardTitle,
+  BlueprintCardContent,
+  EmptyState,
+} from "@/components/primitives"
+import { StatusBadge } from "@/components/StatusBadge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
+import { cn } from "@/lib/utils"
 
 interface MemoryItem {
   id: string
@@ -20,6 +28,8 @@ export interface AIMemoryManagerProps {
   isLoading?: boolean
 }
 
+const CATEGORIES = ["all", "preference", "skill", "experience", "constraint", "general"] as const
+
 export function AIMemoryManager({ initialMemories, isLoading = false }: AIMemoryManagerProps) {
   const [memories, setMemories] = useState<MemoryItem[]>(initialMemories || [])
   const [loading, setLoading] = useState(isLoading && !initialMemories)
@@ -28,6 +38,8 @@ export function AIMemoryManager({ initialMemories, isLoading = false }: AIMemory
   const [adding, setAdding] = useState(false)
   const [syncingProfile, setSyncingProfile] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [filterCategory, setFilterCategory] = useState<string>("all")
+  const [searchQuery, setSearchQuery] = useState("")
 
   const fetchMemories = async () => {
     try {
@@ -131,21 +143,24 @@ export function AIMemoryManager({ initialMemories, isLoading = false }: AIMemory
     }
   }
 
-  return (
-    <div className="relative rounded-none border border-border bg-card/60 backdrop-blur-xl p-4 sm:p-6 transition-colors">
-      <DecorIcon position="top-right" />
-      <DecorIcon position="bottom-left" />
+  const filteredMemories = memories.filter((m) => {
+    const matchesCategory = filterCategory === "all" || m.category.toLowerCase() === filterCategory.toLowerCase()
+    const matchesSearch = !searchQuery.trim() || m.content.toLowerCase().includes(searchQuery.toLowerCase())
+    return matchesCategory && matchesSearch
+  })
 
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-border/70 gap-3">
+  return (
+    <BlueprintCard>
+      <BlueprintCardHeader>
         <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center border border-border bg-muted/40 text-foreground shrink-0">
+          <div className="flex h-8 w-8 items-center justify-center rounded-[4px] border border-border bg-muted/40 text-foreground shrink-0">
             <BrainCircuit className="h-4 w-4 text-primary" />
           </div>
           <div>
             <span className="text-[10px] font-mono tracking-wider text-muted-foreground uppercase">AI / KNOWLEDGE</span>
-            <h3 className="text-sm font-semibold tracking-tight text-foreground">
+            <BlueprintCardTitle className="text-sm font-semibold tracking-tight text-foreground">
               Semantic Memory & Constraints
-            </h3>
+            </BlueprintCardTitle>
           </div>
         </div>
 
@@ -156,19 +171,22 @@ export function AIMemoryManager({ initialMemories, isLoading = false }: AIMemory
             size="sm"
             onClick={handleSyncProfile}
             disabled={syncingProfile}
-            className="rounded-none font-mono text-xs h-7 px-2.5 gap-1.5 cursor-pointer flex-1 sm:flex-initial"
+            className="rounded-[4px] font-mono text-xs h-7 px-2.5 gap-1.5 cursor-pointer flex-1 sm:flex-initial"
             title="Import facts from Profile Setup"
           >
-            <RefreshCw className={`h-3 w-3 ${syncingProfile ? "animate-spin" : ""}`} />
+            <RefreshCw className={`h-3 w-3 ${syncingProfile ? "animate-spin text-primary" : ""}`} />
             <span>{syncingProfile ? "Syncing..." : "Sync Profile"}</span>
           </Button>
-          <span className="font-mono text-[10px] uppercase border border-border bg-muted/40 px-2 py-0.5 rounded-none text-muted-foreground shrink-0">
-            {memories.length} {memories.length === 1 ? "Fact" : "Facts"}
-          </span>
-        </div>
-      </div>
 
-      <div className="space-y-4 pt-4">
+          <StatusBadge
+            status="saved"
+            customLabel={`${memories.length} ${memories.length === 1 ? "Fact" : "Facts"}`}
+            size="sm"
+          />
+        </div>
+      </BlueprintCardHeader>
+
+      <BlueprintCardContent className="space-y-4 pt-4">
         <p className="text-xs text-muted-foreground leading-relaxed">
           Permanent career facts, constraints, and salary expectations automatically recalled by AI during outreach and interview preparation.
         </p>
@@ -178,7 +196,7 @@ export function AIMemoryManager({ initialMemories, isLoading = false }: AIMemory
           <select
             value={newCategory}
             onChange={(e) => setNewCategory(e.target.value)}
-            className="rounded-none border border-border bg-background px-3 py-1 font-mono text-xs text-foreground focus:outline-none h-8 w-full sm:w-auto shrink-0"
+            className="rounded-[4px] border border-border bg-background px-3 py-1 font-mono text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary h-8 w-full sm:w-auto shrink-0"
           >
             <option value="preference">Preference</option>
             <option value="skill">Skill / Stack</option>
@@ -191,53 +209,81 @@ export function AIMemoryManager({ initialMemories, isLoading = false }: AIMemory
             value={newContent}
             onChange={(e) => setNewContent(e.target.value)}
             disabled={adding}
-            className="rounded-none text-xs h-8 font-mono border-border bg-background flex-1 w-full"
+            className="rounded-[4px] text-xs h-8 font-mono border-border bg-background flex-1 w-full"
           />
           <Button
             type="submit"
             size="sm"
             disabled={adding || !newContent.trim()}
-            className="rounded-none font-mono text-xs h-8 px-4 gap-1.5 shrink-0 cursor-pointer bg-primary hover:bg-primary/90 text-primary-foreground w-full sm:w-auto justify-center"
+            className="rounded-[4px] font-mono text-xs h-8 px-4 gap-1.5 shrink-0 cursor-pointer bg-primary hover:bg-primary/90 text-primary-foreground w-full sm:w-auto justify-center"
           >
             {adding ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
             <span>Remember</span>
           </Button>
         </form>
 
+        {/* Category Filters & Search */}
+        {memories.length > 0 && (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pt-1">
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1 sm:pb-0">
+              {CATEGORIES.map((cat) => (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => setFilterCategory(cat)}
+                  className={cn(
+                    "px-2 py-0.5 rounded-[4px] font-mono text-[10px] uppercase border cursor-pointer transition-colors whitespace-nowrap",
+                    filterCategory === cat
+                      ? "border-foreground bg-foreground text-background font-semibold"
+                      : "border-border bg-muted/30 text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+
+            <div className="relative w-full sm:w-44">
+              <Search className="h-3 w-3 absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Search facts..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full h-6 pl-6 pr-2 rounded-[4px] font-mono text-[11px] border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+          </div>
+        )}
+
         {/* Memories List */}
         {loading ? (
           <div className="flex items-center justify-center py-6 text-muted-foreground font-mono text-xs gap-2">
-            <Loader2 className="h-4 w-4 animate-spin" />
+            <Loader2 className="h-4 w-4 animate-spin text-primary" />
             <span>Loading retained memories...</span>
           </div>
         ) : memories.length === 0 ? (
-          <div className="rounded-none border border-dashed border-border p-6 text-center text-muted-foreground space-y-2.5 bg-muted/10">
-            <BrainCircuit className="h-5 w-5 mx-auto text-muted-foreground/60" />
-            <div className="space-y-0.5">
-              <p className="text-xs font-semibold text-foreground">No explicit memories retained yet.</p>
-              <p className="text-[11px] text-muted-foreground max-w-sm mx-auto">
-                As you chat with the AI assistant, it will record your preferences. You can also import Profile Setup data in 1 click.
-              </p>
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleSyncProfile}
-              disabled={syncingProfile}
-              className="rounded-none font-mono text-xs h-8 gap-1.5 cursor-pointer mx-auto"
-            >
-              <UserCheck className="h-3.5 w-3.5 text-primary" />
-              <span>Import Facts from Profile Setup</span>
-            </Button>
+          <EmptyState
+            icon={BrainCircuit}
+            title="No Retained Memories Yet"
+            description="As you chat with the AI assistant, it will record your career facts and preferences. You can also import Profile Setup data in 1 click."
+            action={{
+              label: syncingProfile ? "Syncing..." : "Import Facts from Profile Setup",
+              onClick: handleSyncProfile,
+              icon: UserCheck,
+            }}
+          />
+        ) : filteredMemories.length === 0 ? (
+          <div className="py-6 text-center text-xs font-mono text-muted-foreground">
+            No memories matched &quot;{searchQuery || filterCategory}&quot;
           </div>
         ) : (
-          <div className="divide-y divide-border/60 rounded-none border border-border bg-card overflow-hidden font-mono text-xs">
-            {memories.map((m) => (
+          <div className="divide-y divide-border/60 rounded-[6px] border border-border bg-card overflow-hidden font-mono text-xs">
+            {filteredMemories.map((m) => (
               <div key={m.id} className="flex items-center justify-between p-3 gap-3 hover:bg-muted/30 transition-colors">
                 <div className="space-y-1 min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <span className="inline-flex items-center rounded-none border border-border bg-muted/40 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-foreground">
+                    <span className="inline-flex items-center rounded-[2px] border border-border bg-muted/40 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-foreground">
                       {m.category}
                     </span>
                     {m.source && (
@@ -254,7 +300,7 @@ export function AIMemoryManager({ initialMemories, isLoading = false }: AIMemory
                   size="icon"
                   onClick={() => handleDeleteMemory(m.id)}
                   disabled={deletingId === m.id}
-                  className="rounded-none h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0 cursor-pointer"
+                  className="rounded-[4px] h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0 cursor-pointer"
                   title="Forget this fact"
                 >
                   {deletingId === m.id ? (
@@ -267,7 +313,7 @@ export function AIMemoryManager({ initialMemories, isLoading = false }: AIMemory
             ))}
           </div>
         )}
-      </div>
-    </div>
+      </BlueprintCardContent>
+    </BlueprintCard>
   )
 }
