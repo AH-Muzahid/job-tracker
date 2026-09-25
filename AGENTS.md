@@ -129,3 +129,27 @@ For any feature declaring completion, the following report must be produced:
 **Decision**: NOT READY | READY FOR REVIEW | RELEASE READY
 ```
 
+## 12. Stripe Design System & Systemwide Component Architecture (MANDATORY)
+
+### Core Directives
+1. **STRICT PROHIBITION ON GRADIENT COLORS**: NEVER use gradient backgrounds or text gradients (`bg-gradient-*`, `from-* to-*`, etc.). All surfaces must be solid, crisp, and architectural (Stripe clean financial standard).
+2. **ZERO DUPLICATE CODE (DRY)**:
+   - NEVER copy-paste card borders, padding, or headers across components or pages.
+   - ALWAYS use systemwide reusable primitives from `@/components/primitives`:
+     - `<PageContainer>`: Wraps every route layout with standardized max-width, horizontal gutters, and vertical spacing.
+     - `<PageHeader>`: Enforces standardized page title, description, badge/overline, and the single primary action rule.
+     - `<KPIStrip>`: Unified 4-stat metric strip with 1px architectural hairline grid.
+     - `<BlueprintCard>` (or `<StripeCard>`): Standardized card with 1px border, 6px radius, semantic tokens, and header/content/footer slots.
+     - `<StatusBadge>`: Dynamic status badge powered by centralized status definitions. NEVER re-declare local `getStatusStyle` functions.
+     - `<EmptyState>`: Standardized actionable empty state component.
+3. **DYNAMIC SEMANTIC TOKENS ONLY**:
+   - Strictly NO hardcoded arbitrary colors (`bg-white dark:bg-slate-900`, `border-slate-200/80`, `text-slate-500`, etc.).
+   - Use CSS variables & semantic tokens: `bg-background`, `bg-card`, `bg-muted`, `border-border`, `text-foreground`, `text-muted-foreground`, `text-primary`.
+4. **STRIPE GEOMETRY & TYPOGRAPHY SPECIFICATIONS (`docs/design.md`)**:
+   - **Border Radius**: Buttons and form inputs: `4px` (`rounded-sm`). Cards and surfaces: `6px` (`rounded-md` or `rounded-[6px]`). Badges: `2px` (`rounded-xs`) or `4px` (`rounded-sm`). Never use generic bubbly `rounded-xl` or `rounded-2xl` on cards.
+   - **Borders**: Thin `1px` hairlines (`border border-border`).
+   - **Spacing Base**: Multiples of 8px (`gap-2` = 8px, `gap-4` = 16px, `gap-6` = 24px, `space-y-6` = 24px).
+   - **Buttons**: Primary CTA fill `#533AFD` (solid), 4px radius, white text, flat without drop shadow. Secondary/Outline: 1px border with transparent background.
+   - **Metrics**: Always use `.tabular-nums` on numbers, salaries, and metrics to prevent layout shifts.
+5. **AGENT SCAFFOLDING HANDBOOK**:
+   - Before building or editing any page, agents MUST read and follow the standardized templates in [`docs/DESIGN-PATTERNS.md`](./docs/DESIGN-PATTERNS.md).

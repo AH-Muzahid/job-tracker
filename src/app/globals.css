@@ -291,6 +291,15 @@ body {
   .tracking-heading-sm  { letter-spacing: -0.01em; }
   /* Efferd font-weight 500 */
   .font-display { font-weight: 500; }
+
+  /* Stripe Architectural Utilities */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+  .focus-ring {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--primary);
+  }
 }
 
 @keyframes pop-in {
