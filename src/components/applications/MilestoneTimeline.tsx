@@ -38,12 +38,12 @@ export function MilestoneTimeline({ application }: MilestoneTimelineProps) {
                   <span className="text-[11px] font-mono text-muted-foreground">
                     {new Date(change.changedAt).toLocaleString()}
                   </span>
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-medium bg-muted border border-border text-foreground">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-[4px] text-xs font-medium bg-muted border border-border text-foreground">
                     {cfg.icon}
                     {change.toStatus}
                   </span>
                   {isEmailSync && (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-mono bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-[4px] text-[10px] font-mono bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
                       <Mail className="h-3 w-3" />
                       Updated via Email Sync
                     </span>
@@ -60,7 +60,7 @@ export function MilestoneTimeline({ application }: MilestoneTimelineProps) {
                 </p>
 
                 {isEmailSync && change.metadata && (
-                  <div className="mt-2 p-2.5 rounded-lg border border-border/70 bg-muted/40 space-y-2 text-xs">
+                  <div className="mt-2 p-2.5 rounded-[6px] border border-border bg-muted/20 space-y-2 text-xs">
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-muted-foreground text-[11px]">
                       {change.metadata.sender && (
                         <span className="truncate">
@@ -98,7 +98,7 @@ export function MilestoneTimeline({ application }: MilestoneTimelineProps) {
                           href={change.metadata.meetingUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors"
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[4px] text-xs font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors"
                         >
                           <Video className="h-3.5 w-3.5" />
                           Join Meeting
@@ -108,7 +108,7 @@ export function MilestoneTimeline({ application }: MilestoneTimelineProps) {
                       {(change.toStatus === "Interview" || change.metadata.intent === "INTERVIEW") && (
                         <Link
                           href={`/interview-prep?applicationId=${application.id}`}
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium bg-violet-500/10 text-violet-600 dark:text-violet-400 border border-violet-500/20 hover:bg-violet-500/20 transition-colors"
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[4px] text-xs font-medium bg-violet-500/10 text-violet-600 dark:text-violet-400 border border-violet-500/20 hover:bg-violet-500/20 transition-colors"
                         >
                           <Target className="h-3.5 w-3.5" />
                           Launch Interview Prep

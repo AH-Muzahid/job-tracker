@@ -364,18 +364,18 @@ export function ApplicationWorkbench({
   return (
     <div className="space-y-6">
       {/* 1. Main 1px Continuous Border Grid */}
-      <div className="relative border border-border bg-border">
+      <div className="relative border border-border bg-border rounded-[6px] overflow-hidden">
         <DecorIcon className="hidden md:block" position="top-left" />
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-px bg-border items-stretch">
           {/* Left Primary Workspace (Details & Timeline) */}
           <DashboardCard className="lg:col-span-2 flex flex-col h-full">
             <div className="flex flex-col h-full">
-              <div className="flex items-center justify-between border-b border-border p-2.5 sm:p-3.5 bg-background gap-2 overflow-x-auto no-scrollbar shrink-0">
+              <div className="flex items-center justify-between border-b border-border p-2.5 sm:p-3 bg-background gap-2 overflow-x-auto no-scrollbar shrink-0">
                 <div className="flex items-center gap-1.5 shrink-0">
                   <button
                     type="button"
                     onClick={() => setActiveTab("package")}
-                    className={`text-xs sm:text-sm px-3 sm:px-4 py-1.5 rounded-md font-medium transition-colors cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                    className={`text-xs sm:text-sm px-3 sm:px-3.5 py-1.5 rounded-[4px] font-medium transition-colors cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
                       activeTab === "package"
                         ? "bg-muted text-foreground border border-border"
                         : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
@@ -386,7 +386,7 @@ export function ApplicationWorkbench({
                   <button
                     type="button"
                     onClick={() => setActiveTab("details")}
-                    className={`text-xs sm:text-sm px-3 sm:px-4 py-1.5 rounded-md font-medium transition-colors cursor-pointer whitespace-nowrap ${
+                    className={`text-xs sm:text-sm px-3 sm:px-3.5 py-1.5 rounded-[4px] font-medium transition-colors cursor-pointer whitespace-nowrap ${
                       activeTab === "details"
                         ? "bg-muted text-foreground border border-border"
                         : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
@@ -397,7 +397,7 @@ export function ApplicationWorkbench({
                   <button
                     type="button"
                     onClick={() => setActiveTab("outreach")}
-                    className={`text-xs sm:text-sm px-3 sm:px-4 py-1.5 rounded-md font-medium transition-colors cursor-pointer whitespace-nowrap ${
+                    className={`text-xs sm:text-sm px-3 sm:px-3.5 py-1.5 rounded-[4px] font-medium transition-colors cursor-pointer whitespace-nowrap ${
                       activeTab === "outreach"
                         ? "bg-muted text-foreground border border-border"
                         : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
@@ -408,7 +408,7 @@ export function ApplicationWorkbench({
                   <button
                     type="button"
                     onClick={() => setActiveTab("timeline")}
-                    className={`text-xs sm:text-sm px-3 sm:px-4 py-1.5 rounded-md font-medium transition-colors cursor-pointer whitespace-nowrap ${
+                    className={`text-xs sm:text-sm px-3 sm:px-3.5 py-1.5 rounded-[4px] font-medium transition-colors cursor-pointer whitespace-nowrap ${
                       activeTab === "timeline"
                         ? "bg-muted text-foreground border border-border"
                         : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
@@ -420,7 +420,7 @@ export function ApplicationWorkbench({
                     <button
                       type="button"
                       onClick={() => setActiveTab("negotiate")}
-                      className={`text-xs sm:text-sm px-3 sm:px-4 py-1.5 rounded-md font-medium transition-colors cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                      className={`text-xs sm:text-sm px-3 sm:px-3.5 py-1.5 rounded-[4px] font-medium transition-colors cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
                         activeTab === "negotiate"
                           ? "bg-primary/10 text-primary border border-primary/30"
                           : "text-primary/80 hover:text-primary hover:bg-primary/5"
@@ -436,9 +436,9 @@ export function ApplicationWorkbench({
                     variant="ghost"
                     size="sm"
                     onClick={onDelete}
-                    className="text-xs sm:text-sm h-8.5 text-destructive hover:bg-destructive/10 hover:text-destructive font-medium cursor-pointer shrink-0"
+                    className="text-xs sm:text-sm h-8 rounded-[4px] text-destructive hover:bg-destructive/10 hover:text-destructive font-medium cursor-pointer shrink-0"
                   >
-                    <Trash2 className="h-4 w-4 mr-1 sm:mr-1.5" /> Delete
+                    <Trash2 className="h-3.5 w-3.5 mr-1" /> Delete
                   </Button>
                 )}
               </div>
@@ -456,68 +456,68 @@ export function ApplicationWorkbench({
                   <form onSubmit={handleUpdateDetails} className="space-y-4">
                     <div className="grid gap-4 sm:grid-cols-2">
                       <div className="space-y-1.5">
-                        <Label htmlFor="companyName" className="text-sm font-medium text-foreground">Company Name</Label>
+                        <Label htmlFor="companyName" className="text-xs sm:text-sm font-medium text-foreground">Company Name</Label>
                         <Input
                           id="companyName"
                           value={companyName}
                           onChange={(e) => setCompanyName(e.target.value)}
-                          className="bg-background border-border text-sm text-foreground h-10 rounded-md"
+                          className="bg-background border-border text-xs sm:text-sm text-foreground h-9 rounded-[4px]"
                         />
                       </div>
                       <div className="space-y-1.5">
-                        <Label htmlFor="jobTitle" className="text-sm font-medium text-foreground">Job Role/Title</Label>
+                        <Label htmlFor="jobTitle" className="text-xs sm:text-sm font-medium text-foreground">Job Role/Title</Label>
                         <Input
                           id="jobTitle"
                           value={jobTitle}
                           onChange={(e) => setJobTitle(e.target.value)}
-                          className="bg-background border-border text-sm text-foreground h-10 rounded-md"
+                          className="bg-background border-border text-xs sm:text-sm text-foreground h-9 rounded-[4px]"
                         />
                       </div>
                     </div>
 
                     <div className="grid gap-4 sm:grid-cols-3">
                       <div className="space-y-1.5">
-                        <Label htmlFor="status" className="text-sm font-medium text-foreground">Current Status</Label>
+                        <Label htmlFor="status" className="text-xs sm:text-sm font-medium text-foreground">Current Status</Label>
                         <Select value={status} onValueChange={setStatus}>
-                          <SelectTrigger className="bg-background border-border text-sm text-foreground h-10 rounded-md">
+                          <SelectTrigger className="bg-background border-border text-xs sm:text-sm text-foreground h-9 rounded-[4px]">
                             <SelectValue />
                           </SelectTrigger>
-                          <SelectContent className="bg-popover border-border text-foreground rounded-md">
+                          <SelectContent className="bg-popover border-border text-foreground rounded-[6px]">
                             {["Staged", "Saved", "Applied", "Assessment", "Interview", "Rejected", "Offer"].map((s) => (
-                              <SelectItem key={s} value={s} className="text-sm">{s}</SelectItem>
+                              <SelectItem key={s} value={s} className="text-xs sm:text-sm">{s}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
                       </div>
 
                       <div className="space-y-1.5">
-                        <Label htmlFor="source" className="text-sm font-medium text-foreground">Application Source</Label>
+                        <Label htmlFor="source" className="text-xs sm:text-sm font-medium text-foreground">Application Source</Label>
                         <Select value={source} onValueChange={setSource}>
-                          <SelectTrigger className="bg-background border-border text-sm text-foreground h-10 rounded-md">
+                          <SelectTrigger className="bg-background border-border text-xs sm:text-sm text-foreground h-9 rounded-[4px]">
                             <SelectValue />
                           </SelectTrigger>
-                          <SelectContent className="bg-popover border-border text-foreground rounded-md">
+                          <SelectContent className="bg-popover border-border text-foreground rounded-[6px]">
                             {["LinkedIn", "Indeed", "Glassdoor", "Company Site", "Referral", "Other"].map((s) => (
-                              <SelectItem key={s} value={s} className="text-sm">{s}</SelectItem>
+                              <SelectItem key={s} value={s} className="text-xs sm:text-sm">{s}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
                       </div>
 
                       <div className="space-y-1.5">
-                        <Label htmlFor="jobUrl" className="text-sm font-medium text-foreground">Job Posting URL</Label>
+                        <Label htmlFor="jobUrl" className="text-xs sm:text-sm font-medium text-foreground">Job Posting URL</Label>
                         <div className="flex gap-1.5">
                           <Input
                             id="jobUrl"
                             value={jobUrl}
                             onChange={(e) => setJobUrl(e.target.value)}
                             placeholder="https://..."
-                            className="bg-background border-border text-sm text-foreground h-10 rounded-md flex-1"
+                            className="bg-background border-border text-xs sm:text-sm text-foreground h-9 rounded-[4px] flex-1"
                           />
                           {jobUrl && (
-                            <Button size="icon" variant="outline" className="h-10 w-10 rounded-md shrink-0" asChild>
+                            <Button size="icon" variant="outline" className="h-9 w-9 rounded-[4px] shrink-0" asChild>
                               <a href={jobUrl.startsWith("http") ? jobUrl : `https://${jobUrl}`} target="_blank" rel="noreferrer">
-                                <ExternalLink className="h-4 w-4" />
+                                <ExternalLink className="h-3.5 w-3.5" />
                               </a>
                             </Button>
                           )}
@@ -526,8 +526,8 @@ export function ApplicationWorkbench({
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-sm font-medium text-foreground">Tags</Label>
-                      <div className="flex flex-wrap gap-2 min-h-[42px] p-2.5 rounded-md bg-muted/20 border border-border">
+                      <Label className="text-xs sm:text-sm font-medium text-foreground">Tags</Label>
+                      <div className="flex flex-wrap gap-1.5 min-h-[40px] p-2.5 rounded-[4px] bg-muted/20 border border-border">
                         {allTags.map((tag) => {
                           const isSelected = selectedTagIds.includes(tag.id)
                           return (
@@ -535,7 +535,7 @@ export function ApplicationWorkbench({
                               key={tag.id}
                               type="button"
                               onClick={() => handleToggleTag(tag.id)}
-                              className={`text-sm px-3 py-1 rounded-md border transition-all cursor-pointer font-medium ${
+                              className={`text-xs px-2.5 py-1 rounded-[4px] border transition-all cursor-pointer font-medium ${
                                 isSelected
                                   ? "bg-foreground/10 border-foreground/30 text-foreground"
                                   : "bg-background text-muted-foreground border-border hover:text-foreground"
@@ -551,27 +551,27 @@ export function ApplicationWorkbench({
                           placeholder="New tag..."
                           value={newTagName}
                           onChange={(e) => setNewTagName(e.target.value)}
-                          className="h-8.5 text-sm bg-background border-border text-foreground rounded-md"
+                          className="h-8 text-xs bg-background border-border text-foreground rounded-[4px]"
                         />
-                        <Button type="button" size="sm" onClick={handleCreateTag} className="h-8.5 text-sm cursor-pointer font-medium rounded-md px-3">
+                        <Button type="button" size="sm" onClick={handleCreateTag} className="h-8 text-xs cursor-pointer font-medium rounded-[4px] px-3">
                           <Plus className="h-3.5 w-3.5 mr-1" /> Add
                         </Button>
                       </div>
                     </div>
 
                     <div className="space-y-1.5 pt-1">
-                      <Label htmlFor="notes" className="text-sm font-medium text-foreground">Notes / Job Description (JD)</Label>
+                      <Label htmlFor="notes" className="text-xs sm:text-sm font-medium text-foreground">Notes / Job Description (JD)</Label>
                       <Textarea
                         id="notes"
                         value={notes}
                         onChange={(e) => setNotes(e.target.value)}
                         placeholder="Enter requirements, compensation details, interview notes..."
-                        className="min-h-[160px] text-sm bg-background border-border text-foreground leading-relaxed placeholder:text-muted-foreground/40 focus:border-foreground/30 resize-none outline-none p-3.5 rounded-md"
+                        className="min-h-[160px] text-xs sm:text-sm bg-background border-border text-foreground leading-relaxed placeholder:text-muted-foreground/40 focus:border-foreground/30 resize-none outline-none p-3.5 rounded-[4px]"
                       />
                     </div>
 
                     <div className="pt-2 flex justify-end">
-                      <Button type="submit" size="sm" disabled={isSaving} className="text-sm px-5 h-9 rounded-md font-semibold cursor-pointer">
+                      <Button type="submit" size="sm" disabled={isSaving} className="text-xs sm:text-sm px-4 h-8 sm:h-9 rounded-[4px] font-medium cursor-pointer">
                         {isSaving ? "Saving..." : "Save Changes"}
                       </Button>
                     </div>

@@ -31,25 +31,25 @@ export function ManualEntryMode({
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
         <Input
           placeholder="Company name"
-          className="h-9 text-xs bg-background/80 border-border/80"
+          className="h-9 text-xs bg-background/80 border-border/80 rounded-[4px]"
           value={manualCompany}
           onChange={(e) => setManualCompany(e.target.value)}
           disabled={manualLoading}
         />
         <Input
           placeholder="Job title"
-          className="h-9 text-xs bg-background/80 border-border/80"
+          className="h-9 text-xs bg-background/80 border-border/80 rounded-[4px]"
           value={manualTitle}
           onChange={(e) => setManualTitle(e.target.value)}
           disabled={manualLoading}
         />
         <Select value={manualSource} onValueChange={setManualSource} disabled={manualLoading}>
-          <SelectTrigger className="h-9 text-xs bg-background/80 border-border/80">
+          <SelectTrigger className="h-9 text-xs bg-background/80 border-border/80 rounded-[4px]">
             <SelectValue />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="rounded-[6px]">
             {["LinkedIn", "Bdjobs", "Indeed", "Wellfound", "Facebook", "Referral", "Other"].map((s) => (
-              <SelectItem key={s} value={s} className="text-xs">
+              <SelectItem key={s} value={s} className="text-xs rounded-[4px]">
                 {s}
               </SelectItem>
             ))}
@@ -62,7 +62,7 @@ export function ManualEntryMode({
           type="submit"
           size="sm"
           disabled={manualLoading || !manualCompany.trim() || !manualTitle.trim()}
-          className="text-xs font-semibold h-8 px-4 cursor-pointer"
+          className="text-xs font-semibold h-8 px-4 cursor-pointer rounded-[4px]"
         >
           {manualLoading ? (
             <>

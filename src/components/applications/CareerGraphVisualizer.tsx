@@ -45,21 +45,21 @@ export function CareerGraphVisualizer({ graphMatch }: CareerGraphVisualizerProps
       <CardContent className="p-4 space-y-4">
         {/* Quick Stats Banner */}
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-          <div className="rounded-lg border bg-background/50 p-2.5 flex items-center gap-2">
+          <div className="rounded-[4px] border border-border bg-background p-2.5 flex items-center gap-2">
             <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
             <div>
               <p className="text-[11px] text-muted-foreground font-medium">Verified Skills</p>
               <p className="text-sm font-semibold text-foreground">{matchedCount} Competencies</p>
             </div>
           </div>
-          <div className="rounded-lg border bg-background/50 p-2.5 flex items-center gap-2">
+          <div className="rounded-[4px] border border-border bg-background p-2.5 flex items-center gap-2">
             <AlertCircle className="h-4 w-4 text-amber-500 shrink-0" />
             <div>
               <p className="text-[11px] text-muted-foreground font-medium">Skill Gaps</p>
               <p className="text-sm font-semibold text-foreground">{missingCount} Identified</p>
             </div>
           </div>
-          <div className="col-span-2 sm:col-span-1 rounded-lg border bg-background/50 p-2.5 flex items-center gap-2">
+          <div className="col-span-2 sm:col-span-1 rounded-[4px] border border-border bg-background p-2.5 flex items-center gap-2">
             <BrainCircuit className="h-4 w-4 text-indigo-500 shrink-0" />
             <div>
               <p className="text-[11px] text-muted-foreground font-medium">Graph Integrity</p>
@@ -79,16 +79,16 @@ export function CareerGraphVisualizer({ graphMatch }: CareerGraphVisualizerProps
               {graphMatch.matchedSkills.map((item, idx) => (
                 <div
                   key={idx}
-                  className="rounded-xl border bg-background p-3 space-y-2 hover:border-indigo-500/30 transition-colors"
+                  className="rounded-[6px] border border-border bg-background p-3 space-y-2 hover:border-primary/40 transition-colors"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <span className="font-semibold text-xs text-foreground">{item.skill}</span>
-                      <Badge variant="outline" className="text-[10px] uppercase py-0 px-1.5 text-muted-foreground">
+                      <Badge variant="outline" className="text-[10px] uppercase py-0 px-1.5 text-muted-foreground rounded-[4px]">
                         {item.level || "Verified"}
                       </Badge>
                     </div>
-                    <Badge variant="secondary" className="bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 text-[10px]">
+                    <Badge variant="secondary" className="bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 text-[10px] rounded-[4px]">
                       Match
                     </Badge>
                   </div>
@@ -117,14 +117,14 @@ export function CareerGraphVisualizer({ graphMatch }: CareerGraphVisualizerProps
 
         {/* Missing Gaps */}
         {missingCount > 0 && (
-          <div className="space-y-2 pt-2 border-t">
+          <div className="space-y-2 pt-2 border-t border-border">
             <h4 className="text-xs font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-1.5 uppercase tracking-wider">
               <AlertCircle className="h-3.5 w-3.5" />
               <span>Identified Skill Gaps (Address in Interview)</span>
             </h4>
             <div className="flex flex-wrap gap-1.5">
               {graphMatch.missingSkills.map((gap, gIdx) => (
-                <Badge key={gIdx} variant="outline" className="text-xs border-amber-500/30 text-amber-600 dark:text-amber-400 bg-amber-500/5">
+                <Badge key={gIdx} variant="outline" className="text-xs border-amber-500/30 text-amber-600 dark:text-amber-400 bg-amber-500/5 rounded-[4px]">
                   {gap}
                 </Badge>
               ))}

@@ -21,7 +21,7 @@ interface Props {
 export default function ApplicationDeleteDialog({ open, onOpenChange, companyName, deleting, onConfirm }: Props) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-md rounded-[8px] border-border bg-card">
         <DialogHeader>
           <DialogTitle>Delete Application</DialogTitle>
           <DialogDescription>
@@ -29,11 +29,11 @@ export default function ApplicationDeleteDialog({ open, onOpenChange, companyNam
             <strong>{companyName}</strong>? This action cannot be undone.
           </DialogDescription>
         </DialogHeader>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+        <DialogFooter className="gap-2 sm:gap-0">
+          <Button variant="outline" className="rounded-[4px] h-9 text-xs font-medium" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button variant="destructive" onClick={onConfirm} disabled={deleting}>
+          <Button variant="destructive" className="rounded-[4px] h-9 text-xs font-medium" onClick={onConfirm} disabled={deleting}>
             {deleting ? "Deleting..." : "Delete"}
           </Button>
         </DialogFooter>

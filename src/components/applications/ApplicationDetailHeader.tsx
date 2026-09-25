@@ -194,16 +194,16 @@ export default function ApplicationDetailHeader({
           <p className="text-sm font-medium text-muted-foreground mt-0.5">{jobTitle}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button asChild size="sm" className="h-9 rounded-md font-semibold text-sm cursor-pointer shadow-xs px-3.5">
+          <Button asChild size="sm" className="h-8 sm:h-9 rounded-[4px] font-medium text-xs sm:text-sm cursor-pointer shadow-none px-3 sm:px-3.5">
             <Link href={`/interview-prep?appId=${applicationId}&company=${encodeURIComponent(cleanCompanyName)}&role=${encodeURIComponent(jobTitle)}`}>
-              <Mic className="h-4 w-4 mr-1.5" /> Mock Prep Room
+              <Mic className="h-3.5 w-3.5 mr-1.5" /> Mock Prep Room
             </Link>
           </Button>
           {!interviewDate ? (
             <Button
               variant="outline"
               size="sm"
-              className="h-9 rounded-md text-sm font-medium cursor-pointer px-3.5"
+              className="h-8 sm:h-9 rounded-[4px] text-xs sm:text-sm font-medium cursor-pointer px-3 sm:px-3.5"
               onClick={handleOpenModal}
             >
               <CalendarClock className="h-3.5 w-3.5 mr-1.5 text-primary" /> Schedule Interview
@@ -212,18 +212,18 @@ export default function ApplicationDetailHeader({
             <Button
               variant="outline"
               size="sm"
-              className="h-9 rounded-md text-sm font-medium cursor-pointer px-3.5 border-amber-500/40 text-amber-700 dark:text-amber-300 hover:bg-amber-500/10"
+              className="h-8 sm:h-9 rounded-[4px] text-xs sm:text-sm font-medium cursor-pointer px-3 sm:px-3.5 border-amber-500/40 text-amber-700 dark:text-amber-300 hover:bg-amber-500/10"
               onClick={handleOpenModal}
             >
               <CalendarClock className="h-3.5 w-3.5 mr-1.5 text-amber-500" /> Reschedule
             </Button>
           )}
-          <Button asChild variant="outline" size="sm" className="h-9 rounded-md text-sm font-medium cursor-pointer px-3.5">
+          <Button asChild variant="outline" size="sm" className="h-8 sm:h-9 rounded-[4px] text-xs sm:text-sm font-medium cursor-pointer px-3 sm:px-3.5">
             <Link href={`/applications/${applicationId}/edit`}>
               <Pencil className="h-3.5 w-3.5 mr-1.5" /> Edit
             </Link>
           </Button>
-          <Button variant="ghost" size="sm" className="h-9 rounded-md text-sm text-destructive hover:bg-destructive/10 hover:text-destructive cursor-pointer px-3" onClick={onDelete}>
+          <Button variant="ghost" size="sm" className="h-8 sm:h-9 rounded-[4px] text-xs sm:text-sm text-destructive hover:bg-destructive/10 hover:text-destructive cursor-pointer px-3" onClick={onDelete}>
             <Trash2 className="h-3.5 w-3.5 mr-1.5" /> Delete
           </Button>
         </div>
@@ -231,9 +231,9 @@ export default function ApplicationDetailHeader({
 
       {/* Scheduled Interview Banner */}
       {interviewDate && (
-        <div className="relative rounded-lg border border-amber-500/30 bg-amber-500/5 p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-sm">
+        <div className="relative rounded-[6px] border border-amber-500/30 bg-amber-500/5 p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-sm">
           <div className="flex items-start sm:items-center gap-3">
-            <div className="h-9 w-9 rounded-md bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
+            <div className="h-9 w-9 rounded-[4px] bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
               <CalendarClock className="h-5 w-5" />
             </div>
             <div>
@@ -241,7 +241,7 @@ export default function ApplicationDetailHeader({
                 <span className="font-semibold text-foreground">
                   Scheduled: {interviewRound || "Interview Round"}
                 </span>
-                <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium bg-amber-500/15 text-amber-700 dark:text-amber-300">
+                <span className="inline-flex items-center rounded-[4px] px-2 py-0.5 text-[10px] font-medium bg-amber-500/15 text-amber-700 dark:text-amber-300">
                   Upcoming
                 </span>
               </div>
@@ -268,7 +268,7 @@ export default function ApplicationDetailHeader({
                 asChild
                 size="sm"
                 variant="outline"
-                className="h-8 text-xs font-semibold rounded-md border-amber-500/30 hover:bg-amber-500/10"
+                className="h-8 text-xs font-medium rounded-[4px] border-amber-500/30 hover:bg-amber-500/10"
               >
                 <a
                   href={interviewMeetingUrl.startsWith("http") ? interviewMeetingUrl : `https://${interviewMeetingUrl}`}
@@ -284,7 +284,7 @@ export default function ApplicationDetailHeader({
             <Button
               asChild
               size="sm"
-              className="h-8 text-xs font-semibold rounded-md shadow-xs bg-amber-600 hover:bg-amber-700 text-white dark:bg-amber-500 dark:hover:bg-amber-600 dark:text-black"
+              className="h-8 text-xs font-medium rounded-[4px] shadow-none bg-amber-600 hover:bg-amber-700 text-white dark:bg-amber-500 dark:hover:bg-amber-600 dark:text-black"
             >
               <Link
                 href={`/interview-prep?appId=${applicationId}&company=${encodeURIComponent(
@@ -297,7 +297,7 @@ export default function ApplicationDetailHeader({
             <Button
               variant="outline"
               size="sm"
-              className="h-8 text-xs rounded-md"
+              className="h-8 text-xs font-medium rounded-[4px]"
               onClick={handleOpenModal}
             >
               <Pencil className="h-3 w-3 mr-1" /> Reschedule
@@ -308,7 +308,7 @@ export default function ApplicationDetailHeader({
 
       {/* Schedule / Reschedule Dialog Modal */}
       <Dialog open={scheduleModalOpen} onOpenChange={setScheduleModalOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md rounded-[8px] border border-border bg-popover">
           <DialogHeader>
             <DialogTitle>Schedule Interview</DialogTitle>
             <DialogDescription>
@@ -320,10 +320,10 @@ export default function ApplicationDetailHeader({
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-foreground">Interview Round</label>
               <Select value={round} onValueChange={setRound}>
-                <SelectTrigger className="h-9">
+                <SelectTrigger className="h-9 rounded-[4px]">
                   <SelectValue placeholder="Select round" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="rounded-[6px]">
                   {ROUND_OPTIONS.map((opt) => (
                     <SelectItem key={opt} value={opt}>
                       {opt}
@@ -339,7 +339,7 @@ export default function ApplicationDetailHeader({
                 type="datetime-local"
                 value={dateTime}
                 onChange={(e) => setDateTime(e.target.value)}
-                className="h-9"
+                className="h-9 rounded-[4px]"
               />
             </div>
 
@@ -350,7 +350,7 @@ export default function ApplicationDetailHeader({
                 placeholder="https://meet.google.com/..."
                 value={meetingUrl}
                 onChange={(e) => setMeetingUrl(e.target.value)}
-                className="h-9"
+                className="h-9 rounded-[4px]"
               />
             </div>
 
@@ -361,7 +361,7 @@ export default function ApplicationDetailHeader({
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 rows={3}
-                className="text-xs"
+                className="text-xs rounded-[4px]"
               />
             </div>
           </div>
@@ -373,7 +373,7 @@ export default function ApplicationDetailHeader({
                 size="sm"
                 onClick={handleClearSchedule}
                 disabled={isSaving}
-                className="text-destructive hover:bg-destructive/10 text-xs h-9"
+                className="text-destructive hover:bg-destructive/10 text-xs h-9 rounded-[4px]"
               >
                 Clear Schedule
               </Button>
@@ -384,7 +384,7 @@ export default function ApplicationDetailHeader({
                 size="sm"
                 onClick={() => setScheduleModalOpen(false)}
                 disabled={isSaving}
-                className="h-9"
+                className="h-9 rounded-[4px]"
               >
                 Cancel
               </Button>
@@ -392,7 +392,7 @@ export default function ApplicationDetailHeader({
                 size="sm"
                 onClick={handleSaveSchedule}
                 disabled={isSaving}
-                className="h-9"
+                className="h-9 rounded-[4px]"
               >
                 {isSaving ? "Saving..." : "Save Schedule"}
               </Button>

@@ -78,10 +78,10 @@ export function NegotiationStudioTab({ applicationId }: NegotiationStudioTabProp
   if (loading) {
     return (
       <div className="space-y-4 py-2">
-        <Skeleton className="h-14 w-full rounded-xl bg-muted" />
+        <Skeleton className="h-14 w-full rounded-[6px] bg-muted" />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Skeleton className="h-32 rounded-xl bg-muted" />
-          <Skeleton className="h-32 rounded-xl bg-muted" />
+          <Skeleton className="h-32 rounded-[6px] bg-muted" />
+          <Skeleton className="h-32 rounded-[6px] bg-muted" />
         </div>
       </div>
     )
@@ -95,7 +95,7 @@ export function NegotiationStudioTab({ applicationId }: NegotiationStudioTabProp
   return (
     <div className="space-y-5">
       {/* 1. Quick Form to Benchmark or Update Offer Details */}
-      <form onSubmit={handleAnalyzeOffer} className="p-4 rounded-xl border border-border bg-card space-y-3">
+      <form onSubmit={handleAnalyzeOffer} className="p-4 rounded-[6px] border border-border bg-card space-y-3">
         <div className="flex items-center justify-between">
           <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
             <DollarSign className="size-3.5 text-primary" /> Offer Compensation Parameters
@@ -105,32 +105,32 @@ export function NegotiationStudioTab({ applicationId }: NegotiationStudioTabProp
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div className="space-y-1">
-            <Label htmlFor="baseSalary" className="text-xs">Base Salary Offered</Label>
+            <Label htmlFor="baseSalary" className="text-xs font-medium">Base Salary Offered</Label>
             <Input
               id="baseSalary"
               type="number"
               value={baseSalary}
               onChange={(e) => setBaseSalary(Number(e.target.value))}
-              className="h-9 text-xs"
+              className="h-9 text-xs rounded-[4px]"
               placeholder="e.g. 150000"
               required
             />
           </div>
 
           <div className="space-y-1">
-            <Label htmlFor="currency" className="text-xs">Currency</Label>
+            <Label htmlFor="currency" className="text-xs font-medium">Currency</Label>
             <Input
               id="currency"
               value={currency}
               onChange={(e) => setCurrency(e.target.value.toUpperCase())}
-              className="h-9 text-xs uppercase"
+              className="h-9 text-xs uppercase rounded-[4px]"
               placeholder="USD"
               required
             />
           </div>
 
           <div className="flex items-end">
-            <Button type="submit" size="sm" disabled={analyzing} className="h-9 text-xs w-full">
+            <Button type="submit" size="sm" disabled={analyzing} className="h-9 text-xs w-full rounded-[4px] shadow-none font-medium">
               {analyzing ? "Benchmarking..." : "Benchmark & Generate Scripts"}
             </Button>
           </div>
@@ -141,10 +141,10 @@ export function NegotiationStudioTab({ applicationId }: NegotiationStudioTabProp
       {data && band && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Card A: Market Percentile Placement */}
-          <div className="p-4 rounded-xl border border-border bg-card space-y-3">
+          <div className="p-4 rounded-[6px] border border-border bg-card space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-foreground">Market Percentile</span>
-              <Badge variant="outline" className="text-[10px] font-mono">
+              <Badge variant="outline" className="text-[10px] font-mono rounded-[4px]">
                 {data.marketPercentileRank ? `${data.marketPercentileRank}th Percentile` : "Market Standard"}
               </Badge>
             </div>
@@ -155,9 +155,9 @@ export function NegotiationStudioTab({ applicationId }: NegotiationStudioTabProp
                 <span>Median (p50): {band.p50.toLocaleString()}</span>
                 <span>p90: {band.p90.toLocaleString()}</span>
               </div>
-              <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
+              <div className="w-full bg-muted rounded-[4px] h-2 overflow-hidden">
                 <div
-                  className="bg-primary h-full rounded-full transition-all"
+                  className="bg-primary h-full rounded-[4px] transition-all"
                   style={{ width: `${Math.min(100, Math.max(10, data.marketPercentileRank || 50))}%` }}
                 />
               </div>
@@ -165,10 +165,10 @@ export function NegotiationStudioTab({ applicationId }: NegotiationStudioTabProp
           </div>
 
           {/* Card B: BATNA Pipeline Leverage */}
-          <div className="p-4 rounded-xl border border-border bg-card space-y-3">
+          <div className="p-4 rounded-[6px] border border-border bg-card space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-foreground">BATNA Pipeline Leverage</span>
-              <Badge className="text-[10px] font-mono bg-emerald-500/10 text-emerald-500 border-emerald-500/20">
+              <Badge className="text-[10px] font-mono bg-emerald-500/10 text-emerald-500 border-emerald-500/20 rounded-[4px]">
                 {leverage?.level || "MODERATE"} ({leverage?.score || 50}/100)
               </Badge>
             </div>
@@ -182,7 +182,7 @@ export function NegotiationStudioTab({ applicationId }: NegotiationStudioTabProp
 
       {/* 3. 3-Tiered Counter-Offer Scripts */}
       {strategies.length > 0 && activeStrategy && (
-        <div className="p-4 rounded-xl border border-border bg-card space-y-3">
+        <div className="p-4 rounded-[6px] border border-border bg-card space-y-3">
           <div className="flex items-center justify-between">
             <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Counter-Offer Tactical Strategies
@@ -194,7 +194,7 @@ export function NegotiationStudioTab({ applicationId }: NegotiationStudioTabProp
                   variant={selectedTier === idx ? "default" : "outline"}
                   size="sm"
                   onClick={() => setSelectedTier(idx)}
-                  className="h-7 text-xs px-2.5"
+                  className="h-7 text-xs px-2.5 rounded-[4px] font-medium"
                 >
                   {tier.tierName} (+{tier.targetIncreasePercentage}%)
                 </Button>
@@ -202,7 +202,7 @@ export function NegotiationStudioTab({ applicationId }: NegotiationStudioTabProp
             </div>
           </div>
 
-          <div className="p-3.5 rounded-lg bg-muted/40 border border-border/70 space-y-2.5">
+          <div className="p-3.5 rounded-[6px] bg-muted/20 border border-border space-y-2.5">
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium text-foreground">
                 Target: {currency} {activeStrategy.targetTotalComp.toLocaleString()} ({activeStrategy.riskLevel} Risk)
@@ -211,13 +211,13 @@ export function NegotiationStudioTab({ applicationId }: NegotiationStudioTabProp
                 variant="ghost"
                 size="sm"
                 onClick={() => handleCopyScript(activeStrategy.emailScript)}
-                className="h-7 text-xs text-muted-foreground hover:text-foreground"
+                className="h-7 text-xs text-muted-foreground hover:text-foreground rounded-[4px]"
               >
                 <Copy className="size-3 mr-1" /> {copied ? "Copied!" : "Copy Email"}
               </Button>
             </div>
 
-            <pre className="text-xs text-foreground/90 font-mono whitespace-pre-wrap leading-relaxed p-2.5 rounded bg-background border border-border/50 max-h-48 overflow-y-auto">
+            <pre className="text-xs text-foreground/90 font-mono whitespace-pre-wrap leading-relaxed p-2.5 rounded-[4px] bg-background border border-border/50 max-h-48 overflow-y-auto">
               {activeStrategy.emailScript}
             </pre>
           </div>

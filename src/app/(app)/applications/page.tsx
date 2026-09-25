@@ -251,7 +251,7 @@ function ApplicationsContent() {
       />
 
       <Dialog open={deleteModal.open} onOpenChange={(open) => setDeleteModal(open, deleteModal.id)}>
-        <DialogContent className="rounded-md border border-border bg-popover">
+        <DialogContent className="rounded-[8px] border border-border bg-popover">
           <DialogHeader>
             <DialogTitle className="text-base font-semibold">Delete Application</DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground">
@@ -259,8 +259,8 @@ function ApplicationsContent() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button size="sm" variant="outline" onClick={() => setDeleteModal(false)} disabled={deleteMutation.isPending}>Cancel</Button>
-            <Button size="sm" variant="destructive" onClick={handleDelete} disabled={deleteMutation.isPending}>
+            <Button size="sm" variant="outline" onClick={() => setDeleteModal(false)} disabled={deleteMutation.isPending} className="rounded-[4px] font-medium text-xs">Cancel</Button>
+            <Button size="sm" variant="destructive" onClick={handleDelete} disabled={deleteMutation.isPending} className="rounded-[4px] font-medium text-xs">
               {deleteMutation.isPending ? "Deleting..." : "Delete"}
             </Button>
           </DialogFooter>
@@ -272,41 +272,41 @@ function ApplicationsContent() {
 
 function ApplicationsSkeleton() {
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
-      <div className="flex items-center justify-between"><Skeleton className="h-7 w-48 rounded-md" /><Skeleton className="h-8 w-28 rounded-md" /></div>
-      <div className="relative border border-border bg-border">
+    <PageContainer>
+      <div className="flex items-center justify-between"><Skeleton className="h-7 w-48 rounded-[4px]" /><Skeleton className="h-8 w-28 rounded-[4px]" /></div>
+      <div className="relative border border-border bg-border rounded-[6px] overflow-hidden">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-px bg-border">
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="p-6 bg-background space-y-3">
-              <Skeleton className="h-4 w-24 rounded-sm" />
-              <Skeleton className="h-8 w-16 rounded-sm" />
-              <Skeleton className="h-3 w-32 rounded-sm mt-4" />
+              <Skeleton className="h-4 w-24 rounded-[4px]" />
+              <Skeleton className="h-8 w-16 rounded-[4px]" />
+              <Skeleton className="h-3 w-32 rounded-[4px] mt-4" />
             </div>
           ))}
         </div>
       </div>
-    </div>
+    </PageContainer>
   )
 }
 
 function ViewSkeleton({ view }: { view: ViewMode }) {
   if (view === "board") {
     return (
-      <div className="relative border border-border bg-border">
+      <div className="relative border border-border bg-border rounded-[6px] overflow-hidden">
         <div className="grid grid-cols-1 md:grid-cols-5 gap-px bg-border">
           {Array.from({ length: 5 }).map((_, i) => (
             <div key={i} className="bg-background min-h-[500px] p-4 space-y-3">
               <div className="flex justify-between items-center pb-3 border-b border-border">
-                <Skeleton className="h-4 w-20 rounded-sm" />
-                <Skeleton className="h-4 w-6 rounded-sm" />
+                <Skeleton className="h-4 w-20 rounded-[4px]" />
+                <Skeleton className="h-4 w-6 rounded-[4px]" />
               </div>
               {Array.from({ length: 2 }).map((_, j) => (
-                <div key={j} className="p-3 border border-border rounded-md bg-card space-y-2">
+                <div key={j} className="p-3 border border-border rounded-[6px] bg-card space-y-2">
                   <div className="flex gap-2">
-                    <Skeleton className="h-8 w-8 rounded-md" />
+                    <Skeleton className="h-8 w-8 rounded-[4px]" />
                     <div className="space-y-1 flex-1">
-                      <Skeleton className="h-3 w-16" />
-                      <Skeleton className="h-3.5 w-28" />
+                      <Skeleton className="h-3 w-16 rounded-[4px]" />
+                      <Skeleton className="h-3.5 w-28 rounded-[4px]" />
                     </div>
                   </div>
                 </div>
@@ -319,17 +319,17 @@ function ViewSkeleton({ view }: { view: ViewMode }) {
   }
   if (view === "list") {
     return (
-      <div className="relative border border-border bg-border">
+      <div className="relative border border-border bg-border rounded-[6px] overflow-hidden">
         <div className="divide-y divide-border bg-background">
           {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="flex items-center gap-4 px-5 py-4">
-              <Skeleton className="h-9 w-9 rounded-md shrink-0" />
+              <Skeleton className="h-9 w-9 rounded-[4px] shrink-0" />
               <div className="flex-1 space-y-1.5">
-                <Skeleton className="h-3.5 w-40" />
-                <Skeleton className="h-3 w-28" />
+                <Skeleton className="h-3.5 w-40 rounded-[4px]" />
+                <Skeleton className="h-3 w-28 rounded-[4px]" />
               </div>
-              <Skeleton className="h-5 w-20 rounded-full" />
-              <Skeleton className="h-3 w-20" />
+              <Skeleton className="h-5 w-20 rounded-[4px]" />
+              <Skeleton className="h-3 w-20 rounded-[4px]" />
             </div>
           ))}
         </div>
@@ -337,20 +337,20 @@ function ViewSkeleton({ view }: { view: ViewMode }) {
     )
   }
   return (
-    <div className="relative border border-border bg-background">
+    <div className="relative border border-border bg-background rounded-[6px] overflow-hidden">
       <div className="p-3 border-b border-border bg-muted/20">
         <div className="flex gap-4">
           {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="h-3.5 w-20" />
+            <Skeleton key={i} className="h-3.5 w-20 rounded-[4px]" />
           ))}
         </div>
       </div>
       {Array.from({ length: 5 }).map((_, i) => (
         <div key={i} className="flex items-center gap-4 p-3 border-b border-border last:border-0">
-          <Skeleton className="h-7 w-7 rounded-md" />
-          <Skeleton className="h-3.5 w-32" />
-          <Skeleton className="h-3.5 w-28" />
-          <Skeleton className="h-4 w-16 rounded-full" />
+          <Skeleton className="h-7 w-7 rounded-[4px]" />
+          <Skeleton className="h-3.5 w-32 rounded-[4px]" />
+          <Skeleton className="h-3.5 w-28 rounded-[4px]" />
+          <Skeleton className="h-4 w-16 rounded-[4px]" />
         </div>
       ))}
     </div>

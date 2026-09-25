@@ -41,21 +41,21 @@ export function PackageStudioTab({ applicationId }: PackageStudioTabProps) {
   if (loading) {
     return (
       <div className="space-y-4 py-2">
-        <Skeleton className="h-16 w-full rounded-xl bg-muted" />
+        <Skeleton className="h-16 w-full rounded-[6px] bg-muted" />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Skeleton className="h-36 rounded-xl bg-muted" />
-          <Skeleton className="h-36 rounded-xl bg-muted" />
+          <Skeleton className="h-36 rounded-[6px] bg-muted" />
+          <Skeleton className="h-36 rounded-[6px] bg-muted" />
         </div>
-        <Skeleton className="h-28 rounded-xl bg-muted" />
+        <Skeleton className="h-28 rounded-[6px] bg-muted" />
       </div>
     )
   }
 
   if (error || !pkg) {
     return (
-      <div className="p-8 text-center border border-dashed border-border rounded-xl space-y-3">
+      <div className="p-8 text-center border border-dashed border-border rounded-[6px] space-y-3">
         <p className="text-sm text-muted-foreground">{error || "No package generated yet."}</p>
-        <Button variant="outline" size="sm" onClick={fetchPackage}>
+        <Button variant="outline" size="sm" onClick={fetchPackage} className="rounded-[4px] h-8 text-xs font-medium">
           <RefreshCw className="size-3.5 mr-1.5" /> Try Again
         </Button>
       </div>
@@ -70,15 +70,15 @@ export function PackageStudioTab({ applicationId }: PackageStudioTabProps) {
     <div className="space-y-5">
       {/* 1. Next Best Tactical Action Linear Banner */}
       {nba && (
-        <div className="p-4 rounded-xl border border-primary/20 bg-primary/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="p-4 rounded-[6px] border border-primary/20 bg-primary/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-start gap-3">
-            <div className="size-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary mt-0.5 shrink-0">
+            <div className="size-8 rounded-[4px] bg-primary/10 border border-primary/20 flex items-center justify-center text-primary mt-0.5 shrink-0">
               <Zap className="size-4" />
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-xs font-semibold text-foreground tracking-tight">{nba.title}</span>
-                <Badge variant="outline" className="text-[10px] uppercase font-mono py-0 px-1 text-primary border-primary/30">
+                <Badge variant="outline" className="text-[10px] uppercase font-mono py-0 px-1 text-primary border-primary/30 rounded-[4px]">
                   Recommended Action
                 </Badge>
               </div>
@@ -87,7 +87,7 @@ export function PackageStudioTab({ applicationId }: PackageStudioTabProps) {
           </div>
 
           <Link href={nba.href}>
-            <Button size="sm" className="h-8 text-xs font-medium shrink-0 w-full sm:w-auto">
+            <Button size="sm" className="h-8 text-xs font-medium rounded-[4px] shrink-0 w-full sm:w-auto shadow-none">
               {nba.ctaLabel} <ChevronRight className="size-3.5 ml-1" />
             </Button>
           </Link>
@@ -97,7 +97,7 @@ export function PackageStudioTab({ applicationId }: PackageStudioTabProps) {
       {/* 2. Side-by-Side Asset Health & Company Intel */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Card A: Multi-Asset Readiness Grid */}
-        <div className="p-4 rounded-xl border border-border bg-card space-y-3">
+        <div className="p-4 rounded-[6px] border border-border bg-card space-y-3">
           <div className="flex items-center justify-between">
             <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
               <FileText className="size-3.5" /> Collateral Readiness
@@ -106,10 +106,10 @@ export function PackageStudioTab({ applicationId }: PackageStudioTabProps) {
           </div>
 
           <div className="space-y-2 text-xs">
-            <div className="flex items-center justify-between p-2 rounded-lg bg-muted/40 border border-border/60">
+            <div className="flex items-center justify-between p-2 rounded-[4px] bg-muted/20 border border-border">
               <span className="text-foreground">Tailored ATS Resume</span>
               {pkg.resume.hasTailoredResume ? (
-                <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 text-[10px]">
+                <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 text-[10px] rounded-[4px]">
                   ✓ Generated ({pkg.resume.atsScore || 85}%)
                 </Badge>
               ) : (
@@ -117,10 +117,10 @@ export function PackageStudioTab({ applicationId }: PackageStudioTabProps) {
               )}
             </div>
 
-            <div className="flex items-center justify-between p-2 rounded-lg bg-muted/40 border border-border/60">
+            <div className="flex items-center justify-between p-2 rounded-[4px] bg-muted/20 border border-border">
               <span className="text-foreground">Cover Letter</span>
               {pkg.coverLetter.hasCoverLetter ? (
-                <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 text-[10px]">
+                <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 text-[10px] rounded-[4px]">
                   ✓ Ready
                 </Badge>
               ) : (
@@ -128,10 +128,10 @@ export function PackageStudioTab({ applicationId }: PackageStudioTabProps) {
               )}
             </div>
 
-            <div className="flex items-center justify-between p-2 rounded-lg bg-muted/40 border border-border/60">
+            <div className="flex items-center justify-between p-2 rounded-[4px] bg-muted/20 border border-border">
               <span className="text-foreground">Recruiter Outreach Draft</span>
               {pkg.outreach.hasOutreachDraft ? (
-                <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 text-[10px]">
+                <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 text-[10px] rounded-[4px]">
                   ✓ Pitch Prepared
                 </Badge>
               ) : (
@@ -142,7 +142,7 @@ export function PackageStudioTab({ applicationId }: PackageStudioTabProps) {
         </div>
 
         {/* Card B: Company Intelligence */}
-        <div className="p-4 rounded-xl border border-border bg-card space-y-3">
+        <div className="p-4 rounded-[6px] border border-border bg-card space-y-3">
           <div className="flex items-center justify-between">
             <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
               <Globe className="size-3.5" /> Company Dossier
@@ -171,13 +171,13 @@ export function PackageStudioTab({ applicationId }: PackageStudioTabProps) {
 
       {/* 3. Matched Canonical Tech Stack */}
       {techStack.length > 0 && (
-        <div className="p-4 rounded-xl border border-border bg-card space-y-2.5">
+        <div className="p-4 rounded-[6px] border border-border bg-card space-y-2.5">
           <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
             <Layers className="size-3.5" /> Target Tech Stack Extracted
           </h4>
           <div className="flex flex-wrap gap-1.5">
             {techStack.map((tech) => (
-              <Badge key={tech} variant="secondary" className="text-xs py-0.5 px-2 bg-muted border border-border text-foreground font-mono">
+              <Badge key={tech} variant="secondary" className="text-xs py-0.5 px-2 bg-muted border border-border text-foreground font-mono rounded-[4px]">
                 {tech}
               </Badge>
             ))}

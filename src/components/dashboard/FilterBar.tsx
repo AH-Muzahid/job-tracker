@@ -48,12 +48,12 @@ export default function FilterBar({
           placeholder="Search company, title, tag..."
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
-          className="h-8 rounded-md border border-border bg-background pl-8 pr-8 text-xs outline-none focus:border-foreground/30 w-full transition-all"
+          className="h-8 rounded-[4px] border border-border bg-background pl-8 pr-8 text-xs outline-none focus:border-foreground/30 w-full transition-all"
         />
         {search && (
           <button
             onClick={() => onSearchChange("")}
-            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5 rounded-md hover:bg-muted transition-colors cursor-pointer"
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5 rounded-[4px] hover:bg-muted transition-colors cursor-pointer"
           >
             <X className="h-3 w-3" />
           </button>
@@ -86,14 +86,14 @@ export default function FilterBar({
         <button
           type="button"
           onClick={onClearAll}
-          className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors cursor-pointer"
+          className="inline-flex items-center gap-1 px-2 py-1 rounded-[4px] text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors cursor-pointer"
         >
           <X className="h-3 w-3" />
           Clear
         </button>
       )}
 
-      <div className="ml-auto text-xs font-mono tabular-nums text-muted-foreground border border-border bg-card/60 px-2.5 py-1 rounded-md">
+      <div className="ml-auto text-xs font-mono tabular-nums text-muted-foreground border border-border bg-card/60 px-2.5 py-1 rounded-[4px]">
         {hasFilters ? `${filteredCount} of ${total}` : `${total} total`}
       </div>
     </div>
@@ -133,7 +133,7 @@ function Dropdown({
       <button
         onClick={() => setOpen(!open)}
         className={cn(
-          "inline-flex h-8 items-center gap-1.5 rounded-md border border-border px-2.5 text-xs font-medium transition-colors cursor-pointer",
+          "inline-flex h-8 items-center gap-1.5 rounded-[4px] border border-border px-2.5 text-xs font-medium transition-colors cursor-pointer",
           value
             ? "border-foreground/20 bg-muted/60 text-foreground"
             : "bg-background text-muted-foreground hover:text-foreground hover:bg-muted/40"
@@ -146,7 +146,7 @@ function Dropdown({
 
       {open && (
         <div className={cn(
-          "absolute top-full z-50 mt-1 w-44 rounded-md border border-border bg-popover p-1 shadow-lg backdrop-blur-xl",
+          "absolute top-full z-50 mt-1 w-44 rounded-[6px] border border-border bg-popover p-1 shadow-lg backdrop-blur-xl",
           align === "right" ? "right-0" : "left-0"
         )}>
           <button
@@ -155,7 +155,7 @@ function Dropdown({
               setOpen(false)
             }}
             className={cn(
-              "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-xs hover:bg-accent cursor-pointer",
+              "flex w-full items-center gap-2 rounded-[4px] px-2 py-1.5 text-xs hover:bg-accent cursor-pointer",
               !value && "bg-accent font-medium text-foreground"
             )}
           >
@@ -170,7 +170,7 @@ function Dropdown({
                 setOpen(false)
               }}
               className={cn(
-                "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-xs hover:bg-accent cursor-pointer",
+                "flex w-full items-center gap-2 rounded-[4px] px-2 py-1.5 text-xs hover:bg-accent cursor-pointer",
                 value === option.value && "bg-accent font-medium text-foreground"
               )}
             >

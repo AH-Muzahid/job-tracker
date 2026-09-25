@@ -47,19 +47,20 @@ export default function DeleteConfirmModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm">
+      <DialogContent className="max-w-sm rounded-[8px] border-border bg-card">
         <DialogHeader>
           <DialogTitle>Delete Application</DialogTitle>
           <DialogDescription>
             Delete <strong>{companyName}</strong>? This cannot be undone.
           </DialogDescription>
         </DialogHeader>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+        <DialogFooter className="gap-2 sm:gap-0">
+          <Button variant="outline" className="rounded-[4px] h-9 text-xs font-medium" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
           <Button
             variant="destructive"
+            className="rounded-[4px] h-9 text-xs font-medium"
             onClick={handleDelete}
             disabled={deleting}
           >

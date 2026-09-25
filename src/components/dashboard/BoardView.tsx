@@ -43,7 +43,7 @@ export default function BoardView({ applications, onSelect, onEdit, onDelete, on
           <a
             key={col.key}
             href={`#col-${col.key}`}
-            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium border border-border bg-card/60 text-muted-foreground hover:text-foreground whitespace-nowrap active:bg-muted shrink-0"
+            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-[4px] text-xs font-medium border border-border bg-card/60 text-muted-foreground hover:text-foreground whitespace-nowrap active:bg-muted shrink-0"
           >
             <span className={`h-1.5 w-1.5 rounded-full ${col.dot}`} />
             {col.title}
@@ -52,7 +52,7 @@ export default function BoardView({ applications, onSelect, onEdit, onDelete, on
         ))}
       </div>
 
-      <div className="relative border border-border bg-border w-full max-w-full overflow-hidden">
+      <div className="relative border border-border bg-border w-full max-w-full overflow-hidden rounded-[6px]">
         <DecorIcon className="hidden md:block" position="top-left" />
         <DecorIcon className="hidden md:block" position="top-right" />
         <div className="flex lg:grid lg:grid-cols-6 divide-y lg:divide-y-0 divide-x divide-border bg-background overflow-x-auto lg:overflow-visible snap-x snap-mandatory scroll-smooth no-scrollbar w-full">
@@ -139,14 +139,14 @@ function BoardColumnCard({
         <div className="flex items-center gap-1.5">
           {followUpCount > 0 && (
             <span
-              className="inline-flex items-center gap-1 text-[10px] font-medium font-mono px-1.5 py-0.5 rounded border border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400"
+              className="inline-flex items-center gap-1 text-[10px] font-medium font-mono px-1.5 py-0.5 rounded-[4px] border border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400"
               title={`${followUpCount} application(s) need follow-up`}
             >
               <Clock className="h-2.5 w-2.5" />
               {followUpCount} due
             </span>
           )}
-          <Badge variant="outline" className="text-xs px-2 py-0.5 font-mono border-border bg-muted/30">
+          <Badge variant="outline" className="text-xs px-2 py-0.5 font-mono border-border bg-muted/30 rounded-[4px]">
             {column.items.length}
           </Badge>
         </div>
@@ -161,7 +161,7 @@ function BoardColumnCard({
             className="space-y-2.5 p-3 flex-1 h-full min-h-[480px] bg-background transition-colors"
           >
             {column.items.length === 0 && !snapshot.isDraggingOver ? (
-              <div className="flex flex-col items-center justify-center h-36 rounded-md border border-dashed border-border/80 text-center p-4">
+              <div className="flex flex-col items-center justify-center h-36 rounded-[6px] border border-dashed border-border/80 text-center p-4">
                 <p className="text-sm text-muted-foreground font-medium">No applications</p>
               </div>
             ) : (
@@ -175,7 +175,7 @@ function BoardColumnCard({
                         style={provided.draggableProps.style}
                         className={`select-none transition-all ${
                           snapshot.isDragging
-                            ? "opacity-95 shadow-xl rotate-1 scale-[1.02] z-50 ring-2 ring-primary/40 rounded-lg"
+                            ? "opacity-95 shadow-xl rotate-1 scale-[1.02] z-50 ring-2 ring-primary/40 rounded-[6px]"
                             : ""
                         }`}
                       >

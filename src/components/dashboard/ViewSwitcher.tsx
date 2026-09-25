@@ -15,12 +15,12 @@ export default function ViewSwitcher({
   onChange: (view: ViewMode) => void
 }) {
   return (
-    <div className="flex items-center gap-1 rounded-md border border-border bg-card/60 p-1">
+    <div className="flex items-center gap-1 rounded-[4px] border border-border bg-card/60 p-1">
       {views.map(({ key, label, icon: Icon }) => (
         <button
           key={key}
           onClick={() => onChange(key)}
-          className={`inline-flex items-center gap-1.5 rounded-sm px-2.5 py-1 text-xs font-medium transition-colors cursor-pointer ${
+          className={`inline-flex items-center gap-1.5 rounded-[4px] px-2.5 py-1 text-xs font-medium transition-colors cursor-pointer ${
             current === key
               ? "bg-background text-foreground shadow-xs border border-border"
               : "text-muted-foreground hover:text-foreground hover:bg-muted/40"

@@ -140,7 +140,7 @@ export default function ApplicationDetailModal({
                   <div className="flex items-center gap-1.5 flex-wrap sm:flex-nowrap">
                     <Button
                       size="sm"
-                      className="h-8 px-3 text-xs bg-primary text-primary-foreground hover:bg-primary/90 font-medium shadow-xs"
+                      className="h-8 px-3 text-xs bg-primary text-primary-foreground hover:bg-primary/90 font-medium shadow-xs rounded-[4px]"
                       asChild
                     >
                       <Link href={`/interview-prep?appId=${application.id}&company=${encodeURIComponent(application.companyName)}&role=${encodeURIComponent(application.jobTitle)}`}>
@@ -150,7 +150,7 @@ export default function ApplicationDetailModal({
                     <Button
                       size="sm"
                       variant="outline"
-                      className="h-8 px-3 text-xs border-border text-foreground hover:bg-secondary cursor-pointer font-medium"
+                      className="h-8 px-3 text-xs border-border text-foreground hover:bg-secondary cursor-pointer font-medium rounded-[4px]"
                       asChild
                     >
                       <Link href={`/applications/${application.id}`}>
@@ -160,7 +160,7 @@ export default function ApplicationDetailModal({
                     <Button
                       size="sm"
                       variant="ghost"
-                      className="h-8 px-2.5 text-muted-foreground hover:text-foreground"
+                      className="h-8 px-2.5 text-muted-foreground hover:text-foreground rounded-[4px]"
                       onClick={() => setEditOpen(true)}
                     >
                       <Pencil className="h-3.5 w-3.5" />
@@ -168,7 +168,7 @@ export default function ApplicationDetailModal({
                     <Button
                       size="sm"
                       variant="ghost"
-                      className="h-8 px-2.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                      className="h-8 px-2.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-[4px]"
                       onClick={() => setDeleteOpen(true)}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
@@ -212,7 +212,7 @@ export default function ApplicationDetailModal({
                         <Badge
                           key={tag.id}
                           variant="secondary"
-                          className="text-xs font-normal"
+                          className="text-xs font-normal rounded-[4px]"
                         >
                           {tag.name}
                         </Badge>
@@ -225,7 +225,7 @@ export default function ApplicationDetailModal({
                 {application.notes && (
                   <div>
                     <SectionHeader icon={<StickyNote className="h-3.5 w-3.5" />} title="Notes" />
-                    <div className="mt-2 rounded-xl bg-muted/40 border p-3.5">
+                    <div className="mt-2 rounded-[6px] bg-muted/40 border border-border p-3.5">
                       <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">
                         {application.notes}
                       </p>
@@ -279,7 +279,7 @@ export default function ApplicationDetailModal({
                 {application.statusChanges.length === 0 && (
                   <div>
                     <SectionHeader icon={<Calendar className="h-3.5 w-3.5" />} title="Activity" />
-                    <div className="mt-2 rounded-xl border border-dashed p-6 text-center">
+                    <div className="mt-2 rounded-[6px] border border-dashed border-border p-6 text-center">
                       <p className="text-xs text-muted-foreground/60">No activity yet</p>
                     </div>
                   </div>
@@ -342,7 +342,7 @@ function InfoCard({
   highlight?: boolean
 }) {
   return (
-    <div className="rounded-xl bg-muted/30 border px-3.5 py-3 space-y-1.5">
+    <div className="rounded-[6px] bg-card border border-border px-3.5 py-3 space-y-1.5">
       <div className="flex items-center gap-1.5 text-muted-foreground">
         {icon}
         <span className="text-[10px] font-medium uppercase tracking-wider">{label}</span>
@@ -360,21 +360,21 @@ function DetailSkeleton() {
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-start gap-4">
-        <Skeleton className="h-14 w-14 rounded-2xl" />
+        <Skeleton className="h-14 w-14 rounded-[6px]" />
         <div className="space-y-2 flex-1">
-          <Skeleton className="h-5 w-36" />
-          <Skeleton className="h-4 w-28" />
+          <Skeleton className="h-5 w-36 rounded-[4px]" />
+          <Skeleton className="h-4 w-28 rounded-[4px]" />
           <div className="flex gap-2 mt-2">
-            <Skeleton className="h-5 w-16 rounded-full" />
-            <Skeleton className="h-5 w-14 rounded-full" />
+            <Skeleton className="h-5 w-16 rounded-[4px]" />
+            <Skeleton className="h-5 w-14 rounded-[4px]" />
           </div>
         </div>
       </div>
       <div className="grid grid-cols-3 gap-4">
         {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="rounded-xl bg-muted/30 border p-3.5 space-y-2">
-            <Skeleton className="h-3 w-12" />
-            <Skeleton className="h-4 w-16" />
+          <div key={i} className="rounded-[6px] bg-card border border-border p-3.5 space-y-2">
+            <Skeleton className="h-3 w-12 rounded-[4px]" />
+            <Skeleton className="h-4 w-16 rounded-[4px]" />
           </div>
         ))}
       </div>

@@ -57,14 +57,14 @@ const BoardCard = memo(function BoardCard({ application, onClick, onEdit, onDele
     <div className="group block w-full text-left select-none">
       <div
         onClick={onClick}
-        className="relative p-3.5 rounded-lg border border-border/80 bg-card hover:bg-card/90 hover:border-primary/40 hover:shadow-xs transition-all duration-150 cursor-pointer overflow-hidden"
+        className="relative p-3.5 rounded-[6px] border border-border bg-card hover:bg-card/90 hover:border-primary/40 hover:shadow-xs transition-all duration-150 cursor-pointer overflow-hidden"
       >
         {/* Top: Company Logo, Name & Actions */}
         <div className="flex items-start justify-between gap-2.5">
           <div className="flex items-center gap-2.5 min-w-0 flex-1">
             {/* Dynamic Colorful Avatar */}
             <div
-              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-xs font-bold font-mono tracking-wider border shadow-2xs ${colorClass}`}
+              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-[4px] text-xs font-bold font-mono tracking-wider border shadow-2xs ${colorClass}`}
             >
               {initials}
             </div>
@@ -98,37 +98,37 @@ const BoardCard = memo(function BoardCard({ application, onClick, onEdit, onDele
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-6 w-6 shrink-0 rounded-md text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-muted hover:text-foreground transition-all cursor-pointer"
+                  className="h-6 w-6 shrink-0 rounded-[4px] text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-muted hover:text-foreground transition-all cursor-pointer"
                 >
                   <MoreHorizontal className="h-3.5 w-3.5" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-44 rounded-md border border-border bg-popover p-1 shadow-lg">
-                <DropdownMenuItem onClick={onEdit} className="gap-2 text-xs cursor-pointer">
+              <DropdownMenuContent align="end" className="w-44 rounded-[6px] border border-border bg-popover p-1 shadow-lg">
+                <DropdownMenuItem onClick={onEdit} className="gap-2 text-xs cursor-pointer rounded-[4px]">
                   <Pencil className="h-3.5 w-3.5" /> Edit
                 </DropdownMenuItem>
                 {application.jobUrl && (
                   <DropdownMenuItem
                     onClick={() => window.open(application.jobUrl!, "_blank")}
-                    className="gap-2 text-xs cursor-pointer"
+                    className="gap-2 text-xs cursor-pointer rounded-[4px]"
                   >
                     <ExternalLink className="h-3.5 w-3.5" /> Open Link
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuSub>
-                  <DropdownMenuSubTrigger className="gap-2 text-xs cursor-pointer">
+                  <DropdownMenuSubTrigger className="gap-2 text-xs cursor-pointer rounded-[4px]">
                     <ArrowRight className="h-3.5 w-3.5" /> Move to
                   </DropdownMenuSubTrigger>
-                  <DropdownMenuSubContent className="w-36 rounded-md border border-border bg-popover p-1 shadow-lg">
+                  <DropdownMenuSubContent className="w-36 rounded-[6px] border border-border bg-popover p-1 shadow-lg">
                     {STATUS_OPTIONS.filter((s) => s !== application.status).map((status) => (
-                      <DropdownMenuItem key={status} onClick={() => onMoveTo(status)} className="text-xs cursor-pointer">
+                      <DropdownMenuItem key={status} onClick={() => onMoveTo(status)} className="text-xs cursor-pointer rounded-[4px]">
                         {status}
                       </DropdownMenuItem>
                     ))}
                   </DropdownMenuSubContent>
                 </DropdownMenuSub>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={onDelete} className="gap-2 text-xs text-destructive focus:text-destructive cursor-pointer">
+                <DropdownMenuItem onClick={onDelete} className="gap-2 text-xs text-destructive focus:text-destructive cursor-pointer rounded-[4px]">
                   <Trash2 className="h-3.5 w-3.5" /> Delete
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -151,7 +151,7 @@ const BoardCard = memo(function BoardCard({ application, onClick, onEdit, onDele
               return (
                 <span
                   key={tag.id}
-                  className={`inline-flex items-center gap-1 text-[10.5px] font-medium px-2 py-0.5 rounded-md border ${tagStyle} transition-colors`}
+                  className={`inline-flex items-center gap-1 text-[10.5px] font-medium px-2 py-0.5 rounded-[4px] border ${tagStyle} transition-colors`}
                 >
                   {tag.name}
                 </span>
@@ -164,7 +164,7 @@ const BoardCard = memo(function BoardCard({ application, onClick, onEdit, onDele
         <div className="mt-3 flex items-center justify-between text-[11px] text-muted-foreground border-t border-border/40 pt-2 font-mono">
           <div className="flex items-center gap-1.5 truncate max-w-[150px]">
             {application.source === "Career Orchestrator" ? (
-              <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-primary bg-primary/10 border border-primary/20 px-1.5 py-0.5 rounded">
+              <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-primary bg-primary/10 border border-primary/20 px-1.5 py-0.5 rounded-[4px]">
                 <Bot className="h-3 w-3" />
                 Auto-Staged
               </span>
@@ -180,7 +180,7 @@ const BoardCard = memo(function BoardCard({ application, onClick, onEdit, onDele
                   e.stopPropagation()
                   onOpenFollowUp?.(application.id)
                 }}
-                className="inline-flex items-center gap-1 text-[9.5px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 px-1.5 py-0.5 rounded shrink-0 cursor-pointer transition-colors"
+                className="inline-flex items-center gap-1 text-[9.5px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 px-1.5 py-0.5 rounded-[4px] shrink-0 cursor-pointer transition-colors"
                 title="Application silent for 5+ business days. Click to open Follow-Up Studio."
               >
                 <Clock className="h-2.5 w-2.5" />

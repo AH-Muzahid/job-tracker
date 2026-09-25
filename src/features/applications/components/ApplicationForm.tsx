@@ -282,7 +282,7 @@ export default function ApplicationForm({
             const tag = tags.find((t) => t.id === id)
             if (!tag) return null
             return (
-              <Badge key={id} variant="secondary" className="cursor-pointer" onClick={() => setSelectedTagIds((prev) => prev.filter((t) => t !== id))}>
+              <Badge key={id} variant="secondary" className="cursor-pointer rounded-[4px] text-xs font-normal" onClick={() => setSelectedTagIds((prev) => prev.filter((t) => t !== id))}>
                 {tag.name} &times;
               </Badge>
             )
@@ -290,7 +290,7 @@ export default function ApplicationForm({
         </div>
         <div className="flex gap-2">
           <select
-            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            className="flex h-9 w-full rounded-[4px] border border-input bg-background px-3 py-1.5 text-xs text-foreground shadow-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             value=""
             onChange={(e) => {
               const id = e.target.value
@@ -311,9 +311,9 @@ export default function ApplicationForm({
             value={newTagName}
             onChange={(e) => setNewTagName(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addTag())}
-            className="max-w-40"
+            className="max-w-40 rounded-[4px] h-9 text-xs"
           />
-          <Button type="button" variant="outline" size="sm" onClick={addTag}>Add</Button>
+          <Button type="button" variant="outline" size="sm" className="rounded-[4px] h-9 text-xs" onClick={addTag}>Add</Button>
         </div>
       </div>
 
@@ -322,7 +322,7 @@ export default function ApplicationForm({
       )}
 
       <div className="flex gap-3">
-        <Button type="submit" disabled={submitting}>
+        <Button type="submit" className="rounded-[4px] h-9 text-xs font-medium" disabled={submitting}>
           {submitting
             ? "Saving..."
             : applicationId
@@ -332,6 +332,7 @@ export default function ApplicationForm({
         <Button
           type="button"
           variant="outline"
+          className="rounded-[4px] h-9 text-xs font-medium"
           onClick={() => router.back()}
         >
           Cancel

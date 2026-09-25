@@ -70,7 +70,7 @@ export function FitAssessmentCard({
             variant="outline"
             size="sm"
             onClick={onTriggerAnalysis}
-            className="h-8 text-xs px-3 gap-1.5 rounded-md border-border text-foreground hover:bg-muted/40 cursor-pointer font-medium"
+            className="h-8 text-xs px-3 gap-1.5 rounded-[4px] border-border text-foreground hover:bg-muted/40 cursor-pointer font-medium"
           >
             <RotateCcw className="h-3.5 w-3.5" /> Re-Analyze
           </Button>
@@ -93,9 +93,9 @@ export function FitAssessmentCard({
             </div>
 
             {/* Live Progress Bar */}
-            <div className="w-full max-w-[200px] h-1.5 rounded-full bg-muted overflow-hidden">
+            <div className="w-full max-w-[200px] h-1.5 rounded-[4px] bg-muted overflow-hidden">
               <div
-                className="h-full rounded-full bg-foreground transition-all duration-500 ease-out"
+                className="h-full rounded-[4px] bg-foreground transition-all duration-500 ease-out"
                 style={{ width: `${((loadingStep + 1) / ANALYSIS_STEPS.length) * 100}%` }}
               />
             </div>
@@ -103,7 +103,7 @@ export function FitAssessmentCard({
         ) : analysis ? (
           <div className="space-y-5">
             {/* Score & Verdict Row */}
-            <div className="flex items-center gap-4 bg-muted/15 p-4 rounded-md border border-border">
+            <div className="flex items-center gap-4 bg-muted/15 p-4 rounded-[6px] border border-border">
               <div className="relative flex items-center justify-center shrink-0">
                 <svg className="w-12 h-12 transform -rotate-90">
                   <circle
@@ -143,7 +143,7 @@ export function FitAssessmentCard({
 
             {/* Red Flags / Cautions - structured bullets */}
             {redFlagsList.length > 0 && (
-              <div className="rounded-md bg-rose-500/5 border border-rose-500/20 p-4 space-y-2.5">
+              <div className="rounded-[6px] bg-rose-500/5 border border-rose-500/20 p-4 space-y-2.5">
                 <div className="flex items-center gap-1.5 text-rose-500 text-sm font-semibold uppercase tracking-wider">
                   <AlertTriangle className="h-4 w-4" />
                   <span>Cautions / Red Flags</span>
@@ -165,7 +165,7 @@ export function FitAssessmentCard({
                 <h5 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Fit Analysis Points</h5>
                 <div className="space-y-2">
                   {analysis.whyThisScore.map((reason: string, i: number) => (
-                    <div key={i} className="text-sm text-muted-foreground flex items-start gap-2.5 bg-muted/15 p-3 rounded-md border border-border">
+                    <div key={i} className="text-sm text-muted-foreground flex items-start gap-2.5 bg-muted/15 p-3 rounded-[6px] border border-border">
                       <CheckCircle2 className="h-4 w-4 text-foreground shrink-0 mt-0.5" />
                       <span className="leading-relaxed text-foreground/90">{reason}</span>
                     </div>
@@ -182,7 +182,7 @@ export function FitAssessmentCard({
                     <h5 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-2">Missing Keywords</h5>
                     <div className="flex flex-wrap gap-2">
                       {analysis.missingGaps.missingKeywords.map((kw: string, i: number) => (
-                        <span key={i} className="text-sm px-3 py-1 rounded-md border border-border bg-muted/30 text-foreground font-medium">
+                        <span key={i} className="text-xs px-2.5 py-1 rounded-[4px] border border-border bg-muted/30 text-foreground font-medium">
                           {kw}
                         </span>
                       ))}
@@ -194,7 +194,7 @@ export function FitAssessmentCard({
                     <h5 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-2">Missing Tools / Frameworks</h5>
                     <div className="flex flex-wrap gap-2">
                       {analysis.missingGaps.missingTools.map((t: string, i: number) => (
-                        <span key={i} className="text-sm px-3 py-1 rounded-md border border-border bg-muted/30 text-foreground font-medium">
+                        <span key={i} className="text-xs px-2.5 py-1 rounded-[4px] border border-border bg-muted/30 text-foreground font-medium">
                           {t}
                         </span>
                       ))}
@@ -214,7 +214,7 @@ export function FitAssessmentCard({
                     <div className="text-sm font-medium text-muted-foreground">Skills to Emphasize</div>
                     <div className="flex flex-wrap gap-2">
                       {analysis.resumeAdvice.emphasize.map((item: string, idx: number) => (
-                        <span key={idx} className="text-sm text-foreground bg-muted/30 px-3 py-1 rounded-md border border-border font-medium">
+                        <span key={idx} className="text-xs text-foreground bg-muted/30 px-2.5 py-1 rounded-[4px] border border-border font-medium">
                           {item}
                         </span>
                       ))}
@@ -227,7 +227,7 @@ export function FitAssessmentCard({
                     <div className="text-sm font-medium text-muted-foreground">Highlight Projects</div>
                     <div className="space-y-2">
                       {analysis.resumeAdvice.foregroundProjects.map((project: string, idx: number) => (
-                        <div key={idx} className="text-sm text-muted-foreground flex items-start gap-2.5 bg-muted/15 p-3 rounded-md border border-border">
+                        <div key={idx} className="text-sm text-muted-foreground flex items-start gap-2.5 bg-muted/15 p-3 rounded-[6px] border border-border">
                           <ArrowRight className="h-4 w-4 text-foreground shrink-0 mt-0.5" />
                           <span className="text-foreground/90 leading-relaxed">{project}</span>
                         </div>
@@ -241,7 +241,7 @@ export function FitAssessmentCard({
         ) : (
           <div className="text-center py-10 space-y-3">
             <p className="text-sm text-muted-foreground">No AI analysis available for this application yet.</p>
-            <Button size="sm" onClick={onTriggerAnalysis} className="text-sm font-medium rounded-md cursor-pointer gap-2 shadow-xs px-4 h-9">
+            <Button size="sm" onClick={onTriggerAnalysis} className="text-xs sm:text-sm font-medium rounded-[4px] cursor-pointer gap-2 shadow-none px-4 h-8 sm:h-9">
               <Bot className="h-4 w-4" /> Run AI Assessment
             </Button>
           </div>

@@ -104,7 +104,7 @@ export default function TableView({ applications, onSelect, onBulkSuccess }: Pro
   return (
     <div className="relative space-y-4">      {/* Bulk Action Bar (if items selected) */}
       {selectedIds.length > 0 && (
-        <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 bg-muted/40 border border-border rounded-md">
+        <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 bg-muted/40 border border-border rounded-[6px]">
           <div className="flex items-center gap-2">
             <CheckSquare className="h-4 w-4 text-foreground" />
             <span className="text-sm font-semibold text-foreground">
@@ -117,7 +117,7 @@ export default function TableView({ applications, onSelect, onBulkSuccess }: Pro
               <select
                 value={targetStatus}
                 onChange={(e) => setTargetStatus(e.target.value)}
-                className="h-8 rounded-md border border-border bg-background px-2.5 text-xs text-foreground outline-none"
+                className="h-8 rounded-[4px] border border-border bg-background px-2.5 text-xs text-foreground outline-none"
               >
                 {ALL_STATUSES.map((status) => (
                   <option key={status} value={status}>
@@ -130,7 +130,7 @@ export default function TableView({ applications, onSelect, onBulkSuccess }: Pro
                 variant="outline"
                 onClick={handleBulkStatusChange}
                 disabled={isSubmitting}
-                className="h-8 text-xs font-medium rounded-md cursor-pointer"
+                className="h-8 text-xs font-medium rounded-[4px] cursor-pointer"
               >
                 Apply Status
               </Button>
@@ -141,7 +141,7 @@ export default function TableView({ applications, onSelect, onBulkSuccess }: Pro
               variant="destructive"
               onClick={handleBulkDelete}
               disabled={isSubmitting}
-              className="h-8 text-xs gap-1.5 rounded-md font-medium cursor-pointer"
+              className="h-8 text-xs gap-1.5 rounded-[4px] font-medium cursor-pointer"
             >
               <Trash2 className="h-3.5 w-3.5" />
               Delete Selected
@@ -151,7 +151,7 @@ export default function TableView({ applications, onSelect, onBulkSuccess }: Pro
       )}
 
       {/* Table Container */}
-      <div className="relative border border-border bg-background overflow-hidden">
+      <div className="relative border border-border bg-background overflow-hidden rounded-[6px]">
         <div className="overflow-x-auto min-w-full">
           <table className="w-full text-sm">
             <thead>
@@ -161,7 +161,7 @@ export default function TableView({ applications, onSelect, onBulkSuccess }: Pro
                     type="checkbox"
                     checked={allSelected}
                     onChange={toggleSelectAll}
-                    className="h-3.5 w-3.5 rounded-sm border-border bg-background accent-primary cursor-pointer"
+                    className="h-3.5 w-3.5 rounded-[2px] border-border bg-background accent-primary cursor-pointer"
                   />
                 </th>
                 <th className="px-4 py-3 text-left font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Company</th>
@@ -192,12 +192,12 @@ export default function TableView({ applications, onSelect, onBulkSuccess }: Pro
                         type="checkbox"
                         checked={isSelected}
                         onChange={() => {}}
-                        className="h-3.5 w-3.5 rounded-sm border-border bg-background accent-primary cursor-pointer"
+                        className="h-3.5 w-3.5 rounded-[2px] border-border bg-background accent-primary cursor-pointer"
                       />
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2.5">
-                        <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[11px] font-mono font-bold border ${colorClass}`}>
+                        <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-[4px] text-[11px] font-mono font-bold border ${colorClass}`}>
                           {initials}
                         </div>
                         <span className="font-semibold text-sm text-foreground">{application.companyName}</span>
@@ -207,7 +207,7 @@ export default function TableView({ applications, onSelect, onBulkSuccess }: Pro
                     <td className="px-4 py-3 hidden md:table-cell">
                       <div className="flex flex-wrap gap-1">
                         {application.tags.slice(0, 2).map(({ tag }) => (
-                          <Badge key={tag.id} variant="outline" className="text-[11px] font-mono px-2 py-0.5 border-border">
+                          <Badge key={tag.id} variant="outline" className="text-[11px] font-mono px-2 py-0.5 border-border rounded-[4px]">
                             {tag.name}
                           </Badge>
                         ))}
@@ -215,12 +215,12 @@ export default function TableView({ applications, onSelect, onBulkSuccess }: Pro
                     </td>
                     <td className="px-4 py-3 hidden lg:table-cell">
                       {application.source === "Career Orchestrator" ? (
-                        <span className="inline-flex items-center gap-1 rounded-md border border-primary/20 bg-primary/10 px-2 py-0.5 text-[11px] font-mono text-primary font-semibold">
+                        <span className="inline-flex items-center gap-1 rounded-[4px] border border-primary/20 bg-primary/10 px-2 py-0.5 text-[11px] font-mono text-primary font-semibold">
                           <Bot className="h-3 w-3" />
                           Auto-Staged
                         </span>
                       ) : (
-                        <span className="inline-flex items-center rounded-md border border-border bg-muted/40 px-2 py-0.5 text-[11px] font-mono text-muted-foreground">{application.source}</span>
+                        <span className="inline-flex items-center rounded-[4px] border border-border bg-muted/40 px-2 py-0.5 text-[11px] font-mono text-muted-foreground">{application.source}</span>
                       )}
                     </td>
                     <td className="px-4 py-3 text-muted-foreground font-mono text-xs whitespace-nowrap">
@@ -231,7 +231,7 @@ export default function TableView({ applications, onSelect, onBulkSuccess }: Pro
                         <StatusBadge status={application.status} />
                         {isFollowUpDue(application) && (
                           <span
-                            className="inline-flex items-center gap-1 text-[9.5px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded shrink-0 font-mono"
+                            className="inline-flex items-center gap-1 text-[9.5px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded-[4px] shrink-0 font-mono"
                             title="Application silent for 5+ business days"
                           >
                             <Clock className="h-2.5 w-2.5" />
@@ -243,7 +243,7 @@ export default function TableView({ applications, onSelect, onBulkSuccess }: Pro
                     <td className="px-4 py-3">
                       {application.jobUrl && (
                         <span
-                          className="text-muted-foreground hover:text-foreground p-1.5 rounded-md hover:bg-muted transition-colors cursor-pointer inline-flex items-center justify-center"
+                          className="text-muted-foreground hover:text-foreground p-1.5 rounded-[4px] hover:bg-muted transition-colors cursor-pointer inline-flex items-center justify-center"
                           onClick={(e) => {
                             e.stopPropagation()
                             window.open(application.jobUrl!, "_blank")

@@ -148,7 +148,7 @@ export default function ApplicationFormModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] rounded-[8px] border-border bg-card">
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit Application" : "Add Application"}</DialogTitle>
         </DialogHeader>
@@ -157,8 +157,8 @@ export default function ApplicationFormModal({
           <div className="space-y-4">
             {Array.from({ length: 6 }).map((_, i) => (
               <div key={i} className="space-y-2">
-                <Skeleton className="h-4 w-20" />
-                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-4 w-20 rounded-[4px]" />
+                <Skeleton className="h-10 w-full rounded-[4px]" />
               </div>
             ))}
           </div>
@@ -169,6 +169,7 @@ export default function ApplicationFormModal({
                 value={form.companyName}
                 onChange={(e) => updateField("companyName", e.target.value)}
                 placeholder="e.g. Google"
+                className="h-9 text-xs rounded-[4px]"
               />
             </FormField>
 
@@ -177,6 +178,7 @@ export default function ApplicationFormModal({
                 value={form.jobTitle}
                 onChange={(e) => updateField("jobTitle", e.target.value)}
                 placeholder="e.g. Senior Frontend Developer"
+                className="h-9 text-xs rounded-[4px]"
               />
             </FormField>
 
@@ -186,18 +188,19 @@ export default function ApplicationFormModal({
                 placeholder="https://..."
                 value={form.jobUrl}
                 onChange={(e) => updateField("jobUrl", e.target.value)}
+                className="h-9 text-xs rounded-[4px]"
               />
             </FormField>
 
             <div className="grid grid-cols-2 gap-3">
               <FormField label="Source" error={errors.source} required>
                 <Select value={form.source} onValueChange={(v) => updateField("source", v)}>
-                  <SelectTrigger>
+                  <SelectTrigger className="h-9 text-xs rounded-[4px]">
                     <SelectValue placeholder="Select" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="rounded-[6px]">
                     {["LinkedIn", "Bdjobs", "Indeed", "Wellfound", "Facebook", "Referral", "Other"].map((s) => (
-                      <SelectItem key={s} value={s}>{s}</SelectItem>
+                      <SelectItem key={s} value={s} className="text-xs rounded-[4px]">{s}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -205,12 +208,12 @@ export default function ApplicationFormModal({
 
               <FormField label="Status" error={errors.status} required>
                 <Select value={form.status} onValueChange={(v) => updateField("status", v)}>
-                  <SelectTrigger>
+                  <SelectTrigger className="h-9 text-xs rounded-[4px]">
                     <SelectValue placeholder="Select" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="rounded-[6px]">
                     {["Staged", "Saved", "Applied", "Assessment", "Interview", "Rejected", "Offer"].map((s) => (
-                      <SelectItem key={s} value={s}>{s}</SelectItem>
+                      <SelectItem key={s} value={s} className="text-xs rounded-[4px]">{s}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -222,6 +225,7 @@ export default function ApplicationFormModal({
                 type="date"
                 value={form.applicationDate}
                 onChange={(e) => updateField("applicationDate", e.target.value)}
+                className="h-9 text-xs rounded-[4px]"
               />
             </FormField>
 
@@ -231,6 +235,7 @@ export default function ApplicationFormModal({
                 placeholder="Optional notes..."
                 value={form.notes}
                 onChange={(e) => updateField("notes", e.target.value)}
+                className="text-xs rounded-[4px]"
               />
             </FormField>
 
@@ -245,7 +250,7 @@ export default function ApplicationFormModal({
                       <Badge
                         key={id}
                         variant="secondary"
-                        className="cursor-pointer hover:bg-destructive/10 hover:text-destructive"
+                        className="cursor-pointer hover:bg-destructive/10 hover:text-destructive rounded-[4px] text-xs font-normal"
                         onClick={() => setSelectedTagIds((prev) => prev.filter((t) => t !== id))}
                       >
                         {tag.name} ×
@@ -256,7 +261,7 @@ export default function ApplicationFormModal({
               )}
               <div className="flex gap-2">
                 <select
-                  className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  className="flex h-9 w-full rounded-[4px] border border-input bg-background px-3 text-xs text-foreground outline-none"
                   value=""
                   onChange={(e) => {
                     const id = e.target.value
@@ -273,11 +278,11 @@ export default function ApplicationFormModal({
               </div>
             </div>
 
-            <DialogFooter className="pt-2">
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <DialogFooter className="pt-2 gap-2 sm:gap-0">
+              <Button type="button" variant="outline" className="rounded-[4px] h-9 text-xs font-medium" onClick={() => onOpenChange(false)}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={submitting}>
+              <Button type="submit" className="rounded-[4px] h-9 text-xs font-medium" disabled={submitting}>
                 {submitting ? "Saving..." : isEdit ? "Update" : "Create"}
               </Button>
             </DialogFooter>

@@ -11,10 +11,7 @@ import ApplicationDetailHeader from "@/components/applications/ApplicationDetail
 import ApplicationDeleteDialog from "@/components/applications/ApplicationDeleteDialog"
 import { ApplicationWorkbench } from "@/components/applications/ApplicationWorkbench"
 
-import { DecorIcon } from "@/components/decor-icon"
-import { DashboardCard } from "@/components/dashboard-card"
-import { Delta, DeltaIcon, DeltaValue } from "@/components/delta"
-import StatusBadge from "@/components/StatusBadge"
+import { PageContainer, KPIStrip } from "@/components/primitives"
 
 export default function ApplicationDetailPage() {
   const { isLoaded, isSignedIn } = useUser()
@@ -149,32 +146,32 @@ export default function ApplicationDetailPage() {
 
   if (!isLoaded || loading) {
     return (
-      <div className="space-y-6 max-w-7xl mx-auto pb-12 w-full min-w-0">
+      <PageContainer>
         {/* Header Skeleton */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 sm:p-6 rounded-xl border border-border bg-card/60">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 sm:p-6 rounded-[6px] border border-border bg-card">
           <div className="flex items-start gap-4">
-            <Skeleton className="size-11 rounded-xl shrink-0" />
+            <Skeleton className="size-11 rounded-[6px] shrink-0" />
             <div className="space-y-2 flex-1">
               <div className="flex items-center gap-2 flex-wrap">
-                <Skeleton className="h-6 w-44 rounded-md" />
-                <Skeleton className="h-5 w-20 rounded-full" />
+                <Skeleton className="h-6 w-44 rounded-[4px]" />
+                <Skeleton className="h-5 w-20 rounded-[4px]" />
               </div>
-              <Skeleton className="h-4 w-56 rounded-sm" />
+              <Skeleton className="h-4 w-56 rounded-[4px]" />
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Skeleton className="h-8 w-20 rounded-md" />
-            <Skeleton className="h-8 w-20 rounded-md" />
+            <Skeleton className="h-8 w-20 rounded-[4px]" />
+            <Skeleton className="h-8 w-20 rounded-[4px]" />
           </div>
         </div>
 
         {/* 4 Stat Strip Skeleton */}
-        <div className="relative border border-border bg-border">
+        <div className="relative border border-border bg-border rounded-[6px] overflow-hidden">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-border">
             {Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="p-4 sm:p-5 bg-background space-y-2.5">
-                <Skeleton className="h-3 w-20 rounded-sm" />
-                <Skeleton className="h-5 w-24 rounded-sm" />
+                <Skeleton className="h-3 w-20 rounded-[4px]" />
+                <Skeleton className="h-5 w-24 rounded-[4px]" />
               </div>
             ))}
           </div>
@@ -183,41 +180,43 @@ export default function ApplicationDetailPage() {
         {/* 2-Column Workbench Skeleton */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           <div className="lg:col-span-7 space-y-6">
-            <div className="p-6 rounded-xl border border-border bg-card space-y-4">
-              <Skeleton className="h-5 w-36 rounded-sm pb-2 border-b border-border" />
+            <div className="p-6 rounded-[6px] border border-border bg-card space-y-4">
+              <Skeleton className="h-5 w-36 rounded-[4px] pb-2 border-b border-border" />
               <div className="space-y-2">
-                <Skeleton className="h-3.5 w-full rounded-sm" />
-                <Skeleton className="h-3.5 w-5/6 rounded-sm" />
-                <Skeleton className="h-3.5 w-4/5 rounded-sm" />
-                <Skeleton className="h-3.5 w-full rounded-sm" />
+                <Skeleton className="h-3.5 w-full rounded-[4px]" />
+                <Skeleton className="h-3.5 w-5/6 rounded-[4px]" />
+                <Skeleton className="h-3.5 w-4/5 rounded-[4px]" />
+                <Skeleton className="h-3.5 w-full rounded-[4px]" />
               </div>
             </div>
           </div>
           <div className="lg:col-span-5 space-y-6">
-            <div className="p-6 rounded-xl border border-border bg-card space-y-4">
-              <Skeleton className="h-5 w-40 rounded-sm pb-2 border-b border-border" />
+            <div className="p-6 rounded-[6px] border border-border bg-card space-y-4">
+              <Skeleton className="h-5 w-40 rounded-[4px] pb-2 border-b border-border" />
               <div className="flex items-center justify-center py-4">
                 <Skeleton className="size-24 rounded-full" />
               </div>
               <div className="space-y-2">
-                <Skeleton className="h-3 w-full rounded-sm" />
-                <Skeleton className="h-3 w-3/4 rounded-sm" />
+                <Skeleton className="h-3 w-full rounded-[4px]" />
+                <Skeleton className="h-3 w-3/4 rounded-[4px]" />
               </div>
             </div>
           </div>
         </div>
-      </div>
+      </PageContainer>
     )
   }
 
   if (error) {
     return (
-      <div className="text-center py-12 border border-border bg-background p-8 max-w-md mx-auto">
-        <p className="text-destructive mb-4 text-xs font-mono">{error}</p>
-        <Button variant="outline" size="sm" onClick={() => router.push("/applications")}>
-          Back to Applications
-        </Button>
-      </div>
+      <PageContainer>
+        <div className="text-center py-12 border border-border bg-background rounded-[6px] p-8 max-w-md mx-auto">
+          <p className="text-destructive mb-4 text-xs font-mono">{error}</p>
+          <Button variant="outline" size="sm" onClick={() => router.push("/applications")} className="rounded-[4px] text-xs font-medium">
+            Back to Applications
+          </Button>
+        </div>
+      </PageContainer>
     )
   }
 
@@ -226,7 +225,7 @@ export default function ApplicationDetailPage() {
   const daysActive = Math.max(1, Math.floor((Date.now() - new Date(application.applicationDate).getTime()) / (1000 * 60 * 60 * 24)))
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-12">
+    <PageContainer>
       {/* 1. Detail Header */}
       <ApplicationDetailHeader
         companyName={application.companyName}
@@ -242,71 +241,37 @@ export default function ApplicationDetailPage() {
         onDelete={() => setDialogOpen(true)}
       />
 
-      {/* 2. Top Efferd 4-Stat Metric Grid */}
-      <div className="relative border border-border bg-border">
-        <DecorIcon className="hidden md:block" position="top-left" />
-        <div className="grid grid-cols-1 gap-px bg-border sm:grid-cols-2 lg:grid-cols-4">
-          {/* Card 1: Status */}
-          <DashboardCard className="flex flex-col justify-between">
-            <div className="px-6 pt-5 pb-5">
-              <p className="text-sm font-normal text-muted-foreground">Current Stage</p>
-              <div className="mt-2">
-                <StatusBadge status={application.status} />
-              </div>
-            </div>
-            <div className="flex items-center gap-1.5 text-xs px-6 py-3 border-t border-border bg-background font-mono text-muted-foreground">
-              <span>{daysActive}d active in pipeline</span>
-            </div>
-          </DashboardCard>
-
-          {/* Card 2: AI Fit Score */}
-          <DashboardCard className="flex flex-col justify-between">
-            <div className="px-6 pt-5 pb-5">
-              <p className="text-sm font-normal text-muted-foreground">AI Match Score</p>
-              <p className="text-3xl font-bold tracking-tight text-foreground mt-2">
-                {analysis?.matchScore ? `${analysis.matchScore}%` : "—"}
-              </p>
-            </div>
-            <div className="flex items-center gap-1.5 text-xs px-6 py-3 border-t border-border bg-background">
-              {analysis?.matchScore ? (
-                <Delta value={analysis.matchScore >= 75 ? 12 : 0}>
-                  <DeltaIcon />
-                  <DeltaValue />
-                </Delta>
-              ) : null}
-              <span className="text-muted-foreground">
-                {analysis?.matchScore ? (analysis.matchScore >= 80 ? "Strong Fit" : "Moderate Fit") : "Run Assessment"}
-              </span>
-            </div>
-          </DashboardCard>
-
-          {/* Card 3: Source */}
-          <DashboardCard className="flex flex-col justify-between">
-            <div className="px-6 pt-5 pb-5">
-              <p className="text-sm font-normal text-muted-foreground">Source Channel</p>
-              <p className="text-2xl font-bold tracking-tight text-foreground mt-2 truncate">
-                {application.source || "Direct"}
-              </p>
-            </div>
-            <div className="flex items-center gap-1.5 text-xs px-6 py-3 border-t border-border bg-background font-mono text-muted-foreground truncate">
-              <span>{application.jobUrl ? "URL attached" : "Manual intake"}</span>
-            </div>
-          </DashboardCard>
-
-          {/* Card 4: Date Applied */}
-          <DashboardCard className="flex flex-col justify-between">
-            <div className="px-6 pt-5 pb-5">
-              <p className="text-sm font-normal text-muted-foreground">Applied On</p>
-              <p className="text-xl font-bold tracking-tight text-foreground mt-2 font-mono">
-                {new Date(application.applicationDate).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
-              </p>
-            </div>
-            <div className="flex items-center gap-1.5 text-xs px-6 py-3 border-t border-border bg-background font-mono text-muted-foreground">
-              <span>{application.statusChanges?.length || 1} history event(s)</span>
-            </div>
-          </DashboardCard>
-        </div>
-      </div>
+      {/* 2. Top KPI Metric Grid */}
+      <KPIStrip
+        columns={4}
+        items={[
+          {
+            id: "stage",
+            label: "Current Stage",
+            value: application.status,
+            subtext: `${daysActive}d active in pipeline`,
+          },
+          {
+            id: "matchScore",
+            label: "AI Match Score",
+            value: analysis?.matchScore ? `${analysis.matchScore}%` : "—",
+            delta: analysis?.matchScore ? (analysis.matchScore >= 75 ? 12 : 0) : undefined,
+            subtext: analysis?.matchScore ? (analysis.matchScore >= 80 ? "Strong Fit" : "Moderate Fit") : "Run Assessment",
+          },
+          {
+            id: "source",
+            label: "Source Channel",
+            value: application.source || "Direct",
+            subtext: application.jobUrl ? "URL attached" : "Manual intake",
+          },
+          {
+            id: "applied",
+            label: "Applied On",
+            value: new Date(application.applicationDate).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }),
+            subtext: `${application.statusChanges?.length || 1} history event(s)`,
+          },
+        ]}
+      />
 
       {/* 3. Workbench & AI Analysis */}
       <ApplicationWorkbench
@@ -326,6 +291,6 @@ export default function ApplicationDetailPage() {
         deleting={deleting}
         onConfirm={handleDelete}
       />
-    </div>
+    </PageContainer>
   )
 }
