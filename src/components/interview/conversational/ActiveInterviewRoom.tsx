@@ -138,7 +138,7 @@ export function ActiveInterviewRoom({
               size="sm"
               onClick={togglePause}
               className={cn(
-                "text-[11px] sm:text-xs h-7 sm:h-8 px-2 sm:px-3 gap-1 font-medium transition-colors",
+                "text-[11px] sm:text-xs h-7 sm:h-8 px-2 sm:px-3 gap-1 font-medium transition-colors rounded-[4px] cursor-pointer",
                 isPaused
                   ? "bg-amber-500 hover:bg-amber-600 text-white border-amber-600 shadow-xs"
                   : "hover:bg-accent"
@@ -152,7 +152,7 @@ export function ActiveInterviewRoom({
                 variant="outline"
                 size="sm"
                 onClick={onExtendInterview}
-                className="text-[11px] sm:text-xs h-7 sm:h-8 px-2 sm:px-3 gap-1 hover:border-primary hover:text-primary transition-colors cursor-pointer"
+                className="text-[11px] sm:text-xs h-7 sm:h-8 px-2 sm:px-3 gap-1 hover:border-primary hover:text-primary transition-colors cursor-pointer rounded-[4px]"
                 title="Add 3 more questions to this interview round"
               >
                 <Plus className="h-3 w-3 text-primary" />
@@ -163,7 +163,7 @@ export function ActiveInterviewRoom({
               variant="outline"
               size="sm"
               onClick={() => setShowTranscriptDrawer(!showTranscriptDrawer)}
-              className="text-[11px] sm:text-xs h-7 sm:h-8 px-2 sm:px-3"
+              className="text-[11px] sm:text-xs h-7 sm:h-8 px-2 sm:px-3 rounded-[4px] cursor-pointer"
             >
               {showTranscriptDrawer ? "Hide Transcript" : "Show Transcript"}
             </Button>
@@ -171,7 +171,7 @@ export function ActiveInterviewRoom({
               variant="destructive"
               size="sm"
               onClick={onEndInterview}
-              className="text-[11px] sm:text-xs h-7 sm:h-8 px-2 sm:px-3 gap-1"
+              className="text-[11px] sm:text-xs h-7 sm:h-8 px-2 sm:px-3 gap-1 rounded-[4px] cursor-pointer"
             >
               <Square className="h-3 w-3" />
               <span>End & Report</span>
@@ -194,7 +194,7 @@ export function ActiveInterviewRoom({
 
       {/* Completion Banner (if finished) */}
       {isInterviewComplete && (
-        <div className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 p-3 flex flex-col sm:flex-row items-center justify-between gap-2 shrink-0 animate-in fade-in zoom-in duration-300">
+        <div className="rounded-[6px] border border-emerald-500/40 bg-emerald-500/10 p-3 flex flex-col sm:flex-row items-center justify-between gap-2 shrink-0 animate-in fade-in zoom-in duration-300">
           <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300">
             <Award className="h-5 w-5 shrink-0" />
             <div>
@@ -205,7 +205,7 @@ export function ActiveInterviewRoom({
           <Button
             size="sm"
             onClick={onEndInterview}
-            className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs h-8 px-4 font-medium shadow-xs cursor-pointer w-full sm:w-auto"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs h-8 px-4 font-medium shadow-xs cursor-pointer w-full sm:w-auto rounded-[4px]"
           >
             <span>View STAR Report</span>
           </Button>
@@ -213,7 +213,7 @@ export function ActiveInterviewRoom({
       )}
 
       {/* Central Modern Audio Waveform & Status Hub */}
-      <div className="rounded-2xl border border-border bg-card p-2.5 sm:p-3.5 flex items-center justify-between gap-3 shrink-0 shadow-xs">
+      <div className="rounded-[6px] border border-border bg-card p-2.5 sm:p-3.5 flex items-center justify-between gap-3 shrink-0 shadow-xs">
         {/* Left: Interactive Mic & Speaker Orb */}
         <div className="flex items-center gap-3">
           <div className="relative flex items-center justify-center shrink-0">
@@ -353,12 +353,12 @@ export function ActiveInterviewRoom({
             </div>
             <div className="flex items-center gap-1.5 flex-wrap">
               {/* Speech-to-Text Language Switcher */}
-              <div className="flex items-center rounded-lg border border-border bg-muted/40 p-0.5 text-[9.5px] sm:text-[10px]">
+              <div className="flex items-center rounded-[4px] border border-border bg-muted/40 p-0.5 text-[9.5px] sm:text-[10px]">
                 <button
                   type="button"
                   onClick={() => setSpeechInputLang("bn-BD")}
                   className={cn(
-                    "px-1.5 sm:px-2 py-0.5 rounded-md font-medium transition-colors cursor-pointer",
+                    "px-1.5 sm:px-2 py-0.5 rounded-[4px] font-medium transition-colors cursor-pointer",
                     speechInputLang === "bn-BD"
                       ? "bg-primary text-primary-foreground shadow-2xs"
                       : "text-muted-foreground hover:text-foreground"
@@ -370,7 +370,7 @@ export function ActiveInterviewRoom({
                   type="button"
                   onClick={() => setSpeechInputLang("en-US")}
                   className={cn(
-                    "px-1.5 sm:px-2 py-0.5 rounded-md font-medium transition-colors cursor-pointer",
+                    "px-1.5 sm:px-2 py-0.5 rounded-[4px] font-medium transition-colors cursor-pointer",
                     speechInputLang === "en-US"
                       ? "bg-primary text-primary-foreground shadow-2xs"
                       : "text-muted-foreground hover:text-foreground"
@@ -385,7 +385,7 @@ export function ActiveInterviewRoom({
                 size="sm"
                 onClick={onToggleMute}
                 disabled={isPaused}
-                className="text-[10px] sm:text-xs h-6 px-1.5 text-muted-foreground hover:text-foreground cursor-pointer"
+                className="text-[10px] sm:text-xs h-6 px-1.5 text-muted-foreground hover:text-foreground cursor-pointer rounded-[4px]"
               >
                 {isListening ? "Mute" : "Unmute"}
               </Button>
@@ -398,12 +398,12 @@ export function ActiveInterviewRoom({
               onChange={(e) => setCurrentTranscript(e.target.value)}
               placeholder="Your live speech transcribes here automatically..."
               rows={2}
-              className="text-xs leading-relaxed min-h-[44px] sm:min-h-[56px] bg-background border-border"
+              className="text-xs leading-relaxed min-h-[44px] sm:min-h-[56px] bg-background border-border rounded-[4px]"
             />
             <Button
               onClick={() => onSendTurn(currentTranscript)}
               disabled={!currentTranscript.trim() || isAiThinking || isPaused}
-              className="h-auto px-3 sm:px-4 bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-medium cursor-pointer"
+              className="h-auto px-3 sm:px-4 bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-medium cursor-pointer rounded-[4px]"
             >
               Send
             </Button>
@@ -413,7 +413,7 @@ export function ActiveInterviewRoom({
 
       {/* Conversation History Drawer */}
       {showTranscriptDrawer && (
-        <div className="flex-1 overflow-y-auto no-scrollbar rounded-xl border border-border bg-muted/10 p-2.5 sm:p-4 space-y-2.5 min-h-[100px] max-h-[30vh] sm:max-h-none">
+        <div className="flex-1 overflow-y-auto no-scrollbar rounded-[6px] border border-border bg-muted/10 p-2.5 sm:p-4 space-y-2.5 min-h-[100px] max-h-[30vh] sm:max-h-none">
           <span className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
             Interview Dialogue History ({dialogue.length} turns)
           </span>
@@ -434,10 +434,10 @@ export function ActiveInterviewRoom({
                 </div>
                 <div
                   className={cn(
-                    "rounded-2xl px-3 py-2 text-xs max-w-[90%] sm:max-w-[85%] leading-relaxed",
+                    "rounded-[6px] px-3 py-2 text-xs max-w-[90%] sm:max-w-[85%] leading-relaxed",
                     msg.role === "interviewer"
-                      ? "bg-muted text-foreground border border-border rounded-tl-sm"
-                      : "bg-primary text-primary-foreground rounded-tr-sm"
+                      ? "bg-muted text-foreground border border-border"
+                      : "bg-primary text-primary-foreground"
                   )}
                 >
                   {msg.text}

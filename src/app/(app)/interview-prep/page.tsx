@@ -147,6 +147,7 @@ function InterviewPrepContent() {
     <PageContainer>
       {/* 1. Page Header */}
       <PageHeader
+        overline="SIMULATION / PRACTICE"
         title="Interview Prep Room"
         description="Practice live spoken mock interviews, master technical concepts, and review revision notes."
         action={
@@ -157,7 +158,7 @@ function InterviewPrepContent() {
               setConversationalModalOpen(true)
             }}
             size="sm"
-            className="h-8.5 px-4 font-medium text-xs sm:text-sm cursor-pointer shadow-xs gap-1.5"
+            className="h-8.5 px-4 font-medium text-xs sm:text-sm cursor-pointer shadow-xs gap-1.5 rounded-[4px]"
           >
             <Mic className="size-3.5" />
             <span>Start Voice Mock</span>
@@ -172,7 +173,7 @@ function InterviewPrepContent() {
       {customCompany && !dismissBanner && (
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-[6px] border border-border bg-card shadow-2xs relative">
           <div className="flex items-start sm:items-center gap-3">
-            <div className="p-2 rounded-md bg-muted text-foreground border border-border shrink-0 mt-0.5 sm:mt-0">
+            <div className="p-2 rounded-[4px] bg-muted text-foreground border border-border shrink-0 mt-0.5 sm:mt-0">
               <Building2 className="size-4" />
             </div>
             <div>
@@ -183,7 +184,7 @@ function InterviewPrepContent() {
                 {customRole && (
                   <span className="text-xs text-muted-foreground">({customRole})</span>
                 )}
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-mono font-medium bg-muted text-foreground border border-border rounded-full">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-mono font-medium bg-muted text-foreground border border-border rounded-[4px]">
                   <Bot className="size-3" /> 1-Click Tailored
                 </span>
               </div>
@@ -201,7 +202,7 @@ function InterviewPrepContent() {
                 setModalCompany(customCompany)
                 setConversationalModalOpen(true)
               }}
-              className="h-8 text-xs font-medium px-3.5 cursor-pointer shadow-xs"
+              className="h-8 text-xs font-medium px-3.5 cursor-pointer shadow-xs rounded-[4px]"
             >
               Launch Mock Room
             </Button>
@@ -209,7 +210,7 @@ function InterviewPrepContent() {
               size="icon"
               variant="ghost"
               onClick={() => setDismissBanner(true)}
-              className="size-8 text-muted-foreground hover:text-foreground cursor-pointer"
+              className="size-8 text-muted-foreground hover:text-foreground cursor-pointer rounded-[4px]"
               title="Dismiss banner"
             >
               <X className="size-3.5" />
@@ -221,17 +222,17 @@ function InterviewPrepContent() {
       {/* 3. Clean Segmented Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <div className="border-b border-border pb-2 overflow-x-auto no-scrollbar">
-          <TabsList className="bg-muted/40 p-1 h-9 border border-border">
-            <TabsTrigger value="mock" className="text-xs font-medium px-3 sm:px-4 cursor-pointer">
+          <TabsList className="bg-muted/40 p-1 h-9 border border-border rounded-[6px]">
+            <TabsTrigger value="mock" className="text-xs font-medium px-3 sm:px-4 cursor-pointer rounded-[4px]">
               Voice Mock Interview
             </TabsTrigger>
-            <TabsTrigger value="study" className="text-xs font-medium px-3 sm:px-4 cursor-pointer">
+            <TabsTrigger value="study" className="text-xs font-medium px-3 sm:px-4 cursor-pointer rounded-[4px]">
               Concept Lab & Q&A
             </TabsTrigger>
-            <TabsTrigger value="notes" className="text-xs font-medium px-3 sm:px-4 cursor-pointer">
+            <TabsTrigger value="notes" className="text-xs font-medium px-3 sm:px-4 cursor-pointer rounded-[4px]">
               Revision Notes ({notes.length})
             </TabsTrigger>
-            <TabsTrigger value="sessions" className="text-xs font-medium px-3 sm:px-4 cursor-pointer">
+            <TabsTrigger value="sessions" className="text-xs font-medium px-3 sm:px-4 cursor-pointer rounded-[4px]">
               Past Transcripts ({sessions.length})
             </TabsTrigger>
           </TabsList>

@@ -3,7 +3,15 @@
 import React from "react"
 import { Mic, CheckCircle2, Brain, ArrowRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { DecorIcon } from "@/components/decor-icon"
+import {
+  BlueprintCard,
+  BlueprintCardHeader,
+  BlueprintCardTitle,
+  BlueprintCardDescription,
+  BlueprintCardContent,
+  BlueprintCardFooter,
+} from "@/components/primitives"
+import { StatusBadge } from "@/components/StatusBadge"
 
 interface MockInterviewLaunchpadProps {
   onStartCustom: () => void
@@ -59,64 +67,63 @@ export function MockInterviewLaunchpad({
 
   return (
     <div className="space-y-6">
-      {/* 1. Main Action Hero Card in Efferd Style */}
-      <div className="relative border border-border bg-border">
-        <DecorIcon className="hidden md:block" position="top-left" />
-        <div className="bg-background p-5 sm:p-6 space-y-5">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-5">
-            <div className="space-y-2 max-w-xl">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="inline-flex items-center gap-1.5 text-[11px] font-mono font-medium px-2.5 py-0.5 rounded-full bg-muted border border-border text-foreground">
-                  <span className="size-1.5 rounded-full bg-emerald-500" />
-                  Voice AI Simulation
-                </span>
-                <span className="text-[11px] font-mono text-muted-foreground">
-                  Bilingual • Banglish & English
-                </span>
-              </div>
-              <h2 className="text-lg sm:text-xl font-semibold tracking-tight text-foreground">
-                Spoken AI Mock Interview Room
-              </h2>
-              <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
-                Practice realistic spoken interview rounds with instant verbal follow-ups, hands-free turn taking, and a post-interview STAR Knowledge Gap analysis.
-              </p>
+      {/* 1. Main Action Hero Card in Blueprint Standard */}
+      <BlueprintCard>
+        <BlueprintCardHeader className="flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1.5 max-w-xl">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="inline-flex items-center gap-1.5 text-[11px] font-mono font-medium px-2 py-0.5 rounded-[4px] bg-muted border border-border text-foreground">
+                <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                Voice AI Simulation
+              </span>
+              <span className="text-[11px] font-mono text-muted-foreground">
+                Bilingual • Banglish & English
+              </span>
             </div>
-
-            <div className="flex flex-col sm:flex-row md:flex-col gap-2.5 shrink-0">
-              <Button
-                onClick={onStartCustom}
-                size="sm"
-                className="text-xs sm:text-sm font-medium h-9 px-5 cursor-pointer shadow-xs"
-              >
-                <Mic className="size-3.5 mr-1.5" />
-                <span>Start Mock Interview</span>
-              </Button>
-              {customCompany && (
-                <Button
-                  onClick={() =>
-                    onStartPreset({
-                      role: customRole || "Software Engineer",
-                      company: customCompany,
-                      type: "Technical",
-                      tone: "strict",
-                      turns: 5,
-                    })
-                  }
-                  variant="outline"
-                  size="sm"
-                  className="text-xs h-8 cursor-pointer font-medium"
-                >
-                  <span>Practice for {customCompany}</span>
-                </Button>
-              )}
-            </div>
+            <BlueprintCardTitle className="text-base sm:text-lg font-semibold tracking-tight text-foreground">
+              Spoken AI Mock Interview Room
+            </BlueprintCardTitle>
+            <BlueprintCardDescription className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+              Practice realistic spoken interview rounds with instant verbal follow-ups, hands-free turn taking, and a post-interview STAR Knowledge Gap analysis.
+            </BlueprintCardDescription>
           </div>
 
+          <div className="flex flex-col sm:flex-row gap-2 shrink-0 w-full sm:w-auto">
+            <Button
+              onClick={onStartCustom}
+              size="sm"
+              className="text-xs font-mono h-8.5 px-4 rounded-[4px] cursor-pointer bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5"
+            >
+              <Mic className="size-3.5" />
+              <span>Start Mock Interview</span>
+            </Button>
+            {customCompany && (
+              <Button
+                onClick={() =>
+                  onStartPreset({
+                    role: customRole || "Software Engineer",
+                    company: customCompany,
+                    type: "Technical",
+                    tone: "strict",
+                    turns: 5,
+                  })
+                }
+                variant="outline"
+                size="sm"
+                className="text-xs font-mono h-8.5 px-3.5 rounded-[4px] cursor-pointer border-border"
+              >
+                <span>Practice for {customCompany}</span>
+              </Button>
+            )}
+          </div>
+        </BlueprintCardHeader>
+
+        <BlueprintCardContent className="pt-4">
           {/* 3 Steps Explainer */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-4 border-t border-border">
-            <div className="flex items-start gap-3">
-              <div className="flex size-7 items-center justify-center rounded-md bg-muted text-foreground border border-border shrink-0 mt-0.5">
-                <Mic className="size-3.5" />
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-border/60">
+            <div className="flex items-start gap-3 p-3 rounded-[4px] border border-border/60 bg-muted/20">
+              <div className="flex size-7 items-center justify-center rounded-[4px] bg-background text-foreground border border-border shrink-0 mt-0.5">
+                <Mic className="size-3.5 text-primary" />
               </div>
               <div className="space-y-0.5">
                 <p className="text-xs font-semibold text-foreground">1. Speak Naturally</p>
@@ -126,9 +133,9 @@ export function MockInterviewLaunchpad({
               </div>
             </div>
 
-            <div className="flex items-start gap-3">
-              <div className="flex size-7 items-center justify-center rounded-md bg-muted text-foreground border border-border shrink-0 mt-0.5">
-                <Brain className="size-3.5" />
+            <div className="flex items-start gap-3 p-3 rounded-[4px] border border-border/60 bg-muted/20">
+              <div className="flex size-7 items-center justify-center rounded-[4px] bg-background text-foreground border border-border shrink-0 mt-0.5">
+                <Brain className="size-3.5 text-primary" />
               </div>
               <div className="space-y-0.5">
                 <p className="text-xs font-semibold text-foreground">2. Adaptive Follow-ups</p>
@@ -138,9 +145,9 @@ export function MockInterviewLaunchpad({
               </div>
             </div>
 
-            <div className="flex items-start gap-3">
-              <div className="flex size-7 items-center justify-center rounded-md bg-muted text-foreground border border-border shrink-0 mt-0.5">
-                <CheckCircle2 className="size-3.5" />
+            <div className="flex items-start gap-3 p-3 rounded-[4px] border border-border/60 bg-muted/20">
+              <div className="flex size-7 items-center justify-center rounded-[4px] bg-background text-foreground border border-border shrink-0 mt-0.5">
+                <CheckCircle2 className="size-3.5 text-emerald-500" />
               </div>
               <div className="space-y-0.5">
                 <p className="text-xs font-semibold text-foreground">3. STAR Gap Report</p>
@@ -150,10 +157,10 @@ export function MockInterviewLaunchpad({
               </div>
             </div>
           </div>
-        </div>
-      </div>
+        </BlueprintCardContent>
+      </BlueprintCard>
 
-      {/* 2. Curated Practice Tracks in Hairline Grid */}
+      {/* 2. Curated Practice Tracks in Hairline Cards */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <div>
@@ -162,47 +169,44 @@ export function MockInterviewLaunchpad({
           </div>
         </div>
 
-        <div className="relative border border-border bg-border">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-px bg-border">
-            {presets.map((preset, idx) => (
-              <div
-                key={idx}
-                className="bg-background p-4 sm:p-5 flex flex-col justify-between gap-4 transition-colors hover:bg-muted/10"
-              >
-                <div className="space-y-2.5">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="inline-flex items-center px-2 py-0.5 text-[10px] font-mono font-medium rounded-full bg-muted border border-border text-foreground">
-                      {preset.type}
-                    </span>
-                    <span className="text-[10px] font-mono text-muted-foreground tabular-nums">
-                      {preset.turns} Questions
-                    </span>
-                  </div>
-
-                  <div>
-                    <h4 className="text-sm font-semibold text-foreground leading-snug">{preset.title}</h4>
-                    <p className="text-xs text-muted-foreground mt-1 leading-relaxed line-clamp-2">
-                      {preset.description}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="pt-3 border-t border-border flex items-center justify-between">
-                  <span className="text-[11px] font-mono text-muted-foreground">
-                    {preset.tag}
-                  </span>
-                  <Button
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {presets.map((preset, idx) => (
+            <BlueprintCard key={idx} className="flex flex-col justify-between">
+              <BlueprintCardHeader className="pb-3 border-b border-border/60">
+                <div className="flex items-center justify-between gap-2 w-full">
+                  <StatusBadge
+                    status={preset.type === "Technical" ? "interviewing" : preset.type === "System Design" ? "staged" : "offer"}
+                    customLabel={preset.type}
                     size="sm"
-                    onClick={() => onStartPreset(preset)}
-                    className="text-xs h-7.5 px-3 font-medium cursor-pointer"
-                  >
-                    <span>Start Track</span>
-                    <ArrowRight className="size-3 ml-1" />
-                  </Button>
+                  />
+                  <span className="text-[10px] font-mono text-muted-foreground tabular-nums">
+                    {preset.turns} Questions
+                  </span>
                 </div>
-              </div>
-            ))}
-          </div>
+              </BlueprintCardHeader>
+
+              <BlueprintCardContent className="space-y-2 py-3">
+                <h4 className="text-sm font-semibold text-foreground leading-snug">{preset.title}</h4>
+                <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">
+                  {preset.description}
+                </p>
+              </BlueprintCardContent>
+
+              <BlueprintCardFooter className="pt-3 border-t border-border/60 flex items-center justify-between">
+                <span className="text-[11px] font-mono text-muted-foreground">
+                  {preset.tag}
+                </span>
+                <Button
+                  size="sm"
+                  onClick={() => onStartPreset(preset)}
+                  className="text-xs font-mono h-7.5 px-3 rounded-[4px] cursor-pointer bg-primary hover:bg-primary/90 text-primary-foreground gap-1"
+                >
+                  <span>Start Track</span>
+                  <ArrowRight className="size-3" />
+                </Button>
+              </BlueprintCardFooter>
+            </BlueprintCard>
+          ))}
         </div>
       </div>
     </div>

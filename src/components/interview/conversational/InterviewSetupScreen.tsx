@@ -117,7 +117,7 @@ export function InterviewSetupScreen({
             value={targetRole}
             onChange={(e) => setTargetRole(e.target.value)}
             placeholder="e.g. Senior Backend Engineer"
-            className="text-xs h-8 sm:h-9 bg-background"
+            className="text-xs h-8 sm:h-9 bg-background rounded-[4px]"
           />
         </div>
 
@@ -127,17 +127,17 @@ export function InterviewSetupScreen({
             value={targetCompany}
             onChange={(e) => setTargetCompany(e.target.value)}
             placeholder="e.g. Google, Stripe, Startup"
-            className="text-xs h-8 sm:h-9 bg-background"
+            className="text-xs h-8 sm:h-9 bg-background rounded-[4px]"
           />
         </div>
 
         <div className="space-y-1 sm:space-y-1.5">
           <Label className="text-xs font-medium text-foreground">Interview Focus Round</Label>
           <Select value={interviewType} onValueChange={setInterviewType}>
-            <SelectTrigger className="text-xs h-8 sm:h-9 bg-background">
+            <SelectTrigger className="text-xs h-8 sm:h-9 bg-background rounded-[4px]">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="rounded-[6px]">
               <SelectItem value="Technical">Technical & Architecture</SelectItem>
               <SelectItem value="System Design">System Design & Scaling</SelectItem>
               <SelectItem value="Behavioral">Behavioral (STAR Method)</SelectItem>
@@ -149,10 +149,10 @@ export function InterviewSetupScreen({
         <div className="space-y-1 sm:space-y-1.5">
           <Label className="text-xs font-medium text-foreground">Interview Language</Label>
           <Select value={language} onValueChange={(v) => setLanguage(v as InterviewLanguage)}>
-            <SelectTrigger className="text-xs h-8 sm:h-9 bg-background">
+            <SelectTrigger className="text-xs h-8 sm:h-9 bg-background rounded-[4px]">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="rounded-[6px]">
               <SelectItem value="mixed">Banglish / Bilingual (English + বাংলা)</SelectItem>
               <SelectItem value="bn">বাংলা (Pure Bengali)</SelectItem>
               <SelectItem value="en">English (International Tech Standard)</SelectItem>
@@ -181,17 +181,17 @@ export function InterviewSetupScreen({
                 type="button"
                 onClick={() => setTargetTurnCount(item.count)}
                 className={cn(
-                  "relative flex flex-col items-center justify-center p-3 rounded-xl border text-center transition-all cursor-pointer",
+                  "relative flex flex-col items-center justify-center p-3 rounded-[6px] border text-center transition-all cursor-pointer",
                   isSelected
-                    ? "border-primary bg-primary/15 ring-2 ring-primary text-foreground shadow-xs"
-                    : "border-border hover:border-border/80 bg-card/60 text-muted-foreground hover:bg-muted/30"
+                    ? "border-primary bg-primary/10 ring-1 ring-primary text-foreground shadow-2xs"
+                    : "border-border hover:border-border/80 bg-card text-muted-foreground hover:bg-muted/30"
                 )}
               >
                 {/* Active Indicator Badge */}
                 <div className="flex items-center gap-1.5 mb-1">
                   <div
                     className={cn(
-                      "size-4 rounded-full flex items-center justify-center transition-colors",
+                      "size-4 rounded-[4px] flex items-center justify-center transition-colors",
                       isSelected
                         ? "bg-primary text-primary-foreground"
                         : "border border-muted-foreground/30 bg-background"
@@ -225,10 +225,10 @@ export function InterviewSetupScreen({
                 type="button"
                 onClick={() => setInterviewerTone(t.id)}
                 className={cn(
-                  "flex flex-col text-left p-3 sm:p-3.5 rounded-xl border transition-all cursor-pointer",
+                  "flex flex-col text-left p-3 sm:p-3.5 rounded-[6px] border transition-all cursor-pointer",
                   isSelected
-                    ? "border-primary bg-primary/15 ring-2 ring-primary text-foreground shadow-xs"
-                    : "border-border hover:border-border/80 bg-card/60 text-muted-foreground hover:bg-muted/30"
+                    ? "border-primary bg-primary/10 ring-1 ring-primary text-foreground shadow-2xs"
+                    : "border-border hover:border-border/80 bg-card text-muted-foreground hover:bg-muted/30"
                 )}
               >
                 <div className="flex items-center justify-between gap-2 w-full">
@@ -237,7 +237,7 @@ export function InterviewSetupScreen({
                   </span>
                   <div
                     className={cn(
-                      "size-4 rounded-full flex items-center justify-center shrink-0 transition-colors",
+                      "size-4 rounded-[4px] flex items-center justify-center shrink-0 transition-colors",
                       isSelected
                         ? "bg-primary text-primary-foreground"
                         : "border border-muted-foreground/30 bg-background"
@@ -254,7 +254,7 @@ export function InterviewSetupScreen({
       </div>
 
       {/* Voice Profile & Cadence Tuning */}
-      <div className="rounded-xl border border-border bg-card/80 p-3.5 sm:p-4 space-y-3">
+      <div className="rounded-[6px] border border-border bg-card p-3.5 sm:p-4 space-y-3">
         <div className="flex items-center justify-between">
           <span className="text-xs font-semibold text-foreground">Interviewer Voice & Speech Tuning</span>
           <span className="text-[10px] text-muted-foreground">Natural Voice Synthesis</span>
@@ -270,7 +270,7 @@ export function InterviewSetupScreen({
                 variant={voiceGender === "female" ? "default" : "outline"}
                 size="sm"
                 onClick={() => setVoiceGender("female")}
-                className="text-xs h-8.5 justify-center font-medium cursor-pointer"
+                className="text-xs h-8.5 justify-center font-medium cursor-pointer rounded-[4px]"
               >
                 {voiceGender === "female" && <Check className="size-3 mr-1" />}
                 Female Voice
@@ -280,7 +280,7 @@ export function InterviewSetupScreen({
                 variant={voiceGender === "male" ? "default" : "outline"}
                 size="sm"
                 onClick={() => setVoiceGender("male")}
-                className="text-xs h-8.5 justify-center font-medium cursor-pointer"
+                className="text-xs h-8.5 justify-center font-medium cursor-pointer rounded-[4px]"
               >
                 {voiceGender === "male" && <Check className="size-3 mr-1" />}
                 Male Voice
@@ -301,16 +301,16 @@ export function InterviewSetupScreen({
               </button>
             </div>
             {language === "bn" || language === "mixed" ? (
-              <div className="text-[11px] font-medium text-foreground border border-border rounded-md p-2 bg-muted/40 flex items-center justify-between">
+              <div className="text-[11px] font-medium text-foreground border border-border rounded-[4px] p-2 bg-muted/40 flex items-center justify-between">
                 <span>Bengali Voice Engine</span>
-                <Badge variant="outline" className="text-[10px] h-4 font-normal bg-background">Active</Badge>
+                <Badge variant="outline" className="text-[10px] h-4 font-normal bg-background rounded-[4px]">Active</Badge>
               </div>
             ) : availableVoices.length > 0 ? (
               <Select value={selectedVoice} onValueChange={setSelectedVoice}>
-                <SelectTrigger className="text-xs h-8.5 bg-background">
+                <SelectTrigger className="text-xs h-8.5 bg-background rounded-[4px]">
                   <SelectValue placeholder="Auto-select best voice" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="rounded-[6px]">
                   {availableVoices
                     .filter((v) => v.lang.toLowerCase().startsWith("en") && isVoiceMatchingGender(v, voiceGender))
                     .map((v, i) => {
@@ -327,7 +327,7 @@ export function InterviewSetupScreen({
                 </SelectContent>
               </Select>
             ) : (
-              <div className="text-[11px] text-muted-foreground border rounded-md p-2 bg-background">
+              <div className="text-[11px] text-muted-foreground border rounded-[4px] p-2 bg-background">
                 Standard Natural Speech Engine
               </div>
             )}
@@ -347,7 +347,7 @@ export function InterviewSetupScreen({
             step="0.05"
             value={speechRate}
             onChange={(e) => setSpeechRate(parseFloat(e.target.value))}
-            className="w-full h-1.5 bg-muted rounded-lg appearance-none cursor-pointer accent-primary mt-1"
+            className="w-full h-1.5 bg-muted rounded-[4px] appearance-none cursor-pointer accent-primary mt-1"
           />
         </div>
 
@@ -362,7 +362,7 @@ export function InterviewSetupScreen({
             variant={autoTurnActive ? "default" : "outline"}
             size="sm"
             onClick={() => setAutoTurnActive(!autoTurnActive)}
-            className="text-xs h-7 px-3 font-medium cursor-pointer"
+            className="text-xs h-7 px-3 font-medium cursor-pointer rounded-[4px]"
           >
             {autoTurnActive && <Check className="size-3 mr-1" />}
             {autoTurnActive ? "Enabled" : "Manual Click"}
@@ -371,13 +371,13 @@ export function InterviewSetupScreen({
       </div>
 
       <div className="flex justify-end gap-2 pt-2 border-t border-border">
-        <Button variant="outline" size="sm" onClick={onClose} className="text-xs font-medium cursor-pointer">
+        <Button variant="outline" size="sm" onClick={onClose} className="text-xs font-medium cursor-pointer rounded-[4px]">
           Cancel
         </Button>
         <Button
           size="sm"
           onClick={onStartInterview}
-          className="text-xs bg-primary text-primary-foreground hover:bg-primary/90 font-medium px-5 cursor-pointer shadow-xs"
+          className="text-xs bg-primary text-primary-foreground hover:bg-primary/90 font-medium px-5 cursor-pointer shadow-xs rounded-[4px]"
         >
           Start Interview
         </Button>

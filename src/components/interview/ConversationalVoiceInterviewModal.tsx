@@ -870,7 +870,7 @@ export function ConversationalVoiceInterviewModal({
             setShowExitConfirm(true)
           }
         }}
-        className="w-[95vw] max-w-4xl max-h-[90vh] sm:max-h-[92vh] flex flex-col p-3 sm:p-6 overflow-hidden rounded-2xl sm:rounded-3xl relative"
+        className="w-[95vw] max-w-4xl max-h-[90vh] sm:max-h-[92vh] flex flex-col p-3 sm:p-6 overflow-hidden rounded-[8px] relative border-border bg-background text-foreground"
       >
         {/* SETUP SCREEN */}
         {step === "setup" && (
@@ -976,9 +976,9 @@ export function ConversationalVoiceInterviewModal({
         {/* ACTIVE INTERVIEW EXIT GUARD CONFIRMATION */}
         {showExitConfirm && (
           <div className="absolute inset-0 z-50 bg-background/95 backdrop-blur-xs flex items-center justify-center p-4 sm:p-6 animate-in fade-in-50 duration-200">
-            <div className="w-full max-w-md border border-border bg-card p-5 sm:p-6 rounded-2xl shadow-2xl space-y-4">
+            <div className="w-full max-w-md border border-border bg-card p-5 sm:p-6 rounded-[8px] shadow-2xl space-y-4">
               <div className="flex items-start gap-3">
-                <div className="h-10 w-10 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 mt-0.5">
+                <div className="h-10 w-10 rounded-[4px] bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 mt-0.5">
                   <AlertTriangle className="h-5 w-5" />
                 </div>
                 <div>
@@ -995,7 +995,7 @@ export function ConversationalVoiceInterviewModal({
                 <Button
                   variant="outline"
                   size="sm"
-                  className="text-xs h-9"
+                  className="text-xs h-8.5 rounded-[4px] cursor-pointer"
                   onClick={() => setShowExitConfirm(false)}
                 >
                   Continue Interview
@@ -1004,7 +1004,7 @@ export function ConversationalVoiceInterviewModal({
                   <Button
                     variant="secondary"
                     size="sm"
-                    className="text-xs h-9 gap-1.5"
+                    className="text-xs h-8.5 gap-1.5 rounded-[4px] cursor-pointer"
                     onClick={() => {
                       setShowExitConfirm(false)
                       handleEndInterview()
@@ -1017,7 +1017,7 @@ export function ConversationalVoiceInterviewModal({
                 <Button
                   variant="destructive"
                   size="sm"
-                  className="text-xs h-9"
+                  className="text-xs h-8.5 rounded-[4px] cursor-pointer"
                   onClick={() => {
                     setShowExitConfirm(false)
                     stopAllAudioAndMic()

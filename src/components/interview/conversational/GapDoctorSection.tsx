@@ -90,11 +90,11 @@ export function GapDoctorSection({
         </div>
 
         {/* Filter Pills */}
-        <div className="flex items-center gap-1.5 self-start sm:self-auto bg-muted/60 p-1 rounded-lg">
+        <div className="flex items-center gap-1.5 self-start sm:self-auto bg-muted/60 p-1 rounded-[4px]">
           <button
             type="button"
             onClick={() => setFilter("all")}
-            className={`text-xs px-2.5 py-1 rounded-md font-medium transition-colors cursor-pointer ${
+            className={`text-xs px-2.5 py-1 rounded-[4px] font-medium transition-colors cursor-pointer ${
               filter === "all"
                 ? "bg-background text-foreground shadow-xs"
                 : "text-muted-foreground hover:text-foreground"
@@ -105,7 +105,7 @@ export function GapDoctorSection({
           <button
             type="button"
             onClick={() => setFilter("technical")}
-            className={`text-xs px-2.5 py-1 rounded-md font-medium transition-colors cursor-pointer ${
+            className={`text-xs px-2.5 py-1 rounded-[4px] font-medium transition-colors cursor-pointer ${
               filter === "technical"
                 ? "bg-background text-foreground shadow-xs"
                 : "text-muted-foreground hover:text-foreground"
@@ -116,7 +116,7 @@ export function GapDoctorSection({
           <button
             type="button"
             onClick={() => setFilter("behavioral")}
-            className={`text-xs px-2.5 py-1 rounded-md font-medium transition-colors cursor-pointer ${
+            className={`text-xs px-2.5 py-1 rounded-[4px] font-medium transition-colors cursor-pointer ${
               filter === "behavioral"
                 ? "bg-background text-foreground shadow-xs"
                 : "text-muted-foreground hover:text-foreground"
@@ -136,7 +136,7 @@ export function GapDoctorSection({
           return (
             <div
               key={gap.id}
-              className="rounded-xl border border-border bg-card p-4 sm:p-5 space-y-3.5 transition-all"
+              className="rounded-[6px] border border-border bg-card p-4 sm:p-5 space-y-3.5 transition-all"
             >
               {/* Card Header */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -146,12 +146,12 @@ export function GapDoctorSection({
                   </span>
                   <Badge
                     variant="outline"
-                    className={`text-[10px] uppercase font-semibold px-2 py-0.5 border ${
+                    className={`text-[10px] uppercase font-semibold px-2 py-0.5 border rounded-[4px] ${
                       gap.severity === "high"
-                        ? "bg-red-500/10 text-red-500 border-red-500/20"
+                        ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20"
                         : gap.severity === "medium"
-                        ? "bg-amber-500/10 text-amber-500 border-amber-500/20"
-                        : "bg-blue-500/10 text-blue-500 border-blue-500/20"
+                        ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"
+                        : "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20"
                     }`}
                   >
                     {gap.severity} priority
@@ -167,7 +167,7 @@ export function GapDoctorSection({
                     variant="outline"
                     onClick={() => handleSaveGapNote(gap)}
                     disabled={isSaved}
-                    className="h-7 text-xs px-2.5 font-medium cursor-pointer"
+                    className="h-7 text-xs px-2.5 font-medium cursor-pointer rounded-[4px]"
                   >
                     {isSaved ? "Saved in Notes" : "Save to Notes"}
                   </Button>
@@ -182,7 +182,7 @@ export function GapDoctorSection({
                         setDrillAnswer("")
                       }
                     }}
-                    className="h-7 text-xs px-2.5 font-medium cursor-pointer"
+                    className="h-7 text-xs px-2.5 font-medium cursor-pointer rounded-[4px]"
                   >
                     {isDrilling ? "Close Practice" : "Practice Question"}
                   </Button>
@@ -190,7 +190,7 @@ export function GapDoctorSection({
               </div>
 
               {/* Question & Weakness Block */}
-              <div className="p-3 rounded-lg bg-muted/40 border border-border/60 space-y-2 text-xs">
+              <div className="p-3 rounded-[6px] bg-muted/40 border border-border/60 space-y-2 text-xs">
                 <div>
                   <span className="font-semibold text-foreground">Question Asked: </span>
                   <span className="text-muted-foreground">{gap.questionAsked}</span>
@@ -201,7 +201,7 @@ export function GapDoctorSection({
                     <span className="text-muted-foreground">{gap.candidateAnswerSummary}</span>
                   </div>
                 )}
-                <div className="pt-1 text-red-400 font-medium">
+                <div className="pt-1 text-rose-500 font-medium">
                   <span>Weakness / Missing Element: </span>
                   <span className="text-muted-foreground">{gap.weaknessReason}</span>
                 </div>
@@ -209,10 +209,10 @@ export function GapDoctorSection({
 
               {/* 10/10 Ideal Staff Answer */}
               <div className="space-y-2">
-                <div className="text-xs font-semibold text-emerald-400">
+                <div className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
                   10/10 Ideal Model Answer:
                 </div>
-                <div className="p-3.5 rounded-lg border border-emerald-500/20 bg-emerald-500/5 text-xs text-foreground leading-relaxed whitespace-pre-wrap">
+                <div className="p-3.5 rounded-[6px] border border-emerald-500/20 bg-emerald-500/5 text-xs text-foreground leading-relaxed whitespace-pre-wrap">
                   {gap.idealAnswer}
                 </div>
               </div>
@@ -224,20 +224,20 @@ export function GapDoctorSection({
                     Structured STAR Breakdown:
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
-                    <div className="p-2.5 rounded-lg border border-border bg-muted/30 space-y-1">
-                      <div className="text-[10px] uppercase font-bold text-muted-foreground">Situation</div>
+                    <div className="p-2.5 rounded-[6px] border border-border bg-muted/30 space-y-1">
+                      <div className="text-[10px] uppercase font-bold text-muted-foreground">[S] Situation</div>
                       <p className="text-xs text-foreground leading-snug">{gap.starBreakdown.situation || "Context setup"}</p>
                     </div>
-                    <div className="p-2.5 rounded-lg border border-border bg-muted/30 space-y-1">
-                      <div className="text-[10px] uppercase font-bold text-muted-foreground">Task</div>
+                    <div className="p-2.5 rounded-[6px] border border-border bg-muted/30 space-y-1">
+                      <div className="text-[10px] uppercase font-bold text-muted-foreground">[T] Task</div>
                       <p className="text-xs text-foreground leading-snug">{gap.starBreakdown.task || "Ownership goal"}</p>
                     </div>
-                    <div className="p-2.5 rounded-lg border border-border bg-muted/30 space-y-1">
-                      <div className="text-[10px] uppercase font-bold text-muted-foreground">Action</div>
+                    <div className="p-2.5 rounded-[6px] border border-border bg-muted/30 space-y-1">
+                      <div className="text-[10px] uppercase font-bold text-muted-foreground">[A] Action</div>
                       <p className="text-xs text-foreground leading-snug">{gap.starBreakdown.action || "Concrete actions taken"}</p>
                     </div>
-                    <div className="p-2.5 rounded-lg border border-border bg-muted/30 space-y-1">
-                      <div className="text-[10px] uppercase font-bold text-muted-foreground">Result</div>
+                    <div className="p-2.5 rounded-[6px] border border-border bg-muted/30 space-y-1">
+                      <div className="text-[10px] uppercase font-bold text-muted-foreground">[R] Result</div>
                       <p className="text-xs text-foreground leading-snug">{gap.starBreakdown.result || "Measurable metric impact"}</p>
                     </div>
                   </div>
@@ -260,7 +260,7 @@ export function GapDoctorSection({
 
               {/* Interactive Practice Drill Box */}
               {isDrilling && (
-                <div className="mt-3 p-3.5 rounded-xl border border-primary/30 bg-primary/5 space-y-3">
+                <div className="mt-3 p-3.5 rounded-[6px] border border-primary/30 bg-primary/5 space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-semibold text-foreground">
                       Practice Re-answering This Question
@@ -274,7 +274,7 @@ export function GapDoctorSection({
                     value={drillAnswer}
                     onChange={(e) => setDrillAnswer(e.target.value)}
                     rows={3}
-                    className="text-xs resize-none bg-background border-border"
+                    className="text-xs resize-none bg-background border-border rounded-[4px]"
                   />
                   <div className="flex items-center justify-end gap-2">
                     <Button
@@ -288,7 +288,7 @@ export function GapDoctorSection({
                         setActiveDrillId(null)
                         setDrillAnswer("")
                       }}
-                      className="h-8 text-xs font-medium cursor-pointer"
+                      className="h-8 text-xs font-medium cursor-pointer rounded-[4px]"
                     >
                       Complete Drill
                     </Button>

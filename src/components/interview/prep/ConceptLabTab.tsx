@@ -208,11 +208,11 @@ export function ConceptLabTab({ onSaveAsNote }: ConceptLabTabProps) {
 
   return (
     <div className="space-y-6">
-      {/* 1. Interactive Ask Tutor Bar in Efferd Container */}
-      <div className="border border-border bg-card p-4 sm:p-5 rounded-lg space-y-4 shadow-2xs">
+      {/* 1. Interactive Ask Tutor Bar in Stripe Container */}
+      <div className="border border-border bg-card p-4 sm:p-5 rounded-[6px] space-y-4 shadow-2xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border">
           <div className="flex items-center gap-2.5">
-            <div className="flex size-7 items-center justify-center rounded-md bg-muted text-foreground border border-border shrink-0">
+            <div className="flex size-7 items-center justify-center rounded-[4px] bg-muted text-foreground border border-border shrink-0">
               <Bot className="size-4" />
             </div>
             <div>
@@ -227,10 +227,10 @@ export function ConceptLabTab({ onSaveAsNote }: ConceptLabTabProps) {
 
           <div className="flex items-center gap-2">
             <Select value={studyLang} onValueChange={(v: "mixed" | "bn" | "en") => setStudyLang(v)}>
-              <SelectTrigger className="h-8 w-32 text-xs border-border bg-background">
+              <SelectTrigger className="h-8 w-32 text-xs border-border bg-background rounded-[4px]">
                 <SelectValue placeholder="Language" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="rounded-[6px]">
                 <SelectItem value="mixed">Banglish (Default)</SelectItem>
                 <SelectItem value="en">Pure English</SelectItem>
                 <SelectItem value="bn">বাংলা (Bengali)</SelectItem>
@@ -242,7 +242,7 @@ export function ConceptLabTab({ onSaveAsNote }: ConceptLabTabProps) {
                 variant="outline"
                 size="sm"
                 onClick={() => setStudyHistory([])}
-                className="h-8 text-xs font-mono border-border hover:bg-muted cursor-pointer"
+                className="h-8 text-xs font-mono border-border hover:bg-muted cursor-pointer rounded-[4px]"
                 title="Clear discussion"
               >
                 <RotateCcw className="size-3 mr-1" />
@@ -266,7 +266,7 @@ export function ConceptLabTab({ onSaveAsNote }: ConceptLabTabProps) {
                   handleAskStudy()
                 }
               }}
-              className="pl-9 h-9 text-xs bg-muted/20 border-border focus-visible:ring-1"
+              className="pl-9 h-9 text-xs bg-muted/20 border-border focus-visible:ring-1 rounded-[4px]"
             />
           </div>
 
@@ -276,7 +276,7 @@ export function ConceptLabTab({ onSaveAsNote }: ConceptLabTabProps) {
             size="icon"
             onClick={handleSpeechRecognition}
             className={cn(
-              "h-9 w-9 shrink-0 cursor-pointer border-border",
+              "h-9 w-9 shrink-0 cursor-pointer border-border rounded-[4px]",
               isListeningMic && "bg-destructive/10 text-destructive border-destructive/30 animate-pulse"
             )}
             title="Speak Question"
@@ -288,7 +288,7 @@ export function ConceptLabTab({ onSaveAsNote }: ConceptLabTabProps) {
             onClick={() => handleAskStudy()}
             disabled={isAskingStudy || !studyQuestion.trim()}
             size="sm"
-            className="h-9 px-4 text-xs font-medium shrink-0 cursor-pointer shadow-xs"
+            className="h-9 px-4 text-xs font-medium shrink-0 cursor-pointer shadow-xs rounded-[4px]"
           >
             <ArrowRight className="size-3.5 mr-1.5" />
             <span>{isAskingStudy ? "Analyzing..." : "Ask Lab"}</span>
@@ -302,7 +302,7 @@ export function ConceptLabTab({ onSaveAsNote }: ConceptLabTabProps) {
               key={cat}
               onClick={() => setSelectedTopic(cat)}
               className={cn(
-                "px-2.5 py-1 rounded-md text-xs font-medium transition-colors whitespace-nowrap cursor-pointer",
+                "px-2.5 py-1 rounded-[4px] text-xs font-medium transition-colors whitespace-nowrap cursor-pointer",
                 selectedTopic === cat
                   ? "bg-foreground text-background font-semibold"
                   : "bg-muted/50 text-muted-foreground hover:text-foreground hover:bg-muted border border-border"
@@ -328,7 +328,7 @@ export function ConceptLabTab({ onSaveAsNote }: ConceptLabTabProps) {
               <div
                 key={idx}
                 className={cn(
-                  "p-4 sm:p-5 rounded-lg border",
+                  "p-4 sm:p-5 rounded-[6px] border",
                   msg.role === "user"
                     ? "bg-muted/30 border-border"
                     : "bg-card border-border shadow-2xs"
@@ -350,7 +350,7 @@ export function ConceptLabTab({ onSaveAsNote }: ConceptLabTabProps) {
                         variant="ghost"
                         size="icon"
                         onClick={() => toggleAudioSynthesis(msg.content)}
-                        className="h-7 w-7 text-muted-foreground hover:text-foreground cursor-pointer"
+                        className="h-7 w-7 text-muted-foreground hover:text-foreground cursor-pointer rounded-[4px]"
                         title="Read Aloud"
                       >
                         {activeSpeakingText === msg.content ? (
@@ -369,7 +369,7 @@ export function ConceptLabTab({ onSaveAsNote }: ConceptLabTabProps) {
                             msg.topic || "Technical"
                           )
                         }
-                        className="h-7 text-xs px-2.5 border-border cursor-pointer font-mono"
+                        className="h-7 text-xs px-2.5 border-border cursor-pointer font-mono rounded-[4px]"
                       >
                         <BookmarkPlus className="size-3 mr-1" />
                         Save Note
@@ -396,7 +396,7 @@ export function ConceptLabTab({ onSaveAsNote }: ConceptLabTabProps) {
           </div>
         </div>
 
-        <div className="relative border border-border bg-border">
+        <div className="relative border border-border bg-border rounded-[6px] overflow-hidden">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-px bg-border">
             {filteredCurated.map((q, idx) => (
               <div
@@ -406,7 +406,7 @@ export function ConceptLabTab({ onSaveAsNote }: ConceptLabTabProps) {
               >
                 <div className="space-y-2">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="inline-flex items-center px-2 py-0.5 text-[10px] font-mono font-medium rounded-full bg-muted border border-border text-foreground">
+                    <span className="inline-flex items-center px-2 py-0.5 text-[10px] font-mono font-medium rounded-[4px] bg-muted border border-border text-foreground">
                       {q.tag}
                     </span>
                     <span className="text-[10px] font-mono text-muted-foreground">

@@ -30,6 +30,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
+import { EmptyState } from "@/components/primitives"
 import { InterviewSessionItem } from "./types"
 import { GapDoctorSection } from "../conversational/GapDoctorSection"
 import {
@@ -116,7 +117,7 @@ export function MockTranscriptsTab({
             <h2 className="text-sm sm:text-base font-semibold text-foreground">
               Interview History & Longitudinal Mastery
             </h2>
-            <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+            <span className="text-[11px] font-mono px-2 py-0.5 rounded-[4px] bg-primary/10 text-primary border border-primary/20">
               {sessions.length} Recorded
             </span>
           </div>
@@ -126,13 +127,13 @@ export function MockTranscriptsTab({
         </div>
 
         {sessions.length > 0 && (
-          <div className="flex items-center gap-1.5 p-1 bg-muted/40 border border-border rounded-lg self-start sm:self-auto">
+          <div className="flex items-center gap-1.5 p-1 bg-muted/40 border border-border rounded-[6px] self-start sm:self-auto">
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setActiveSubView("overview")}
               className={cn(
-                "h-7 text-xs px-2.5 cursor-pointer font-medium",
+                "h-7 text-xs px-2.5 rounded-[4px] cursor-pointer font-medium",
                 activeSubView === "overview" && "bg-background text-foreground shadow-xs"
               )}
             >
@@ -144,7 +145,7 @@ export function MockTranscriptsTab({
               size="sm"
               onClick={() => setActiveSubView("transcripts")}
               className={cn(
-                "h-7 text-xs px-2.5 cursor-pointer font-medium",
+                "h-7 text-xs px-2.5 rounded-[4px] cursor-pointer font-medium",
                 activeSubView === "transcripts" && "bg-background text-foreground shadow-xs"
               )}
             >
@@ -156,7 +157,7 @@ export function MockTranscriptsTab({
               size="sm"
               onClick={() => setActiveSubView("weaknesses")}
               className={cn(
-                "h-7 text-xs px-2.5 cursor-pointer font-medium",
+                "h-7 text-xs px-2.5 rounded-[4px] cursor-pointer font-medium",
                 activeSubView === "weaknesses" && "bg-background text-foreground shadow-xs"
               )}
             >
@@ -168,39 +169,32 @@ export function MockTranscriptsTab({
       </div>
 
       {loading ? (
-        <div className="relative border border-border bg-border">
+        <div className="relative border border-border bg-border rounded-[6px] overflow-hidden">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-px bg-border">
             {[1, 2, 3, 4].map((i) => (
               <div key={i} className="p-5 bg-background space-y-3">
-                <Skeleton className="h-4 w-32 rounded-sm" />
-                <Skeleton className="h-3.5 w-48 rounded-sm" />
-                <Skeleton className="h-3 w-24 rounded-sm" />
+                <Skeleton className="h-4 w-32 rounded-[4px]" />
+                <Skeleton className="h-3.5 w-48 rounded-[4px]" />
+                <Skeleton className="h-3 w-24 rounded-[4px]" />
               </div>
             ))}
           </div>
         </div>
       ) : sessions.length === 0 ? (
-        <div className="p-12 text-center border border-dashed border-border rounded-lg bg-card/40 space-y-3">
-          <History className="size-8 text-muted-foreground mx-auto" />
-          <div className="space-y-1">
-            <p className="text-sm font-semibold text-foreground">No Mock Sessions Recorded Yet</p>
-            <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-              Take a live spoken mock interview to unlock longitudinal score progression, company difficulty benchmarks, and targeted weakness diagnosis.
-            </p>
-          </div>
-          <Button
-            onClick={onStartMockInterview}
-            size="sm"
-            className="text-xs h-8 px-4 font-medium cursor-pointer mt-2"
-          >
-            <Mic className="size-3.5 mr-1.5" />
-            Start First Mock Interview
-          </Button>
-        </div>
+        <EmptyState
+          icon={History}
+          title="No Mock Sessions Recorded Yet"
+          description="Take a live spoken mock interview to unlock longitudinal score progression, company difficulty benchmarks, and targeted weakness diagnosis."
+          action={{
+            label: "Start First Mock Interview",
+            onClick: onStartMockInterview,
+            icon: Mic,
+          }}
+        />
       ) : (
         <>
           {/* 2. Longitudinal Executive Metric Strip */}
-          <div className="relative border border-border bg-border">
+          <div className="relative border border-border bg-border rounded-[6px] overflow-hidden">
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-border">
               {/* Avg Readiness Score */}
               <div className="p-4 sm:p-5 bg-background space-y-1.5">
@@ -271,7 +265,7 @@ export function MockTranscriptsTab({
                 <div className="flex items-center gap-2 pt-0.5">
                   <span
                     className={cn(
-                      "inline-flex items-center px-2 py-0.5 text-xs font-mono font-medium rounded-full border",
+                      "inline-flex items-center px-2 py-0.5 text-xs font-mono font-medium rounded-[4px] border",
                       getReadinessBadgeStyle(analytics.companyTierBenchmarks["Tier 1 (Big Tech)"].readiness)
                     )}
                   >
@@ -291,7 +285,7 @@ export function MockTranscriptsTab({
               {/* Benchmarking Grid: Left = Company Tiers, Right = Round Archetypes */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Panel 1: Company Difficulty Tiers */}
-                <div className="border border-border rounded-lg p-5 bg-card space-y-4">
+                <div className="border border-border rounded-[6px] p-5 bg-card space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
                       <h3 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
@@ -321,13 +315,13 @@ export function MockTranscriptsTab({
                       return (
                         <div
                           key={tierData.tier}
-                          className="p-3.5 rounded-md border border-border bg-background/60 space-y-2.5"
+                          className="p-3.5 rounded-[6px] border border-border bg-background/60 space-y-2.5"
                         >
                           <div className="flex items-center justify-between gap-2">
                             <div className="flex items-center gap-2">
                               <span
                                 className={cn(
-                                  "inline-flex items-center px-2 py-0.5 text-[10px] font-mono font-medium rounded-full border",
+                                  "inline-flex items-center px-2 py-0.5 text-[10px] font-mono font-medium rounded-[4px] border",
                                   getTierBadgeStyle(tierData.tier)
                                 )}
                               >
@@ -340,7 +334,7 @@ export function MockTranscriptsTab({
 
                             <span
                               className={cn(
-                                "inline-flex items-center px-2 py-0.5 text-[10px] font-mono font-medium rounded-full border",
+                                "inline-flex items-center px-2 py-0.5 text-[10px] font-mono font-medium rounded-[4px] border",
                                 getReadinessBadgeStyle(tierData.readiness)
                               )}
                             >
@@ -388,7 +382,7 @@ export function MockTranscriptsTab({
                               {tierData.companies.map((c) => (
                                 <span
                                   key={c}
-                                  className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-muted border border-border text-foreground"
+                                  className="text-[10px] font-mono px-1.5 py-0.5 rounded-[4px] bg-muted border border-border text-foreground"
                                 >
                                   {c}
                                 </span>
@@ -402,7 +396,7 @@ export function MockTranscriptsTab({
                 </div>
 
                 {/* Panel 2: Round Archetype Mastery */}
-                <div className="border border-border rounded-lg p-5 bg-card space-y-4">
+                <div className="border border-border rounded-[6px] p-5 bg-card space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
                       <h3 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
@@ -427,7 +421,7 @@ export function MockTranscriptsTab({
                         return (
                           <div
                             key={arch.roundType}
-                            className="p-3.5 rounded-md border border-border bg-background/60 space-y-2"
+                            className="p-3.5 rounded-[6px] border border-border bg-background/60 space-y-2"
                           >
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-2">
@@ -441,7 +435,7 @@ export function MockTranscriptsTab({
 
                               <span
                                 className={cn(
-                                  "inline-flex items-center px-2 py-0.5 text-[10px] font-mono font-medium rounded-full border",
+                                  "inline-flex items-center px-2 py-0.5 text-[10px] font-mono font-medium rounded-[4px] border",
                                   getProficiencyBadgeStyle(arch.status)
                                 )}
                               >
@@ -484,7 +478,7 @@ export function MockTranscriptsTab({
 
               {/* Panel 3: Chronological Score Trajectory Timeline */}
               {analytics.scoreProgression.length > 0 && (
-                <div className="border border-border rounded-lg p-5 bg-card space-y-3">
+                <div className="border border-border rounded-[6px] p-5 bg-card space-y-3">
                   <div className="flex items-center justify-between">
                     <div>
                       <h3 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
@@ -501,13 +495,13 @@ export function MockTranscriptsTab({
                     {analytics.scoreProgression.map((p, idx) => (
                       <div
                         key={p.id}
-                        className="p-3 rounded-md border border-border bg-background space-y-2 hover:bg-muted/10 transition-colors"
+                        className="p-3 rounded-[6px] border border-border bg-background space-y-2 hover:bg-muted/10 transition-colors"
                       >
                         <div className="flex items-center justify-between text-[10px] font-mono text-muted-foreground">
                           <span>#{idx + 1} • {new Date(p.date).toLocaleDateString()}</span>
                           <span
                             className={cn(
-                              "px-1.5 py-0.5 rounded border text-[10px] font-semibold font-mono",
+                              "px-1.5 py-0.5 rounded-[4px] border text-[10px] font-semibold font-mono",
                               getScoreBadgeColor(p.score)
                             )}
                           >
@@ -542,7 +536,7 @@ export function MockTranscriptsTab({
           {/* 4. Sub-View: Recurring Weakness Radar */}
           {activeSubView === "weaknesses" && (
             <div className="space-y-4">
-              <div className="border border-border rounded-lg p-5 bg-card space-y-4">
+              <div className="border border-border rounded-[6px] p-5 bg-card space-y-4">
                 <div>
                   <h3 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
                     <BrainCircuit className="size-4 text-primary" />
@@ -554,7 +548,7 @@ export function MockTranscriptsTab({
                 </div>
 
                 {analytics.recurringWeaknesses.length === 0 ? (
-                  <div className="p-8 text-center border border-dashed border-border rounded-md space-y-2">
+                  <div className="p-8 text-center border border-dashed border-border rounded-[6px] space-y-2">
                     <CheckCircle2 className="size-6 text-emerald-500 mx-auto" />
                     <p className="text-xs font-semibold text-foreground">Zero Recurring Weaknesses Flagged</p>
                     <p className="text-[11px] text-muted-foreground max-w-sm mx-auto">
@@ -566,13 +560,13 @@ export function MockTranscriptsTab({
                     {analytics.recurringWeaknesses.map((w) => (
                       <div
                         key={w.topic}
-                        className="p-4 rounded-md border border-border bg-background space-y-2.5"
+                        className="p-4 rounded-[6px] border border-border bg-background space-y-2.5"
                       >
                         <div className="flex items-center justify-between gap-2">
                           <span className="text-xs font-semibold text-foreground">
                             {w.topic}
                           </span>
-                          <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/25 font-medium">
+                          <span className="text-[10px] font-mono px-2 py-0.5 rounded-[4px] bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/25 font-medium">
                             Flagged {w.occurrences}x
                           </span>
                         </div>
@@ -598,7 +592,7 @@ export function MockTranscriptsTab({
                             {w.companies.map((c) => (
                               <span
                                 key={c}
-                                className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-muted border border-border text-foreground"
+                                className="text-[10px] font-mono px-1.5 py-0.5 rounded-[4px] bg-muted border border-border text-foreground"
                               >
                                 {c}
                               </span>
@@ -615,7 +609,7 @@ export function MockTranscriptsTab({
 
           {/* 5. Sub-View: Full Transcripts List */}
           {activeSubView === "transcripts" && (
-            <div className="relative border border-border bg-border">
+            <div className="relative border border-border bg-border rounded-[6px] overflow-hidden">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-px bg-border">
                 {sessions.map((session) => {
                   const tier = classifyCompanyTier(session.targetCompany)
@@ -631,12 +625,12 @@ export function MockTranscriptsTab({
                       <div className="space-y-2">
                         <div className="flex items-center justify-between gap-2 flex-wrap">
                           <div className="flex items-center gap-1.5">
-                            <span className="inline-flex items-center px-2 py-0.5 text-[10px] font-mono font-medium rounded-full bg-muted border border-border text-foreground">
+                            <span className="inline-flex items-center px-2 py-0.5 text-[10px] font-mono font-medium rounded-[4px] bg-muted border border-border text-foreground">
                               {session.interviewType} Round
                             </span>
                             <span
                               className={cn(
-                                "inline-flex items-center px-1.5 py-0.5 text-[10px] font-mono font-medium rounded border",
+                                "inline-flex items-center px-1.5 py-0.5 text-[10px] font-mono font-medium rounded-[4px] border",
                                 getTierBadgeStyle(tier.tier)
                               )}
                             >
@@ -648,7 +642,7 @@ export function MockTranscriptsTab({
                             {score !== null && (
                               <span
                                 className={cn(
-                                  "px-2 py-0.5 text-[10px] font-mono font-bold rounded border",
+                                  "px-2 py-0.5 text-[10px] font-mono font-bold rounded-[4px] border",
                                   getScoreBadgeColor(score)
                                 )}
                               >
@@ -681,7 +675,7 @@ export function MockTranscriptsTab({
                               setSelectedSession(session)
                               setSessionModalOpen(true)
                             }}
-                            className="h-7 text-xs px-2.5 border-border cursor-pointer font-medium"
+                            className="h-7 text-xs px-2.5 rounded-[4px] border-border cursor-pointer font-medium"
                           >
                             <span>Review Debrief</span>
                             <ChevronRight className="size-3 ml-1" />
@@ -692,7 +686,7 @@ export function MockTranscriptsTab({
                           variant="ghost"
                           size="icon"
                           onClick={() => onDeleteSession(session.id)}
-                          className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md cursor-pointer opacity-80 group-hover:opacity-100"
+                          className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-[4px] cursor-pointer opacity-80 group-hover:opacity-100"
                           title="Remove Session"
                         >
                           <Trash2 className="size-3.5" />
@@ -710,10 +704,10 @@ export function MockTranscriptsTab({
       {/* Dual Conversational Transcript & Gap Analysis Modal */}
       {selectedSession && (
         <Dialog open={sessionModalOpen} onOpenChange={setSessionModalOpen}>
-          <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto bg-background border-border text-foreground p-4 sm:p-6">
+          <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto bg-background border-border text-foreground p-4 sm:p-6 rounded-[8px]">
             <DialogHeader className="pb-3 border-b border-border space-y-1">
               <div className="flex items-center gap-2">
-                <span className="inline-flex items-center px-2 py-0.5 text-[10px] font-mono font-medium rounded-full bg-muted border border-border text-foreground">
+                <span className="inline-flex items-center px-2 py-0.5 text-[10px] font-mono font-medium rounded-[4px] bg-muted border border-border text-foreground">
                   {selectedSession.interviewType}
                 </span>
                 <span className="text-xs font-mono text-muted-foreground">
@@ -731,7 +725,7 @@ export function MockTranscriptsTab({
             <div className="space-y-5 pt-2">
               {/* STAR Gap Analysis Section */}
               {selectedSession.report?.knowledgeGaps && selectedSession.report.knowledgeGaps.length > 0 && (
-                <div className="p-4 rounded-lg border border-border bg-muted/20 space-y-3">
+                <div className="p-4 rounded-[6px] border border-border bg-muted/20 space-y-3">
                   <h4 className="text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground">
                     Performance Evaluation & Knowledge Gaps
                   </h4>
@@ -786,10 +780,10 @@ export function MockTranscriptsTab({
                           {/* Dual Chat Bubble */}
                           <div
                             className={cn(
-                              "rounded-2xl px-3.5 py-2.5 text-xs sm:text-[13px] leading-relaxed max-w-[90%] sm:max-w-[82%] whitespace-pre-wrap",
+                              "rounded-[6px] px-3.5 py-2.5 text-xs sm:text-[13px] leading-relaxed max-w-[90%] sm:max-w-[82%] whitespace-pre-wrap",
                               isUser
-                                ? "bg-primary/10 border border-primary/25 text-foreground rounded-tr-xs"
-                                : "bg-card border border-border text-foreground rounded-tl-xs shadow-2xs"
+                                ? "bg-primary/10 border border-primary/25 text-foreground"
+                                : "bg-card border border-border text-foreground shadow-xs"
                             )}
                           >
                             {msg.text}
@@ -809,7 +803,7 @@ export function MockTranscriptsTab({
                 variant="outline"
                 size="sm"
                 onClick={() => setSessionModalOpen(false)}
-                className="h-8 text-xs cursor-pointer"
+                className="h-8 text-xs rounded-[4px] cursor-pointer"
               >
                 Close
               </Button>
