@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Check, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { BlueprintCard } from "@/components/primitives/BlueprintCard";
 
 export type TaskItem = {
   id: string;
@@ -105,43 +106,43 @@ export function TodayTasksCard({ tasks, isLoading }: TodayTasksCardProps) {
 
   if (isLoading) {
     return (
-      <div className="rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-5 shadow-2xs animate-pulse">
-        <div className="h-5 w-32 bg-slate-100 dark:bg-slate-800 rounded mb-4" />
+      <BlueprintCard className="p-4 sm:p-5 animate-pulse">
+        <div className="h-5 w-32 bg-muted rounded-sm mb-4" />
         <div className="space-y-2.5">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-10 bg-slate-50 dark:bg-slate-800/50 rounded-lg" />
+            <div key={i} className="h-10 bg-muted/50 rounded-sm" />
           ))}
         </div>
-      </div>
+      </BlueprintCard>
     );
   }
 
   return (
-    <div className="rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-5 shadow-2xs hover:border-slate-300 dark:hover:border-slate-700 transition-all">
+    <BlueprintCard className="p-4 sm:p-5">
       {/* Header */}
       <div className="flex items-center gap-2 pb-1">
-        <h2 className="text-[15px] font-bold text-slate-900 dark:text-white">
+        <h2 className="text-sm sm:text-base font-semibold tracking-tight text-foreground">
           Today&apos;s Tasks
         </h2>
-        <span className="flex size-5 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+        <span className="flex size-5 items-center justify-center rounded-sm bg-muted text-[11px] font-medium text-foreground tabular-nums">
           {taskList.length}
         </span>
       </div>
 
       {/* Task List */}
-      <div className="mt-2.5 space-y-3">
+      <div className="mt-2.5 space-y-2.5">
         {taskList.map((task) => (
           <div
             key={task.id}
-            className="flex items-start gap-3 py-0.5 group cursor-pointer"
+            className="flex items-start gap-2.5 py-0.5 group cursor-pointer"
             onClick={() => toggleTask(task.id)}
           >
             <div
               className={cn(
-                "mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-md border transition-colors",
+                "mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-xs border transition-colors",
                 task.completed
                   ? "border-emerald-600 bg-emerald-600 text-white"
-                  : "border-slate-300 dark:border-slate-600 hover:border-slate-400 bg-white dark:bg-slate-900"
+                  : "border-border hover:border-foreground/40 bg-card"
               )}
             >
               {task.completed && <Check className="size-3 stroke-[2.5] text-white" />}
@@ -152,13 +153,13 @@ export function TodayTasksCard({ tasks, isLoading }: TodayTasksCardProps) {
                 className={cn(
                   "text-xs leading-snug transition-colors",
                   task.completed
-                    ? "font-medium text-slate-600 dark:text-slate-400 line-through"
-                    : "font-semibold text-slate-900 dark:text-white group-hover:text-blue-600"
+                    ? "font-normal text-muted-foreground line-through"
+                    : "font-medium text-foreground group-hover:text-primary"
                 )}
               >
                 {task.title}
               </p>
-              <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5 font-normal">
+              <p className="text-[11px] text-muted-foreground/75 mt-0.5 font-normal">
                 {task.subtitle}
               </p>
             </div>
@@ -166,16 +167,16 @@ export function TodayTasksCard({ tasks, isLoading }: TodayTasksCardProps) {
         ))}
       </div>
 
-      {/* Bottom right: View all tasks link */}
-      <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800/80 flex justify-end">
+      {/* Bottom right link */}
+      <div className="mt-3.5 pt-2.5 border-t border-border/50 flex justify-end">
         <Link
           href="/weekly-goals"
-          className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1 group"
+          className="text-xs font-medium text-primary hover:underline inline-flex items-center gap-1 group"
         >
           <span>View all tasks</span>
           <ArrowRight className="size-3 transition-transform group-hover:translate-x-0.5" />
         </Link>
       </div>
-    </div>
+    </BlueprintCard>
   );
 }

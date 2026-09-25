@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { DashboardCard } from "@/components/dashboard-card"
 import { DecorIcon } from "@/components/decor-icon"
+import { PageContainer, PageHeader, KPIStrip } from "@/components/primitives"
 import { toast } from "sonner"
 
 interface WeeklyGoal {
@@ -159,153 +160,123 @@ export default function WeeklyGoalsPage() {
     : 0
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-12 w-full min-w-0 max-w-full overflow-x-hidden">
+    <PageContainer>
       {/* 1. Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Weekly Goals & Targets</h1>
-          <p className="text-sm font-medium text-muted-foreground mt-0.5">
-            Track your weekly application velocity, mock interviews, and milestone pace
-          </p>
-        </div>
+      <PageHeader
+        overline="Goal Architecture"
+        title="Weekly Goals & Targets"
+        description="Track your weekly application velocity, mock interviews, and milestone pace"
+        primaryAction={
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm" className="h-8 sm:h-9 rounded-sm font-medium text-xs cursor-pointer shadow-none px-3.5 bg-primary hover:bg-primary/90 text-primary-foreground">
+                <Plus className="h-3.5 w-3.5 mr-1.5" /> Set / Edit Goals
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-md bg-card border-border text-foreground rounded-[8px]">
+              <DialogHeader>
+                <DialogTitle className="text-base font-bold text-foreground">Configure Weekly Goals</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleSaveGoals} className="space-y-4 pt-2">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-foreground">Primary Metric Goal</Label>
+                  <Input
+                    value={formGoal1}
+                    onChange={(e) => setFormGoal1(e.target.value)}
+                    placeholder="e.g. Apply to 15 targeted companies"
+                    className="bg-background border-border text-xs h-9 rounded-sm"
+                    required
+                  />
+                </div>
 
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button size="sm" className="h-9 rounded-md font-semibold text-sm cursor-pointer shadow-xs px-4">
-              <Plus className="h-4 w-4 mr-1.5" /> Set / Edit Goals
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-md bg-background border-border text-foreground">
-            <DialogHeader>
-              <DialogTitle className="text-base font-bold text-foreground">Configure Weekly Goals</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSaveGoals} className="space-y-4 pt-2">
-              <div className="space-y-1.5">
-                <Label className="text-sm font-medium text-foreground">Primary Metric Goal</Label>
-                <Input
-                  value={formGoal1}
-                  onChange={(e) => setFormGoal1(e.target.value)}
-                  placeholder="e.g. Apply to 15 targeted companies"
-                  className="bg-background border-border text-sm h-10 rounded-md"
-                  required
-                />
-              </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-foreground">Numeric Target (Applications / Tasks)</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    max="100"
+                    value={formGoal1Target}
+                    onChange={(e) => setFormGoal1Target(Number(e.target.value))}
+                    className="bg-background border-border text-xs h-9 rounded-sm"
+                  />
+                </div>
 
-              <div className="space-y-1.5">
-                <Label className="text-sm font-medium text-foreground">Numeric Target (Applications / Tasks)</Label>
-                <Input
-                  type="number"
-                  min="1"
-                  max="100"
-                  value={formGoal1Target}
-                  onChange={(e) => setFormGoal1Target(Number(e.target.value))}
-                  className="bg-background border-border text-sm h-10 rounded-md"
-                />
-              </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-foreground">Secondary Milestone Goal</Label>
+                  <Input
+                    value={formGoal2}
+                    onChange={(e) => setFormGoal2(e.target.value)}
+                    placeholder="e.g. Complete 2 mock interview sessions"
+                    className="bg-background border-border text-xs h-9 rounded-sm"
+                  />
+                </div>
 
-              <div className="space-y-1.5">
-                <Label className="text-sm font-medium text-foreground">Secondary Milestone Goal</Label>
-                <Input
-                  value={formGoal2}
-                  onChange={(e) => setFormGoal2(e.target.value)}
-                  placeholder="e.g. Complete 2 mock interview sessions"
-                  className="bg-background border-border text-sm h-10 rounded-md"
-                />
-              </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-foreground">Tertiary Focus Goal</Label>
+                  <Input
+                    value={formGoal3}
+                    onChange={(e) => setFormGoal3(e.target.value)}
+                    placeholder="e.g. Tailor resume and portfolio"
+                    className="bg-background border-border text-xs h-9 rounded-sm"
+                  />
+                </div>
 
-              <div className="space-y-1.5">
-                <Label className="text-sm font-medium text-foreground">Tertiary Focus Goal</Label>
-                <Input
-                  value={formGoal3}
-                  onChange={(e) => setFormGoal3(e.target.value)}
-                  placeholder="e.g. Tailor resume and portfolio"
-                  className="bg-background border-border text-sm h-10 rounded-md"
-                />
-              </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-foreground">Active Blockers / Challenges</Label>
+                  <Input
+                    value={formBlockers}
+                    onChange={(e) => setFormBlockers(e.target.value)}
+                    placeholder="e.g. Waiting for recruiter response"
+                    className="bg-background border-border text-xs h-9 rounded-sm"
+                  />
+                </div>
 
-              <div className="space-y-1.5">
-                <Label className="text-sm font-medium text-foreground">Active Blockers / Challenges</Label>
-                <Input
-                  value={formBlockers}
-                  onChange={(e) => setFormBlockers(e.target.value)}
-                  placeholder="e.g. Waiting for recruiter response"
-                  className="bg-background border-border text-sm h-10 rounded-md"
-                />
-              </div>
+                <div className="pt-2 flex justify-end gap-2">
+                  <Button type="button" variant="outline" size="sm" onClick={() => setDialogOpen(false)} className="h-8 px-3 rounded-sm text-xs">
+                    Cancel
+                  </Button>
+                  <Button type="submit" size="sm" disabled={saving} className="h-8 px-4 rounded-sm text-xs font-medium bg-primary hover:bg-primary/90 text-primary-foreground shadow-none">
+                    {saving ? "Saving..." : "Save Targets"}
+                  </Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
+        }
+      />
 
-              <div className="pt-2 flex justify-end gap-2">
-                <Button type="button" variant="outline" size="sm" onClick={() => setDialogOpen(false)} className="h-9 px-4 rounded-md text-sm">
-                  Cancel
-                </Button>
-                <Button type="submit" size="sm" disabled={saving} className="h-9 px-5 rounded-md text-sm font-semibold">
-                  {saving ? "Saving..." : "Save Targets"}
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
-      </div>
-
-      {/* 2. Top Efferd 4-Stat Metric Grid */}
-      <div className="relative border border-border bg-border">
-        <DecorIcon className="hidden md:block" position="top-left" />
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-border">
-          {/* Card 1: Active Week */}
-          <DashboardCard className="flex flex-col justify-between">
-            <div className="p-3.5 sm:px-5 sm:pt-4 sm:pb-4">
-              <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">Current Sprint</p>
-              <p className="text-lg sm:text-xl font-bold tracking-tight text-foreground mt-1 sm:mt-2 truncate">
-                {currentGoal ? `Week of ${new Date(currentGoal.weekStart).toLocaleDateString(undefined, { month: "short", day: "numeric" })}` : "No Sprint"}
-              </p>
-            </div>
-            <div className="flex items-center gap-1 sm:gap-1.5 text-[11px] sm:text-xs px-3.5 sm:px-5 py-2 sm:py-2.5 border-t border-border bg-background font-mono text-muted-foreground">
-              <span className="truncate">Milestone Pace</span>
-            </div>
-          </DashboardCard>
-
-          {/* Card 2: Applications Target Progress */}
-          <DashboardCard className="flex flex-col justify-between">
-            <div className="p-3.5 sm:px-5 sm:pt-4 sm:pb-4">
-              <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">Target Velocity</p>
-              <p className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground mt-1 sm:mt-2">
-                {currentGoal?.goal1Progress || 0} / {currentGoal?.goal1Target || 15}
-              </p>
-            </div>
-            <div className="flex items-center gap-1.5 text-[11px] sm:text-xs px-3.5 sm:px-5 py-2 sm:py-2.5 border-t border-border bg-background font-mono text-muted-foreground">
-              <Progress value={goal1Completion} className="h-1.5 flex-1 bg-muted rounded-full" />
-              <span className="font-bold text-foreground">{goal1Completion}%</span>
-            </div>
-          </DashboardCard>
-
-          {/* Card 3: Milestone Status */}
-          <DashboardCard className="flex flex-col justify-between">
-            <div className="p-3.5 sm:px-5 sm:pt-4 sm:pb-4">
-              <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">Goal Status</p>
-              <div className="mt-1 sm:mt-2">
-                <Badge variant="outline" className={`text-xs px-2 py-0.5 rounded-md font-medium border ${STATUS_CONFIG[currentGoal?.goal1Status || "InProgress"]?.badge}`}>
-                  {STATUS_CONFIG[currentGoal?.goal1Status || "InProgress"]?.label}
-                </Badge>
-              </div>
-            </div>
-            <div className="flex items-center gap-1 sm:gap-1.5 text-[11px] sm:text-xs px-3.5 sm:px-5 py-2 sm:py-2.5 border-t border-border bg-background font-mono text-muted-foreground">
-              <span className="truncate">Tracking</span>
-            </div>
-          </DashboardCard>
-
-          {/* Card 4: Historical Weeks Recorded */}
-          <DashboardCard className="flex flex-col justify-between">
-            <div className="p-3.5 sm:px-5 sm:pt-4 sm:pb-4">
-              <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">Sprints Logged</p>
-              <p className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground mt-1 sm:mt-2">
-                {goals.length}
-              </p>
-            </div>
-            <div className="flex items-center gap-1 sm:gap-1.5 text-[11px] sm:text-xs px-3.5 sm:px-5 py-2 sm:py-2.5 border-t border-border bg-background font-mono text-muted-foreground">
-              <span className="truncate">History archive</span>
-            </div>
-          </DashboardCard>
-        </div>
-      </div>
+      {/* 2. Top Unified KPI Strip */}
+      <KPIStrip
+        columns={4}
+        items={[
+          {
+            id: "current-sprint",
+            label: "Current Sprint",
+            value: currentGoal
+              ? `Week of ${new Date(currentGoal.weekStart).toLocaleDateString(undefined, { month: "short", day: "numeric" })}`
+              : "No Sprint",
+            subtext: "Milestone Pace",
+          },
+          {
+            id: "target-velocity",
+            label: "Target Velocity",
+            value: `${currentGoal?.goal1Progress || 0} / ${currentGoal?.goal1Target || 15}`,
+            subtext: `${goal1Completion}% achieved`,
+          },
+          {
+            id: "goal-status",
+            label: "Goal Status",
+            value: STATUS_CONFIG[currentGoal?.goal1Status || "InProgress"]?.label || "In Progress",
+            subtext: "Sprint Tracking",
+          },
+          {
+            id: "sprints-logged",
+            label: "Sprints Logged",
+            value: goals.length,
+            subtext: "History archive",
+          },
+        ]}
+      />
 
       {/* 3. Main 1px Continuous Border Grid */}
       <div className="relative border border-border bg-border">
@@ -454,6 +425,6 @@ export default function WeeklyGoalsPage() {
           </DashboardCard>
         </div>
       </div>
-    </div>
+    </PageContainer>
   )
 }

@@ -70,7 +70,7 @@ export function DiscoveryPage() {
             <Button
               variant="outline"
               onClick={() => setPreferencesModalOpen(true)}
-              className="h-9 text-sm gap-2 rounded-md cursor-pointer border-border font-medium"
+              className="h-9 text-sm gap-2 rounded-[4px] cursor-pointer border-border font-medium"
             >
               <Sliders className="h-4 w-4" />
               <span>Preferences</span>
@@ -82,13 +82,13 @@ export function DiscoveryPage() {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-1">
           
           <div className="flex flex-wrap items-center gap-2.5">
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-blue-50/80 text-blue-700 border border-blue-100 shadow-sm">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-[4px] bg-primary/10 text-primary border border-primary/20 shadow-none font-mono">
               <Briefcase className="h-3.5 w-3.5" />
-              <span className="text-[13px] font-semibold">{sortedOpportunities.length}</span>
-              <span className="text-[13px] font-medium opacity-90">Opportunities</span>
+              <span className="text-[13px] font-semibold tabular-nums">{sortedOpportunities.length}</span>
+              <span className="text-[13px] font-medium opacity-90 font-sans">Opportunities</span>
             </div>
             
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-emerald-50/80 text-emerald-700 border border-emerald-100 shadow-sm">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-[4px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shadow-none">
               <Target className="h-3.5 w-3.5" />
               <span className="text-[13px] font-medium">Highly Recommended</span>
             </div>
@@ -124,7 +124,7 @@ export function DiscoveryPage() {
       {/* Right Sidebar Area (AI Copilot + Filters) */}
         <div className="w-full lg:w-80 shrink-0 space-y-6">
           {/* AI Career Copilot Card */}
-          <Card className="bg-primary/5 border-primary/10 shadow-none">
+          <Card className="rounded-[6px] border border-border bg-card shadow-none">
             <CardHeader className="pb-3 px-4 pt-4">
               <CardTitle className="text-base flex items-center gap-2 font-bold text-foreground">
                 <BrainCircuit className="size-5 text-primary" />
@@ -135,7 +135,7 @@ export function DiscoveryPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="px-3 pb-3 space-y-1.5">
-              <button onClick={() => setEvaluatorModal(true)} className="w-full flex items-center justify-between p-2.5 rounded-md hover:bg-background/80 transition-colors border border-transparent hover:border-border/50 text-left group">
+              <button onClick={() => setEvaluatorModal(true)} className="w-full flex items-center justify-between p-2.5 rounded-[4px] hover:bg-background/80 transition-colors border border-transparent hover:border-border/50 text-left group cursor-pointer">
                 <div className="flex items-start gap-3">
                   <div className="bg-blue-500/10 text-blue-600 rounded-md p-1.5 mt-0.5">
                     <Search className="size-4" />

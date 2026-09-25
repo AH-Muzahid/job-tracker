@@ -19,7 +19,7 @@ export function CareerGraphVisualizer({ graphMatch }: CareerGraphVisualizerProps
   const missingCount = graphMatch.missingSkills?.length || 0
 
   return (
-    <Card className="border-indigo-500/20 bg-gradient-to-b from-card to-indigo-950/5 overflow-hidden">
+    <Card className="border-border bg-card overflow-hidden rounded-[6px]">
       <CardHeader className="pb-3 border-b bg-muted/20">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div className="space-y-1">

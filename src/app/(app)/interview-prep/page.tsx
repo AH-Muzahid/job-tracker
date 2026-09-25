@@ -4,16 +4,15 @@ import { useEffect, useState, Suspense } from "react"
 import { useUser } from "@clerk/nextjs"
 import { useRouter, useSearchParams } from "next/navigation"
 import { toast } from "sonner"
-import { Building2, Bot, X } from "lucide-react"
+import { Mic, Building2, Bot, X } from "lucide-react"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { DecorIcon } from "@/components/decor-icon"
+import { PageContainer, PageHeader, KPIStrip } from "@/components/primitives"
 import { ConversationalVoiceInterviewModal } from "@/components/interview/ConversationalVoiceInterviewModal"
 import type { InterviewerTone } from "@/components/interview/conversational/types"
 
 import { PrepNote, InterviewSessionItem } from "@/components/interview/prep/types"
-import { InterviewPrepHeader } from "@/components/interview/prep/InterviewPrepBentoHero"
 import { MockInterviewLaunchpad } from "@/components/interview/prep/MockInterviewLaunchpad"
 import { ConceptLabTab } from "@/components/interview/prep/ConceptLabTab"
 import { MockTranscriptsTab } from "@/components/interview/prep/MockTranscriptsTab"
@@ -131,59 +130,47 @@ function InterviewPrepContent() {
     return <InterviewPrepSkeleton />
   }
 
+  const kpiItems = [
+    { id: "mock-rounds", label: "Mock Rounds", value: sessions.length, subtext: "completed" },
+    { id: "revision-notes", label: "Revision Notes", value: notes.length, subtext: "saved strategies" },
+    { id: "curated-tracks", label: "Curated Tracks", value: 3, subtext: "role simulations" },
+    {
+      id: "voice-engine",
+      label: "Voice Engine",
+      value: "Online",
+      badge: { text: "STAR Ready", isPositive: true },
+      subtext: "STAR debrief ready",
+    },
+  ]
+
   return (
-    <div className="max-w-7xl mx-auto space-y-6 pb-12 w-full min-w-0 max-w-full overflow-x-hidden">
+    <PageContainer>
       {/* 1. Page Header */}
-      <InterviewPrepHeader
-        onStartMockInterview={() => {
-          setModalRole(customRole || "Senior Fullstack Engineer")
-          setModalCompany(customCompany || "Tech Company")
-          setConversationalModalOpen(true)
-        }}
+      <PageHeader
+        title="Interview Prep Room"
+        description="Practice live spoken mock interviews, master technical concepts, and review revision notes."
+        action={
+          <Button
+            onClick={() => {
+              setModalRole(customRole || "Senior Fullstack Engineer")
+              setModalCompany(customCompany || "Tech Company")
+              setConversationalModalOpen(true)
+            }}
+            size="sm"
+            className="h-8.5 px-4 font-medium text-xs sm:text-sm cursor-pointer shadow-xs gap-1.5"
+          >
+            <Mic className="size-3.5" />
+            <span>Start Voice Mock</span>
+          </Button>
+        }
       />
 
-      {/* 2. Top Efferd 4-KPI Metric Strip */}
-      <div className="relative border border-border bg-border">
-        <DecorIcon className="hidden md:block" position="top-left" />
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-border">
-          <div className="p-4 sm:p-5 bg-background space-y-1.5">
-            <span className="text-xs font-mono text-muted-foreground">Mock Rounds</span>
-            <div className="text-xl sm:text-2xl font-bold tracking-tight text-foreground font-mono tabular-nums">
-              {sessions.length}
-            </div>
-            <span className="text-[11px] font-mono text-muted-foreground block">completed</span>
-          </div>
-
-          <div className="p-4 sm:p-5 bg-background space-y-1.5">
-            <span className="text-xs font-mono text-muted-foreground">Revision Notes</span>
-            <div className="text-xl sm:text-2xl font-bold tracking-tight text-foreground font-mono tabular-nums">
-              {notes.length}
-            </div>
-            <span className="text-[11px] font-mono text-muted-foreground block">saved strategies</span>
-          </div>
-
-          <div className="p-4 sm:p-5 bg-background space-y-1.5">
-            <span className="text-xs font-mono text-muted-foreground">Curated Tracks</span>
-            <div className="text-xl sm:text-2xl font-bold tracking-tight text-foreground font-mono tabular-nums">
-              3
-            </div>
-            <span className="text-[11px] font-mono text-muted-foreground block">role simulations</span>
-          </div>
-
-          <div className="p-4 sm:p-5 bg-background space-y-1.5">
-            <span className="text-xs font-mono text-muted-foreground">Voice Engine</span>
-            <div className="text-xl sm:text-2xl font-bold tracking-tight text-foreground flex items-center gap-1.5 font-mono">
-              <span className="size-2 rounded-full bg-emerald-500" />
-              <span>Online</span>
-            </div>
-            <span className="text-[11px] font-mono text-muted-foreground block">STAR debrief ready</span>
-          </div>
-        </div>
-      </div>
+      {/* 2. Architectural 4-KPI Metric Strip */}
+      <KPIStrip items={kpiItems} columns={4} variant="grid" />
 
       {/* 1-Click Application-Linked Tailored Banner */}
       {customCompany && !dismissBanner && (
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-lg border border-border bg-card shadow-2xs relative">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-[6px] border border-border bg-card shadow-2xs relative">
           <div className="flex items-start sm:items-center gap-3">
             <div className="p-2 rounded-md bg-muted text-foreground border border-border shrink-0 mt-0.5 sm:mt-0">
               <Building2 className="size-4" />
@@ -312,77 +299,45 @@ function InterviewPrepContent() {
         applicationId={customAppId}
         onSessionSaved={fetchAll}
       />
-    </div>
+    </PageContainer>
   )
 }
 
 function InterviewPrepSkeleton() {
   return (
-    <div className="max-w-7xl mx-auto space-y-6 pb-12 w-full min-w-0">
+    <PageContainer>
       {/* Header Skeleton */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-1">
         <div className="space-y-1.5">
-          <Skeleton className="h-8 w-56 rounded-md" />
-          <Skeleton className="h-4 w-96 max-w-full rounded-sm" />
+          <Skeleton className="h-8 w-56 rounded-[4px]" />
+          <Skeleton className="h-4 w-96 max-w-full rounded-[4px]" />
         </div>
-        <Skeleton className="h-9 w-36 rounded-lg" />
+        <Skeleton className="h-9 w-36 rounded-[4px]" />
       </div>
 
       {/* 4 Stat Strip Skeleton */}
-      <div className="relative border border-border bg-border">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-border">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="p-4 sm:p-5 bg-background space-y-2">
-              <Skeleton className="h-3 w-20 rounded-sm" />
-              <Skeleton className="h-6 w-12 rounded-sm" />
-              <Skeleton className="h-2.5 w-24 rounded-sm" />
-            </div>
-          ))}
-        </div>
-      </div>
+      <KPIStrip isLoading columns={4} variant="grid" items={[]} />
 
       {/* Tabs Skeleton */}
-      <div className="flex items-center gap-1.5 p-1 rounded-lg border border-border bg-muted/40 w-full sm:w-96">
-        <Skeleton className="h-7 flex-1 rounded-md" />
-        <Skeleton className="h-7 flex-1 rounded-md" />
-        <Skeleton className="h-7 flex-1 rounded-md" />
-        <Skeleton className="h-7 flex-1 rounded-md" />
+      <div className="flex items-center gap-1.5 p-1 rounded-[6px] border border-border bg-muted/40 w-full sm:w-96">
+        <Skeleton className="h-7 flex-1 rounded-[4px]" />
+        <Skeleton className="h-7 flex-1 rounded-[4px]" />
+        <Skeleton className="h-7 flex-1 rounded-[4px]" />
+        <Skeleton className="h-7 flex-1 rounded-[4px]" />
       </div>
 
       {/* Hero Card Skeleton */}
-      <div className="p-5 sm:p-6 rounded-lg border border-border bg-card space-y-4">
+      <div className="p-5 sm:p-6 rounded-[6px] border border-border bg-card space-y-4">
         <div className="flex justify-between items-center">
           <div className="space-y-2">
             <Skeleton className="h-4 w-32 rounded-full" />
-            <Skeleton className="h-6 w-64 rounded-sm" />
-            <Skeleton className="h-3.5 w-96 max-w-full rounded-sm" />
+            <Skeleton className="h-6 w-64 rounded-[4px]" />
+            <Skeleton className="h-3.5 w-96 max-w-full rounded-[4px]" />
           </div>
-          <Skeleton className="h-9 w-40 rounded-lg" />
+          <Skeleton className="h-9 w-40 rounded-[4px]" />
         </div>
       </div>
-
-      {/* 3 Launchpad Cards */}
-      <div className="relative border border-border bg-border">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-px bg-border">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="p-5 bg-background space-y-4">
-              <div className="flex items-center justify-between">
-                <Skeleton className="h-4 w-20 rounded-full" />
-                <Skeleton className="h-3.5 w-16 rounded-sm" />
-              </div>
-              <div className="space-y-1.5">
-                <Skeleton className="h-4 w-40 rounded-sm" />
-                <Skeleton className="h-3 w-full rounded-sm" />
-              </div>
-              <div className="pt-2 flex justify-between items-center border-t border-border">
-                <Skeleton className="h-3 w-16 rounded-sm" />
-                <Skeleton className="h-7 w-20 rounded-md" />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
+    </PageContainer>
   )
 }
 

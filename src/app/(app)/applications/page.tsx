@@ -9,9 +9,7 @@ import { Plus } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { DecorIcon } from "@/components/decor-icon"
-import { DashboardCard } from "@/components/dashboard-card"
-import { Delta, DeltaIcon, DeltaValue } from "@/components/delta"
+import { PageContainer, PageHeader, KPIStrip } from "@/components/primitives"
 import ViewSwitcher from "@/components/dashboard/ViewSwitcher"
 import FilterBar from "@/components/dashboard/FilterBar"
 import ListView from "@/components/dashboard/ListView"
@@ -133,95 +131,59 @@ function ApplicationsContent() {
   }
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto pb-12 w-full min-w-0 max-w-full overflow-x-hidden">
+    <PageContainer>
       {/* 1. Header Section */}
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="text-lg sm:text-xl font-display tracking-heading-sm text-foreground truncate">Applications Pipeline</h1>
-          <p className="text-xs text-muted-foreground truncate mt-0.5">Manage, track, and advance your job search applications</p>
-        </div>
-        <Button size="sm" onClick={() => setFormModal(true)} className="rounded-md font-semibold text-xs cursor-pointer shrink-0 h-8 sm:h-9 px-3 sm:px-4">
-          <Plus className="h-3.5 w-3.5 mr-1" /> <span className="hidden sm:inline">Add Application</span><span className="sm:hidden">Add</span>
-        </Button>
-      </div>
+      <PageHeader
+        overline="Workbench"
+        title="Applications Pipeline"
+        description="Manage, track, and advance your job search applications"
+        primaryAction={
+          <Button
+            size="sm"
+            onClick={() => setFormModal(true)}
+            className="rounded-sm font-medium text-xs cursor-pointer shrink-0 h-8 sm:h-9 px-3 sm:px-4 bg-primary hover:bg-primary/90 text-primary-foreground shadow-none"
+          >
+            <Plus className="h-3.5 w-3.5 mr-1" />
+            <span className="hidden sm:inline">Add Application</span>
+            <span className="sm:hidden">Add</span>
+          </Button>
+        }
+      />
 
-      {/* 2. Top Efferd 4-Stat KPI Grid */}
-      <div className="relative border border-border bg-border w-full overflow-hidden">
-        <DecorIcon className="hidden md:block" position="top-left" />
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-border">
-          {/* Card 1 */}
-          <DashboardCard className="flex flex-col justify-between min-w-0">
-            <div className="p-3 sm:px-5 sm:pt-4 sm:pb-4 min-w-0">
-              <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">
-                <span className="sm:hidden">Total</span>
-                <span className="hidden sm:inline">Total Pipeline</span>
-              </p>
-              <p className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground mt-0.5 sm:mt-2">{total}</p>
-            </div>
-            <div className="flex items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs px-3 sm:px-5 py-1.5 sm:py-2.5 border-t border-border bg-background font-mono min-w-0 overflow-hidden">
-              <Delta value={total > 0 ? 12 : 0}>
-                <DeltaIcon />
-                <DeltaValue />
-              </Delta>
-              <span className="text-muted-foreground truncate hidden xs:inline">all stages</span>
-            </div>
-          </DashboardCard>
-
-          {/* Card 2 */}
-          <DashboardCard className="flex flex-col justify-between min-w-0">
-            <div className="p-3 sm:px-5 sm:pt-4 sm:pb-4 min-w-0">
-              <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">
-                <span className="sm:hidden">In Progress</span>
-                <span className="hidden sm:inline">In Progress</span>
-              </p>
-              <p className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground mt-0.5 sm:mt-2">{stats.active}</p>
-            </div>
-            <div className="flex items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs px-3 sm:px-5 py-1.5 sm:py-2.5 border-t border-border bg-background font-mono min-w-0 overflow-hidden">
-              <Delta value={8.5}>
-                <DeltaIcon />
-                <DeltaValue />
-              </Delta>
-              <span className="text-muted-foreground truncate hidden xs:inline">progress</span>
-            </div>
-          </DashboardCard>
-
-          {/* Card 3 */}
-          <DashboardCard className="flex flex-col justify-between min-w-0">
-            <div className="p-3 sm:px-5 sm:pt-4 sm:pb-4 min-w-0">
-              <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">
-                <span className="sm:hidden">Interviews</span>
-                <span className="hidden sm:inline">Interviews & Offers</span>
-              </p>
-              <p className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground mt-0.5 sm:mt-2">{stats.advanced}</p>
-            </div>
-            <div className="flex items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs px-3 sm:px-5 py-1.5 sm:py-2.5 border-t border-border bg-background font-mono min-w-0 overflow-hidden">
-              <Delta value={stats.offers > 0 ? 15 : 4}>
-                <DeltaIcon />
-                <DeltaValue />
-              </Delta>
-              <span className="text-muted-foreground truncate hidden xs:inline">{stats.offers} offers</span>
-            </div>
-          </DashboardCard>
-
-          {/* Card 4 */}
-          <DashboardCard className="flex flex-col justify-between min-w-0">
-            <div className="p-3 sm:px-5 sm:pt-4 sm:pb-4 min-w-0">
-              <p className="text-xs sm:text-sm font-medium text-muted-foreground truncate">
-                <span className="sm:hidden">Response</span>
-                <span className="hidden sm:inline">Response Rate</span>
-              </p>
-              <p className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground mt-0.5 sm:mt-2">{stats.responseRate}%</p>
-            </div>
-            <div className="flex items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs px-3 sm:px-5 py-1.5 sm:py-2.5 border-t border-border bg-background font-mono min-w-0 overflow-hidden">
-              <Delta value={stats.responseRate >= 20 ? 5.2 : 0}>
-                <DeltaIcon />
-                <DeltaValue />
-              </Delta>
-              <span className="text-muted-foreground truncate hidden xs:inline">rate</span>
-            </div>
-          </DashboardCard>
-        </div>
-      </div>
+      {/* 2. Unified KPI Strip */}
+      <KPIStrip
+        columns={4}
+        items={[
+          {
+            id: "total",
+            label: "Total Pipeline",
+            value: total,
+            delta: total > 0 ? 12 : 0,
+            subtext: "all stages",
+          },
+          {
+            id: "active",
+            label: "In Progress",
+            value: stats.active,
+            delta: 8.5,
+            subtext: "progress",
+          },
+          {
+            id: "advanced",
+            label: "Interviews & Offers",
+            value: stats.advanced,
+            delta: stats.offers > 0 ? 15 : 4,
+            subtext: `${stats.offers} offers`,
+          },
+          {
+            id: "responseRate",
+            label: "Response Rate",
+            value: `${stats.responseRate}%`,
+            delta: stats.responseRate >= 20 ? 5.2 : 0,
+            subtext: "rate",
+          },
+        ]}
+      />
 
       {/* 3. Controls & Filter Bar */}
       <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 pt-2">
@@ -304,7 +266,7 @@ function ApplicationsContent() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageContainer>
   )
 }
 

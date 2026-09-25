@@ -57,15 +57,6 @@ interface Props {
   onDeleted: () => void
 }
 
-const statusGradients: Record<string, string> = {
-  Saved: "from-gray-500/10 via-gray-500/5 to-transparent",
-  Applied: "from-blue-500/10 via-blue-500/5 to-transparent",
-  Assessment: "from-amber-500/10 via-amber-500/5 to-transparent",
-  Interview: "from-purple-500/10 via-purple-500/5 to-transparent",
-  Rejected: "from-red-500/10 via-red-500/5 to-transparent",
-  Offer: "from-emerald-500/10 via-emerald-500/5 to-transparent",
-}
-
 const statusDots: Record<string, string> = {
   Saved: "bg-gray-500",
   Applied: "bg-blue-500",
@@ -75,14 +66,6 @@ const statusDots: Record<string, string> = {
   Offer: "bg-emerald-500",
 }
 
-const statusBg: Record<string, string> = {
-  Saved: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
-  Applied: "bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300",
-  Assessment: "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300",
-  Interview: "bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300",
-  Rejected: "bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300",
-  Offer: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300",
-}
 
 export default function ApplicationDetailModal({
   applicationId,
@@ -113,31 +96,30 @@ export default function ApplicationDetailModal({
       .finally(() => setLoading(false))
   }, [open, applicationId])
 
-  const gradient = application ? statusGradients[application.status] || statusGradients.Saved : ""
   const dot = application ? statusDots[application.status] || statusDots.Saved : ""
 
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-xl max-h-[90vh] overflow-hidden p-0 gap-0 rounded-2xl [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        <DialogContent className="max-w-xl max-h-[90vh] overflow-hidden p-0 gap-0 rounded-[8px] border border-border bg-card [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           {loading || !application ? (
             <DetailSkeleton />
           ) : (
             <>
-              {/* Header Banner */}
-              <div className={`relative bg-gradient-to-b ${gradient} px-6 pt-6 pb-4`}>
+              {/* Header Banner - Solid Stripe Surface */}
+              <div className="relative bg-muted/30 border-b border-border px-6 pt-6 pb-4">
                 <div className="flex items-start justify-between">
                   <div className="flex items-start gap-4">
                     <div className="relative">
-                      <div className={`flex h-14 w-14 items-center justify-center rounded-2xl text-lg font-bold text-white shadow-lg ${statusBg[application.status]?.split(" ")[0] || "bg-gray-200"}`}>
+                      <div className="flex h-12 w-12 items-center justify-center rounded-[6px] text-base font-bold bg-primary text-primary-foreground">
                         {application.companyName.slice(0, 2).toUpperCase()}
                       </div>
-                      <div className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-background ${dot}`} />
+                      <div className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-background ${dot}`} />
                     </div>
                     <div className="pt-0.5">
-                      <h2 className="text-lg font-bold leading-tight">{application.companyName}</h2>
-                      <p className="text-sm text-muted-foreground mt-0.5">{application.jobTitle}</p>
-                      <div className="flex items-center gap-2 mt-2.5">
+                      <h2 className="text-base sm:text-lg font-bold leading-tight text-foreground">{application.companyName}</h2>
+                      <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">{application.jobTitle}</p>
+                      <div className="flex items-center gap-2 mt-2">
                         <StatusBadge status={application.status} />
                         <Badge variant="outline" className="text-xs font-normal">{application.source}</Badge>
                         {application.jobUrl && (

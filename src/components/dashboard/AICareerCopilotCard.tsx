@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ArrowRight, Search, FileEdit, FileText, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { BlueprintCard } from "@/components/primitives/BlueprintCard";
 
 interface AICareerCopilotCardProps {
   onAnalyzeJD?: () => void;
@@ -38,8 +39,8 @@ export function AICareerCopilotCard({ onAnalyzeJD }: AICareerCopilotCardProps) {
   ];
 
   return (
-    <div className="rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-5 shadow-2xs transition-all">
-      {/* Header: Dual-star icon requested by user */}
+    <BlueprintCard className="p-4 sm:p-5 transition-all">
+      {/* Header: Dual-star brand mark */}
       <div className="flex items-center gap-2.5">
         <div className="relative size-5 shrink-0">
           <svg viewBox="0 0 24 24" className="size-5" fill="none">
@@ -47,20 +48,20 @@ export function AICareerCopilotCard({ onAnalyzeJD }: AICareerCopilotCardProps) {
             <path d="M16 11L17.2 14.5L20.5 16L17.2 17.5L16 21L14.8 17.5L11.5 16L14.8 14.5L16 11Z" fill="#F59E0B" />
           </svg>
         </div>
-        <h2 className="text-[15px] font-bold text-slate-900 dark:text-white">
+        <h2 className="text-sm sm:text-base font-semibold tracking-tight text-foreground">
           Your AI Career Copilot
         </h2>
       </div>
 
-      <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-normal">
-        I&apos;m here to help you find, apply, and land your next opportunity.
+      <p className="mt-1.5 text-xs text-muted-foreground leading-relaxed font-normal">
+        Your intelligent assistant to evaluate roles, tailor materials, and land opportunities.
       </p>
 
-      {/* Primary Action Button */}
+      {/* Primary Action Button - Solid Stripe Primary, No Gradient */}
       <div className="mt-3.5">
         <Button
           asChild
-          className="w-full h-10 rounded-xl bg-[#0f172a] hover:bg-slate-800 text-white font-semibold text-xs transition-all flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer"
+          className="w-full h-9 rounded-sm bg-primary hover:bg-primary/90 text-primary-foreground font-medium text-xs transition-colors flex items-center justify-center gap-1.5 shadow-none cursor-pointer"
         >
           <Link href="/discovery">
             <span>Find Opportunities</span>
@@ -69,8 +70,8 @@ export function AICareerCopilotCard({ onAnalyzeJD }: AICareerCopilotCardProps) {
         </Button>
       </div>
 
-      {/* 4 Clean White Quick Action Cards */}
-      <div className="mt-2.5 space-y-2">
+      {/* Quick Action List */}
+      <div className="mt-2.5 space-y-1.5">
         {quickActions.map((action) => {
           const Icon = action.icon;
           if (action.onClick) {
@@ -78,9 +79,9 @@ export function AICareerCopilotCard({ onAnalyzeJD }: AICareerCopilotCardProps) {
               <button
                 key={action.id}
                 onClick={action.onClick}
-                className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl border border-slate-100/80 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/80 text-xs font-medium text-slate-700 dark:text-slate-300 transition-all text-left cursor-pointer group shadow-2xs"
+                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-[4px] border border-border bg-card hover:bg-muted text-xs font-medium text-foreground transition-colors text-left cursor-pointer group"
               >
-                <Icon className="size-4 text-slate-500 group-hover:text-blue-600 transition-colors shrink-0 stroke-[1.75]" />
+                <Icon className="size-3.5 text-muted-foreground group-hover:text-primary transition-colors shrink-0 stroke-[1.75]" />
                 <span className="truncate">{action.label}</span>
               </button>
             );
@@ -90,14 +91,14 @@ export function AICareerCopilotCard({ onAnalyzeJD }: AICareerCopilotCardProps) {
             <Link
               key={action.id}
               href={action.href}
-              className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl border border-slate-100/80 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/80 text-xs font-medium text-slate-700 dark:text-slate-300 transition-all group shadow-2xs"
+              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-[4px] border border-border bg-card hover:bg-muted text-xs font-medium text-foreground transition-colors group"
             >
-              <Icon className="size-4 text-slate-500 group-hover:text-blue-600 transition-colors shrink-0 stroke-[1.75]" />
+              <Icon className="size-3.5 text-muted-foreground group-hover:text-primary transition-colors shrink-0 stroke-[1.75]" />
               <span className="truncate">{action.label}</span>
             </Link>
           );
         })}
       </div>
-    </div>
+    </BlueprintCard>
   );
 }

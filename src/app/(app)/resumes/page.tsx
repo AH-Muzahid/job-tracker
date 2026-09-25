@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
+import { PageContainer, PageHeader, EmptyState } from "@/components/primitives"
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog"
@@ -146,96 +147,100 @@ export default function ResumesPage() {
 
   if (!isLoaded || loading) {
     return (
-      <div className="space-y-6 max-w-7xl mx-auto pb-10 w-full min-w-0">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="space-y-1.5">
-            <Skeleton className="h-8 w-44 rounded-md" />
-            <Skeleton className="h-4 w-72 rounded-sm" />
-          </div>
-          <div className="flex items-center gap-2">
-            <Skeleton className="h-9 w-32 rounded-lg" />
-            <Skeleton className="h-9 w-32 rounded-lg" />
-          </div>
-        </div>
+      <PageContainer>
+        <PageHeader
+          title="Resume Hub"
+          description="Loading resumes & career knowledge..."
+          action={
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-9 w-32 rounded-[4px]" />
+              <Skeleton className="h-9 w-32 rounded-[4px]" />
+            </div>
+          }
+        />
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 3 }).map((_, i) => (
-            <Card key={i} className="rounded-xl border border-border/80 p-5 space-y-4">
+            <Card key={i} className="rounded-[6px] border border-border p-4 space-y-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-start gap-3">
-                  <Skeleton className="size-10 rounded-lg shrink-0" />
+                  <Skeleton className="size-9 rounded-[4px] shrink-0" />
                   <div className="space-y-1.5 flex-1">
-                    <Skeleton className="h-4 w-32 rounded-sm" />
-                    <Skeleton className="h-3 w-24 rounded-sm" />
+                    <Skeleton className="h-4 w-32 rounded-[4px]" />
+                    <Skeleton className="h-3 w-24 rounded-[4px]" />
                   </div>
                 </div>
-                <Skeleton className="size-7 rounded-md" />
+                <Skeleton className="size-7 rounded-[4px]" />
               </div>
-              <div className="flex items-center justify-between pt-2 border-t border-border/40">
-                <Skeleton className="h-4 w-16 rounded-full" />
+              <div className="flex items-center justify-between pt-2 border-t border-border">
+                <Skeleton className="h-4 w-16 rounded-[4px]" />
                 <div className="flex gap-2">
-                  <Skeleton className="h-7 w-16 rounded-md" />
-                  <Skeleton className="h-7 w-16 rounded-md" />
+                  <Skeleton className="h-7 w-14 rounded-[4px]" />
+                  <Skeleton className="h-7 w-14 rounded-[4px]" />
                 </div>
               </div>
             </Card>
           ))}
         </div>
-      </div>
+      </PageContainer>
     )
   }
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-10 w-full min-w-0 max-w-full overflow-x-hidden">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Resume Hub</h1>
-          <p className="text-sm font-medium text-muted-foreground mt-0.5">{resumes.length} resumes uploaded & indexed in Career Knowledge Graph</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button 
-            onClick={() => setTailorOpen(true)} 
-            className="h-9 px-4 rounded-md text-sm font-semibold shadow-xs cursor-pointer gap-2"
-          >
-            <Bot className="h-4 w-4" /> Tailor for a Job
-          </Button>
-          <Button 
-            variant="outline" 
-            onClick={() => setAddOpen(true)} 
-            className="h-9 px-4 rounded-md text-sm font-medium cursor-pointer gap-2"
-          >
-            <Upload className="h-4 w-4" /> Upload Resume
-          </Button>
-        </div>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Resume Hub"
+        description={`${resumes.length} resumes uploaded & indexed in Career Knowledge Graph`}
+        action={
+          <div className="flex flex-wrap items-center gap-2">
+            <Button 
+              onClick={() => setTailorOpen(true)} 
+              className="h-9 px-4 rounded-[4px] text-sm font-semibold shadow-xs cursor-pointer gap-2"
+            >
+              <Bot className="h-4 w-4" /> Tailor for a Job
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={() => setAddOpen(true)} 
+              className="h-9 px-4 rounded-[4px] text-sm font-medium cursor-pointer gap-2"
+            >
+              <Upload className="h-4 w-4" /> Upload Resume
+            </Button>
+          </div>
+        }
+      />
 
       {resumes.length === 0 ? (
-        <div className="rounded-md border border-dashed border-border bg-card p-12 text-center space-y-2">
-          <FileText className="mx-auto h-10 w-10 text-muted-foreground/40" />
-          <p className="text-sm font-semibold text-foreground">No resumes uploaded yet</p>
-          <p className="text-xs text-muted-foreground max-w-sm mx-auto">Upload your master resume to track tailored versions and match job applications.</p>
-        </div>
+        <EmptyState
+          icon={FileText}
+          title="No resumes uploaded yet"
+          description="Upload your master resume to track tailored versions and match job applications."
+          action={{
+            label: "Upload Resume",
+            onClick: () => setAddOpen(true),
+          }}
+        />
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
           {resumes.map((resume) => (
             <div 
               key={resume.id} 
-              className="group p-4 rounded-md border border-border bg-card/60 hover:bg-card hover:border-foreground/30 transition-all duration-150 cursor-pointer shadow-none space-y-3" 
+              className="group p-4 rounded-[6px] border border-border bg-card hover:border-foreground/30 transition-all duration-150 cursor-pointer shadow-none space-y-3" 
               onClick={() => openPreview(resume.id, resume.title)}
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-start gap-3 min-w-0">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-muted/60 text-foreground border border-border">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[4px] bg-muted/60 text-foreground border border-border">
                     <FileText className="h-4.5 w-4.5" />
                   </div>
                   <div className="min-w-0">
                     <p className="font-semibold text-sm text-foreground truncate hover:underline">{resume.title}</p>
                     <p className="text-xs text-muted-foreground truncate mt-0.5">{resume.fileName}</p>
                     <div className="flex items-center gap-2 mt-1.5 font-mono">
-                      <span className="text-xs text-muted-foreground">{formatSize(resume.fileSize)}</span>
+                      <span className="text-xs text-muted-foreground tabular-nums">{formatSize(resume.fileSize)}</span>
                       {resume.isDefault && (
-                        <Badge variant="outline" className="text-xs px-2 py-0 rounded-md border-border bg-muted/30">
-                          <Star className="h-3 w-3 mr-1 text-amber-400 fill-amber-400" /> Default
+                        <Badge variant="outline" className="text-xs px-2 py-0 rounded-[4px] border-border bg-muted/30">
+                          <Star className="h-3 w-3 mr-1 text-amber-500 fill-amber-500" /> Default
                         </Badge>
                       )}
                     </div>
@@ -280,12 +285,12 @@ export default function ResumesPage() {
             <div className="space-y-1.5">
               <Label>Upload File *</Label>
               {selectedFile ? (
-                <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-slate-50/50 dark:bg-slate-950/20">
+                <div className="flex items-center justify-between p-3 rounded-[6px] border border-border bg-muted/30">
                   <div className="flex items-center gap-2 min-w-0">
                     <FileText className="h-5 w-5 text-primary shrink-0" />
                     <div className="min-w-0">
                       <p className="text-xs font-semibold truncate">{selectedFile.name}</p>
-                      <p className="text-[10px] text-muted-foreground">{formatSize(selectedFile.size)}</p>
+                      <p className="text-[10px] text-muted-foreground tabular-nums">{formatSize(selectedFile.size)}</p>
                     </div>
                   </div>
                   <Button 
@@ -296,7 +301,7 @@ export default function ResumesPage() {
                       setSelectedFile(null)
                       setForm({ title: "" })
                     }}
-                    className="h-7 px-2 text-rose-500 hover:text-rose-650 hover:bg-rose-500/10 cursor-pointer"
+                    className="h-7 px-2 text-destructive hover:bg-destructive/10 cursor-pointer text-xs"
                   >
                     Clear
                   </Button>
@@ -322,7 +327,7 @@ export default function ResumesPage() {
                       setForm({ title: baseName })
                     }
                   }}
-                  className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-border rounded-xl cursor-pointer hover:bg-secondary/40 transition-colors"
+                  className="flex flex-col items-center justify-center p-6 border border-dashed border-border rounded-[6px] cursor-pointer hover:bg-muted/40 transition-colors"
                   onClick={() => {
                     const input = document.createElement("input")
                     input.type = "file"
@@ -352,15 +357,15 @@ export default function ResumesPage() {
                 value={form.title} 
                 onChange={(e) => setForm({ title: e.target.value })} 
                 placeholder="e.g. Frontend Resume v2" 
-                className="h-9 text-xs bg-background border-input text-foreground"
+                className="h-9 text-xs bg-background border-input text-foreground rounded-[4px]"
               />
             </div>
 
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setAddOpen(false)} className="cursor-pointer text-xs h-8">
+              <Button type="button" variant="outline" onClick={() => setAddOpen(false)} className="cursor-pointer text-xs h-8 rounded-[4px]">
                 Cancel
               </Button>
-              <Button type="submit" disabled={submitting} className="cursor-pointer text-xs h-8">
+              <Button type="submit" disabled={submitting} className="cursor-pointer text-xs h-8 rounded-[4px]">
                 {submitting ? "Uploading..." : "Add"}
               </Button>
             </DialogFooter>
@@ -397,6 +402,6 @@ export default function ResumesPage() {
       </Dialog>
 
       <TailorResumeModal open={tailorOpen} onOpenChange={setTailorOpen} />
-    </div>
+    </PageContainer>
   )
 }

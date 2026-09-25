@@ -44,7 +44,7 @@ export default function AIAssistantPage() {
 
   // Sync activeChatId with URL param and localStorage on mount
   useEffect(() => {
-    const urlId = searchParams.get("id")
+    const urlId = searchParams?.get("id")
     const storedId = localStorage.getItem("last-active-chat")
     if (urlId) {
       setActiveChatId(urlId)
@@ -56,7 +56,7 @@ export default function AIAssistantPage() {
   // Keep URL and localStorage updated when activeChatId changes
   useEffect(() => {
     if (typeof window === "undefined") return
-    const currentUrlId = searchParams.get("id")
+    const currentUrlId = searchParams?.get("id")
 
     if (activeChatId && currentUrlId !== activeChatId) {
       window.history.replaceState(null, "", `/ai-assistant?id=${activeChatId}`)

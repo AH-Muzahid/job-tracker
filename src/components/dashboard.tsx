@@ -13,6 +13,7 @@ import { TodayTasksCard } from "@/components/dashboard/TodayTasksCard";
 import { StayConsistentCard } from "@/components/dashboard/StayConsistentCard";
 import { DashboardQuickIntake } from "@/components/dashboard/DashboardQuickIntake";
 import { DashboardSkeleton } from "@/components/dashboard-skeleton";
+import { PageContainer } from "@/components/primitives/PageContainer";
 import {
   Dialog,
   DialogContent,
@@ -31,27 +32,27 @@ export function Dashboard() {
   }
 
   return (
-    <div className="w-full max-w-full">
-      {/* 2-Column Master Layout matching Reference Screenshot */}
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">
+    <PageContainer maxWidth="full">
+      {/* 2-Column Master Layout matching Reference Standard */}
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 sm:gap-6 items-start">
         {/* Left Column (Main Cockpit: ~75% on desktop / 9 cols) */}
-        <div className="xl:col-span-9 flex flex-col space-y-5 min-w-0">
+        <div className="xl:col-span-9 flex flex-col space-y-5 sm:space-y-6 min-w-0">
           {/* 1. Personalized Greeting & Daily Motivation Quote */}
           <DashboardHeader />
 
-          {/* 2. Top 4 Core Career KPIs (Moved above insights) */}
+          {/* 2. Top 4 Core Career KPIs */}
           <DashboardKpis data={stats?.kpi} isLoading={isLoading} />
 
           {/* 3. Autonomous Daily Strategic Executive Briefing Card (CAG-12) */}
           <DailyBriefingCard />
 
-          {/* 3. Recommended Opportunities (3 cards) */}
+          {/* 4. Recommended Opportunities */}
           <RecommendedOpportunities
             opportunities={stats?.recommendedOpportunities}
             isLoading={isLoading}
           />
 
-          {/* 4. Side-by-side Recent Applications & Upcoming Interviews */}
+          {/* 5. Side-by-side Recent Applications & Upcoming Interviews */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5 items-stretch">
             <RecentApplicationsList
               applications={stats?.recent || stats?.recentApplications}
@@ -65,7 +66,7 @@ export function Dashboard() {
         </div>
 
         {/* Right Rail Column (~25% on desktop / 3 cols) starting at the top */}
-        <div className="xl:col-span-3 flex flex-col space-y-4 min-w-0 xl:sticky xl:top-20">
+        <div className="xl:col-span-3 flex flex-col space-y-4 sm:space-y-5 min-w-0 xl:sticky xl:top-20">
           {/* AI Career Copilot Card */}
           <AICareerCopilotCard onAnalyzeJD={() => setIsQuickIntakeOpen(true)} />
 
@@ -82,7 +83,7 @@ export function Dashboard() {
 
       {/* Quick Intake Modal triggered from Copilot "Analyze a job description" */}
       <Dialog open={isQuickIntakeOpen} onOpenChange={setIsQuickIntakeOpen}>
-        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto p-4 sm:p-6 border border-border bg-card">
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto p-4 sm:p-6 border border-border bg-card rounded-[6px]">
           <DialogHeader className="sr-only">
             <DialogTitle>Analyze Job Description</DialogTitle>
             <DialogDescription>
@@ -92,6 +93,6 @@ export function Dashboard() {
           <DashboardQuickIntake onFinished={() => setIsQuickIntakeOpen(false)} />
         </DialogContent>
       </Dialog>
-    </div>
+    </PageContainer>
   );
 }

@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { ArrowRight, Inbox } from "lucide-react";
 import { CompanyBrandLogo } from "@/components/CompanyBrandLogo";
+import { StatusBadge } from "@/components/StatusBadge";
+import { BlueprintCard } from "@/components/primitives/BlueprintCard";
+import { EmptyState } from "@/components/primitives/EmptyState";
 
 export type RecentApplicationItem = {
   id: string;
@@ -25,54 +27,10 @@ function timeAgo(date?: string | Date | null): string {
   const then = new Date(date).getTime();
   const diffDays = Math.floor((now - then) / (1000 * 60 * 60 * 24));
   if (diffDays <= 0) return "Today";
-  if (diffDays === 1) return "1 day ago";
-  if (diffDays < 7) return `${diffDays} days ago`;
+  if (diffDays === 1) return "1d ago";
+  if (diffDays < 7) return `${diffDays}d ago`;
   const weeks = Math.floor(diffDays / 7);
-  return `${weeks} ${weeks === 1 ? "week" : "weeks"} ago`;
-}
-
-function getStatusStyle(status: string) {
-  const s = status.toLowerCase();
-  if (s.includes("sent") || s === "applied") {
-    return {
-      label: "Application Sent",
-      className: "bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400",
-    };
-  }
-  if (s.includes("review") || s === "assessment") {
-    return {
-      label: "In Review",
-      className: "bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400",
-    };
-  }
-  if (s.includes("interview")) {
-    return {
-      label: "Interviewing",
-      className: "bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-400",
-    };
-  }
-  if (s.includes("staged")) {
-    return {
-      label: "Staged",
-      className: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400",
-    };
-  }
-  if (s.includes("saved")) {
-    return {
-      label: "Saved",
-      className: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300",
-    };
-  }
-  if (s.includes("rejected")) {
-    return {
-      label: "Rejected",
-      className: "bg-red-50 text-red-600 dark:bg-red-950/60 dark:text-red-400",
-    };
-  }
-  return {
-    label: status,
-    className: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
-  };
+  return `${weeks}w ago`;
 }
 
 function isFollowUpDue(status: string, date?: string | Date | null): boolean {
@@ -100,67 +58,62 @@ export function RecentApplicationsList({
 
   if (isLoading) {
     return (
-      <div className="rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-5 shadow-2xs">
-        <div className="h-5 w-36 bg-slate-100 dark:bg-slate-800 rounded animate-pulse mb-4" />
+      <BlueprintCard className="p-4 sm:p-5">
+        <div className="h-5 w-36 bg-muted rounded-sm animate-pulse mb-4" />
         <div className="space-y-3">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="h-12 bg-slate-50 dark:bg-slate-800/50 rounded-lg animate-pulse" />
+            <div key={i} className="h-12 bg-muted/50 rounded-sm animate-pulse" />
           ))}
         </div>
-      </div>
+      </BlueprintCard>
     );
   }
 
   return (
-    <div className="rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-5 shadow-2xs hover:border-slate-300 dark:hover:border-slate-700 transition-all flex flex-col justify-between h-full">
+    <BlueprintCard className="p-4 sm:p-5 flex flex-col justify-between h-full">
       <div>
-        <div className="flex items-center justify-between pb-2.5">
-          <h2 className="text-[15px] font-bold text-slate-900 dark:text-white">
+        <div className="flex items-center justify-between pb-3 border-b border-border/50">
+          <h2 className="text-sm sm:text-base font-semibold tracking-tight text-foreground">
             Recent Applications
           </h2>
           <Link
             href="/applications"
-            className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1 group"
+            className="text-xs font-medium text-primary hover:underline inline-flex items-center gap-1 group"
           >
             <span>View all</span>
             <ArrowRight className="size-3 transition-transform group-hover:translate-x-0.5" />
           </Link>
         </div>
 
-        <div className="space-y-1.5 mt-1">
+        <div className="space-y-1 mt-2">
           {list.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/40 px-4 py-8 text-center">
-              <p className="text-sm font-medium text-slate-600 dark:text-slate-300">
-                No applications yet
-              </p>
-              <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
-                Get started by staging an opportunity or applying to a role.
-              </p>
-              <Link
-                href="/discovery"
-                className="mt-3 inline-flex text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline"
-              >
-                Get started
-              </Link>
-            </div>
+            <EmptyState
+              icon={Inbox}
+              title="No applications yet"
+              description="Get started by staging an opportunity or applying to a role."
+              action={{
+                label: "Explore Discovery",
+                href: "/discovery",
+              }}
+              className="py-6"
+            />
           ) : (
             list.map((app) => {
-              const statusStyle = getStatusStyle(app.status);
               const needsFollowUp = isFollowUpDue(app.status, app.applicationDate || app.createdAt);
 
               return (
                 <Link
                   key={app.id}
                   href={`/applications/${app.id}`}
-                  className="flex items-center justify-between py-2 px-1 hover:bg-slate-50 dark:hover:bg-slate-800/40 rounded-xl transition-colors group"
+                  className="flex items-center justify-between py-2.5 px-2 hover:bg-muted/50 rounded-[4px] transition-colors group"
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <CompanyBrandLogo company={app.companyName} size={32} />
+                    <CompanyBrandLogo company={app.companyName} size={30} />
                     <div className="min-w-0">
-                      <p className="text-xs sm:text-[13px] font-bold text-slate-900 dark:text-white truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                      <p className="text-xs sm:text-[13px] font-semibold text-foreground truncate group-hover:text-primary transition-colors">
                         {app.companyName}
                       </p>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5 font-normal">
+                      <p className="text-xs text-muted-foreground truncate font-normal">
                         {app.jobTitle}
                       </p>
                     </div>
@@ -168,20 +121,13 @@ export function RecentApplicationsList({
 
                   <div className="flex items-center gap-2 shrink-0 ml-2">
                     {needsFollowUp && (
-                      <span className="hidden sm:inline-flex items-center gap-1 rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/25 px-1.5 py-0.5 text-[10px] font-semibold leading-none">
-                        <span className="size-1.5 rounded-full bg-amber-500" />
+                      <span className="hidden sm:inline-flex items-center gap-1 rounded-sm bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20 px-1.5 py-0.5 text-[10px] font-medium leading-none">
+                        <span className="size-1 rounded-full bg-amber-500" />
                         Follow-up
                       </span>
                     )}
-                    <span
-                      className={cn(
-                        "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap",
-                        statusStyle.className
-                      )}
-                    >
-                      {statusStyle.label}
-                    </span>
-                    <span className="text-xs text-slate-400 dark:text-slate-500 hidden sm:inline-block font-normal min-w-[65px] text-right">
+                    <StatusBadge status={app.status} size="sm" />
+                    <span className="text-xs text-muted-foreground hidden sm:inline-block tabular-nums font-normal min-w-[55px] text-right">
                       {timeAgo(app.applicationDate || app.createdAt)}
                     </span>
                   </div>
@@ -191,6 +137,6 @@ export function RecentApplicationsList({
           )}
         </div>
       </div>
-    </div>
+    </BlueprintCard>
   );
 }
