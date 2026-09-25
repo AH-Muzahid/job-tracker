@@ -3,15 +3,38 @@
 import React, { useState, useEffect, useRef } from "react"
 import { useUser } from "@clerk/nextjs"
 import { useRouter } from "next/navigation"
+import {
+  FileText,
+  UploadCloud,
+  ArrowRight,
+  ArrowLeft,
+  CheckCircle2,
+  Trash2,
+  Edit2,
+  Loader2,
+  BrainCircuit,
+  Plus,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { SearchableTagsInput } from "@/components/profile-setup/SearchableTagsInput"
 import { Skeleton } from "@/components/ui/skeleton"
+import {
+  PageContainer,
+  PageHeader,
+  BlueprintCard,
+  BlueprintCardHeader,
+  BlueprintCardTitle,
+  BlueprintCardDescription,
+  BlueprintCardContent,
+  BlueprintCardFooter,
+} from "@/components/primitives"
+import { StatusBadge } from "@/components/StatusBadge"
+import { cn } from "@/lib/utils"
 
 const POPULAR_STACKS = [
   "React", "Next.js", "TypeScript", "JavaScript", "Vue.js", "Node.js", "Express.js", "NestJS",
@@ -48,9 +71,9 @@ const POPULAR_INDUSTRIES = [
 ]
 
 const WIZARD_STEPS = [
-  { id: 1, title: "Resume & Contact", description: "Upload resume to autofill details" },
-  { id: 2, title: "Career Goals", description: "Target roles, salary & work mode" },
-  { id: 3, title: "Skills & Experience", description: "Technical strengths & projects" },
+  { id: 1, title: "Resume & Contact", shortTitle: "Resume", code: "01", description: "Autofill from resume or manual input" },
+  { id: 2, title: "Career Goals", shortTitle: "Goals", code: "02", description: "Target roles, salary & arrangements" },
+  { id: 3, title: "Skills & Experience", shortTitle: "Skills", code: "03", description: "Technical stack & highlight projects" },
 ]
 
 export default function ProfileSetupPage() {
@@ -118,7 +141,7 @@ export default function ProfileSetupPage() {
               setForm({
                 phone: data.phone || "",
                 location: data.location || "",
-                linkedInUrl: data.linkedInUrl || "",
+                linkedInUrl: data.linkedInUrl || data.linkedinUrl || "",
                 githubUrl: data.githubUrl || "",
                 portfolioUrl: data.portfolioUrl || "",
                 targetRoles: Array.isArray(data.targetRoles) ? data.targetRoles.join(", ") : "",
@@ -157,7 +180,9 @@ export default function ProfileSetupPage() {
       }
 
       loadInitialData()
-      return () => { isMounted = false }
+      return () => {
+        isMounted = false
+      }
     }
   }, [isLoaded, isSignedIn, router])
 
@@ -247,11 +272,21 @@ export default function ProfileSetupPage() {
     setTempProject({ name: "", stack: "", description: "" })
   }
 
+  function handleStartEditProject(index: number) {
+    setTempProject(form.projects[index])
+    setEditingProjIndex(index)
+  }
+
   function handleRemoveProject(index: number) {
+    if (editingProjIndex === index) {
+      setEditingProjIndex(null)
+      setTempProject({ name: "", stack: "", description: "" })
+    }
     setForm({
       ...form,
       projects: form.projects.filter((_, i) => i !== index),
     })
+    toast.info("Project removed")
   }
 
   async function handleSaveProfile() {
@@ -266,6 +301,7 @@ export default function ProfileSetupPage() {
         experienceLevel: form.experienceLevel || null,
         currentStatus: form.currentStatus || null,
         linkedInUrl: form.linkedInUrl || null,
+        linkedinUrl: form.linkedInUrl || null,
         githubUrl: form.githubUrl || null,
         portfolioUrl: form.portfolioUrl || null,
         bestProjects: form.projects || [],
@@ -300,48 +336,49 @@ export default function ProfileSetupPage() {
 
   if (loadingProfile) {
     return (
-      <div className="max-w-3xl mx-auto space-y-6 py-4 sm:py-6 px-3 sm:px-6 pb-16 w-full min-w-0">
-        <div className="space-y-1.5">
-          <Skeleton className="h-8 w-48 rounded-md" />
-          <Skeleton className="h-4 w-96 max-w-full rounded-sm" />
-        </div>
-        <div className="grid grid-cols-3 gap-2 p-1.5 rounded-xl bg-muted/60 border border-border">
+      <PageContainer className="max-w-4xl pb-16 space-y-6">
+        <PageHeader skeleton />
+        <div className="grid grid-cols-3 gap-2 border-b border-border/80 pb-1">
           {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="flex items-center gap-2 p-2 sm:p-2.5 rounded-lg">
-              <Skeleton className="size-5 rounded-full shrink-0" />
-              <Skeleton className="h-3 w-20 rounded-sm hidden sm:block" />
+            <div key={i} className="flex items-center gap-2 p-2.5 rounded-t-[4px] bg-muted/40">
+              <Skeleton className="h-5 w-7 rounded-[2px]" />
+              <Skeleton className="h-3 w-24 rounded-[4px] hidden sm:block" />
             </div>
           ))}
         </div>
-        <div className="p-6 rounded-xl border border-border bg-card space-y-5">
-          <div className="space-y-1.5 pb-4 border-b border-border">
-            <Skeleton className="h-5 w-40 rounded-sm" />
-            <Skeleton className="h-3.5 w-64 rounded-sm" />
-          </div>
-          <div className="space-y-4">
-            <Skeleton className="h-10 w-full rounded-lg" />
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Skeleton className="h-10 w-full rounded-lg" />
-              <Skeleton className="h-10 w-full rounded-lg" />
-            </div>
+        <div className="p-6 rounded-[6px] border border-border bg-card space-y-5">
+          <Skeleton className="h-5 w-48 rounded-[4px]" />
+          <Skeleton className="h-24 w-full rounded-[6px]" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Skeleton className="h-9 w-full rounded-[4px]" />
+            <Skeleton className="h-9 w-full rounded-[4px]" />
           </div>
         </div>
-      </div>
+      </PageContainer>
     )
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6 py-4 sm:py-6 px-3 sm:px-6 pb-16">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">Profile Setup</h1>
-        <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-          Autofill from your resume or customize your career targets for personalized AI job matching.
-        </p>
-      </div>
+    <PageContainer className="max-w-4xl pb-16">
+      {/* Standardized Header */}
+      <PageHeader
+        overline="ONBOARDING / IDENTITY"
+        title="Career Profile & AI Knowledge"
+        description="Autofill from your resume or customize your career targets for personalized AI job matching."
+        primaryAction={
+          <div className="flex items-center gap-2 font-mono text-[11px] text-muted-foreground border border-border/70 bg-card px-2.5 py-1 rounded-[4px] max-w-full truncate shadow-2xs">
+            <BrainCircuit className="h-3.5 w-3.5 text-primary shrink-0" />
+            <span className="truncate">Synced to AI Assistant & Memories</span>
+          </div>
+        }
+      />
 
       {/* 3-Step Wizard Navigation */}
-      <nav aria-label="Profile setup steps" className="grid grid-cols-3 gap-2 p-1.5 rounded-xl bg-muted/60 border border-border">
+      <div
+        role="tablist"
+        aria-label="Profile setup stages"
+        className="mt-6 flex border-b border-border/80 overflow-x-auto sm:overflow-x-visible overflow-y-hidden no-scrollbar gap-1"
+      >
         {WIZARD_STEPS.map((s) => {
           const isActive = step === s.id
           const isDone = step > s.id
@@ -349,61 +386,69 @@ export default function ProfileSetupPage() {
           return (
             <button
               key={s.id}
+              role="tab"
+              id={`step-${s.id}`}
+              aria-selected={isActive}
+              aria-controls={`panel-step-${s.id}`}
               type="button"
               onClick={() => setStep(s.id)}
-              aria-current={isActive ? "step" : undefined}
-              className={`flex flex-col sm:flex-row items-start sm:items-center gap-2 p-2 sm:p-2.5 rounded-lg text-left transition-all cursor-pointer ${
+              className={cn(
+                "relative flex items-center justify-center sm:justify-start gap-2 px-3.5 sm:px-4 py-2.5 min-h-[42px] text-xs font-mono uppercase tracking-wider border-b-2 transition-all cursor-pointer whitespace-nowrap -mb-[1px] rounded-t-[4px] flex-1 sm:flex-initial",
                 isActive
-                  ? "bg-background text-foreground shadow-xs border border-border/80 font-semibold"
+                  ? "border-foreground text-foreground bg-muted/60 font-semibold shadow-2xs"
                   : isDone
-                  ? "text-foreground/80 hover:bg-background/50 font-medium"
-                  : "text-muted-foreground hover:text-foreground hover:bg-background/30"
-              }`}
+                  ? "border-transparent text-foreground/80 hover:text-foreground hover:bg-muted/30 font-medium"
+                  : "border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/30"
+              )}
             >
-              <span
-                className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${
-                  isActive
-                    ? "bg-primary text-primary-foreground"
-                    : isDone
-                    ? "bg-emerald-500 text-white"
-                    : "bg-muted text-muted-foreground border border-border"
-                }`}
-              >
-                {isDone ? "✓" : s.id}
+              <span className="text-[10px] text-muted-foreground font-mono">
+                {isDone ? "[✓]" : `[${s.code}]`}
               </span>
-              <div className="min-w-0">
-                <p className="text-xs leading-none truncate">{s.title}</p>
-                <p className="hidden sm:block text-[10px] text-muted-foreground truncate mt-0.5">
-                  {s.description}
-                </p>
-              </div>
+              <span className="inline sm:hidden">{s.shortTitle}</span>
+              <span className="hidden sm:inline">{s.title}</span>
+              {isDone && (
+                <span className="ml-0.5 text-[9px] font-mono px-1 py-0.2 rounded-[2px] border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                  Ready
+                </span>
+              )}
             </button>
           )
         })}
-      </nav>
+      </div>
 
       {/* STEP 1: RESUME AUTOFILL & CONTACT */}
-      {step === 1 && (
-        <Card className="rounded-xl border border-border bg-card shadow-2xs">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-base font-semibold text-foreground">
-              1. Resume Extraction & Contact Details
-            </CardTitle>
-            <CardDescription className="text-xs text-muted-foreground">
-              Upload your resume or select an existing one to automatically extract phone, location, links, and skills.
-            </CardDescription>
-          </CardHeader>
+      <div
+        id="panel-step-1"
+        role="tabpanel"
+        aria-labelledby="step-1"
+        className={step === 1 ? "pt-6 animate-in fade-in-50 duration-200" : "hidden"}
+      >
+        <BlueprintCard>
+          <BlueprintCardHeader>
+            <div>
+              <span className="text-[10px] font-mono tracking-wider text-muted-foreground uppercase">STEP / 01</span>
+              <BlueprintCardTitle className="text-sm font-semibold tracking-tight text-foreground">
+                Resume Extraction & Contact Details
+              </BlueprintCardTitle>
+              <BlueprintCardDescription>
+                Upload your resume or select an existing one to automatically extract phone, location, links, and skills.
+              </BlueprintCardDescription>
+            </div>
 
-          <CardContent className="space-y-5">
+            <StatusBadge status="staged" customLabel="Step 1 of 3" size="sm" />
+          </BlueprintCardHeader>
+
+          <BlueprintCardContent className="space-y-5">
             {/* Resume Upload & Extract Box */}
-            <div className="p-4 rounded-xl border border-dashed border-primary/40 bg-primary/5 space-y-3">
+            <div className="p-4 sm:p-5 rounded-[6px] border border-dashed border-border bg-muted/20 space-y-3">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div className="space-y-0.5">
-                  <p className="text-xs font-semibold text-foreground">
-                    ⚡ Smart Resume Autofill
-                  </p>
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                    <FileText className="h-4 w-4 text-primary" />
+                    <span>Smart Resume Autofill</span>
+                  </div>
                   <p className="text-[11px] text-muted-foreground">
-                    Upload a PDF resume to populate 80% of this form automatically.
+                    Upload a PDF resume to populate up to 80% of this form automatically.
                   </p>
                 </div>
 
@@ -422,8 +467,13 @@ export default function ProfileSetupPage() {
                     variant="outline"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={extracting}
-                    className="text-xs h-8 cursor-pointer font-medium"
+                    className="text-xs h-8 rounded-[4px] cursor-pointer font-mono border-border"
                   >
+                    {extracting ? (
+                      <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin text-primary" />
+                    ) : (
+                      <UploadCloud className="h-3.5 w-3.5 mr-1.5" />
+                    )}
                     {extracting ? "Extracting..." : "Upload New PDF"}
                   </Button>
 
@@ -433,9 +483,9 @@ export default function ProfileSetupPage() {
                       size="sm"
                       onClick={() => handleExtractResume(undefined, selectedResumeId)}
                       disabled={extracting}
-                      className="text-xs h-8 cursor-pointer font-medium"
+                      className="text-xs h-8 rounded-[4px] cursor-pointer font-mono bg-secondary hover:bg-secondary/80 text-secondary-foreground"
                     >
-                      {extracting ? "Extracting..." : "Extract from Saved Resume"}
+                      {extracting ? "Extracting..." : "Autofill from Saved Resume"}
                     </Button>
                   )}
                 </div>
@@ -443,15 +493,16 @@ export default function ProfileSetupPage() {
 
               {/* Extraction Badges */}
               {extractedFields.length > 0 && (
-                <div className="pt-2 border-t border-primary/20">
-                  <p className="text-[11px] font-medium text-primary mb-1">
-                    ✓ Autofilled from Resume:
-                  </p>
+                <div className="pt-2 border-t border-border/40">
+                  <div className="flex items-center gap-1.5 text-[11px] font-mono text-primary mb-1.5">
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    <span>Autofilled from Resume:</span>
+                  </div>
                   <div className="flex flex-wrap gap-1.5">
                     {extractedFields.map((f) => (
                       <span
                         key={f}
-                        className="px-2 py-0.5 rounded-md bg-background border border-primary/30 text-primary text-[10px] font-medium"
+                        className="px-2 py-0.5 rounded-[4px] bg-background border border-border text-foreground font-mono text-[10px]"
                       >
                         {f}
                       </span>
@@ -469,10 +520,10 @@ export default function ProfileSetupPage() {
                 </Label>
                 <Input
                   id="phone"
-                  placeholder="+880 1700 000000"
+                  placeholder="+1 (555) 000-0000"
                   value={form.phone}
                   onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                  className="text-xs h-9"
+                  className="text-xs h-8 rounded-[4px] border-border bg-background"
                 />
               </div>
 
@@ -482,18 +533,18 @@ export default function ProfileSetupPage() {
                 </Label>
                 <Input
                   id="location"
-                  placeholder="Dhaka, Bangladesh / Remote"
+                  placeholder="San Francisco, CA / Remote"
                   value={form.location}
                   onChange={(e) => setForm({ ...form, location: e.target.value })}
-                  className="text-xs h-9"
+                  className="text-xs h-8 rounded-[4px] border-border bg-background"
                 />
               </div>
             </div>
 
             {/* Social & Portfolio Links */}
-            <div className="space-y-3 pt-2 border-t border-border">
+            <div className="space-y-3 pt-3 border-t border-border/40">
               <p className="text-xs font-semibold text-foreground">Online Profiles & Links</p>
-              
+
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="space-y-1.5">
                   <Label htmlFor="linkedin" className="text-xs text-muted-foreground font-medium">
@@ -504,7 +555,7 @@ export default function ProfileSetupPage() {
                     placeholder="https://linkedin.com/in/..."
                     value={form.linkedInUrl}
                     onChange={(e) => setForm({ ...form, linkedInUrl: e.target.value })}
-                    className="text-xs h-8 font-mono text-[11px]"
+                    className="text-xs h-8 font-mono text-[11px] rounded-[4px] border-border bg-background"
                   />
                 </div>
 
@@ -517,7 +568,7 @@ export default function ProfileSetupPage() {
                     placeholder="https://github.com/..."
                     value={form.githubUrl}
                     onChange={(e) => setForm({ ...form, githubUrl: e.target.value })}
-                    className="text-xs h-8 font-mono text-[11px]"
+                    className="text-xs h-8 font-mono text-[11px] rounded-[4px] border-border bg-background"
                   />
                 </div>
 
@@ -530,39 +581,49 @@ export default function ProfileSetupPage() {
                     placeholder="https://yourdomain.com"
                     value={form.portfolioUrl}
                     onChange={(e) => setForm({ ...form, portfolioUrl: e.target.value })}
-                    className="text-xs h-8 font-mono text-[11px]"
+                    className="text-xs h-8 font-mono text-[11px] rounded-[4px] border-border bg-background"
                   />
                 </div>
               </div>
             </div>
+          </BlueprintCardContent>
 
-            {/* Navigation */}
-            <div className="flex items-center justify-end gap-2 pt-4 border-t border-border">
-              <Button
-                type="button"
-                onClick={() => setStep(2)}
-                className="text-xs h-8 px-4 cursor-pointer font-medium"
-              >
-                Continue to Career Goals
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+          <BlueprintCardFooter className="justify-end">
+            <Button
+              type="button"
+              onClick={() => setStep(2)}
+              className="text-xs h-8 px-4 rounded-[4px] font-mono cursor-pointer bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5"
+            >
+              <span>Continue to Career Goals</span>
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Button>
+          </BlueprintCardFooter>
+        </BlueprintCard>
+      </div>
 
       {/* STEP 2: CAREER GOALS & PREFERENCES */}
-      {step === 2 && (
-        <Card className="rounded-xl border border-border bg-card shadow-2xs">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-base font-semibold text-foreground">
-              2. Target Career & Work Preferences
-            </CardTitle>
-            <CardDescription className="text-xs text-muted-foreground">
-              Set the job titles, work arrangements, and compensation expectations you are targeting.
-            </CardDescription>
-          </CardHeader>
+      <div
+        id="panel-step-2"
+        role="tabpanel"
+        aria-labelledby="step-2"
+        className={step === 2 ? "pt-6 animate-in fade-in-50 duration-200" : "hidden"}
+      >
+        <BlueprintCard>
+          <BlueprintCardHeader>
+            <div>
+              <span className="text-[10px] font-mono tracking-wider text-muted-foreground uppercase">STEP / 02</span>
+              <BlueprintCardTitle className="text-sm font-semibold tracking-tight text-foreground">
+                Target Career & Work Preferences
+              </BlueprintCardTitle>
+              <BlueprintCardDescription>
+                Set the job titles, work arrangements, and compensation expectations you are targeting.
+              </BlueprintCardDescription>
+            </div>
 
-          <CardContent className="space-y-4">
+            <StatusBadge status="interviewing" customLabel="Step 2 of 3" size="sm" />
+          </BlueprintCardHeader>
+
+          <BlueprintCardContent className="space-y-4">
             {/* Target Roles */}
             <SearchableTagsInput
               id="target-roles"
@@ -581,10 +642,10 @@ export default function ProfileSetupPage() {
                   value={form.workPreference}
                   onValueChange={(val) => setForm({ ...form, workPreference: val })}
                 >
-                  <SelectTrigger className="text-xs h-8">
+                  <SelectTrigger className="text-xs h-8 rounded-[4px] border-border bg-background">
                     <SelectValue placeholder="Select work mode" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="rounded-[4px] border-border">
                     <SelectItem value="remote">Remote Only</SelectItem>
                     <SelectItem value="hybrid">Hybrid</SelectItem>
                     <SelectItem value="onsite">On-site</SelectItem>
@@ -599,10 +660,10 @@ export default function ProfileSetupPage() {
                   value={form.experienceLevel}
                   onValueChange={(val) => setForm({ ...form, experienceLevel: val })}
                 >
-                  <SelectTrigger className="text-xs h-8">
+                  <SelectTrigger className="text-xs h-8 rounded-[4px] border-border bg-background">
                     <SelectValue placeholder="Select level" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="rounded-[4px] border-border">
                     <SelectItem value="Entry">Entry Level (0-1 yrs)</SelectItem>
                     <SelectItem value="Junior">Junior (1-2 yrs)</SelectItem>
                     <SelectItem value="Mid">Mid-Level (3-5 yrs)</SelectItem>
@@ -618,10 +679,10 @@ export default function ProfileSetupPage() {
                   value={form.currentStatus}
                   onValueChange={(val) => setForm({ ...form, currentStatus: val })}
                 >
-                  <SelectTrigger className="text-xs h-8">
+                  <SelectTrigger className="text-xs h-8 rounded-[4px] border-border bg-background">
                     <SelectValue placeholder="Select status" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="rounded-[4px] border-border">
                     <SelectItem value="actively_looking">Actively Interviewing</SelectItem>
                     <SelectItem value="open_to_offers">Open to Good Offers</SelectItem>
                     <SelectItem value="casually_browsing">Casually Browsing</SelectItem>
@@ -639,10 +700,10 @@ export default function ProfileSetupPage() {
                 </Label>
                 <Input
                   id="salary"
-                  placeholder="e.g. $80k - $100k / BDT 150k"
+                  placeholder="e.g. $120k - $150k USD / Annual"
                   value={form.salaryExpectation}
                   onChange={(e) => setForm({ ...form, salaryExpectation: e.target.value })}
-                  className="text-xs h-8"
+                  className="text-xs h-8 rounded-[4px] border-border bg-background"
                 />
               </div>
 
@@ -652,10 +713,10 @@ export default function ProfileSetupPage() {
                 </Label>
                 <Input
                   id="notice"
-                  placeholder="e.g. Immediate / 1 Month"
+                  placeholder="e.g. Immediate / 2 Weeks"
                   value={form.noticePeriod}
                   onChange={(e) => setForm({ ...form, noticePeriod: e.target.value })}
-                  className="text-xs h-8"
+                  className="text-xs h-8 rounded-[4px] border-border bg-background"
                 />
               </div>
             </div>
@@ -669,42 +730,55 @@ export default function ProfileSetupPage() {
               onChange={(newVal) => setForm({ ...form, preferredIndustries: newVal })}
               popularItems={POPULAR_INDUSTRIES}
             />
+          </BlueprintCardContent>
 
-            {/* Navigation */}
-            <div className="flex items-center justify-between gap-2 pt-4 border-t border-border">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setStep(1)}
-                className="text-xs h-8 px-4 cursor-pointer"
-              >
-                Back
-              </Button>
-              <Button
-                type="button"
-                onClick={() => setStep(3)}
-                className="text-xs h-8 px-4 cursor-pointer font-medium"
-              >
-                Continue to Skills & Projects
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+          <BlueprintCardFooter className="justify-between">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setStep(1)}
+              className="text-xs h-8 px-3 rounded-[4px] font-mono cursor-pointer gap-1.5"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              <span>Back</span>
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => setStep(3)}
+              className="text-xs h-8 px-4 rounded-[4px] font-mono cursor-pointer bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5"
+            >
+              <span>Continue to Skills & Projects</span>
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Button>
+          </BlueprintCardFooter>
+        </BlueprintCard>
+      </div>
 
       {/* STEP 3: SKILLS, AI DRILLS & PROJECTS */}
-      {step === 3 && (
-        <Card className="rounded-xl border border-border bg-card shadow-2xs">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-base font-semibold text-foreground">
-              3. Technical Skills, Projects & AI Focus
-            </CardTitle>
-            <CardDescription className="text-xs text-muted-foreground">
-              Help the AI assistant highlight your strengths in resume tailoring and target weak areas in mock interviews.
-            </CardDescription>
-          </CardHeader>
+      <div
+        id="panel-step-3"
+        role="tabpanel"
+        aria-labelledby="step-3"
+        className={step === 3 ? "pt-6 animate-in fade-in-50 duration-200" : "hidden"}
+      >
+        <BlueprintCard>
+          <BlueprintCardHeader>
+            <div>
+              <span className="text-[10px] font-mono tracking-wider text-muted-foreground uppercase">STEP / 03</span>
+              <BlueprintCardTitle className="text-sm font-semibold tracking-tight text-foreground">
+                Technical Skills, Projects & AI Focus
+              </BlueprintCardTitle>
+              <BlueprintCardDescription>
+                Help the AI assistant highlight your strengths in resume tailoring and target growth areas in mock interviews.
+              </BlueprintCardDescription>
+            </div>
 
-          <CardContent className="space-y-4">
+            <StatusBadge status="offer" customLabel="Step 3 of 3" size="sm" />
+          </BlueprintCardHeader>
+
+          <BlueprintCardContent className="space-y-5">
             {/* Strengths */}
             <SearchableTagsInput
               id="strengths"
@@ -726,7 +800,7 @@ export default function ProfileSetupPage() {
             />
 
             {/* Highlight Projects */}
-            <div className="space-y-3 pt-3 border-t border-border">
+            <div className="space-y-3 pt-3 border-t border-border/40">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs font-semibold text-foreground">Top Highlight Projects</p>
@@ -736,28 +810,44 @@ export default function ProfileSetupPage() {
                 </div>
               </div>
 
-              {/* Add Project Sub-form */}
-              <div className="p-3 rounded-lg bg-muted/40 border border-border space-y-2.5">
+              {/* Add/Edit Project Sub-form */}
+              <div className="p-3.5 rounded-[6px] bg-muted/20 border border-border space-y-2.5">
+                <div className="flex items-center justify-between text-[11px] font-mono text-muted-foreground">
+                  <span>{editingProjIndex !== null ? "Edit Project Details" : "Add New Highlight Project"}</span>
+                  {editingProjIndex !== null && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingProjIndex(null)
+                        setTempProject({ name: "", stack: "", description: "" })
+                      }}
+                      className="text-muted-foreground hover:text-foreground underline cursor-pointer"
+                    >
+                      Cancel Edit
+                    </button>
+                  )}
+                </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <Input
-                    placeholder="Project Name (e.g. Real-time Job Tracker)"
+                    placeholder="Project Name (e.g. Distributed Job Tracker)"
                     value={tempProject.name}
                     onChange={(e) => setTempProject({ ...tempProject, name: e.target.value })}
-                    className="text-xs h-8 bg-background"
+                    className="text-xs h-8 rounded-[4px] border-border bg-background font-mono"
                   />
                   <Input
                     placeholder="Tech Stack (e.g. Next.js, Go, PostgreSQL)"
                     value={tempProject.stack}
                     onChange={(e) => setTempProject({ ...tempProject, stack: e.target.value })}
-                    className="text-xs h-8 bg-background"
+                    className="text-xs h-8 rounded-[4px] border-border bg-background font-mono"
                   />
                 </div>
                 <Textarea
-                  placeholder="Short impact summary (e.g. Built high-concurrency event system serving 50k users)"
+                  placeholder="Short impact summary (e.g. Built high-concurrency event system serving 50k active users with 99.9% uptime)"
                   value={tempProject.description}
                   onChange={(e) => setTempProject({ ...tempProject, description: e.target.value })}
                   rows={2}
-                  className="text-xs bg-background resize-none"
+                  className="text-xs rounded-[4px] border-border bg-background resize-none leading-relaxed"
                 />
                 <div className="flex justify-end">
                   <Button
@@ -765,61 +855,95 @@ export default function ProfileSetupPage() {
                     size="sm"
                     variant="outline"
                     onClick={handleAddOrUpdateProject}
-                    className="text-xs h-7 cursor-pointer"
+                    className="text-xs h-7 px-3 rounded-[4px] font-mono cursor-pointer gap-1"
                   >
-                    {editingProjIndex !== null ? "Update Project" : "Add Project"}
+                    {editingProjIndex !== null ? (
+                      <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                    ) : (
+                      <Plus className="h-3 w-3" />
+                    )}
+                    <span>{editingProjIndex !== null ? "Update Project" : "Add Project"}</span>
                   </Button>
                 </div>
               </div>
 
               {/* Added Projects List */}
               {form.projects.length > 0 && (
-                <div className="space-y-2">
+                <div className="divide-y divide-border/60 rounded-[6px] border border-border bg-card overflow-hidden">
                   {form.projects.map((proj, idx) => (
                     <div
                       key={idx}
-                      className="flex items-start justify-between p-2.5 rounded-lg border border-border bg-card text-xs"
+                      className="flex items-start justify-between p-3 gap-3 hover:bg-muted/20 transition-colors"
                     >
-                      <div className="space-y-0.5">
-                        <p className="font-semibold text-foreground">{proj.name}</p>
-                        {proj.stack && <p className="text-[11px] text-primary font-mono">{proj.stack}</p>}
-                        {proj.description && <p className="text-[11px] text-muted-foreground">{proj.description}</p>}
+                      <div className="space-y-1 min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className="font-semibold text-xs text-foreground truncate">{proj.name}</p>
+                          {proj.stack && (
+                            <span className="font-mono text-[10px] text-primary border border-primary/30 bg-primary/5 px-1.5 py-0.2 rounded-[2px]">
+                              {proj.stack}
+                            </span>
+                          )}
+                        </div>
+                        {proj.description && (
+                          <p className="text-[11px] text-muted-foreground leading-relaxed line-clamp-2">
+                            {proj.description}
+                          </p>
+                        )}
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveProject(idx)}
-                        className="text-muted-foreground hover:text-destructive text-xs cursor-pointer p-1"
-                      >
-                        ✕
-                      </button>
+
+                      <div className="flex items-center gap-1 shrink-0 pt-0.5">
+                        <button
+                          type="button"
+                          onClick={() => handleStartEditProject(idx)}
+                          className="h-7 w-7 rounded-[4px] flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer transition-colors"
+                          title="Edit project"
+                        >
+                          <Edit2 className="h-3 w-3" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveProject(idx)}
+                          className="h-7 w-7 rounded-[4px] flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 cursor-pointer transition-colors"
+                          title="Delete project"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
               )}
             </div>
+          </BlueprintCardContent>
 
-            {/* Navigation */}
-            <div className="flex items-center justify-between gap-2 pt-4 border-t border-border">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setStep(2)}
-                className="text-xs h-8 px-4 cursor-pointer"
-              >
-                Back
-              </Button>
-              <Button
-                type="button"
-                onClick={handleSaveProfile}
-                disabled={saving}
-                className="text-xs h-8 px-5 cursor-pointer font-medium"
-              >
-                {saving ? "Saving..." : "Save & Complete Profile"}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-    </div>
+          <BlueprintCardFooter className="justify-between">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setStep(2)}
+              className="text-xs h-8 px-3 rounded-[4px] font-mono cursor-pointer gap-1.5"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              <span>Back</span>
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleSaveProfile}
+              disabled={saving}
+              className="text-xs h-8 px-5 rounded-[4px] font-mono cursor-pointer bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5"
+            >
+              {saving ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <CheckCircle2 className="h-3.5 w-3.5" />
+              )}
+              <span>{saving ? "Saving Profile..." : "Save & Complete Profile"}</span>
+            </Button>
+          </BlueprintCardFooter>
+        </BlueprintCard>
+      </div>
+    </PageContainer>
   )
 }

@@ -1,5 +1,8 @@
+"use client"
+
 import React, { useState, memo } from "react"
 import { Label } from "@/components/ui/label"
+import { X } from "lucide-react"
 
 interface SearchableTagsInputProps {
   value: string // Comma-separated values
@@ -16,16 +19,16 @@ export const SearchableTagsInput = memo(function SearchableTagsInput({
   placeholder = "Search or type...",
   label,
   popularItems,
-  id
+  id,
 }: SearchableTagsInputProps) {
   const [query, setQuery] = useState("")
   const [dropdownOpen, setDropdownOpen] = useState(false)
 
   const itemsList = value ? value.split(", ").filter(Boolean) : []
-  
+
   const filteredItems = popularItems.filter(
-    (item) => 
-      item.toLowerCase().includes(query.toLowerCase()) && 
+    (item) =>
+      item.toLowerCase().includes(query.toLowerCase()) &&
       !itemsList.includes(item)
   )
 
@@ -43,18 +46,20 @@ export const SearchableTagsInput = memo(function SearchableTagsInput({
 
   return (
     <div className="space-y-1.5 relative w-full">
-      <Label className="text-xs text-slate-655 dark:text-slate-350 font-semibold">{label}</Label>
-      
-      <div 
-        className="min-h-[38px] p-1.5 rounded-lg bg-background border border-input text-foreground flex flex-wrap gap-1.5 items-center focus-within:border-ring cursor-text w-full"
+      <Label htmlFor={`${id}-search-input`} className="text-xs font-medium text-foreground">
+        {label}
+      </Label>
+
+      <div
+        className="min-h-[38px] p-1.5 rounded-[4px] bg-background border border-input text-foreground flex flex-wrap gap-1.5 items-center focus-within:ring-1 focus-within:ring-primary focus-within:border-primary cursor-text w-full transition-colors"
         onClick={() => document.getElementById(`${id}-search-input`)?.focus()}
       >
         {itemsList.map((item) => (
-          <span 
-            key={item} 
-            className="inline-flex items-center gap-1 bg-secondary text-secondary-foreground border border-border text-[10px] font-semibold px-2 py-0.5 rounded-md"
+          <span
+            key={item}
+            className="inline-flex items-center gap-1 bg-muted/70 text-foreground border border-border text-[11px] font-medium px-2 py-0.5 rounded-[4px]"
           >
-            {item}
+            <span>{item}</span>
             <button
               type="button"
               onMouseDown={(e) => {
@@ -62,13 +67,14 @@ export const SearchableTagsInput = memo(function SearchableTagsInput({
                 e.stopPropagation()
                 handleRemoveItem(item)
               }}
-              className="text-muted-foreground hover:text-destructive font-bold focus:outline-none ml-1 cursor-pointer"
+              className="text-muted-foreground hover:text-destructive focus:outline-none ml-0.5 cursor-pointer"
+              aria-label={`Remove ${item}`}
             >
-              ×
+              <X className="h-3 w-3" />
             </button>
           </span>
         ))}
-        
+
         <input
           id={`${id}-search-input`}
           type="text"
@@ -88,20 +94,20 @@ export const SearchableTagsInput = memo(function SearchableTagsInput({
               }
             }
           }}
-          className="flex-1 bg-transparent text-xs outline-none border-0 p-0 text-foreground min-w-[120px] placeholder:text-muted-foreground/60"
+          className="flex-1 bg-transparent text-xs outline-none border-0 p-1 text-foreground min-w-[120px] placeholder:text-muted-foreground/60"
         />
       </div>
 
       {dropdownOpen && (query.trim() || filteredItems.length > 0) && (
-        <div className="absolute z-10 left-0 right-0 mt-1 max-h-48 overflow-y-auto rounded-lg border border-border bg-popover shadow-2xl p-1.5 space-y-0.5 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-          {query.trim() && !popularItems.some(i => i.toLowerCase() === query.toLowerCase()) && (
+        <div className="absolute z-20 left-0 right-0 mt-1 max-h-48 overflow-y-auto rounded-[4px] border border-border bg-popover shadow-md p-1 space-y-0.5 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+          {query.trim() && !popularItems.some((i) => i.toLowerCase() === query.toLowerCase()) && (
             <button
               type="button"
               onMouseDown={(e) => {
                 e.preventDefault()
                 handleAddItem(query)
               }}
-              className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs text-primary hover:bg-accent hover:text-accent-foreground text-left font-semibold cursor-pointer"
+              className="flex w-full items-center justify-between rounded-[4px] px-2.5 py-1.5 text-xs text-primary hover:bg-muted font-medium text-left cursor-pointer"
             >
               Add custom: &quot;{query}&quot;
             </button>
@@ -114,7 +120,7 @@ export const SearchableTagsInput = memo(function SearchableTagsInput({
                 e.preventDefault()
                 handleAddItem(item)
               }}
-              className="flex w-full items-center rounded-md px-2 py-1.5 text-xs text-foreground hover:bg-accent hover:text-accent-foreground text-left cursor-pointer"
+              className="flex w-full items-center rounded-[4px] px-2.5 py-1.5 text-xs text-foreground hover:bg-muted text-left cursor-pointer"
             >
               {item}
             </button>
