@@ -5,6 +5,7 @@ import { ArrowRight, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CompanyBrandLogo } from "@/components/CompanyBrandLogo";
 import { BlueprintCard } from "@/components/primitives/BlueprintCard";
+import { EmptyState } from "@/components/primitives/EmptyState";
 
 export type UpcomingInterviewItem = {
   id: string;
@@ -39,32 +40,11 @@ function formatInterviewDateTime(dateInput?: string | Date | null): { date: stri
   return { date: dateStr, time: timeStr };
 }
 
-const fallbackInterviews: UpcomingInterviewItem[] = [
-  {
-    id: "int-1",
-    companyName: "Anthropic",
-    jobTitle: "Product Engineer",
-    interviewDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
-  },
-  {
-    id: "int-2",
-    companyName: "Google",
-    jobTitle: "Product Manager",
-    interviewDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
-  },
-  {
-    id: "int-3",
-    companyName: "Stripe",
-    jobTitle: "Software Engineer",
-    interviewDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-  },
-];
-
 export function UpcomingInterviewsList({
   interviews,
   isLoading,
 }: UpcomingInterviewsListProps) {
-  const displayList = interviews && interviews.length > 0 ? interviews.slice(0, 3) : fallbackInterviews;
+  const displayList = interviews && interviews.length > 0 ? interviews.slice(0, 3) : [];
 
   if (isLoading) {
     return (
@@ -96,10 +76,22 @@ export function UpcomingInterviewsList({
         </div>
 
         <div className="space-y-1 mt-2">
-          {displayList.map((item) => {
-            const formatted = item.interviewDateStr && item.interviewTimeStr
-              ? { date: item.interviewDateStr, time: item.interviewTimeStr }
-              : formatInterviewDateTime(item.interviewDate);
+          {displayList.length === 0 ? (
+            <EmptyState
+              icon={Calendar}
+              title="No upcoming interviews"
+              description="Interviews you schedule or record in your pipeline will appear here."
+              action={{
+                label: "Prepare for Interviews",
+                href: "/interview-prep",
+              }}
+              className="py-6"
+            />
+          ) : (
+            displayList.map((item) => {
+              const formatted = item.interviewDateStr && item.interviewTimeStr
+                ? { date: item.interviewDateStr, time: item.interviewTimeStr }
+                : formatInterviewDateTime(item.interviewDate);
 
             return (
               <div
@@ -135,7 +127,7 @@ export function UpcomingInterviewsList({
                     asChild
                     variant="outline"
                     size="sm"
-                    className="h-7 px-3 text-xs font-medium rounded-sm border-border bg-background text-foreground hover:bg-muted"
+                    className="h-8 px-3 text-xs font-medium rounded-sm border-border bg-background text-foreground hover:bg-muted shadow-none"
                   >
                     <Link
                       href={`/interview-prep?company=${encodeURIComponent(item.companyName)}&role=${encodeURIComponent(item.jobTitle)}`}
@@ -146,7 +138,7 @@ export function UpcomingInterviewsList({
                 </div>
               </div>
             );
-          })}
+          }))}
         </div>
       </div>
     </BlueprintCard>

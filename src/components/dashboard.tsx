@@ -37,8 +37,8 @@ export function Dashboard() {
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 sm:gap-6 items-start">
         {/* Left Column (Main Cockpit: ~75% on desktop / 9 cols) */}
         <div className="xl:col-span-9 flex flex-col space-y-5 sm:space-y-6 min-w-0">
-          {/* 1. Personalized Greeting & Daily Motivation Quote */}
-          <DashboardHeader />
+          {/* 1. Personalized Header */}
+          <DashboardHeader onAnalyzeJD={() => setIsQuickIntakeOpen(true)} />
 
           {/* 2. Top 4 Core Career KPIs */}
           <DashboardKpis data={stats?.kpi} isLoading={isLoading} />
@@ -46,13 +46,18 @@ export function Dashboard() {
           {/* 3. Autonomous Daily Strategic Executive Briefing Card (CAG-12) */}
           <DailyBriefingCard />
 
-          {/* 4. Recommended Opportunities */}
+          {/* 5. AI Career Copilot Card (prominent on mobile / tablet, matching prototype) */}
+          <div className="xl:hidden">
+            <AICareerCopilotCard onAnalyzeJD={() => setIsQuickIntakeOpen(true)} />
+          </div>
+
+          {/* 6. Recommended Opportunities */}
           <RecommendedOpportunities
             opportunities={stats?.recommendedOpportunities}
             isLoading={isLoading}
           />
 
-          {/* 5. Side-by-side Recent Applications & Upcoming Interviews */}
+          {/* 7. Side-by-side Recent Applications & Upcoming Interviews */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5 items-stretch">
             <RecentApplicationsList
               applications={stats?.recent || stats?.recentApplications}
@@ -67,8 +72,10 @@ export function Dashboard() {
 
         {/* Right Rail Column (~25% on desktop / 3 cols) starting at the top */}
         <div className="xl:col-span-3 flex flex-col space-y-4 sm:space-y-5 min-w-0 xl:sticky xl:top-20">
-          {/* AI Career Copilot Card */}
-          <AICareerCopilotCard onAnalyzeJD={() => setIsQuickIntakeOpen(true)} />
+          {/* AI Career Copilot Card (Desktop sticky rail) */}
+          <div className="hidden xl:block">
+            <AICareerCopilotCard onAnalyzeJD={() => setIsQuickIntakeOpen(true)} />
+          </div>
 
           {/* Today's Tasks Interactive Checklist */}
           <TodayTasksCard tasks={stats?.todayTasks} isLoading={isLoading} />

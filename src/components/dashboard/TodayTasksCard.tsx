@@ -19,37 +19,13 @@ interface TodayTasksCardProps {
   isLoading?: boolean;
 }
 
-const referenceTasks: TaskItem[] = [
-  {
-    id: "task-1",
-    title: "Review 3 new opportunities",
-    subtitle: "Fresh matches available",
-    completed: false,
-    href: "/discovery",
-  },
-  {
-    id: "task-2",
-    title: "Complete application for Stripe",
-    subtitle: "Marked complete",
-    completed: true,
-    href: "/applications",
-  },
-  {
-    id: "task-3",
-    title: "Prepare for upcoming interview",
-    subtitle: "In 2 days",
-    completed: false,
-    href: "/interview-prep",
-  },
-];
-
 export function TodayTasksCard({ tasks, isLoading }: TodayTasksCardProps) {
   const todayKey = typeof window !== "undefined"
     ? `careertrack_tasks_${new Date().toISOString().slice(0, 10)}`
     : null;
 
   const [taskList, setTaskList] = useState<TaskItem[]>(() => {
-    const initial = tasks && tasks.length > 0 ? tasks : referenceTasks;
+    const initial = tasks && tasks.length > 0 ? tasks : [];
     if (typeof window !== "undefined" && todayKey) {
       try {
         const saved = localStorage.getItem(todayKey);
@@ -130,41 +106,64 @@ export function TodayTasksCard({ tasks, isLoading }: TodayTasksCardProps) {
       </div>
 
       {/* Task List */}
-      <div className="mt-2.5 space-y-2.5">
-        {taskList.map((task) => (
-          <div
-            key={task.id}
-            className="flex items-start gap-2.5 py-0.5 group cursor-pointer"
-            onClick={() => toggleTask(task.id)}
-          >
-            <div
-              className={cn(
-                "mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-xs border transition-colors",
-                task.completed
-                  ? "border-emerald-600 bg-emerald-600 text-white"
-                  : "border-border hover:border-foreground/40 bg-card"
-              )}
+      <div className="mt-2.5 space-y-1.5">
+        {taskList.length === 0 ? (
+          <div className="rounded-[4px] border border-dashed border-border bg-muted/20 px-3 py-3.5 text-center my-1">
+            <p className="text-xs font-medium text-foreground">
+              All tasks completed for today.
+            </p>
+            <Link
+              href="/discovery"
+              className="mt-1 inline-flex text-xs font-medium text-primary hover:underline"
             >
-              {task.completed && <Check className="size-3 stroke-[2.5] text-white" />}
-            </div>
-
-            <div className="min-w-0 flex-1 select-none">
-              <p
+              Explore opportunities
+            </Link>
+          </div>
+        ) : (
+          taskList.map((task) => (
+            <button
+              key={task.id}
+              type="button"
+              role="checkbox"
+              aria-checked={task.completed}
+              onClick={() => toggleTask(task.id)}
+              onKeyDown={(e) => {
+                if (e.key === " " || e.key === "Enter") {
+                  e.preventDefault();
+                  toggleTask(task.id);
+                }
+              }}
+              className="w-full flex items-start gap-2.5 py-1 px-1 rounded-sm hover:bg-muted/50 transition-colors text-left group cursor-pointer focus:outline-hidden focus-visible:ring-1 focus-visible:ring-ring"
+            >
+              <div
                 className={cn(
-                  "text-xs leading-snug transition-colors",
+                  "mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-xs border transition-colors",
                   task.completed
-                    ? "font-normal text-muted-foreground line-through"
-                    : "font-medium text-foreground group-hover:text-primary"
+                    ? "border-emerald-600 bg-emerald-600 text-white"
+                    : "border-border group-hover:border-foreground/40 bg-card"
                 )}
               >
-                {task.title}
-              </p>
-              <p className="text-[11px] text-muted-foreground/75 mt-0.5 font-normal">
-                {task.subtitle}
-              </p>
-            </div>
-          </div>
-        ))}
+                {task.completed && <Check className="size-3 stroke-[2.5] text-white" />}
+              </div>
+
+              <div className="min-w-0 flex-1 select-none">
+                <p
+                  className={cn(
+                    "text-xs leading-snug transition-colors",
+                    task.completed
+                      ? "font-normal text-muted-foreground line-through"
+                      : "font-medium text-foreground group-hover:text-primary"
+                  )}
+                >
+                  {task.title}
+                </p>
+                <p className="text-[11px] text-muted-foreground/75 mt-0.5 font-normal">
+                  {task.subtitle}
+                </p>
+              </div>
+            </button>
+          ))
+        )}
       </div>
 
       {/* Bottom right link */}

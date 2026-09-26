@@ -15,12 +15,12 @@ interface StayConsistentCardProps {
   isLoading?: boolean;
 }
 
-const referenceActivity: DayActivity[] = [
-  { day: "Mon", active: true },
-  { day: "Tue", active: true },
-  { day: "Wed", active: true },
-  { day: "Thu", active: true },
-  { day: "Fri", active: true },
+const defaultDays: DayActivity[] = [
+  { day: "Mon", active: false },
+  { day: "Tue", active: false },
+  { day: "Wed", active: false },
+  { day: "Thu", active: false },
+  { day: "Fri", active: false },
   { day: "Sat", active: false },
   { day: "Sun", active: false },
 ];
@@ -30,7 +30,7 @@ export function StayConsistentCard({
   activeDaysCount,
   isLoading,
 }: StayConsistentCardProps) {
-  const days = activity && activity.length > 0 ? activity : referenceActivity;
+  const days = activity && activity.length > 0 ? activity : defaultDays;
   const count = activeDaysCount ?? days.filter((d) => d.active).length;
 
   if (isLoading) {
@@ -71,6 +71,8 @@ export function StayConsistentCard({
           {days.map((item) => (
             <div key={item.day} className="flex flex-col items-center gap-1.5">
               <div
+                role="img"
+                aria-label={`${item.day}: ${item.active ? "Active" : "Inactive"}`}
                 className={cn(
                   "size-3 rounded-full transition-colors",
                   item.active

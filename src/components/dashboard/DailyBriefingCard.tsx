@@ -170,11 +170,12 @@ export function DailyBriefingCard() {
             size="icon"
             onClick={handleRefresh}
             disabled={refreshing}
-            className="size-6 text-muted-foreground hover:text-foreground rounded-sm cursor-pointer"
+            className="size-7 text-muted-foreground hover:text-foreground rounded-sm cursor-pointer"
             title="Refresh briefing"
+            aria-label="Refresh daily briefing"
           >
             <RefreshCw
-              className={cn("size-3", refreshing && "animate-spin text-primary")}
+              className={cn("size-3.5", refreshing && "animate-spin text-primary")}
             />
           </Button>
         </div>
@@ -293,7 +294,7 @@ export function DailyBriefingCard() {
                     </span>
                     <span
                       className={cn(
-                        "px-1.5 py-0.5 rounded-xs text-[9px] font-semibold border shrink-0",
+                        "hidden xs:inline-block px-1.5 py-0.5 rounded-xs text-[10px] font-semibold border shrink-0",
                         urgencyClass
                       )}
                     >
@@ -302,20 +303,21 @@ export function DailyBriefingCard() {
                   </div>
 
                   <div className="shrink-0">
-                    <Link href={item.href} title={fullActionLabel} aria-label={fullActionLabel}>
-                      <Button
-                        size="sm"
-                        className={cn(
-                          "h-7 px-2.5 rounded-sm text-xs cursor-pointer transition-colors inline-flex items-center gap-1 shadow-none",
-                          isPrimary
-                            ? "bg-primary hover:bg-primary/90 text-primary-foreground font-medium"
-                            : "bg-background hover:bg-muted text-foreground font-normal border border-border"
-                        )}
-                      >
+                    <Button
+                      asChild
+                      size="sm"
+                      className={cn(
+                        "h-7 px-2.5 rounded-sm text-xs cursor-pointer transition-colors inline-flex items-center gap-1 shadow-none",
+                        isPrimary
+                          ? "bg-primary hover:bg-primary/90 text-primary-foreground font-medium"
+                          : "bg-background hover:bg-muted text-foreground font-normal border border-border"
+                      )}
+                    >
+                      <Link href={item.href} title={fullActionLabel} aria-label={fullActionLabel}>
                         <span>{btnLabel}</span>
                         <ChevronRight className="size-2.5 text-muted-foreground group-hover:translate-x-0.5 transition-transform" />
-                      </Button>
-                    </Link>
+                      </Link>
+                    </Button>
                   </div>
                 </div>
               );

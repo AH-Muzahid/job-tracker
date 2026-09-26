@@ -2,7 +2,11 @@
 
 import { useUser } from "@clerk/nextjs";
 
-export function DashboardHeader() {
+interface DashboardHeaderProps {
+  onAnalyzeJD?: () => void;
+}
+
+export function DashboardHeader({ onAnalyzeJD }: DashboardHeaderProps) {
   const { user } = useUser();
 
   const firstName = user?.firstName || user?.fullName?.split(" ")[0] || "there";
@@ -11,27 +15,29 @@ export function DashboardHeader() {
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between pt-1 pb-1">
-      <div>
-        <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
-          <span>{greeting}, {firstName}</span>
-          <span className="inline-block select-none text-2xl" role="img" aria-label="waving hand">
-            👋
-          </span>
+    <div className="pt-1 pb-1">
+      <div className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground font-semibold mb-0.5">
+        Executive Cockpit
+      </div>
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground min-w-0">
+          {greeting}, {firstName}
         </h1>
-        <p className="mt-1 text-xs sm:text-sm text-muted-foreground font-normal">
-          Make progress today. Small intentional steps lead to high-conviction offers.
-        </p>
-      </div>
 
-      <div className="hidden sm:block rounded-[6px] border border-border bg-card px-4 py-2.5 text-right">
-        <p className="text-xs text-foreground font-normal leading-relaxed">
-          &quot;A better career is a series of intentional steps.&quot;
-        </p>
-        <span className="text-[11px] font-normal text-muted-foreground mt-0.5 block">
-          — CareerTrack
-        </span>
+        {onAnalyzeJD && (
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={onAnalyzeJD}
+              className="h-8 px-3 rounded-sm border border-border bg-card hover:bg-muted text-xs font-medium text-foreground transition-colors inline-flex items-center gap-1.5 cursor-pointer shadow-none"
+            >
+              <span>+ Quick Intake</span>
+            </button>
+          </div>
+        )}
       </div>
+      <p className="mt-1 text-xs sm:text-sm text-muted-foreground font-normal leading-relaxed">
+        Autonomous career pipeline briefing and high-conviction actions for today.
+      </p>
     </div>
   );
 }
