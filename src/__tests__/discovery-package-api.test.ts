@@ -11,6 +11,7 @@ vi.mock("@/lib/prisma", () => ({
     userJobMatch: {
       findFirst: vi.fn(),
       updateMany: vi.fn(),
+      upsert: vi.fn(),
     },
     canonicalJob: {
       findUnique: vi.fn(),
@@ -37,6 +38,7 @@ vi.mock("@/lib/discovery/cover-letter-agent", () => ({
 
 vi.mock("@/lib/redis", () => ({
   invalidateCache: vi.fn(),
+  getCachedJson: vi.fn().mockResolvedValue(null),
 }))
 
 vi.mock("@/lib/discovery/telemetry", () => ({
@@ -151,7 +153,7 @@ describe("1-Click Package Application API (CAG-05)", () => {
       })
     )
 
-    // Verify agent was triggered with correct context
+    // Verify agent was triggered with correct context including authentic fitScore
     expect(generateApplicationMaterialsAgent).toHaveBeenCalledWith(
       "user-1",
       "app-staged-999",
@@ -159,19 +161,31 @@ describe("1-Click Package Application API (CAG-05)", () => {
         companyName: "Stripe",
         jobTitle: "Staff Software Engineer",
         jobUrl: "https://stripe.com/jobs/123",
+        fitScore: 94,
       })
     )
 
-    // Verify UserJobMatch updated to isSaved: true and status: "STAGED"
-    expect(prisma.userJobMatch.updateMany).toHaveBeenCalledWith(
+    // Verify UserJobMatch upserted to isSaved: true and status: "STAGED" with authentic fitScore
+    expect(prisma.userJobMatch.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({
-          userId: "user-1",
-        }),
-        data: {
-          isSaved: true,
-          status: "STAGED",
+        where: {
+          userId_jobId: {
+            userId: "user-1",
+            jobId: "canonical-job-1",
+          },
         },
+        create: expect.objectContaining({
+          userId: "user-1",
+          jobId: "canonical-job-1",
+          fitScore: 94,
+          status: "STAGED",
+          isSaved: true,
+        }),
+        update: expect.objectContaining({
+          status: "STAGED",
+          isSaved: true,
+          fitScore: 94,
+        }),
       })
     )
 

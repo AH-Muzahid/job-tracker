@@ -10,7 +10,7 @@ import { checkDistributedRateLimit, rateLimitResponse } from "@/lib/rate-limit"
 import { generateApplicationMaterialsAgent } from "@/lib/discovery/cover-letter-agent"
 import { logDiscoveryEvent } from "@/lib/discovery/telemetry"
 import { invalidateUserImplicitPreferences } from "@/lib/discovery/preferences"
-import { invalidateCache } from "@/lib/redis"
+import { invalidateCache, getCachedJson } from "@/lib/redis"
 
 const PackageInputSchema = z.object({
   companyName: z.string().trim().min(1).optional(),
@@ -19,6 +19,7 @@ const PackageInputSchema = z.object({
   location: z.string().trim().optional(),
   salary: z.string().trim().optional(),
   notes: z.string().trim().optional(),
+  fitScore: z.number().optional(),
 })
 
 export async function POST(
@@ -85,10 +86,31 @@ export async function POST(
       (jobData?.salaryMin && jobData?.salaryMax
         ? `$${jobData.salaryMin} - $${jobData.salaryMax}`
         : undefined)
+
+    // Resolve authentic fit score
+    let authenticFitScore = body.fitScore ?? match?.fitScore ?? null
+    if (!authenticFitScore) {
+      const feedCache = await getCachedJson<any[]>(`discovery:feed:v1:${userId}`).catch(() => null)
+      if (Array.isArray(feedCache)) {
+        const feedItem = feedCache.find(
+          (j) => j.id === id || j.jobId === id ||
+                 (j.company?.toLowerCase() === companyName.toLowerCase() &&
+                  j.title?.toLowerCase() === jobTitle.toLowerCase())
+        )
+        if (feedItem?.fitScore) {
+          authenticFitScore = Math.round(feedItem.fitScore)
+        }
+      }
+    }
+    if (!authenticFitScore && body.notes) {
+      const matchScoreRegex = body.notes.match(/Fit Score:\s*(\d+)%/i)
+      if (matchScoreRegex) authenticFitScore = parseInt(matchScoreRegex[1], 10)
+    }
+
     const notes =
       body.notes ||
-      (match?.matchRationale
-        ? `Fit Score: ${match.fitScore}%\n${match.matchRationale}`
+      (authenticFitScore
+        ? `Fit Score: ${authenticFitScore}%\n${match?.matchRationale || "Autonomous Discovery Match"}`
         : "Packaged via CareerTrack Autonomous Multi-Board Job Discovery Engine")
 
     if (!companyName || !jobTitle) {
@@ -167,30 +189,43 @@ export async function POST(
       jobTitle,
       jobUrl,
       location,
-      notes,
+      notes: combinedNotes,
       salary,
+      fitScore: authenticFitScore ?? undefined,
     })
 
-    // 4. Update UserJobMatch to isSaved: true and status: "STAGED"
+    // 4. Update or Upsert UserJobMatch to isSaved: true and status: "STAGED" with authentic fitScore
     const targetJobId = match?.jobId || (canonical ? id : undefined)
-    await withDbRetry(() =>
-      prisma.userJobMatch.updateMany({
-        where: {
-          userId,
-          OR: [
-            { id },
-            { jobId: id },
-            ...(targetJobId ? [{ jobId: targetJobId }] : []),
-          ],
-        },
-        data: {
-          isSaved: true,
-          status: "STAGED",
-        },
-      })
-    ).catch((err) => {
-      console.warn("[PackageAPI] Failed to update UserJobMatch status:", err)
-    })
+    if (targetJobId && prisma.userJobMatch?.upsert) {
+      try {
+        await withDbRetry(() =>
+          prisma.userJobMatch.upsert({
+            where: {
+              userId_jobId: {
+                userId,
+                jobId: targetJobId,
+              },
+            },
+            create: {
+              userId,
+              jobId: targetJobId,
+              batchId: match?.batchId || "manual-package",
+              fitScore: authenticFitScore ?? 70,
+              matchRationale: `Fit: ${authenticFitScore ?? 70}% • Packaged & staged from Discovery Hub`,
+              isSaved: true,
+              status: "STAGED",
+            },
+            update: {
+              isSaved: true,
+              status: "STAGED",
+              ...(authenticFitScore ? { fitScore: authenticFitScore } : {}),
+            },
+          })
+        )
+      } catch (err) {
+        console.warn("[PackageAPI] Failed to update UserJobMatch status:", err)
+      }
+    }
 
     // 5. Invalidate caches for dashboard stats, applications, and user metrics
     await Promise.allSettled([
