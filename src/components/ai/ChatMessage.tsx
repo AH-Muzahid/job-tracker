@@ -698,7 +698,7 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
                     {step.task || step.toolName || "Executing Step"}
                   </span>
                   <span className={cn(
-                    "text-[9px] font-mono px-1.5 py-0.2 rounded uppercase shrink-0 font-medium",
+                    "text-[10px] font-mono px-1.5 py-0.5 rounded uppercase shrink-0 font-medium",
                     step.status === "completed" && "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20",
                     (step.status === "in_progress" || (step.status as string) === "running") && "bg-amber-500/10 text-amber-500 border border-amber-500/20 animate-pulse",
                     step.status === "failed" && "bg-rose-500/10 text-rose-500 border border-rose-500/20",
@@ -823,7 +823,7 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
                 <span className="inline-block w-1.5 h-3.5 ml-1 bg-primary/70 rounded-xs animate-pulse align-middle" />
               )}
               {isLongMessage && !isExpanded && (
-                <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-muted/60 to-transparent pointer-events-none" />
+                <div className="absolute bottom-0 left-0 right-0 h-6 bg-muted/80 backdrop-blur-xs border-t border-border/50 pointer-events-none" />
               )}
             </div>
             
