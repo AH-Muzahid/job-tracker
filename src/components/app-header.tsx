@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { CustomSidebarTrigger } from "@/components/custom-sidebar-trigger";
 import { NavUser } from "@/components/nav-user";
@@ -16,24 +17,44 @@ export function AppHeader() {
 	return (
 		<header
 			className={cn(
-				"sticky top-0 z-40 flex h-14 sm:h-15 w-full shrink-0 items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800/80 px-4 sm:px-6",
-				"bg-white/95 dark:bg-slate-900/90 backdrop-blur-md"
+				"sticky top-0 z-40 flex h-14 sm:h-15 w-full shrink-0 items-center justify-between gap-3 border-b border-border px-3.5 sm:px-6",
+				"bg-background/95 backdrop-blur-md"
 			)}
 		>
-			<div className="flex items-center gap-3 min-w-0">
-				{/* Mobile Sidebar Trigger */}
-				<div className="md:hidden">
+			{/* Mobile View Navbar (< md): CareerTrack Brand Mark matching prototype Screen 1 */}
+			<div className="flex items-center gap-2 md:hidden">
+				<Link
+					href="/dashboard"
+					className="flex items-center gap-2 font-bold text-sm text-foreground select-none"
+					aria-label="CareerTrack Home"
+				>
+					<div className="flex size-7 items-center justify-center rounded-[6px] bg-primary text-primary-foreground font-mono font-bold text-xs shadow-2xs">
+						CT
+					</div>
+					<span className="font-semibold text-sm sm:text-base tracking-tight text-foreground">
+						CareerTrack
+					</span>
+				</Link>
+			</div>
+
+			{/* Desktop View Navbar (>= md): Sidebar Trigger + Search Bar + Quick Evaluator + Copilot */}
+			<div className="hidden md:flex items-center gap-3 min-w-0 flex-1">
+				{/* Desktop Sidebar Trigger */}
+				<div className="shrink-0">
 					<CustomSidebarTrigger />
 				</div>
 
-				{/* Rounded Pill Search Bar matching reference screenshot */}
+				{/* Desktop Search Bar */}
 				<button
 					onClick={() => setSearchOpen(true)}
-					className="flex items-center gap-2.5 h-9.5 sm:h-10 rounded-full border border-slate-200/70 dark:border-slate-800 bg-[#f1f5f9]/80 dark:bg-slate-800/40 hover:bg-slate-100 dark:hover:bg-slate-800/70 px-4 text-xs text-slate-400 transition-colors w-64 sm:w-80 md:w-[380px] cursor-pointer shadow-2xs"
+					className="flex items-center gap-2.5 h-9.5 sm:h-10 rounded-full border border-border bg-muted/40 hover:bg-muted/70 px-4 text-xs text-muted-foreground transition-colors w-64 sm:w-80 md:w-[380px] cursor-pointer shadow-2xs"
+					aria-label="Search jobs, companies, or anything"
 				>
-					<SearchIcon className="h-4 w-4 text-slate-400 shrink-0 stroke-[2]" />
-					<span className="truncate text-slate-400 font-normal">Search jobs, companies, or anything...</span>
-					<kbd className="ml-auto pointer-events-none inline-flex h-5 select-none items-center gap-0.5 rounded-md border border-slate-200/80 dark:border-slate-700 bg-white dark:bg-slate-900 px-1.5 font-sans text-[10px] font-medium text-slate-500 shadow-2xs">
+					<SearchIcon className="h-4 w-4 text-muted-foreground shrink-0 stroke-[2]" />
+					<span className="truncate text-muted-foreground font-normal">
+						Search jobs, companies, or anything...
+					</span>
+					<kbd className="ml-auto pointer-events-none inline-flex h-5 select-none items-center gap-0.5 rounded-md border border-border bg-background px-1.5 font-sans text-[10px] font-medium text-muted-foreground shadow-2xs">
 						⌘ K
 					</kbd>
 				</button>
@@ -41,7 +62,7 @@ export function AppHeader() {
 				{/* Universal Evaluator Quick Intake Pill */}
 				<button
 					onClick={() => setEvaluatorModal(true)}
-					className="hidden lg:flex items-center gap-1.5 h-9.5 sm:h-10 rounded-full border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900/60 hover:bg-slate-50 dark:hover:bg-slate-800/80 px-3.5 text-xs font-medium text-foreground transition-colors cursor-pointer shadow-2xs"
+					className="hidden lg:flex items-center gap-1.5 h-9.5 sm:h-10 rounded-full border border-border bg-background hover:bg-muted px-3.5 text-xs font-medium text-foreground transition-colors cursor-pointer shadow-2xs"
 					title="Evaluate external job posting or paste JD"
 				>
 					<Zap className="h-3.5 w-3.5 text-primary" />
@@ -51,19 +72,39 @@ export function AppHeader() {
 				{/* Ambient Copilot Trigger Pill (CAG-11) */}
 				<button
 					onClick={() => setAiSidebarOpen(!aiSidebarOpen)}
-					className="hidden md:flex items-center gap-1.5 h-9.5 sm:h-10 rounded-full border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900/60 hover:bg-slate-50 dark:hover:bg-slate-800/80 px-3 text-xs font-medium text-foreground transition-colors cursor-pointer shadow-2xs"
+					className="flex items-center gap-1.5 h-9.5 sm:h-10 rounded-full border border-border bg-background hover:bg-muted px-3 text-xs font-medium text-foreground transition-colors cursor-pointer shadow-2xs"
 					title="Open Career Copilot (⌘J / Ctrl+J)"
 				>
 					<Bot className="h-3.5 w-3.5 text-primary" />
 					<span>Copilot</span>
-					<kbd className="ml-1 pointer-events-none inline-flex h-4 select-none items-center rounded border border-slate-200/80 dark:border-slate-700 px-1 font-sans text-[9px] text-muted-foreground">
+					<kbd className="ml-1 pointer-events-none inline-flex h-4 select-none items-center rounded border border-border px-1 font-sans text-[10px] text-muted-foreground">
 						⌘J
 					</kbd>
 				</button>
 			</div>
 
-			{/* Right side: Notification Bell + User Profile */}
-			<div className="flex items-center gap-4 shrink-0">
+			{/* Right side: On Mobile (< md): Search + Copilot + Notification Bell + User Profile */}
+			<div className="flex items-center gap-1.5 sm:gap-4 shrink-0">
+				{/* Mobile Search Button */}
+				<button
+					onClick={() => setSearchOpen(true)}
+					className="md:hidden flex size-8 sm:size-9 items-center justify-center rounded-full border border-border bg-background text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer shadow-2xs"
+					title="Search"
+					aria-label="Search"
+				>
+					<SearchIcon className="size-4" />
+				</button>
+
+				{/* Mobile Copilot Trigger Icon */}
+				<button
+					onClick={() => setAiSidebarOpen(!aiSidebarOpen)}
+					className="md:hidden flex size-8 sm:size-9 items-center justify-center rounded-full border border-border bg-background text-foreground hover:bg-muted transition-colors cursor-pointer shadow-2xs"
+					title="Open Career Copilot"
+					aria-label="Open Career Copilot"
+				>
+					<Bot className="size-4 text-primary" />
+				</button>
+
 				<NotificationCenter />
 				<NavUser />
 			</div>

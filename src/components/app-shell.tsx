@@ -9,6 +9,7 @@ import { AppSidebar } from "@/components/app-sidebar";
 import CommandPalette from "@/components/CommandPalette";
 import GlobalAISidebar from "@/components/ai/GlobalAISidebar";
 import { UniversalJDEvaluatorModal } from "@/components/discovery/UniversalJDEvaluatorModal";
+import { MobileBottomNav } from "@/components/mobile-bottom-nav";
 import { useUI } from "@/lib/store";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -34,18 +35,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
 	return (
 		<SidebarProvider className={cn("[--app-wrapper-max-width:86rem]")}>
-			<AppSidebar />
-			<SidebarInset className="min-w-0 max-w-full flex flex-col bg-white dark:bg-background">
+			<div className="hidden md:contents">
+				<AppSidebar />
+			</div>
+			<SidebarInset className="min-w-0 max-w-full flex flex-col bg-background">
 				<AppHeader />
 				<div
 					className={cn(
 						"flex flex-1 flex-col min-w-0 max-w-full",
-						isFullscreen ? "p-0" : "px-4 sm:px-5 lg:px-6 py-4 sm:py-5",
+						isFullscreen ? "p-0" : "px-3 sm:px-5 lg:px-6 py-3.5 sm:py-5 pb-20 md:pb-5",
 						"mx-auto w-full max-w-(--app-wrapper-max-width)"
 					)}
 				>
 					{children}
 				</div>
+				{!isFullscreen && <MobileBottomNav />}
 			</SidebarInset>
 			{!isFullscreen && <GlobalAISidebar />}
 			<CommandPalette />
