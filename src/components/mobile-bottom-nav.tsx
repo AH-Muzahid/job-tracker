@@ -39,9 +39,9 @@ const NAV_ITEMS: NavItem[] = [
   },
   {
     label: "Profile",
-    href: "/settings",
+    href: "/profile",
     icon: User,
-    isActive: (pathname) => pathname.startsWith("/settings") || pathname.startsWith("/profile"),
+    isActive: (pathname) => pathname.startsWith("/profile") || pathname.startsWith("/settings"),
   },
 ];
 

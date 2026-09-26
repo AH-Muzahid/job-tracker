@@ -4,7 +4,7 @@ import { clerkMiddleware } from "@clerk/nextjs/server"
 const PROTECTED_PATHS = [
   "/dashboard", "/applications",
   "/ai-assistant", "/profile-setup", "/weekly-goals",
-  "/companies", "/resumes", "/calendar", "/interview-prep", "/settings",
+  "/companies", "/resumes", "/calendar", "/interview-prep", "/settings", "/profile",
 ]
 
 const PROTECTED_API_PATHS = [
