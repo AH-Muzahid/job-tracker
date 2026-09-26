@@ -44,6 +44,61 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     })
   )
 
+  if (analysis) {
+    const shouldHeal = !analysis.matchScore || analysis.matchScore === 85
+    if (shouldHeal) {
+      let authenticScore: number | null = null
+      if (app.notes) {
+        const notesMatch = app.notes.match(/Fit Score:\s*(\d+)%/i)
+        if (notesMatch) {
+          const parsed = parseInt(notesMatch[1], 10)
+          if (parsed && parsed !== 85) authenticScore = parsed
+        }
+      }
+      if (!authenticScore) {
+        try {
+          const match = await prisma.userJobMatch.findFirst({
+            where: {
+              userId,
+              OR: [
+                ...(app.jobUrl ? [{ job: { url: app.jobUrl } }] : []),
+                {
+                  job: {
+                    company: { equals: app.companyName, mode: "insensitive" },
+                    title: { equals: app.jobTitle, mode: "insensitive" },
+                  },
+                },
+              ],
+            },
+            select: { fitScore: true },
+          })
+          if (match?.fitScore && match.fitScore !== 85) {
+            authenticScore = match.fitScore
+          }
+        } catch {
+          // ignore
+        }
+      }
+
+      if (authenticScore && authenticScore !== analysis.matchScore) {
+        try {
+          const updated = await withDbRetry(() =>
+            prisma.applicationAnalysis.update({
+              where: { applicationId: id },
+              data: {
+                matchScore: authenticScore,
+                verdict: authenticScore >= 80 ? "Strong Candidate Match" : authenticScore >= 65 ? "Good Candidate Match" : "Stretch Opportunity",
+              },
+            })
+          )
+          return NextResponse.json(updated)
+        } catch {
+          analysis.matchScore = authenticScore
+        }
+      }
+    }
+  }
+
   return NextResponse.json(analysis || {})
 }
 

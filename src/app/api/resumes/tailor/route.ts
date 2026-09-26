@@ -13,6 +13,7 @@ import {
   formatGraphForContext 
 } from "@/lib/ai/knowledge-graph"
 import { getUserWeaknesses, formatWeaknessMitigationForResume } from "@/lib/ai/memory"
+import { extractTechTagsFromText } from "@/lib/discovery/scrapers"
 import { checkRateLimit, rateLimitResponse } from "@/lib/rate-limit"
 import { traceAIGeneration } from "@/lib/ai/telemetry"
 import type { TailoredResumeData } from "@/types/tailored-resume"
@@ -44,6 +45,7 @@ export async function POST(req: NextRequest) {
     targetRole?: string
     targetCompany?: string
     applicationId?: string
+    fitScore?: number
   }
 
   try {
@@ -88,11 +90,48 @@ export async function POST(req: NextRequest) {
 
   // 2. Perform Vector-less Graph RAG Traversal against the target JD
   let graphEvidence = ""
-  let matchScore = 85
+  let matchScore: number = typeof body.fitScore === "number" ? body.fitScore : 0
   if (activeGraph && activeGraph.nodes.length > 0) {
     const traversal = traverseGraphForJD(activeGraph, jdText)
     matchScore = traversal.matchScore
     graphEvidence = formatGraphForContext(activeGraph)
+  }
+
+  // If score was not derived from graph traversal or body, check application analysis / notes
+  if (!matchScore && body.applicationId) {
+    try {
+      const existingAnalysis = await prisma.applicationAnalysis.findUnique({
+        where: { applicationId: body.applicationId },
+        select: { matchScore: true },
+      })
+      if (existingAnalysis?.matchScore) {
+        matchScore = existingAnalysis.matchScore
+      } else {
+        const app = await prisma.application.findUnique({
+          where: { id: body.applicationId },
+          select: { notes: true },
+        })
+        const notesMatch = app?.notes?.match(/Fit Score:\s*(\d+)%/i)
+        if (notesMatch) {
+          matchScore = parseInt(notesMatch[1], 10)
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  // If still zero, calculate deterministic skill overlap between candidate and JD
+  if (!matchScore) {
+    const profileStrengths = (profile?.strengths || "").split(/[,/|\n]+/).map((s) => s.trim().toLowerCase()).filter(Boolean)
+    const candidateSkills = new Set<string>([
+      ...profileStrengths,
+      ...(defaultResume?.textContent ? extractTechTagsFromText(defaultResume.textContent).map((t: string) => t.toLowerCase()) : []),
+    ])
+    const jdTags = extractTechTagsFromText(jdText)
+    const matchingCount = jdTags.filter((t: string) => candidateSkills.has(t.toLowerCase())).length
+    const ratio = jdTags.length > 0 ? matchingCount / jdTags.length : 0.5
+    matchScore = Math.min(92, Math.max(58, Math.round(55 + ratio * 35)))
   }
 
   // 3. Construct System Prompt & User Prompt with Weakness Mitigation Context
