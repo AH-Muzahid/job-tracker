@@ -96,7 +96,13 @@ export async function GET() {
         where: { isExpired: false },
       }),
       prisma.userJobMatch.findMany({
-        where: { userId, status: { in: ["PUBLISHED", "STAGED"] } },
+        where: {
+          userId,
+          status: "PUBLISHED",
+          job: {
+            isExpired: false,
+          },
+        },
         include: {
           job: {
             select: {
@@ -113,7 +119,7 @@ export async function GET() {
           },
         },
         orderBy: [{ fitScore: "desc" }, { createdAt: "desc" }],
-        take: 3,
+        take: 40,
       }),
       prisma.application.findMany({
         where: {
@@ -205,8 +211,44 @@ export async function GET() {
     }
   }
 
-  // Compute recommended opportunities (fallback to top canonical jobs if no personal matches yet)
-  let recommendedOpportunities = userMatches.map((m) => {
+  // Deduplicate and filter recommended opportunities:
+  // 1. Exclude opportunities where user already staged, applied, or progressed in tracker
+  // 2. Exclude jobs older than 30 days per user directive
+  // 3. Deduplicate by normalized company:title
+  // 4. Select top 3 distinct, fresh opportunities
+  const thirtyDaysAgoMs = Date.now() - 30 * 24 * 60 * 60 * 1000
+  const seenOppKeys = new Set<string>()
+  const candidateOpps: typeof userMatches = []
+
+  for (const m of userMatches) {
+    if (!m.job) continue
+    const key = `${normalize(m.job.company)}:${normalize(m.job.title)}`
+
+    // Check if user already staged, applied, or progressed in tracker
+    const existingApp = appMap.get(key)
+    const isAlreadyActed =
+      existingApp &&
+      ["staged", "applied", "interview", "assessment", "offer", "rejected"].includes(
+        existingApp.status.toLowerCase()
+      )
+    if (isAlreadyActed || m.status === "STAGED") {
+      continue
+    }
+
+    // Exclude jobs older than 30 days
+    if (m.job.postedAt && new Date(m.job.postedAt).getTime() < thirtyDaysAgoMs) {
+      continue
+    }
+
+    if (!seenOppKeys.has(key)) {
+      seenOppKeys.add(key)
+      candidateOpps.push(m)
+    }
+
+    if (candidateOpps.length >= 3) break
+  }
+
+  let recommendedOpportunities = candidateOpps.map((m) => {
     const key = `${normalize(m.job.company)}:${normalize(m.job.title)}`
     const existingApp = appMap.get(key)
     const effectiveStatus =
@@ -230,6 +272,34 @@ export async function GET() {
       applicationId: existingApp?.id,
     }
   })
+
+  // Auto-refresh daily batch in background if user's batch is older than 24h or candidates are depleted
+  const latestBatchDate = userMatches[0]?.publishedAt || userMatches[0]?.createdAt
+  const isBatchStale = !latestBatchDate || (Date.now() - new Date(latestBatchDate).getTime() > 24 * 60 * 60 * 1000)
+
+  if (candidateOpps.length < 3 || isBatchStale) {
+    const safeAfter = (fn: () => Promise<void> | void) => {
+      try {
+        const globalScope = globalThis as unknown as { after?: (f: () => Promise<void> | void) => void }
+        if (typeof globalScope.after === "function") {
+          globalScope.after(fn)
+        } else {
+          fn()
+        }
+      } catch {
+        fn()
+      }
+    }
+
+    safeAfter(async () => {
+      try {
+        const { processUserJobBatch } = await import("@/inngest/functions/batch-job-pipeline")
+        await processUserJobBatch(userId, { forceImmediatePublish: true, notify: false })
+      } catch (batchErr) {
+        console.warn("[Dashboard Stats] Auto batch rotation background trigger:", batchErr)
+      }
+    })
+  }
 
   if (recommendedOpportunities.length === 0) {
     recommendedOpportunities = [
