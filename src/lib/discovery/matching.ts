@@ -58,22 +58,27 @@ export function normalizeJobFingerprint(
  */
 export function deduplicateJobs(jobs: UnifiedRawJob[]): UnifiedRawJob[] {
   const seenMap = new Map<string, UnifiedRawJob>()
+  const seenUrls = new Map<string, string>()
 
   for (const job of jobs) {
     const normCo = normalizeCompany(job.company)
     const normTi = normalizeTitle(job.title)
     const dedupKey = `${normCo}:${normTi}`
+    const normUrl = job.url ? job.url.toLowerCase().replace(/\/+$/, "") : ""
 
-    if (!seenMap.has(dedupKey)) {
-      seenMap.set(dedupKey, job)
+    const matchedKey = (normUrl && seenUrls.has(normUrl)) ? seenUrls.get(normUrl)! : dedupKey
+
+    if (!seenMap.has(matchedKey)) {
+      seenMap.set(matchedKey, job)
+      if (normUrl) seenUrls.set(normUrl, matchedKey)
     } else {
       // If duplicate exists, keep the one with richer metadata (e.g. salary or longer description)
-      const existing = seenMap.get(dedupKey)!
-      const existingWeight = (existing.salaryMin ? 2 : 0) + (existing.description?.length || 0)
-      const newWeight = (job.salaryMin ? 2 : 0) + (job.description?.length || 0)
+      const existing = seenMap.get(matchedKey)!
+      const existingWeight = (existing.salaryMin ? 2 : 0) + (existing.postedAt ? 2 : 0) + (existing.description?.length || 0)
+      const newWeight = (job.salaryMin ? 2 : 0) + (job.postedAt ? 2 : 0) + (job.description?.length || 0)
 
       if (newWeight > existingWeight) {
-        seenMap.set(dedupKey, job)
+        seenMap.set(matchedKey, job)
       }
     }
   }
