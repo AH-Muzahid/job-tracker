@@ -35,7 +35,7 @@ export default withSentryConfig(bundleAnalyzer(nextConfig), {
   silent: true,
   telemetry: false,
   widenClientFileUpload: true,
-  tunnelRoute: "/monitoring",
+  tunnelRoute: process.env.NODE_ENV === "production" ? "/monitoring" : undefined,
   sourcemaps: {
     disable: !process.env.SENTRY_AUTH_TOKEN,
     deleteSourcemapsAfterUpload: true,
