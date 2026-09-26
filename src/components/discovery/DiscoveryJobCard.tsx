@@ -5,9 +5,17 @@ import Link from "next/link"
 import {
   Bookmark, BookmarkCheck, Check, MapPin,
   RefreshCw, Wifi, Building2, Briefcase, Calendar, Banknote,
-  ArrowRight, CheckCircle2
+  ArrowRight, CheckCircle2, MoreHorizontal, ExternalLink, Link2, EyeOff
 } from "lucide-react"
+import { toast } from "sonner"
 import { Card, CardContent } from "@/components/ui/card"
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 import {
   getEmploymentType,
@@ -81,7 +89,7 @@ function getCompanyLogo(company: string) {
   const lower = company.toLowerCase()
   if (lower.includes("google")) {
     return {
-      bg: "bg-white border-slate-200 shadow-xs",
+      bg: "bg-white border-border shadow-xs",
       content: (
         <svg viewBox="0 0 24 24" className="size-5 sm:size-5.5">
           <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -100,7 +108,7 @@ function getCompanyLogo(company: string) {
   }
   if (lower.includes("notion")) {
     return {
-      bg: "bg-white text-black border-slate-900 shadow-xs",
+      bg: "bg-white text-black border-border shadow-xs",
       content: <span className="text-base font-black font-serif">N</span>,
     }
   }
@@ -123,12 +131,12 @@ function getCompanyLogo(company: string) {
 
   // Consistent pleasant brand aesthetic
   const palettes = [
-    "bg-indigo-50 text-indigo-700 border-indigo-200/70",
-    "bg-sky-50 text-sky-700 border-sky-200/70",
-    "bg-violet-50 text-violet-700 border-violet-200/70",
-    "bg-emerald-50 text-emerald-700 border-emerald-200/70",
-    "bg-amber-50 text-amber-700 border-amber-200/70",
-    "bg-rose-50 text-rose-700 border-rose-200/70",
+    "bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-400 border-indigo-200/70 dark:border-indigo-800/40",
+    "bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-400 border-sky-200/70 dark:border-sky-800/40",
+    "bg-violet-50 dark:bg-violet-950/40 text-violet-700 dark:text-violet-400 border-violet-200/70 dark:border-violet-800/40",
+    "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-emerald-200/70 dark:border-emerald-800/40",
+    "bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border-amber-200/70 dark:border-amber-800/40",
+    "bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 border-rose-200/70 dark:border-rose-800/40",
   ]
   let hash = 0
   for (let i = 0; i < company.length; i++) hash = company.charCodeAt(i) + ((hash << 5) - hash)
@@ -149,6 +157,7 @@ interface DiscoveryJobCardProps {
   onSave: () => void
   onPackage?: () => void
   onApplyClick?: () => void
+  onDismiss?: () => void
 }
 
 export function DiscoveryJobCard({
@@ -161,6 +170,7 @@ export function DiscoveryJobCard({
   onSave,
   onPackage,
   onApplyClick,
+  onDismiss,
 }: DiscoveryJobCardProps) {
   const employmentType = getEmploymentType(job)
   const parsed = useMemo(() => parseMatchRationale(job.matchRationale), [job.matchRationale])
@@ -197,9 +207,9 @@ export function DiscoveryJobCard({
     if (unique.length < 3) {
       const text = `${job.title} ${job.descriptionSnippet || ""}`
       const popular = [
-        "Next.js", "React", "TypeScript", "JavaScript", "Node.js", 
-        "Python", "Go", "Tailwind CSS", "Full Stack", "Frontend", "Backend",
-        "Cloud", "PostgreSQL", "Product", "Strategy", "Growth", "Analytics", "AI"
+        "Product", "Strategy", "Growth", "Analytics", "AI", "Design",
+        "Backend", "TypeScript", "Node.js", "Distributed Systems", "Cloud",
+        "React", "Next.js", "Python", "Full Stack", "Figma", "Go"
       ]
       for (const kw of popular) {
         if (!seen.has(kw.toLowerCase()) && new RegExp(`\\b${kw.replace(".", "\\.")}\\b`, "i").test(text)) {
@@ -223,21 +233,205 @@ export function DiscoveryJobCard({
     if (combined.includes("hybrid")) {
       return { label: "Hybrid", icon: <Building2 className="size-3.5 text-muted-foreground" /> }
     }
-    if (combined.includes("onsite") || combined.includes("on-site")) {
-      return { label: "On-site", icon: <Building2 className="size-3.5 text-muted-foreground" /> }
-    }
-    return { label: "Hybrid", icon: <Building2 className="size-3.5 text-muted-foreground" /> }
+    return { label: "On-site", icon: <Building2 className="size-3.5 text-muted-foreground" /> }
   }, [job.location, job.title, job.descriptionSnippet, employmentType.label])
+
+  const relativeDate = useMemo(() => {
+    if (!job.postedAt) return "Recently"
+    try {
+      const d = new Date(job.postedAt)
+      if (isNaN(d.getTime())) return job.postedAt
+      const now = new Date()
+      const diffDays = Math.floor((now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24))
+      if (diffDays === 0) return "Today"
+      if (diffDays === 1) return "1 day ago"
+      if (diffDays < 30) return `${diffDays} days ago`
+      return d.toLocaleDateString()
+    } catch {
+      return job.postedAt
+    }
+  }, [job.postedAt])
 
   const logoStyle = useMemo(() => getCompanyLogo(job.company), [job.company])
 
+  const handleCopyLink = () => {
+    navigator.clipboard?.writeText(job.url)
+    toast.success("Job link copied to clipboard")
+  }
+
   return (
-    <Card className="rounded-xl border border-slate-200/80 dark:border-border/70 shadow-[0_1px_2px_rgba(0,0,0,0.03)] hover:shadow-md transition-all overflow-hidden mb-3 group relative bg-card">
-      <CardContent className="p-0">
-        <div className="flex flex-col md:flex-row md:items-start p-4 sm:p-5 gap-4">
+    <Card className="rounded-[6px] border border-border bg-card shadow-none hover:border-border/80 transition-colors mb-2.5 group relative py-0 gap-0">
+      <CardContent className="py-2.5 px-3.5 sm:py-2.5 sm:px-4">
+        
+        {/* ========================================================================= */}
+        {/* MOBILE VIEWPORT LAYOUT (< md) - Matches media_1790327210535.png           */}
+        {/* ========================================================================= */}
+        <div className="flex flex-col md:hidden gap-2">
+          {/* Top row: Company Logo + Match Badge + (Bookmark & 3-Dot Dropdown) */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className={cn("size-8 border rounded-sm flex items-center justify-center font-bold shrink-0", logoStyle.bg)}>
+                {logoStyle.content}
+              </div>
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 leading-none">
+                {job.fitScore}% match
+              </span>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              {/* Bookmark button */}
+              <button
+                disabled={isSaving || isPackaging}
+                onClick={(e) => {
+                  e.preventDefault()
+                  onSave()
+                }}
+                className={cn(
+                  "size-7.5 rounded-sm hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer transition-colors flex items-center justify-center border border-border/70",
+                  isSaved && "text-primary border-primary/30 bg-primary/5",
+                  isSaving && "opacity-75 cursor-wait"
+                )}
+                title={isSaved ? "Remove from Saved" : "Bookmark opportunity"}
+              >
+                {isSaved ? (
+                  <BookmarkCheck className="size-4 text-primary fill-primary/10" />
+                ) : (
+                  <Bookmark className="size-4 stroke-[1.75]" />
+                )}
+              </button>
+
+              {/* Three Dots Overflow Menu (Mobile Viewport) */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className="size-7.5 rounded-sm hover:bg-muted transition-colors cursor-pointer text-muted-foreground/70 hover:text-foreground flex items-center justify-center border border-border/70 hover:border-border"
+                    title="More actions"
+                  >
+                    <MoreHorizontal className="size-4" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48 p-1 z-[200]">
+                  <DropdownMenuItem
+                    onClick={handleCopyLink}
+                    className="flex items-center gap-2 cursor-pointer text-xs"
+                  >
+                    <Link2 className="size-3.5 text-muted-foreground" />
+                    <span>Copy job link</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <a
+                      href={job.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => onApplyClick?.()}
+                      className="flex items-center gap-2 cursor-pointer text-xs"
+                    >
+                      <ExternalLink className="size-3.5 text-muted-foreground" />
+                      <span>Open source board</span>
+                    </a>
+                  </DropdownMenuItem>
+                  {onDismiss && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={() => onDismiss()}
+                        className="flex items-center gap-2 cursor-pointer text-xs text-destructive focus:text-destructive focus:bg-destructive/10"
+                      >
+                        <EyeOff className="size-3.5 text-destructive" />
+                        <span>Dismiss role</span>
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+
+          {/* Job Title & Company */}
+          <div className="space-y-0.5">
+            <div>
+              <Link
+                href={`/discovery/${job.jobId || job.id}`}
+                className="text-base font-bold text-foreground hover:text-primary transition-colors inline-block max-w-full leading-snug"
+              >
+                {job.title}
+              </Link>
+            </div>
+            <div className="text-xs text-muted-foreground font-medium">
+              {job.company}
+            </div>
+          </div>
+
+          {/* Location & Work Mode */}
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <MapPin className="size-3.5 text-muted-foreground shrink-0" />
+            <span className="truncate">{job.location}</span>
+            <span>•</span>
+            <span>{workMode.label}</span>
+          </div>
+
+          {/* Tags */}
+          {displayTags.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 pt-0.5">
+              {displayTags.slice(0, 3).map((tag, i) => (
+                <span
+                  key={i}
+                  className="inline-flex items-center px-2 py-0.5 rounded-sm text-[11px] font-normal bg-muted/60 text-muted-foreground"
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* Footer: Date & Dual Direct Actions */}
+          <div className="flex items-center justify-between pt-2 border-t border-border/50 text-[11px] text-muted-foreground">
+            <span>{relativeDate}</span>
+            <div className="flex items-center gap-1.5">
+              {isStaged || job.appliedStatus === "STAGED" || job.appliedStatus === "Staged" ? (
+                <Link
+                  href={stagedApplicationId || job.applicationId ? `/applications/${stagedApplicationId || job.applicationId}` : "/applications"}
+                  className="inline-flex items-center gap-1 h-7 px-2.5 rounded-[4px] text-[11px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25"
+                >
+                  <Check className="size-3 text-emerald-500 stroke-[2.5]" />
+                  <span>Staged</span>
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    onPackage?.()
+                  }}
+                  disabled={isPackaging}
+                  className="inline-flex items-center gap-1 h-7 px-2.5 rounded-[4px] text-[11px] font-medium bg-foreground text-background hover:bg-foreground/90 transition-colors cursor-pointer"
+                >
+                  {isPackaging ? (
+                    <RefreshCw className="size-3 animate-spin" />
+                  ) : (
+                    <span>Package</span>
+                  )}
+                </button>
+              )}
+              <Link
+                href={`/discovery/${job.jobId || job.id}`}
+                className="inline-flex items-center gap-1 h-7 px-2.5 rounded-[4px] text-[11px] font-medium text-foreground hover:bg-muted border border-border transition-colors cursor-pointer"
+              >
+                <span>View Details</span>
+                <ArrowRight className="size-3" />
+              </Link>
+            </div>
+          </div>
+        </div>
+
+        {/* ========================================================================= */}
+        {/* DESKTOP VIEWPORT LAYOUT (>= md) - Matches media_1790334199421.png          */}
+        {/* ========================================================================= */}
+        <div className="hidden md:flex md:items-start gap-3.5">
           {/* Left: Company Logo */}
           <div className={cn(
-            "hidden md:flex shrink-0 w-11 h-11 border rounded-xl items-center justify-center font-bold",
+            "shrink-0 size-10 sm:size-10.5 border rounded-[6px] flex items-center justify-center font-bold mt-0.5",
             logoStyle.bg
           )}>
             {logoStyle.content}
@@ -245,80 +439,67 @@ export function DiscoveryJobCard({
           
           {/* Middle: Content */}
           <div className="flex-1 min-w-0 pr-0">
-            <div className="flex items-center gap-2 mb-1 flex-wrap">
-              <a
-                href={job.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => onApplyClick?.()}
-                className="text-[15.5px] sm:text-[16.5px] font-bold text-foreground hover:text-primary transition-colors truncate tracking-tight"
+            {/* Title & Match Badge */}
+            <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+              <Link
+                href={`/discovery/${job.jobId || job.id}`}
+                className="text-[15px] font-bold text-foreground hover:text-primary transition-colors truncate tracking-tight leading-snug"
               >
                 {job.title}
-              </a>
-              <span
-                className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-600 leading-none shrink-0"
-              >
+              </Link>
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 leading-none shrink-0">
                 {job.fitScore}% match
               </span>
             </div>
             
-            <div className="flex items-center gap-1.5 text-[13px] text-muted-foreground font-medium mb-1.5">
+            {/* Company & Verified Checkmark */}
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium mb-1">
               <span className="truncate text-foreground/90 font-medium">{job.company}</span>
-              <CheckCircle2 className="size-3.5 fill-blue-500 text-white shrink-0" />
+              <CheckCircle2 className="size-3.5 fill-blue-500 text-white dark:text-zinc-950 shrink-0" />
             </div>
             
-            <div className="flex flex-wrap items-center gap-3.5 text-[12px] text-muted-foreground/85 mb-2 font-normal">
+            {/* Metadata row */}
+            <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground mb-1.5 font-normal">
               <span className="flex items-center gap-1.5">
-                <MapPin className="size-3.5 text-muted-foreground" />
+                <MapPin className="size-3.5 text-muted-foreground shrink-0" />
                 <span className="truncate max-w-[150px]">{job.location}</span>
               </span>
               
               <span className="flex items-center gap-1.5">
                 {workMode.icon}
-                {workMode.label}
+                <span>{workMode.label}</span>
               </span>
               
               <span className="flex items-center gap-1.5">
-                <Briefcase className="size-3.5 text-muted-foreground" />
-                {employmentType.label}
+                <Briefcase className="size-3.5 text-muted-foreground shrink-0" />
+                <span>{employmentType.label}</span>
               </span>
               
               {job.salary && (
                 <span className="flex items-center gap-1.5">
-                  <Banknote className="size-3.5 text-muted-foreground" />
-                  {formatSalaryClean(job.salary)}
+                  <Banknote className="size-3.5 text-muted-foreground shrink-0" />
+                  <span>{formatSalaryClean(job.salary)}</span>
                 </span>
               )}
               
               <span className="flex items-center gap-1.5">
-                <Calendar className="size-3.5 text-muted-foreground" />
-                {job.postedAt ? `Posted ${(() => {
-                  try {
-                    const d = new Date(job.postedAt);
-                    if (isNaN(d.getTime())) return job.postedAt;
-                    const now = new Date();
-                    const diffDays = Math.floor((now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
-                    if (diffDays === 0) return 'Today';
-                    if (diffDays === 1) return '1 day ago';
-                    if (diffDays < 30) return `${diffDays} days ago`;
-                    return d.toLocaleDateString();
-                  } catch {
-                    return job.postedAt;
-                  }
-                })()}` : 'Recently'}
+                <Calendar className="size-3.5 text-muted-foreground shrink-0" />
+                <span>Posted {relativeDate}</span>
               </span>
             </div>
             
-            <p className="text-[12.5px] text-muted-foreground leading-snug line-clamp-1 mb-2.5">
-              {job.descriptionSnippet || "Exciting opportunity to join a fast-growing team and build innovative solutions."}
+            {/* Description Snippet */}
+            <p className="text-xs text-muted-foreground leading-snug line-clamp-1 mb-2">
+              {job.descriptionSnippet || "Exciting opportunity to join a fast-growing team and build high-impact solutions."}
             </p>
             
+            {/* Tags */}
             {displayTags.length > 0 && (
               <div className="flex flex-wrap gap-1.5">
                 {displayTags.map((tag, i) => (
                   <span
                     key={i}
-                    className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[11px] font-normal bg-slate-100 dark:bg-muted/60 text-slate-600 dark:text-muted-foreground"
+                    className="inline-flex items-center px-2 py-0.5 rounded-sm text-[10.5px] font-normal bg-muted/60 text-muted-foreground"
                   >
                     {tag}
                   </span>
@@ -327,81 +508,127 @@ export function DiscoveryJobCard({
             )}
           </div>
           
-          {/* Right: Actions */}
-          <div className="flex items-start justify-end gap-2.5 shrink-0 pt-3 md:pt-0 border-t md:border-t-0 border-border/50">
-            
-            {/* Bookmark button */}
-            <div className="flex items-center h-[32px]">
+          {/* Right: Actions - Matches media_1790337593228.png */}
+          <div className="flex items-start gap-2 shrink-0 pt-0.5">
+            {/* Left Column: Bookmark & More Menu */}
+            <div className="flex flex-col items-center gap-1.5">
+              {/* Bookmark button */}
               <button
-                disabled={isSaved || isSaving || isPackaging}
+                disabled={isSaving || isPackaging}
                 onClick={(e) => {
-                  e.preventDefault();
-                  onSave();
+                  e.preventDefault()
+                  onSave()
                 }}
                 className={cn(
-                  "p-1.5 rounded-md hover:bg-muted transition-colors cursor-pointer text-muted-foreground hover:text-foreground",
-                  isSaved && "text-primary"
+                  "size-7.5 rounded-sm hover:bg-muted transition-colors cursor-pointer text-muted-foreground hover:text-foreground flex items-center justify-center border border-border/70 hover:border-border",
+                  isSaved && "text-primary border-primary/30 bg-primary/5",
+                  isSaving && "opacity-75 cursor-wait"
                 )}
-                title={isSaved ? "Saved to your Tracker" : "Bookmark this opportunity"}
+                title={isSaved ? "Remove from Saved" : "Bookmark opportunity"}
               >
                 {isSaved ? (
-                  <BookmarkCheck className="size-4.5 text-primary" />
-                ) : isSaving ? (
-                  <RefreshCw className="size-4.5 animate-spin" />
+                  <BookmarkCheck className="size-4 text-primary fill-primary/10" />
                 ) : (
-                  <Bookmark className="size-4.5 text-slate-400 hover:text-slate-600 stroke-[1.75]" />
+                  <Bookmark className="size-4 stroke-[1.75]" />
                 )}
               </button>
+
+              {/* Three Dots Overflow Menu (Portal dropdown, no clipping) */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className="size-7.5 rounded-sm hover:bg-muted transition-colors cursor-pointer text-muted-foreground/70 hover:text-foreground flex items-center justify-center border border-border/70 hover:border-border"
+                    title="More actions"
+                  >
+                    <MoreHorizontal className="size-4" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48 p-1 z-[200]">
+                  <DropdownMenuItem
+                    onClick={handleCopyLink}
+                    className="flex items-center gap-2 cursor-pointer text-xs"
+                  >
+                    <Link2 className="size-3.5 text-muted-foreground" />
+                    <span>Copy job link</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <a
+                      href={job.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => onApplyClick?.()}
+                      className="flex items-center gap-2 cursor-pointer text-xs"
+                    >
+                      <ExternalLink className="size-3.5 text-muted-foreground" />
+                      <span>Open source board</span>
+                    </a>
+                  </DropdownMenuItem>
+                  {onDismiss && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={() => onDismiss()}
+                        className="flex items-center gap-2 cursor-pointer text-xs text-destructive focus:text-destructive focus:bg-destructive/10"
+                      >
+                        <EyeOff className="size-3.5 text-destructive" />
+                        <span>Dismiss role</span>
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
 
-            <div className="flex flex-col w-[136px] gap-1.5">
-              {/* Package & Stage Primary CTA */}
+            {/* Right Column: Stack of Two Action Buttons (Matches media_1790337593228.png) */}
+            <div className="flex flex-col gap-1.5 w-32 sm:w-35">
+              {/* Button 1 (Top): Package & Stage (Primary CTA) */}
               {isStaged || job.appliedStatus === "STAGED" || job.appliedStatus === "Staged" ? (
                 <Link
                   href={stagedApplicationId || job.applicationId ? `/applications/${stagedApplicationId || job.applicationId}` : "/applications"}
-                  className="inline-flex items-center justify-center gap-1.5 h-[32px] px-3 rounded-[6px] text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25 hover:bg-emerald-500/20 transition-colors w-full"
+                  className="inline-flex items-center justify-center gap-1.5 h-7.5 px-2.5 rounded-[4px] text-[11.5px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25 hover:bg-emerald-500/20 transition-colors w-full"
                 >
-                  <Check className="size-3.5 text-emerald-500 stroke-[2.5]" />
+                  <Check className="size-3 text-emerald-500 stroke-[2.5]" />
                   <span>Staged</span>
+                  <ArrowRight className="size-2.5 ml-0.5 opacity-70" />
                 </Link>
               ) : job.appliedStatus ? (
-                <span className="inline-flex items-center justify-center gap-1 h-[32px] px-3 rounded-[6px] text-xs font-medium bg-blue-500/10 text-blue-600 border border-blue-500/20 w-full">
-                  <Check className="size-3.5" />
+                <span className="inline-flex items-center justify-center gap-1 h-7.5 px-2.5 rounded-[4px] text-[11.5px] font-medium bg-blue-500/10 text-blue-600 border border-blue-500/20 w-full">
+                  <Check className="size-3" />
                   <span>Applied</span>
                 </span>
               ) : (
-                onPackage && (
-                  <button
-                    disabled={isPackaging || isSaving}
-                    onClick={onPackage}
-                    style={{ color: "#ffffff", backgroundColor: "#0B0F17" }}
-                    className="flex items-center justify-center h-[32px] text-xs px-3 gap-1.5 cursor-pointer font-medium rounded-[6px] w-full !text-white hover:bg-slate-800 shadow-xs disabled:opacity-50 transition-colors"
-                  >
-                    {isPackaging ? (
-                      <>
-                        <RefreshCw className="size-3 animate-spin !text-white" style={{ color: "#ffffff" }} />
-                        <span className="!text-white font-medium" style={{ color: "#ffffff" }}>Packaging...</span>
-                      </>
-                    ) : (
-                      <>
-                        <span className="!text-white font-medium" style={{ color: "#ffffff" }}>Package & Stage</span>
-                        <ArrowRight className="size-3 shrink-0 !text-white" style={{ color: "#ffffff" }} />
-                      </>
-                    )}
-                  </button>
-                )
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    onPackage?.()
+                  }}
+                  disabled={isPackaging}
+                  className="inline-flex items-center justify-center gap-1.5 h-7.5 px-2.5 rounded-[4px] text-[11.5px] font-semibold bg-foreground text-background hover:bg-foreground/90 transition-colors cursor-pointer shadow-none w-full disabled:opacity-70"
+                >
+                  {isPackaging ? (
+                    <>
+                      <RefreshCw className="size-3 animate-spin" />
+                      <span>Packaging...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Package & Stage</span>
+                      <ArrowRight className="size-3 stroke-[2.5]" />
+                    </>
+                  )}
+                </button>
               )}
-              
-              <a
-                href={job.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => onApplyClick?.()}
-                style={{ color: "#1e293b", borderColor: "#e2e8f0", backgroundColor: "#ffffff" }}
-                className="inline-flex items-center justify-center gap-1 h-[32px] px-3 rounded-[6px] border text-xs font-medium hover:bg-slate-50 transition-colors cursor-pointer w-full shadow-xs shrink-0"
+
+              {/* Button 2 (Bottom): View Details (Secondary Action) */}
+              <Link
+                href={`/discovery/${job.jobId || job.id}`}
+                className="inline-flex items-center justify-center h-7.5 px-2.5 rounded-[4px] text-[11.5px] font-medium border border-border bg-card hover:bg-muted text-foreground transition-colors cursor-pointer w-full text-center"
               >
-                View Details
-              </a>
+                <span>View Details</span>
+              </Link>
             </div>
           </div>
         </div>
