@@ -74,31 +74,64 @@ describe("Pixel-Perfect Dashboard Components & Strict Constraints", () => {
     expect(html).toContain("No applications yet");
   });
 
-  it("renders UpcomingInterviewsList with Anthropic, Google, and Stripe with prep buttons", () => {
+  it("renders UpcomingInterviewsList empty state without fabricated companies", () => {
     const html = renderToString(<UpcomingInterviewsList />);
-    expect(html).toContain("Anthropic");
-    expect(html).toContain("Google");
-    expect(html).toContain("Stripe");
+    expect(html).not.toContain("Anthropic");
+    expect(html).not.toContain("Google");
+    expect(html).not.toContain("Stripe");
+    expect(html).toContain("No upcoming interviews");
+  });
+
+  it("renders UpcomingInterviewsList with real interviews when provided", () => {
+    const html = renderToString(
+      <UpcomingInterviewsList
+        interviews={[
+          {
+            id: "real-int-1",
+            companyName: "Acme Corp",
+            jobTitle: "Senior Engineer",
+            interviewDate: new Date(Date.now() + 86400000),
+          },
+        ]}
+      />
+    );
+    expect(html).toContain("Acme Corp");
+    expect(html).toContain("Senior Engineer");
     expect(html).toContain("Prep");
   });
 
   it("renders AICareerCopilotCard without any sparkles", () => {
     const html = renderToString(<AICareerCopilotCard />);
     expect(html).toContain("Your AI Career Copilot");
-    expect(html).toContain("Find Opportunities");
-    expect(html).toContain("Analyze a job description");
-    expect(html).toContain("Improve my resume");
-    expect(html).toContain("Generate a cover letter");
-    expect(html).toContain("Prepare for an interview");
+    expect(html).toContain("Find Jobs");
+    expect(html).toContain("Analyze JD");
+    expect(html).toContain("Improve Resume");
+    expect(html).toContain("Cover Letter");
     expect(html.toLowerCase()).not.toContain("sparkle");
   });
 
-  it("renders TodayTasksCard with completed Stripe application", () => {
+  it("renders TodayTasksCard empty state when no tasks provided", () => {
     const html = renderToString(<TodayTasksCard />);
     expect(html).toContain("Today&#x27;s Tasks");
-    expect(html).toContain("Review 3 new opportunities");
-    expect(html).toContain("Complete application for Stripe");
+    expect(html).toContain("All tasks completed for today");
     expect(html).toContain("View all tasks");
+  });
+
+  it("renders TodayTasksCard with real tasks when provided", () => {
+    const html = renderToString(
+      <TodayTasksCard
+        tasks={[
+          {
+            id: "t-1",
+            title: "Follow up with Acme Corp",
+            subtitle: "Application submitted 5d ago",
+            completed: false,
+          },
+        ]}
+      />
+    );
+    expect(html).toContain("Follow up with Acme Corp");
+    expect(html).toContain("Application submitted 5d ago");
   });
 
   it("renders StayConsistentCard with 7 weekdays", () => {
