@@ -389,7 +389,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (action === "save") {
-      const { jobId, companyName, jobTitle, jobUrl, location, salary, status, notes } = body
+      const { jobId, companyName, jobTitle, jobUrl, location, salary, status, notes, fitScore } = body
       const resolvedJobId = await resolveCanonicalJobId(jobId)
 
       // 1. Save directly into User Tracker (Application model)
@@ -412,6 +412,7 @@ export async function POST(request: NextRequest) {
       const matchUpdateData = {
         isSaved: true,
         ...(isStagedAction ? { status: "STAGED" } : {}),
+        ...(typeof fitScore === "number" ? { fitScore } : {}),
       }
 
       if (jobId) {
@@ -469,6 +470,7 @@ export async function POST(request: NextRequest) {
                   location,
                   notes,
                   salary,
+                  fitScore: typeof fitScore === "number" ? fitScore : undefined,
                 })
               : Promise.resolve(),
           ])
