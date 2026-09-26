@@ -51,29 +51,33 @@ export async function processUserJobBatch(
   const batchId = options.batchId || getBatchId(now)
   const shouldNotify = options.notify !== false
 
-  // 1. Fetch & score jobs against user resume/profile (Instant DB in-memory search)
+  // 1. Step A: Rolling 24-Hour Archival Rule
+  // If publishedAt is older than 24 hours AND isSaved is false -> transition to ARCHIVED first
+  // so the matching engine can revive high-fit opportunities into the new batch.
+  const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000)
+  const archiveResult = await withDbRetry(() =>
+    prisma.userJobMatch.updateMany({
+      where: {
+        userId,
+        status: "PUBLISHED",
+        isSaved: false,
+        publishedAt: {
+          lt: twentyFourHoursAgo,
+        },
+      },
+      data: {
+        status: "ARCHIVED",
+      },
+    })
+  )
+
+  // 2. Fetch & score jobs against user resume/profile (Instant DB in-memory search)
   const searchResult = await executeSearchExternalJobs(userId, { limit: 60 })
   const opportunities = searchResult.opportunities || []
 
   let stagedCount = 0
 
-  // If forceImmediatePublish is requested, wake up any non-dismissed dormant jobs immediately
-  if (options.forceImmediatePublish) {
-    await withDbRetry(() =>
-      prisma.userJobMatch.updateMany({
-        where: {
-          userId,
-          status: { in: ["STAGED", "ARCHIVED"] },
-        },
-        data: {
-          status: "PUBLISHED",
-          publishedAt: now,
-        },
-      })
-    )
-  }
-
-  // 2. Stage new job matches
+  // 3. Stage & Revive job matches for this batch
   if (opportunities.length > 0) {
     const validCanonicalJobs = await withDbRetry(() =>
       prisma.canonicalJob.findMany({
@@ -150,25 +154,6 @@ export async function processUserJobBatch(
     stagedCount = newMatchesToInsert.length + archivedMatchesToRevive.length
   }
 
-  // 3. Step B: Rolling 24-Hour Archival Rule
-  // If publishedAt is older than 24 hours AND isSaved is false -> transition to ARCHIVED
-  const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000)
-  const archiveResult = await withDbRetry(() =>
-    prisma.userJobMatch.updateMany({
-      where: {
-        userId,
-        status: "PUBLISHED",
-        isSaved: false,
-        publishedAt: {
-          lt: twentyFourHoursAgo,
-        },
-      },
-      data: {
-        status: "ARCHIVED",
-      },
-    })
-  )
-
   // 4. Step C: The Publishing Switch
   // Transition all STAGED jobs for this batchId into PUBLISHED
   const publishResult = await withDbRetry(() =>
@@ -227,8 +212,24 @@ export async function processUserJobBatch(
     }
   }
 
-  // Invalidate cached discovery feed so user immediately receives the fresh batch
+  // Expire canonical jobs older than 30 days per user requirement
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+  await withDbRetry(() =>
+    prisma.canonicalJob.updateMany({
+      where: {
+        isExpired: false,
+        postedAt: { lt: thirtyDaysAgo },
+      },
+      data: {
+        isExpired: true,
+      },
+    })
+  ).catch((err) => console.warn("[BatchPipeline] Expire stale canonical jobs warning:", err))
+
+  // Invalidate cached discovery feed & dashboard stats so user immediately receives the fresh batch
   await invalidateCache(`discovery:feed:v1:${userId}`).catch(() => {})
+  await invalidateCache(`user:stats:v2:${userId}`).catch(() => {})
+  await invalidateCache(`user:stats:${userId}`).catch(() => {})
 
   return {
     userId,

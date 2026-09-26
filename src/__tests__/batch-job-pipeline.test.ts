@@ -24,6 +24,7 @@ vi.mock("@/lib/prisma", () => ({
       findMany: vi.fn(),
       create: vi.fn(),
       upsert: vi.fn(),
+      updateMany: vi.fn().mockResolvedValue({ count: 0 }),
       count: vi.fn(),
     },
     userJobMatch: {
