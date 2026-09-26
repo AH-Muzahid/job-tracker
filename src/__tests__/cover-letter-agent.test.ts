@@ -13,6 +13,9 @@ vi.mock("@/lib/prisma", () => ({
     applicationAnalysis: {
       upsert: vi.fn(),
     },
+    userJobMatch: {
+      findFirst: vi.fn().mockResolvedValue(null),
+    },
     notification: {
       create: vi.fn(),
     },
@@ -69,6 +72,7 @@ describe("Autonomous Cover Letter & Application Materials Agent (REC-16)", () =>
       companyName: "Vercel",
       jobTitle: "Senior Frontend Engineer",
       location: "Remote",
+      fitScore: 88,
     })
 
     expect(result).toBeDefined()
@@ -85,7 +89,7 @@ describe("Autonomous Cover Letter & Application Materials Agent (REC-16)", () =>
         where: { applicationId: "app-100" },
         create: expect.objectContaining({
           applicationId: "app-100",
-          matchScore: 85,
+          matchScore: 88,
           rawAnalysis: expect.stringContaining("Dear Hiring Team at Vercel"),
           outreachSubject: "Application for Senior Frontend Engineer - Alex Rivera",
           outreachBody: expect.stringContaining("Senior Frontend Engineer at Vercel"),
@@ -179,6 +183,31 @@ describe("Autonomous Cover Letter & Application Materials Agent (REC-16)", () =>
     expect(prisma.applicationAnalysis.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { applicationId: "app-300" },
+      })
+    )
+  })
+
+  it("propagates authentic fitScore from notes regex when fitScore is omitted from context", async () => {
+    ;(prisma.userProfile.findUnique as any).mockResolvedValue({
+      fullName: "Alex Rivera",
+      strengths: "TypeScript, React, Next.js",
+    })
+    ;(prisma.user.findUnique as any).mockResolvedValue({ name: "Alex Rivera" })
+    ;(prisma.applicationAnalysis.upsert as any).mockResolvedValue({ id: "analysis-999" })
+
+    await generateApplicationMaterialsAgent("user-1", "app-999", {
+      companyName: "nextjobz",
+      jobTitle: "Full Stack Developer - Next.js",
+      notes: "Fit Score: 66%\nSource: Autonomous Job Discovery",
+    })
+
+    expect(prisma.applicationAnalysis.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { applicationId: "app-999" },
+        create: expect.objectContaining({
+          matchScore: 66,
+          verdict: "Good Candidate Match",
+        }),
       })
     )
   })

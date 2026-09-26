@@ -7,6 +7,7 @@ import { toCanonical } from "@/lib/ai/knowledge-graph"
 import { getUserWeaknesses } from "@/lib/ai/memory"
 import { traceAIGeneration } from "@/lib/ai/telemetry"
 import { extractJsonObject } from "@/lib/ai/json-extractor"
+import { getCachedJson } from "@/lib/redis"
 
 export interface GeneratedApplicationMaterials {
   coverLetter: string
@@ -95,6 +96,8 @@ export async function generateApplicationMaterialsAgent(
     location?: string
     notes?: string
     salary?: string
+    fitScore?: number
+    matchScore?: number
   }
 ): Promise<GeneratedApplicationMaterials> {
   const [profile, user, weaknesses] = await Promise.all([
@@ -220,14 +223,65 @@ Respond in valid JSON format:
       strategyTip: materials.strategyTip,
     }
 
+    // Resolve authentic match score instead of hardcoded fallback
+    let resolvedMatchScore = context.fitScore ?? context.matchScore ?? null
+    if (!resolvedMatchScore && context.notes) {
+      const match = context.notes.match(/Fit Score:\s*(\d+)%/i)
+      if (match) resolvedMatchScore = parseInt(match[1], 10)
+    }
+    if (!resolvedMatchScore && prisma.userJobMatch?.findFirst) {
+      const ujm = await withDbRetry(() =>
+        prisma.userJobMatch.findFirst({
+          where: {
+            userId,
+            job: {
+              company: { equals: context.companyName, mode: "insensitive" },
+              title: { equals: context.jobTitle, mode: "insensitive" },
+            },
+          },
+          select: { fitScore: true },
+        })
+      ).catch(() => null)
+      if (ujm?.fitScore) resolvedMatchScore = Math.round(ujm.fitScore)
+    }
+    if (!resolvedMatchScore) {
+      const feed = await getCachedJson<any[]>(`discovery:feed:v1:${userId}`).catch(() => null)
+      if (Array.isArray(feed)) {
+        const item = feed.find(
+          (j) => j.company?.toLowerCase() === context.companyName.toLowerCase() &&
+                 j.title?.toLowerCase() === context.jobTitle.toLowerCase()
+        )
+        if (item?.fitScore) resolvedMatchScore = Math.round(item.fitScore)
+      }
+    }
+    if (!resolvedMatchScore) {
+      // Deterministic calculation from profile strengths vs target role
+      const candidateSkills = (profile?.strengths || "").toLowerCase()
+      const roleLower = context.jobTitle.toLowerCase()
+      let overlapCount = 0
+      for (const skill of candidateSkills.split(/[,/|\n]+/)) {
+        const s = skill.trim()
+        if (s && roleLower.includes(s)) overlapCount++
+      }
+      resolvedMatchScore = Math.min(88, Math.max(55, 60 + overlapCount * 8))
+    }
+
+    const verdict =
+      resolvedMatchScore >= 80
+        ? "Strong Candidate Match"
+        : resolvedMatchScore >= 65
+          ? "Good Candidate Match"
+          : "Stretch Opportunity"
+    const confidence = resolvedMatchScore >= 80 ? "high" : "medium"
+
     await withDbRetry(() =>
       prisma.applicationAnalysis.upsert({
         where: { applicationId },
         create: {
           applicationId,
-          matchScore: 85,
-          confidence: "high",
-          verdict: "AI Application Draft Ready",
+          matchScore: resolvedMatchScore,
+          confidence,
+          verdict,
           resumeAdvice: {
             highlights: materials.highlights,
             atsKeywords: materials.atsKeywords,
@@ -244,6 +298,9 @@ Respond in valid JSON format:
           tailoredResumeJson,
         },
         update: {
+          matchScore: resolvedMatchScore,
+          confidence,
+          verdict,
           resumeAdvice: {
             highlights: materials.highlights,
             atsKeywords: materials.atsKeywords,
