@@ -408,7 +408,7 @@ Return strictly a JSON array of 3 strings: ["...", "...", "..."]`
         prompt,
         temperature: 0.3,
         maxRetries: 0,
-        abortSignal: AbortSignal.timeout(6000),
+        abortSignal: AbortSignal.timeout(8500),
       })
 
       const raw = res.text.trim()
@@ -421,7 +421,8 @@ Return strictly a JSON array of 3 strings: ["...", "...", "..."]`
       }
     }
   } catch (aiErr) {
-    console.warn("[BriefingEngine] AI briefing generation fallback to deterministic:", aiErr)
+    const errMessage = aiErr instanceof Error ? aiErr.message : String(aiErr)
+    console.warn(`[BriefingEngine] AI briefing generation fallback to deterministic (${errMessage})`)
   }
 
   // 6. Compute dynamic projection tip based on candidate's real campaign metrics
