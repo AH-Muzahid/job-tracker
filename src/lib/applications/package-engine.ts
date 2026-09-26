@@ -236,7 +236,40 @@ export async function compileApplicationPackage(
     }
   }
 
-  // 5. Build Final Package Dossier
+  // 5. Authentic ATS / Match Score resolution
+  let resolvedAtsScore: number | null = analysis?.matchScore ?? null
+  if (!resolvedAtsScore && application.notes) {
+    const notesMatch = application.notes.match(/Fit Score:\s*(\d+)%/i)
+    if (notesMatch) {
+      resolvedAtsScore = parseInt(notesMatch[1], 10)
+    }
+  }
+  if (!resolvedAtsScore) {
+    try {
+      const match = await prisma.userJobMatch.findFirst({
+        where: {
+          userId,
+          OR: [
+            ...(application.jobUrl ? [{ job: { url: application.jobUrl } }] : []),
+            {
+              job: {
+                company: { equals: application.companyName, mode: "insensitive" },
+                title: { equals: application.jobTitle, mode: "insensitive" },
+              },
+            },
+          ],
+        },
+        select: { fitScore: true },
+      })
+      if (match?.fitScore) {
+        resolvedAtsScore = match.fitScore
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  // 6. Build Final Package Dossier
   return {
     application: {
       id: application.id,
@@ -258,7 +291,7 @@ export async function compileApplicationPackage(
       tailoredResume: analysis?.tailoredResumeJson || null,
       defaultResumeTitle: defaultResume?.title || defaultResume?.fileName || null,
       defaultResumeUrl: defaultResume?.fileUrl || null,
-      atsScore: analysis?.matchScore || null,
+      atsScore: resolvedAtsScore,
       resumeAdvice: analysis?.resumeAdvice || null,
     },
     coverLetter: {

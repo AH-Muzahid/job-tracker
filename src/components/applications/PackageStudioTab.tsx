@@ -110,7 +110,7 @@ export function PackageStudioTab({ applicationId }: PackageStudioTabProps) {
               <span className="text-foreground">Tailored ATS Resume</span>
               {pkg.resume.hasTailoredResume ? (
                 <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 text-[10px] rounded-[4px]">
-                  ✓ Generated ({pkg.resume.atsScore || 85}%)
+                  ✓ Generated{pkg.resume.atsScore ? ` (${pkg.resume.atsScore}%)` : ""}
                 </Badge>
               ) : (
                 <span className="text-muted-foreground font-mono">Default Linked</span>
