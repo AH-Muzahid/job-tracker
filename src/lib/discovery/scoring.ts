@@ -9,6 +9,7 @@ import {
 } from "./preferences"
 import {
   normalizeCompany,
+  deduplicateJobs,
   extractSearchTokens,
   detectJobWorkMode,
   checkLocationMatch,
@@ -152,9 +153,18 @@ export async function executeSearchExternalJobs(
     void location
 
     // 2. Query active opportunities from CanonicalJob catalog (<10ms, decoupled from HTTP scrapers)
+    // Exclude jobs older than 30 days per user requirement
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
     const canonicalJobs = await withDbRetry(() =>
       prisma.canonicalJob.findMany({
-        where: { isExpired: false, scamScore: { lt: 0.6 } },
+        where: {
+          isExpired: false,
+          scamScore: { lt: 0.6 },
+          OR: [
+            { postedAt: null },
+            { postedAt: { gte: thirtyDaysAgo } },
+          ],
+        },
         orderBy: { createdAt: "desc" },
         take: 400,
       })
@@ -176,6 +186,9 @@ export async function executeSearchExternalJobs(
       postedAt: j.postedAt || undefined,
       visaSponsorship: (j.visaSponsorship as any) || "unknown",
     }))
+
+    // Deduplicate jobs by normalized company + title and URL to eliminate duplicate postings
+    rawJobs = deduplicateJobs(rawJobs)
 
     // If database has 0 canonical jobs, fall back to in-memory seeds
     if (rawJobs.length === 0) {
