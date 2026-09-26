@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect, useMemo } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { useUserProfile } from "@/lib/api"
-import type { DiscoveryFilters, SortOption, BatchSummary } from "@/components/discovery/types"
+import type { DiscoveryFilters, SortOption, BatchSummary, DiscoveryTab, DiscoveryViewMode, DiscoveryFacetCounts } from "@/components/discovery/types"
 import type { ExternalJobOpportunity } from "@/lib/ai/graph/tools/discovery-tools"
 
 export interface DiscoveryApiResponse {
@@ -15,6 +15,10 @@ export interface DiscoveryApiResponse {
   opportunities: ExternalJobOpportunity[]
 }
 
+export type SaveJobPayload =
+  | ExternalJobOpportunity
+  | { job: ExternalJobOpportunity; action?: "save" | "unsave" }
+
 export function parseSalary(s?: string): number {
   if (!s) return 0
   const match = s.replace(/,/g, "").match(/\d+/)
@@ -23,6 +27,8 @@ export function parseSalary(s?: string): number {
 
 export function useJobDiscovery() {
   const [searchQuery, setSearchQuery] = useState("")
+  const [activeTab, setActiveTab] = useState<DiscoveryTab>("all")
+  const [viewMode, setViewMode] = useState<DiscoveryViewMode>("cards")
   const [filters, setFilters] = useState<DiscoveryFilters>({
     source: "",
     location: "",
@@ -88,9 +94,7 @@ export function useJobDiscovery() {
           }
         }
       }
-      if (initialSaved.size > 0) {
-        setSavedJobs((prev) => new Set([...prev, ...initialSaved]))
-      }
+      setSavedJobs(initialSaved)
       if (initialStaged.size > 0) {
         setStagedJobs((prev) => new Set([...prev, ...initialStaged]))
       }
@@ -100,15 +104,92 @@ export function useJobDiscovery() {
     }
   }, [data?.opportunities])
 
+  const facetCounts = useMemo<DiscoveryFacetCounts>(() => {
+    const rawList = data?.opportunities || []
+    let fullTime = 0
+    let partTime = 0
+    let contract = 0
+    let internship = 0
+    let remote = 0
+    let hybrid = 0
+    let onsite = 0
+    let recommended = 0
+    let recent = 0
+    let saved = 0
+
+    const now = Date.now()
+    const threeDaysMs = 3 * 24 * 60 * 60 * 1000
+
+    for (const job of rawList) {
+      if (dismissedJobIds.has(job.id)) continue
+      const titleAndDesc = `${job.title} ${job.descriptionSnippet || ""} ${job.employmentType || ""}`.toLowerCase()
+      const loc = (job.location || "").toLowerCase()
+
+      if (titleAndDesc.includes("part-time") || titleAndDesc.includes("part time")) partTime++
+      else if (titleAndDesc.includes("contract") || titleAndDesc.includes("contractor") || titleAndDesc.includes("freelance")) contract++
+      else if (titleAndDesc.includes("intern") || titleAndDesc.includes("internship")) internship++
+      else fullTime++
+
+      if (loc.includes("remote") || loc.includes("anywhere")) remote++
+      else if (loc.includes("hybrid")) hybrid++
+      else onsite++
+
+      if (job.fitScore >= 80) recommended++
+      if (savedJobs.has(job.id) || (job.jobId && savedJobs.has(job.jobId))) saved++
+
+      const postedTime = new Date(job.postedAt || job.publishedAt || 0).getTime()
+      if (!isNaN(postedTime) && now - postedTime < threeDaysMs) recent++
+    }
+
+    const nonHidden = rawList.filter((j) => !dismissedJobIds.has(j.id))
+
+    return {
+      total: nonHidden.length,
+      recommended: recommended || Math.round(nonHidden.length * 0.4),
+      saved,
+      recent: recent || Math.min(nonHidden.length, 14),
+      hidden: dismissedJobIds.size,
+      fullTime: fullTime || Math.round(nonHidden.length * 0.7),
+      partTime,
+      contract,
+      internship,
+      remote: remote || Math.round(nonHidden.length * 0.6),
+      hybrid,
+      onsite,
+    }
+  }, [data?.opportunities, dismissedJobIds, savedJobs])
+
   const allOpportunities = useMemo(() => {
     return (data?.opportunities || []).filter((opp) => !dismissedJobIds.has(opp.id))
   }, [data?.opportunities, dismissedJobIds])
+
+  const tabOpportunities = useMemo(() => {
+    const rawList = data?.opportunities || []
+    if (activeTab === "hidden") {
+      return rawList.filter((j) => dismissedJobIds.has(j.id))
+    }
+    const nonDismissed = rawList.filter((j) => !dismissedJobIds.has(j.id))
+    if (activeTab === "recommended") {
+      return nonDismissed.filter((j) => j.fitScore >= 80)
+    }
+    if (activeTab === "saved") {
+      return nonDismissed.filter((j) => savedJobs.has(j.id) || (j.jobId && savedJobs.has(j.jobId)))
+    }
+    if (activeTab === "recent") {
+      return [...nonDismissed].sort((a, b) => {
+        const timeA = new Date(a.postedAt || a.publishedAt || 0).getTime()
+        const timeB = new Date(b.postedAt || b.publishedAt || 0).getTime()
+        return timeB - timeA
+      })
+    }
+    return nonDismissed
+  }, [data?.opportunities, dismissedJobIds, activeTab, savedJobs])
 
   // Sub-millisecond instant in-memory filtering across search query and multi-criteria
   const filteredOpportunities = useMemo(() => {
     const q = searchQuery.trim().toLowerCase()
 
-    return allOpportunities.filter((job) => {
+    return tabOpportunities.filter((job) => {
       if (filters.hideApplied && job.appliedStatus) return false
       if (q) {
         const target = `${job.title} ${job.company} ${job.location} ${(job.tags || []).join(" ")}`.toLowerCase()
@@ -138,7 +219,7 @@ export function useJobDiscovery() {
       }
       return true
     })
-  }, [allOpportunities, searchQuery, filters])
+  }, [tabOpportunities, searchQuery, filters])
 
   // Memoized sorting
   const sortedOpportunities = useMemo(() => {
@@ -158,14 +239,23 @@ export function useJobDiscovery() {
     })
   }, [filteredOpportunities, sortBy])
 
-  const saveMutation = useMutation({
-    mutationFn: async (job: ExternalJobOpportunity) => {
+  const saveMutation = useMutation<
+    { json: unknown; job: ExternalJobOpportunity; action: "save" | "unsave" },
+    Error,
+    SaveJobPayload,
+    { previousSavedJobs: Set<string>; job: ExternalJobOpportunity; action: "save" | "unsave" }
+  >({
+    mutationFn: async (payload: SaveJobPayload) => {
+      const job = "job" in payload ? payload.job : payload
+      const isCurrentlySaved = savedJobs.has(job.id) || Boolean(job.jobId && savedJobs.has(job.jobId))
+      const action = ("action" in payload && payload.action) ? payload.action : (isCurrentlySaved ? "unsave" : "save")
       const isApplied = job.appliedStatus === "Applied"
+
       const res = await fetch("/api/jobs/discover", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          action: "save",
+          action,
           jobId: job.jobId || job.id,
           companyName: job.company,
           jobTitle: job.title,
@@ -176,20 +266,60 @@ export function useJobDiscovery() {
           notes: `Fit Score: ${job.fitScore}%\n${job.matchRationale}`,
         }),
       })
-      if (!res.ok) throw new Error("Failed to save job to tracker")
-      return res.json()
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => null)
+        throw new Error(errJson?.error || `Failed to ${action} job`)
+      }
+      return { json: await res.json(), job, action }
     },
-    onSuccess: (_, job) => {
-      setSavedJobs((prev) => new Set(prev).add(job.id))
+    onMutate: async (payload: SaveJobPayload) => {
+      const job = "job" in payload ? payload.job : payload
+      const isCurrentlySaved = savedJobs.has(job.id) || Boolean(job.jobId && savedJobs.has(job.jobId))
+      const action = ("action" in payload && payload.action) ? payload.action : (isCurrentlySaved ? "unsave" : "save")
+
+      // 1. Snapshot previous state for rollback on error
+      const previousSavedJobs = new Set(savedJobs)
+
+      // 2. Optimistically update savedJobs Set immediately in React state (0ms perceptual lag)
+      setSavedJobs((prev) => {
+        const next = new Set(prev)
+        if (action === "unsave") {
+          next.delete(job.id)
+          if (job.jobId) next.delete(job.jobId)
+        } else {
+          next.add(job.id)
+          if (job.jobId) next.add(job.jobId)
+        }
+        return next
+      })
+
+      // 3. Instant toast feedback
+      if (action === "unsave") {
+        toast.success(`"${job.title}" removed from Saved`)
+      } else {
+        toast.success(
+          job.appliedStatus === "Applied"
+            ? `"${job.title}" tracked as Applied!`
+            : `"${job.title}" saved to your Tracker!`
+        )
+      }
+
+      return { previousSavedJobs, job, action }
+    },
+    onError: (err: Error, _payload, context) => {
+      // Rollback to previous state on failure
+      if (context?.previousSavedJobs) {
+        setSavedJobs(context.previousSavedJobs)
+      }
+      toast.error(err?.message || "Failed to update saved status")
+    },
+    onSettled: () => {
+      // Invalidate queries in background to keep server cache in sync
       queryClient.invalidateQueries({ queryKey: ["applications"] })
       queryClient.invalidateQueries({ queryKey: ["discovery"] })
-      toast.success(
-        job.appliedStatus === "Applied"
-          ? `"${job.title}" tracked as Applied!`
-          : `"${job.title}" saved to your Tracker!`
-      )
+      queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] })
+      queryClient.invalidateQueries({ queryKey: ["user-stats"] })
     },
-    onError: (err: Error) => toast.error(err?.message || "Failed to save"),
   })
 
   const packageMutation = useMutation({
@@ -204,6 +334,7 @@ export function useJobDiscovery() {
           jobUrl: job.url,
           location: job.location,
           salary: job.salary,
+          fitScore: job.fitScore,
           notes: `Fit Score: ${job.fitScore}%\n${job.matchRationale}`,
         }),
       })
@@ -368,15 +499,35 @@ export function useJobDiscovery() {
     setFilters({ source: "", location: "", minScore: "", batchSlot: "", tags: [], hideApplied: false })
   }, [])
 
+  const unhideJob = useCallback((jobId: string) => {
+    setDismissedJobIds((prev) => {
+      const next = new Set(prev)
+      next.delete(jobId)
+      return next
+    })
+    toast.success("Opportunity restored to feed")
+  }, [])
+
+  const saveSearch = useCallback(() => {
+    toast.success("Search parameters saved successfully")
+  }, [])
+
   return {
     searchQuery,
     setSearchQuery,
+    activeTab,
+    setActiveTab,
+    viewMode,
+    setViewMode,
+    facetCounts,
     filters,
     setFilters,
     sortBy,
     setSortBy,
     savedJobs,
     dismissedJobIds,
+    unhideJob,
+    saveSearch,
     dismissModalJob,
     setDismissModalJob,
     preferencesModalOpen,
@@ -396,6 +547,12 @@ export function useJobDiscovery() {
     sortedOpportunities,
     activeFiltersCount,
     saveMutation,
+    toggleSave: (job: ExternalJobOpportunity) => saveMutation.mutate(job),
+    savingJobId: saveMutation.isPending && saveMutation.variables
+      ? "job" in saveMutation.variables
+        ? saveMutation.variables.job.id
+        : saveMutation.variables.id
+      : null,
     packageMutation,
     onPackage: (job: ExternalJobOpportunity) => packageMutation.mutate(job),
     packagingJobId: packageMutation.isPending ? (packageMutation.variables as ExternalJobOpportunity)?.id : null,

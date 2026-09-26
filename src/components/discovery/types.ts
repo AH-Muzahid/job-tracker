@@ -17,23 +17,37 @@ export interface BatchSummary {
   totalActive: number
 }
 
+export type DiscoveryTab = "all" | "recommended" | "saved" | "recent" | "hidden"
+export type DiscoveryViewMode = "cards" | "list"
+
+export interface DiscoveryFacetCounts {
+  total: number
+  recommended: number
+  saved: number
+  recent: number
+  hidden: number
+  fullTime: number
+  partTime: number
+  contract: number
+  internship: number
+  remote: number
+  hybrid: number
+  onsite: number
+}
+
 export type SortOption = "score-desc" | "score-asc" | "salary-desc" | "salary-asc" | "newest"
 
-export const DISCOVERY_QUICK_TAGS = [
-  "React", "Python", "Go", "TypeScript", "AI", "Next.js", "Node.js", "Remote",
-]
-
 export const DISCOVERY_SORT_OPTIONS: { value: SortOption; label: string }[] = [
-  { value: "score-desc", label: "Fit Score (highest)" },
-  { value: "score-asc", label: "Fit Score (lowest)" },
-  { value: "salary-desc", label: "Salary (highest)" },
-  { value: "salary-asc", label: "Salary (lowest)" },
-  { value: "newest", label: "Newest" },
+  { value: "score-desc", label: "Best Match" },
+  { value: "newest", label: "Recently Added" },
+  { value: "salary-desc", label: "Highest Salary" },
+  { value: "score-asc", label: "Lowest Match" },
+  { value: "salary-asc", label: "Lowest Salary" },
 ]
 
 export function getScoreBadgeClass(score: number): string {
-  if (score >= 90) return "bg-emerald-600 text-white dark:bg-emerald-500 dark:text-zinc-950 border-emerald-600 dark:border-emerald-500 font-extrabold shadow-xs"
-  if (score >= 75) return "bg-sky-600 text-white dark:bg-sky-500 dark:text-zinc-950 border-sky-600 dark:border-sky-500 font-extrabold shadow-xs"
+  if (score >= 90) return "bg-emerald-600 text-white dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-600 dark:border-emerald-800 font-extrabold shadow-xs"
+  if (score >= 75) return "bg-sky-600 text-white dark:bg-sky-950/60 dark:text-sky-300 border-sky-600 dark:border-sky-800 font-extrabold shadow-xs"
   if (score >= 50) return "bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/40 font-bold"
   return "bg-zinc-500/20 text-zinc-600 dark:text-zinc-400 border-zinc-500/30 font-bold"
 }
@@ -268,5 +282,65 @@ export function parseMatchRationale(rationale?: string | null): ParsedRationale 
   }
 
   return result
+}
+
+export const KNOWN_SKILL_MAP: Record<string, string> = {
+  "react": "React",
+  "react.js": "React",
+  "next.js": "Next.js",
+  "nextjs": "Next.js",
+  "typescript": "TypeScript",
+  "ts": "TypeScript",
+  "javascript": "JavaScript",
+  "js": "JavaScript",
+  "node": "Node.js",
+  "nodejs": "Node.js",
+  "node.js": "Node.js",
+  "fullstack": "Full Stack",
+  "full stack": "Full Stack",
+  "frontend": "Frontend",
+  "backend": "Backend",
+  "python": "Python",
+  "golang": "Go",
+  "go": "Go",
+  "tailwind": "Tailwind CSS",
+  "tailwindcss": "Tailwind CSS",
+  "graphql": "GraphQL",
+  "api": "REST APIs",
+  "apis": "REST APIs",
+  "postgres": "PostgreSQL",
+  "postgresql": "PostgreSQL",
+  "mongodb": "MongoDB",
+  "aws": "AWS",
+  "gcp": "Cloud",
+  "cloud": "Cloud",
+  "docker": "Docker",
+  "ai": "AI",
+  "llm": "LLMs",
+  "product": "Product",
+  "strategy": "Strategy",
+  "growth": "Growth",
+  "analytics": "Analytics",
+  "design": "Design",
+  "figma": "Figma",
+  "distributed systems": "Distributed Systems",
+  "user testing": "User Testing",
+  "ux research": "UX Research",
+  "machine learning": "Machine Learning",
+}
+
+export function cleanTag(tag: string): string | null {
+  const trimmed = tag.trim().toLowerCase()
+  if (!trimmed) return null
+  if (["linkedin", "indeed", "remoteok", "adzuna", "arbeitnow", "remote", "hybrid", "onsite", "job", "jobs", "hiring", "developer", "engineer"].includes(trimmed)) {
+    return null
+  }
+  if (KNOWN_SKILL_MAP[trimmed]) {
+    return KNOWN_SKILL_MAP[trimmed]
+  }
+  if (trimmed.length > 22 || trimmed.includes(" - ")) {
+    return null
+  }
+  return trimmed.split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")
 }
 

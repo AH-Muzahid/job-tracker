@@ -383,7 +383,7 @@ export function UniversalJDEvaluator({
             {/* Score Ring */}
             <div className={`flex flex-col items-center justify-center h-14 w-14 shrink-0 rounded-xl border ${scoreColor}`}>
               <span className="text-lg font-bold tracking-tight">{matchScore}%</span>
-              <span className="text-[9px] uppercase tracking-wider font-mono opacity-80">Fit</span>
+              <span className="text-[10px] uppercase tracking-wider font-mono opacity-80">Fit</span>
             </div>
           </div>
         </CardHeader>
