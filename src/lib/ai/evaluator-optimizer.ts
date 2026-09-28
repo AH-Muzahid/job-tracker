@@ -174,7 +174,7 @@ export async function runEvaluatorOptimizer<TOutput = string>(
   }
 
   // Max iterations reached without passing
-  let finalDraft = currentDraft!
+  let finalDraft: TOutput = currentDraft as TOutput
   let usedFallback = false
 
   if (fallbackSanitizer) {

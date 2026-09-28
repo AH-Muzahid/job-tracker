@@ -20,8 +20,8 @@ export async function processProactiveFollowUpsForUser(userId: string): Promise<
         userId,
         status: "Applied",
         OR: [
-          { appliedAt: { lte: sevenDaysAgo } },
-          { appliedAt: null, updatedAt: { lte: sevenDaysAgo } },
+          { applicationDate: { lte: sevenDaysAgo } },
+          { updatedAt: { lte: sevenDaysAgo } },
         ],
       },
       include: {
@@ -55,7 +55,7 @@ export async function processProactiveFollowUpsForUser(userId: string): Promise<
         subject: followUpSubject,
         body: followUpBody,
         generatedAt: new Date().toISOString(),
-        daysWaiting: Math.floor((Date.now() - new Date(app.appliedAt || app.updatedAt).getTime()) / (24 * 60 * 60 * 1000)),
+        daysWaiting: Math.floor((Date.now() - new Date(app.applicationDate || app.updatedAt).getTime()) / (24 * 60 * 60 * 1000)),
       },
     }
 
@@ -77,8 +77,9 @@ export async function processProactiveFollowUpsForUser(userId: string): Promise<
           userId,
           title: `Proactive Follow-up Ready: ${company}`,
           message: `It has been over 7 days since you applied to ${company} for ${role}. A tailored follow-up message is ready in your application workbench.`,
+          type: "FOLLOW_UP",
           link: `/applications`,
-          read: false,
+          isRead: false,
         },
       })
     )
@@ -107,7 +108,7 @@ export const agentProactiveDaemon = inngest.createFunction(
     ],
   },
   async ({ step, event }) => {
-    const specificUserId = event.data?.userId
+    const specificUserId = (event.data as any)?.userId
 
     if (specificUserId) {
       const result = await step.run(`proactive-scan-user-${specificUserId}`, async () => {

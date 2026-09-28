@@ -192,6 +192,7 @@ ${truncatedJd}
 Respond ONLY in valid JSON format matching this schema:
 ${jsonSchema}`
 
+    let usageMetrics: any = null
     const startTime = Date.now()
     try {
       const evalResult = await runEvaluatorOptimizer<any>({
@@ -208,6 +209,7 @@ ${jsonSchema}`
             system: systemPrompt,
           })
 
+          usageMetrics = (textResult as any).usage
           const parsed = extractJsonObject<any>(textResult.text || "")
           if (!parsed) throw new Error("Invalid outreach JSON returned by model")
           return parsed
@@ -262,8 +264,8 @@ ${jsonSchema}`
         provider: aiConfig.providerType,
         input: { companyName: app.companyName, jobTitle: app.jobTitle, channel: activeChannel },
         output: { channel: activeChannel, subject: finalBundle[activeChannel === "linkedin_connect" ? "linkedin_dm" : activeChannel]?.subject },
-        promptTokens: (textResult as any).usage?.promptTokens,
-        completionTokens: (textResult as any).usage?.completionTokens,
+        promptTokens: usageMetrics?.promptTokens,
+        completionTokens: usageMetrics?.completionTokens,
         latencyMs: Date.now() - startTime,
         status: "success",
         tags: ["outreach", "multi-channel", activeChannel],

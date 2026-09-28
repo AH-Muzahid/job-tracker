@@ -149,7 +149,7 @@ export async function coordinateApplicationPackageSquad(
         },
         approvedByCritic: true,
         rounds,
-        criticFeedback,
+        criticFeedback: critiqueFeedback,
         isDeterministicFallback: false,
       }
     }

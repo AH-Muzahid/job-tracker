@@ -115,6 +115,7 @@ describe("Autonomous Context Assembler (Dynamic Graph & RAG)", () => {
     const mockDossier = {
       candidateName: "Sarah Connor",
       candidateEmail: "sarah@resistance.org",
+      targetRoles: ["Full Stack Lead"],
       links: { github: "https://github.com/sarah" },
       matchedSkills: [
         {
@@ -124,8 +125,12 @@ describe("Autonomous Context Assembler (Dynamic Graph & RAG)", () => {
         },
       ],
       missingSkills: ["Rust", "Solidity"],
+      evidencePaths: [],
+      matchScore: 92,
       bestProjects: [{ name: "CyberSystem" }],
       weaknessesToCounteract: ["Avoid over-generalizing systems"],
+      adaptiveBoosts: ["TypeScript"],
+      penalizedSkills: [],
       summaryContextText: "",
     }
 
