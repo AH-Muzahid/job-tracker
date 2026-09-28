@@ -1,4 +1,4 @@
-export type BatchSlot = "" | "just-in" | "earlier-today" | "yesterday"
+export type BatchSlot = "" | "today" | "yesterday" | "week"
 
 export interface DiscoveryFilters {
   source: "" | "remoteok" | "arbeitnow" | "adzuna" | "curated" | "linkedin" | "jobicy" | "linkedin_post" | "company_portal" | "greenhouse" | "lever"
@@ -6,26 +6,26 @@ export interface DiscoveryFilters {
   minScore: "" | "90" | "75" | "50" | "0"
   visaSponsorship?: "" | "available" | "not_available"
   batchSlot?: BatchSlot
+  postedWithin?: "" | "today" | "yesterday" | "3d" | "7d"
   tags: string[]
   hideApplied?: boolean
 }
 
 export interface BatchSummary {
-  justIn: number
-  earlierToday: number
+  today: number
   yesterday: number
+  week: number
   totalActive: number
 }
 
-export type DiscoveryTab = "all" | "recommended" | "saved" | "recent" | "hidden"
+export type DiscoveryTab = "today" | "yesterday" | "week" | "saved"
 export type DiscoveryViewMode = "cards" | "list"
 
 export interface DiscoveryFacetCounts {
-  total: number
-  recommended: number
+  today: number
+  yesterday: number
+  week: number
   saved: number
-  recent: number
-  hidden: number
   fullTime: number
   partTime: number
   contract: number
@@ -33,6 +33,13 @@ export interface DiscoveryFacetCounts {
   remote: number
   hybrid: number
   onsite: number
+}
+
+export function daysSincePosted(date?: string | null): number {
+  if (!date) return Number.MAX_SAFE_INTEGER
+  const t = new Date(date).getTime()
+  if (isNaN(t)) return Number.MAX_SAFE_INTEGER
+  return Math.floor((Date.now() - t) / (1000 * 60 * 60 * 24))
 }
 
 export type SortOption = "score-desc" | "score-asc" | "salary-desc" | "salary-asc" | "newest"
@@ -79,19 +86,19 @@ export function getSourceBadge(source: string): { label: string; color: string }
 
 export function getBatchSlotBadge(slot?: string): { label: string; color: string } {
   switch (slot) {
-    case "just-in":
+    case "today":
       return {
-        label: "Just In (<6h)",
+        label: "Today",
         color: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30",
-      }
-    case "earlier-today":
-      return {
-        label: "Earlier (6-12h)",
-        color: "bg-sky-500/15 text-sky-700 dark:text-sky-400 border-sky-500/30",
       }
     case "yesterday":
       return {
-        label: "Past (12-24h)",
+        label: "Yesterday",
+        color: "bg-sky-500/15 text-sky-700 dark:text-sky-400 border-sky-500/30",
+      }
+    case "week":
+      return {
+        label: "This Week",
         color: "bg-muted text-muted-foreground border-border",
       }
     default:

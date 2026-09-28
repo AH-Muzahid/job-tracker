@@ -1,6 +1,6 @@
 "use client"
 
-import { Briefcase, RefreshCw, Sliders, Bookmark } from "lucide-react"
+import { Briefcase, Sliders, Bookmark } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { DecorIcon } from "@/components/decor-icon"
 import { DiscoveryJobCard } from "./DiscoveryJobCard"
@@ -18,7 +18,6 @@ interface DiscoveryJobListProps {
   onApplyClick?: (job: ExternalJobOpportunity) => void
   onDismiss?: (job: ExternalJobOpportunity) => void
   onClearAll: () => void
-  onRefetch: () => void
   onOpenPreferences?: () => void
   searchQuery: string
   activeTab?: DiscoveryTab
@@ -37,10 +36,9 @@ export function DiscoveryJobList({
   onApplyClick,
   onDismiss,
   onClearAll,
-  onRefetch,
   onOpenPreferences,
   searchQuery,
-  activeTab = "all",
+  activeTab = "today",
   onPackage,
   packagingJobId,
   stagedJobs,
@@ -91,19 +89,6 @@ export function DiscoveryJobList({
       )
     }
 
-    if (activeTab === "hidden") {
-      return (
-        <div className="relative rounded-[6px] border border-dashed border-border p-10 sm:p-14 text-center bg-card shadow-xs">
-          <DecorIcon position="top-right" />
-          <DecorIcon position="bottom-left" />
-          <h3 className="text-base font-bold text-foreground">No dismissed opportunities</h3>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-1.5 max-w-md mx-auto leading-relaxed">
-            Opportunities you dismiss from the three-dots menu will appear here.
-          </p>
-        </div>
-      )
-    }
-
     return (
       <div className="relative rounded-[6px] border border-dashed border-border p-10 sm:p-14 text-center bg-card shadow-xs">
         <DecorIcon position="top-right" />
@@ -138,9 +123,6 @@ export function DiscoveryJobList({
             </Button>
           )}
           <Button variant="outline" size="sm" onClick={onClearAll} className="text-xs px-4 cursor-pointer rounded-sm">Reset Filters</Button>
-          <Button variant="outline" size="sm" onClick={onRefetch} className="text-xs px-3 cursor-pointer rounded-sm">
-            <RefreshCw className="size-3.5 mr-1" />Refresh Feed
-          </Button>
         </div>
       </div>
     )

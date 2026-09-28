@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect, useMemo } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { useUserProfile } from "@/lib/api"
+import { daysSincePosted } from "@/components/discovery/types"
 import type { DiscoveryFilters, SortOption, BatchSummary, DiscoveryTab, DiscoveryViewMode, DiscoveryFacetCounts } from "@/components/discovery/types"
 import type { ExternalJobOpportunity } from "@/lib/ai/graph/tools/discovery-tools"
 
@@ -27,7 +28,7 @@ export function parseSalary(s?: string): number {
 
 export function useJobDiscovery() {
   const [searchQuery, setSearchQuery] = useState("")
-  const [activeTab, setActiveTab] = useState<DiscoveryTab>("all")
+  const [activeTab, setActiveTab] = useState<DiscoveryTab>("today")
   const [viewMode, setViewMode] = useState<DiscoveryViewMode>("cards")
   const [filters, setFilters] = useState<DiscoveryFilters>({
     source: "",
@@ -35,6 +36,7 @@ export function useJobDiscovery() {
     minScore: "",
     visaSponsorship: "",
     batchSlot: "",
+    postedWithin: "",
     tags: [],
     hideApplied: false,
   })
@@ -106,6 +108,10 @@ export function useJobDiscovery() {
 
   const facetCounts = useMemo<DiscoveryFacetCounts>(() => {
     const rawList = data?.opportunities || []
+    let today = 0
+    let yesterday = 0
+    let week = 0
+    let saved = 0
     let fullTime = 0
     let partTime = 0
     let contract = 0
@@ -113,12 +119,6 @@ export function useJobDiscovery() {
     let remote = 0
     let hybrid = 0
     let onsite = 0
-    let recommended = 0
-    let recent = 0
-    let saved = 0
-
-    const now = Date.now()
-    const threeDaysMs = 3 * 24 * 60 * 60 * 1000
 
     for (const job of rawList) {
       if (dismissedJobIds.has(job.id)) continue
@@ -134,26 +134,24 @@ export function useJobDiscovery() {
       else if (loc.includes("hybrid")) hybrid++
       else onsite++
 
-      if (job.fitScore >= 80) recommended++
       if (savedJobs.has(job.id) || (job.jobId && savedJobs.has(job.jobId))) saved++
 
-      const postedTime = new Date(job.postedAt || job.publishedAt || 0).getTime()
-      if (!isNaN(postedTime) && now - postedTime < threeDaysMs) recent++
+      const days = daysSincePosted(job.publishedAt || job.postedAt)
+      if (days === 0) today++
+      else if (days === 1) yesterday++
+      else if (days >= 2 && days <= 7) week++
     }
 
-    const nonHidden = rawList.filter((j) => !dismissedJobIds.has(j.id))
-
     return {
-      total: nonHidden.length,
-      recommended: recommended || Math.round(nonHidden.length * 0.4),
+      today,
+      yesterday,
+      week,
       saved,
-      recent: recent || Math.min(nonHidden.length, 14),
-      hidden: dismissedJobIds.size,
-      fullTime: fullTime || Math.round(nonHidden.length * 0.7),
+      fullTime,
       partTime,
       contract,
       internship,
-      remote: remote || Math.round(nonHidden.length * 0.6),
+      remote,
       hybrid,
       onsite,
     }
@@ -165,21 +163,21 @@ export function useJobDiscovery() {
 
   const tabOpportunities = useMemo(() => {
     const rawList = data?.opportunities || []
-    if (activeTab === "hidden") {
-      return rawList.filter((j) => dismissedJobIds.has(j.id))
-    }
     const nonDismissed = rawList.filter((j) => !dismissedJobIds.has(j.id))
-    if (activeTab === "recommended") {
-      return nonDismissed.filter((j) => j.fitScore >= 80)
-    }
+
     if (activeTab === "saved") {
       return nonDismissed.filter((j) => savedJobs.has(j.id) || (j.jobId && savedJobs.has(j.jobId)))
     }
-    if (activeTab === "recent") {
-      return [...nonDismissed].sort((a, b) => {
-        const timeA = new Date(a.postedAt || a.publishedAt || 0).getTime()
-        const timeB = new Date(b.postedAt || b.publishedAt || 0).getTime()
-        return timeB - timeA
+    if (activeTab === "today") {
+      return nonDismissed.filter((j) => daysSincePosted(j.publishedAt || j.postedAt) === 0)
+    }
+    if (activeTab === "yesterday") {
+      return nonDismissed.filter((j) => daysSincePosted(j.publishedAt || j.postedAt) === 1)
+    }
+    if (activeTab === "week") {
+      return nonDismissed.filter((j) => {
+        const days = daysSincePosted(j.publishedAt || j.postedAt)
+        return days >= 2 && days <= 7
       })
     }
     return nonDismissed
@@ -196,6 +194,13 @@ export function useJobDiscovery() {
         if (!target.includes(q)) return false
       }
       if (filters.batchSlot && job.batchSlot !== filters.batchSlot) return false
+      if (filters.postedWithin) {
+        const days = daysSincePosted(job.publishedAt || job.postedAt)
+        if (filters.postedWithin === "today" && days !== 0) return false
+        if (filters.postedWithin === "yesterday" && days !== 1) return false
+        if (filters.postedWithin === "3d" && days > 3) return false
+        if (filters.postedWithin === "7d" && days > 7) return false
+      }
       if (filters.source && job.sourceBoard !== filters.source) return false
       if (filters.location) {
         const loc = job.location.toLowerCase()
@@ -400,26 +405,6 @@ export function useJobDiscovery() {
     setTrackModalJob(job)
   }, [])
 
-  const forceRefreshMutation = useMutation({
-    mutationFn: async () => {
-      const res = await fetch("/api/jobs/discover", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "refresh" }),
-      })
-      if (!res.ok) {
-        const errJson = await res.json().catch(() => null)
-        throw new Error(errJson?.error || "Failed to sync fresh batch")
-      }
-      return res.json()
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["discovery"] })
-      toast.success("Fresh job batch generated and scored!")
-    },
-    onError: (err: Error) => toast.error(err?.message || "Failed to sync fresh batch"),
-  })
-
   const dismissMutation = useMutation({
     mutationFn: async ({ job, reason }: { job: ExternalJobOpportunity; reason: string }) => {
       const res = await fetch("/api/jobs/discover", {
@@ -486,6 +471,7 @@ export function useJobDiscovery() {
     (filters.minScore ? 1 : 0) +
     (filters.visaSponsorship ? 1 : 0) +
     (filters.batchSlot ? 1 : 0) +
+    (filters.postedWithin ? 1 : 0) +
     (filters.hideApplied ? 1 : 0) +
     filters.tags.length
 
@@ -496,7 +482,7 @@ export function useJobDiscovery() {
 
   const clearAllFilters = useCallback(() => {
     setSearchQuery("")
-    setFilters({ source: "", location: "", minScore: "", batchSlot: "", tags: [], hideApplied: false })
+    setFilters({ source: "", location: "", minScore: "", visaSponsorship: "", batchSlot: "", postedWithin: "", tags: [], hideApplied: false })
   }, [])
 
   const unhideJob = useCallback((jobId: string) => {
@@ -558,7 +544,6 @@ export function useJobDiscovery() {
     packagingJobId: packageMutation.isPending ? (packageMutation.variables as ExternalJobOpportunity)?.id : null,
     stagedJobs,
     stagedAppMap,
-    forceRefreshMutation,
     dismissMutation,
     handleApplyClick,
     handleSearchSubmit,

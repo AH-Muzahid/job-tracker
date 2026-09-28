@@ -5,7 +5,7 @@ import {
 	PlusCircle,
 	HelpCircle,
 	Home,
-	Mail,
+	Compass,
 	Briefcase,
 	CalendarDays,
 } from "lucide-react";
@@ -35,9 +35,9 @@ export const navGroups: SidebarNavGroup[] = [
 				icon: <Home className="size-4" />,
 			},
 			{
-				title: "Opportunities",
+				title: "Discovery",
 				path: "/discovery",
-				icon: <Mail className="size-4" />,
+				icon: <Compass className="size-4" />,
 			},
 			{
 				title: "Applications",

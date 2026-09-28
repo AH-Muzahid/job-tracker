@@ -9,7 +9,8 @@ import { Plus } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { PageContainer, PageHeader, KPIStrip } from "@/components/primitives"
+import { PageContainer, PageHeader } from "@/components/primitives"
+import { PipelineFunnelStrip } from "@/components/dashboard/PipelineFunnelStrip"
 import ViewSwitcher from "@/components/dashboard/ViewSwitcher"
 import FilterBar from "@/components/dashboard/FilterBar"
 import ListView from "@/components/dashboard/ListView"
@@ -20,6 +21,7 @@ import { FollowUpSendDrawer } from "@/components/applications/FollowUpSendDrawer
 import { useSearchParams } from "@/hooks/use-search-params"
 import { useApplications, useMoveApplication, useDeleteApplication } from "@/lib/api"
 import { useUI } from "@/lib/store"
+import { isFollowUpDue } from "@/lib/applications/follow-up-utils"
 import type { ViewMode, SortOption, DashboardFilters, Application } from "@/components/dashboard/types"
 import type { DropResult } from "@hello-pangea/dnd"
 
@@ -32,6 +34,7 @@ function ApplicationsContent() {
   const { isLoaded, isSignedIn } = useUser()
   const router = useRouter()
   const [urlParams, setUrlParams] = useSearchParams()
+  const [followUpOnly, setFollowUpOnly] = useState(false)
 
   const filters: DashboardFilters = useMemo(() => ({
     search: urlParams.search || "",
@@ -47,14 +50,14 @@ function ApplicationsContent() {
   const applications = useMemo(() => (data?.data ?? []) as Application[], [data])
   const total = data?.total ?? 0
 
-  // Derived KPI metrics for the Efferd Top Stat Strip
-  const stats = useMemo(() => {
-    const active = applications.filter((a) => ["Applied", "Assessment"].includes(a.status)).length
-    const advanced = applications.filter((a) => ["Interviewing", "Offer", "Accepted"].includes(a.status)).length
-    const offers = applications.filter((a) => ["Offer", "Accepted"].includes(a.status)).length
-    const responseRate = total > 0 ? Math.round(((advanced) / total) * 100) : 0
-    return { active, advanced, offers, responseRate }
-  }, [applications, total])
+  const followUpCount = useMemo(() => {
+    return applications.filter((app) => isFollowUpDue(app)).length
+  }, [applications])
+
+  const displayedApplications = useMemo(() => {
+    if (!followUpOnly) return applications
+    return applications.filter((app) => isFollowUpDue(app))
+  }, [applications, followUpOnly])
 
   const moveMutation = useMoveApplication()
   const deleteMutation = useDeleteApplication()
@@ -71,6 +74,7 @@ function ApplicationsContent() {
   }, [urlParams, setUrlParams])
 
   const clearFilters = useCallback(() => {
+    setFollowUpOnly(false)
     setUrlParams(urlParams.view ? { view: urlParams.view } : {})
   }, [urlParams.view, setUrlParams])
 
@@ -135,64 +139,57 @@ function ApplicationsContent() {
       {/* 1. Header Section */}
       <PageHeader
         overline="Workbench"
-        title="Applications Pipeline"
-        description="Manage, track, and advance your job search applications"
+        title={
+          <span className="flex items-center gap-2.5">
+            <span>Applications Pipeline</span>
+            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-[4px] border border-border bg-muted/50 text-[11px] font-mono font-medium text-muted-foreground select-none">
+              <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              {total} {total === 1 ? "Role" : "Roles"} Active
+            </span>
+          </span>
+        }
+        description="Air traffic control for active job applications, interview stages, and follow-ups"
         primaryAction={
           <Button
             size="sm"
             onClick={() => setFormModal(true)}
-            className="rounded-sm font-medium text-xs cursor-pointer shrink-0 h-8 sm:h-9 px-3 sm:px-4 bg-primary hover:bg-primary/90 text-primary-foreground shadow-none"
+            className="rounded-[4px] font-medium text-xs cursor-pointer shrink-0 h-8 sm:h-9 px-3 sm:px-4 bg-primary hover:bg-primary/90 text-primary-foreground shadow-none active:scale-[0.98] transition-all"
           >
-            <Plus className="h-3.5 w-3.5 mr-1" />
+            <Plus className="size-3.5 mr-1" />
             <span className="hidden sm:inline">Add Application</span>
             <span className="sm:hidden">Add</span>
           </Button>
         }
       />
 
-      {/* 2. Unified KPI Strip */}
-      <KPIStrip
-        columns={4}
-        items={[
-          {
-            id: "total",
-            label: "Total Pipeline",
-            value: total,
-            delta: total > 0 ? 12 : 0,
-            subtext: "all stages",
-          },
-          {
-            id: "active",
-            label: "In Progress",
-            value: stats.active,
-            delta: 8.5,
-            subtext: "progress",
-          },
-          {
-            id: "advanced",
-            label: "Interviews & Offers",
-            value: stats.advanced,
-            delta: stats.offers > 0 ? 15 : 4,
-            subtext: `${stats.offers} offers`,
-          },
-          {
-            id: "responseRate",
-            label: "Response Rate",
-            value: `${stats.responseRate}%`,
-            delta: stats.responseRate >= 20 ? 5.2 : 0,
-            subtext: "rate",
-          },
-        ]}
+      {/* 2. Sleek Architectural Pipeline Funnel & Stage Deck */}
+      <PipelineFunnelStrip
+        applications={applications}
+        total={total}
+        selectedStage={filters.status}
+        onSelectStage={(stage) => updateFilter("status", stage)}
+        followUpOnly={followUpOnly}
+        onToggleFollowUpOnly={() => setFollowUpOnly((v) => !v)}
       />
 
       {/* 3. Controls & Filter Bar */}
-      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 pt-2">
+      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 pt-1">
         <ViewSwitcher current={view} onChange={setView} />
         <FilterBar
-          search={filters.search} status={filters.status} source={filters.source} sort={filters.sort}
-          onSearchChange={(v) => updateFilter("search", v)} onStatusChange={(v) => updateFilter("status", v)}
-          onSourceChange={(v) => updateFilter("source", v)} onSortChange={(v) => updateFilter("sort", v)}
-          onClearAll={clearFilters} total={total} filteredCount={applications.length}
+          search={filters.search}
+          status={filters.status}
+          source={filters.source}
+          sort={filters.sort}
+          onSearchChange={(v) => updateFilter("search", v)}
+          onStatusChange={(v) => updateFilter("status", v)}
+          onSourceChange={(v) => updateFilter("source", v)}
+          onSortChange={(v) => updateFilter("sort", v)}
+          onClearAll={clearFilters}
+          total={total}
+          filteredCount={displayedApplications.length}
+          followUpOnly={followUpOnly}
+          onToggleFollowUpOnly={() => setFollowUpOnly((v) => !v)}
+          followUpCount={followUpCount}
         />
       </div>
 
@@ -203,24 +200,25 @@ function ApplicationsContent() {
         <div>
           {view === "board" && (
             <BoardView
-              applications={applications}
+              applications={displayedApplications}
               onSelect={(id) => router.push(`/applications/${id}`)}
               onEdit={(id) => setFormModal(true, id)}
               onDelete={(id) => setDeleteModal(true, id)}
               onMoveTo={handleMoveTo}
               onDragEnd={handleDragEnd}
               onOpenFollowUp={(id) => setFollowUpAppId(id)}
+              onQuickAdd={() => setFormModal(true)}
             />
           )}
           {view === "list" && (
             <ListView
-              applications={applications}
+              applications={displayedApplications}
               onSelect={(id) => router.push(`/applications/${id}`)}
             />
           )}
           {view === "table" && (
             <TableView
-              applications={applications}
+              applications={displayedApplications}
               onSelect={(id) => router.push(`/applications/${id}`)}
             />
           )}
@@ -273,18 +271,20 @@ function ApplicationsContent() {
 function ApplicationsSkeleton() {
   return (
     <PageContainer>
-      <div className="flex items-center justify-between"><Skeleton className="h-7 w-48 rounded-[4px]" /><Skeleton className="h-8 w-28 rounded-[4px]" /></div>
-      <div className="relative border border-border bg-border rounded-[6px] overflow-hidden">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-px bg-border">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="p-6 bg-background space-y-3">
-              <Skeleton className="h-4 w-24 rounded-[4px]" />
-              <Skeleton className="h-8 w-16 rounded-[4px]" />
-              <Skeleton className="h-3 w-32 rounded-[4px] mt-4" />
-            </div>
-          ))}
+      <div className="flex items-center justify-between pt-1 pb-1">
+        <div className="space-y-1.5">
+          <Skeleton className="h-4 w-20 rounded-[4px]" />
+          <Skeleton className="h-8 w-64 rounded-[4px]" />
+          <Skeleton className="h-4 w-96 max-w-full rounded-[4px]" />
         </div>
+        <Skeleton className="h-9 w-32 rounded-[4px]" />
       </div>
+      <div className="h-14 rounded-[6px] border border-border bg-card animate-pulse" />
+      <div className="flex items-center justify-between gap-3 pt-1">
+        <Skeleton className="h-8 w-44 rounded-[4px]" />
+        <Skeleton className="h-8 w-72 rounded-[4px]" />
+      </div>
+      <ViewSkeleton view="board" />
     </PageContainer>
   )
 }
@@ -292,28 +292,25 @@ function ApplicationsSkeleton() {
 function ViewSkeleton({ view }: { view: ViewMode }) {
   if (view === "board") {
     return (
-      <div className="relative border border-border bg-border rounded-[6px] overflow-hidden">
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-px bg-border">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="bg-background min-h-[500px] p-4 space-y-3">
-              <div className="flex justify-between items-center pb-3 border-b border-border">
-                <Skeleton className="h-4 w-20 rounded-[4px]" />
-                <Skeleton className="h-4 w-6 rounded-[4px]" />
-              </div>
-              {Array.from({ length: 2 }).map((_, j) => (
-                <div key={j} className="p-3 border border-border rounded-[6px] bg-card space-y-2">
-                  <div className="flex gap-2">
-                    <Skeleton className="h-8 w-8 rounded-[4px]" />
-                    <div className="space-y-1 flex-1">
-                      <Skeleton className="h-3 w-16 rounded-[4px]" />
-                      <Skeleton className="h-3.5 w-28 rounded-[4px]" />
-                    </div>
-                  </div>
-                </div>
-              ))}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-2.5 w-full items-start">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="flex flex-col h-full bg-card/40 rounded-[6px] border border-border p-1.5 min-w-0 min-h-[400px] space-y-2">
+            <div className="flex justify-between items-center px-1.5 py-1 mb-1 border-b border-border/40 pb-1.5">
+              <Skeleton className="h-3 w-16 rounded-[3px]" />
+              <Skeleton className="h-3 w-4 rounded-[3px]" />
             </div>
-          ))}
-        </div>
+            {Array.from({ length: 4 }).map((_, j) => (
+              <div key={j} className="p-2 sm:p-2.5 rounded-[5px] border border-border bg-card space-y-1.5">
+                <div className="flex items-center gap-1.5">
+                  <Skeleton className="size-5 rounded-[3px]" />
+                  <Skeleton className="h-3 w-20 rounded-[3px]" />
+                  <Skeleton className="h-2.5 w-10 ml-auto rounded-[3px]" />
+                </div>
+                <Skeleton className="h-3.5 w-full rounded-[3px]" />
+              </div>
+            ))}
+          </div>
+        ))}
       </div>
     )
   }

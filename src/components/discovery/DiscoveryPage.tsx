@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils"
 import { DiscoveryFilterSidebar } from "./DiscoveryFilterSidebar"
 import { DiscoverySortDropdown } from "./DiscoverySortDropdown"
 import { DiscoveryJobList } from "./DiscoveryJobList"
+import { BatchCountdown } from "./BatchCountdown"
 import { DiscoveryPreferencesModal } from "./DiscoveryPreferencesModal"
 import { DiscoveryTrackModal } from "./DiscoveryTrackModal"
 import { DiscoveryDismissModal } from "./DiscoveryDismissModal"
@@ -40,6 +41,7 @@ export function DiscoveryPage() {
     setTrackModalJob,
     userProfile,
     refetchProfile,
+    data,
     isLoading,
     refetch,
     sortedOpportunities,
@@ -48,7 +50,6 @@ export function DiscoveryPage() {
     packagingJobId,
     stagedJobs,
     stagedAppMap,
-    forceRefreshMutation,
     dismissMutation,
     handleApplyClick,
     clearAllFilters,
@@ -56,13 +57,15 @@ export function DiscoveryPage() {
   } = useJobDiscovery()
 
   const tabs: { id: DiscoveryTab; label: string; count?: number }[] = [
-    { id: "all", label: "All Jobs", count: facetCounts.total },
+    { id: "today", label: "Today", count: facetCounts.today },
+    { id: "yesterday", label: "Yesterday", count: facetCounts.yesterday },
+    { id: "week", label: "This Week", count: facetCounts.week },
     { id: "saved", label: "Saved", count: facetCounts.saved },
   ]
 
   return (
     <>
-      <div className="flex flex-col lg:flex-row gap-6 lg:gap-8 pb-10 items-start">
+      <div className="flex min-h-screen flex-col lg:flex-row gap-6 lg:gap-8 pb-10 items-start">
         {/* Left Main Stream */}
         <div className="flex-1 min-w-0 flex flex-col gap-4 sm:gap-5 w-full">
           
@@ -80,6 +83,7 @@ export function DiscoveryPage() {
               <p className="text-xs sm:text-sm text-muted-foreground max-w-2xl leading-relaxed">
                 Discover high-quality jobs, get AI insights, and take the next step in your career.
               </p>
+              <BatchCountdown nextBatchAt={data?.nextBatchAt} className="mt-1.5" />
             </div>
             
             {/* Header Action: Job Preferences Modal Trigger */}
@@ -122,6 +126,8 @@ export function DiscoveryPage() {
                 </button>
               </div>
             </div>
+
+            <BatchCountdown nextBatchAt={data?.nextBatchAt} />
 
             {/* Expandable Mobile Search Input */}
             {mobileSearchOpen && (
@@ -244,7 +250,6 @@ export function DiscoveryPage() {
               onApplyClick={handleApplyClick}
               onDismiss={(job) => setDismissModalJob(job)}
               onClearAll={clearAllFilters}
-              onRefetch={() => refetch()}
               onOpenPreferences={() => setPreferencesModalOpen(true)}
               searchQuery={searchQuery}
               activeTab={activeTab}
@@ -278,7 +283,7 @@ export function DiscoveryPage() {
         onSaved={() => {
           queryClient.invalidateQueries({ queryKey: ["user-profile"] })
           refetchProfile()
-          forceRefreshMutation.mutate()
+          refetch()
         }}
       />
 

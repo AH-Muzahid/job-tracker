@@ -16,7 +16,7 @@ export interface ExternalJobOpportunity {
   outreachPitch?: string
   atsScore?: number
   missingKeywords?: string[]
-  batchSlot?: "just-in" | "earlier-today" | "yesterday"
+  batchSlot?: "today" | "yesterday" | "week"
   batchLabel?: string
   batchId?: string
   publishedAt?: string

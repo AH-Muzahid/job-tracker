@@ -8,6 +8,12 @@ import { getUserWeaknesses } from "@/lib/ai/memory"
 import { traceAIGeneration } from "@/lib/ai/telemetry"
 import { extractJsonObject } from "@/lib/ai/json-extractor"
 import { getCachedJson } from "@/lib/redis"
+import {
+  extractContactEmail,
+  sanitizeOutreachPlaceholders,
+  generateDeterministicOutreachBundle,
+  OutreachChannelBundle,
+} from "@/lib/applications/outreach-engine"
 
 export interface GeneratedApplicationMaterials {
   coverLetter: string
@@ -15,6 +21,8 @@ export interface GeneratedApplicationMaterials {
   outreachPitch: string
   strategyTip?: string
   atsKeywords: string[]
+  outreachSubject?: string
+  outreachChannels?: OutreachChannelBundle
 }
 
 /**
@@ -70,6 +78,16 @@ ${candidateName}`
     `Demonstrated autonomous ownership and rapid delivery of complex product features from conception to deployment.`,
   ]
 
+  const outreachBundle = generateDeterministicOutreachBundle({
+    companyName,
+    jobTitle,
+    candidateName,
+    skills: uniqueSkills,
+    topProjects: bestProjects,
+    location: context.location,
+    notes: context.notes,
+  })
+
   const outreachPitch = `Hi there! I saw the opening for ${jobTitle} at ${companyName}. I've recently built ${topProject.name} using ${skillsDisplay}. Would love to share my GitHub and discuss how my hands-on experience aligns with your team!`
 
   return {
@@ -78,6 +96,7 @@ ${candidateName}`
     outreachPitch,
     strategyTip: `Focus on highlighting your hands-on experience with ${topProject.name} and your proficiency in ${skillsDisplay}.`,
     atsKeywords: uniqueSkills.map((s) => toCanonical(s)),
+    outreachChannels: outreachBundle,
   }
 }
 
@@ -102,7 +121,7 @@ export async function generateApplicationMaterialsAgent(
 ): Promise<GeneratedApplicationMaterials> {
   const [profile, user, weaknesses] = await Promise.all([
     withDbRetry<any>(() => prisma.userProfile.findUnique({ where: { userId } })),
-    withDbRetry<any>(() => prisma.user.findUnique({ where: { id: userId }, select: { name: true } })),
+    withDbRetry<any>(() => prisma.user.findUnique({ where: { id: userId }, select: { name: true, email: true } })),
     getUserWeaknesses(userId, 3).catch(() => []),
   ])
 
@@ -137,11 +156,17 @@ Candidate Profile:
 - Experience Level: ${profile?.experienceLevel || "Mid-level"}
 ${weaknessNotes ? `- Areas of Prior Technical Weakness / Feedback (Counteract with verifiable proof or avoid unsubstantiated claims):\n${weaknessNotes}` : ""}
 
+CRITICAL NO-PLACEHOLDER & QUALITY RULES:
+1. NEVER output placeholders like "[Hiring Manager/Recruiter]", "[Your Name]", or "[Company Name]".
+2. Always address the team naturally as "${context.companyName} Hiring Team" or "${context.companyName} Team".
+3. Sign off directly with the candidate's actual name: "${candidateName}".
+4. In outreachPitch, write a ready-to-send, high-converting outreach message (under 120 words) referencing real project experience from the candidate's profile.
+
 Respond in valid JSON format:
 {
   "coverLetter": "Full 3-paragraph professional cover letter in markdown format",
   "highlights": ["Bullet point 1", "Bullet point 2", "Bullet point 3"],
-  "outreachPitch": "2-sentence outreach message for LinkedIn",
+  "outreachPitch": "Ready-to-send outreach message for ${context.companyName} with zero placeholders",
   "strategyTip": "Strategic advice for applying",
   "atsKeywords": ["skill1", "skill2", "skill3"]
 } `
@@ -154,6 +179,23 @@ Respond in valid JSON format:
       const parsed = extractJsonObject<GeneratedApplicationMaterials>(result.text)
       if (parsed && parsed.coverLetter) {
         materials = parsed
+        const outreachCtx = {
+          companyName: context.companyName,
+          jobTitle: context.jobTitle,
+          candidateName,
+          candidateEmail: user?.email,
+          githubUrl: profile?.githubUrl,
+          linkedinUrl: profile?.linkedinUrl,
+          portfolioUrl: profile?.portfolioUrl,
+          skills: parsed.atsKeywords || [],
+          topProjects: profile?.bestProjects,
+        }
+        materials.coverLetter = sanitizeOutreachPlaceholders(materials.coverLetter, outreachCtx)
+        materials.outreachPitch = sanitizeOutreachPlaceholders(materials.outreachPitch, outreachCtx)
+        materials.outreachChannels = generateDeterministicOutreachBundle(outreachCtx)
+        if (materials.outreachPitch) {
+          materials.outreachChannels.email.body = materials.outreachPitch
+        }
       } else {
         materials = generateDeterministicMaterials(candidateName, profile, context)
       }
@@ -207,13 +249,26 @@ Respond in valid JSON format:
 
   // Persist the generated materials to ApplicationAnalysis
   try {
+    const outreachCtx = {
+      companyName: context.companyName,
+      jobTitle: context.jobTitle,
+      candidateName,
+      candidateEmail: user?.email,
+      githubUrl: profile?.githubUrl,
+      linkedinUrl: profile?.linkedinUrl,
+      portfolioUrl: profile?.portfolioUrl,
+      skills: materials.atsKeywords || [],
+      topProjects: profile?.bestProjects,
+    }
+    const detectedEmail = extractContactEmail(context.notes || "")
+    const outreachBundle = materials.outreachChannels || generateDeterministicOutreachBundle(outreachCtx)
     const outreachSubject = `Application for ${context.jobTitle} - ${candidateName}`
-    const outreachBody = materials.outreachPitch
+    const outreachBody = sanitizeOutreachPlaceholders(materials.outreachPitch, outreachCtx)
     const outreachChecklist = [
       "Verified GitHub/LinkedIn/portfolio links included",
       `Mentioned core technical strengths: ${(materials.atsKeywords || []).slice(0, 3).join(", ") || "TypeScript, React"}`,
       "Highlighted top demonstrated projects",
-      "Tailored application to company's stated tech stack",
+      "Zero placeholders: 100% ready to submit",
     ]
     const tailoredResumeJson = {
       targetRole: context.jobTitle,
@@ -221,6 +276,8 @@ Respond in valid JSON format:
       highlights: materials.highlights || [],
       atsKeywords: materials.atsKeywords || [],
       strategyTip: materials.strategyTip,
+      outreachChannels: outreachBundle,
+      detectedEmail,
     }
 
     // Resolve authentic match score instead of hardcoded fallback
@@ -295,7 +352,7 @@ Respond in valid JSON format:
           outreachBody,
           outreachChecklist,
           outreachGeneratedAt: new Date(),
-          tailoredResumeJson,
+          tailoredResumeJson: tailoredResumeJson as any,
         },
         update: {
           matchScore: resolvedMatchScore,
@@ -314,7 +371,7 @@ Respond in valid JSON format:
           outreachBody,
           outreachChecklist,
           outreachGeneratedAt: new Date(),
-          tailoredResumeJson,
+          tailoredResumeJson: tailoredResumeJson as any,
         },
       })
     )

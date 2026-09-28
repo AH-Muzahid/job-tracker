@@ -9,7 +9,6 @@ import {
   BlueprintCardContent,
   EmptyState,
 } from "@/components/primitives"
-import { StatusBadge } from "@/components/StatusBadge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
@@ -151,75 +150,78 @@ export function AIMemoryManager({ initialMemories, isLoading = false }: AIMemory
 
   return (
     <BlueprintCard>
-      <BlueprintCardHeader>
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-[4px] border border-border bg-muted/40 text-foreground shrink-0">
+      <BlueprintCardHeader className="flex items-center justify-between gap-3 p-4 sm:p-5 border-b border-border/60">
+        <div className="flex items-center gap-3">
+          <div className="flex size-8 items-center justify-center rounded-[4px] border border-border bg-muted/40 text-foreground shrink-0 shadow-2xs">
             <BrainCircuit className="h-4 w-4 text-primary" />
           </div>
-          <div>
-            <span className="text-[10px] font-mono tracking-wider text-muted-foreground uppercase">AI / KNOWLEDGE</span>
-            <BlueprintCardTitle className="text-sm font-semibold tracking-tight text-foreground">
+          <div className="min-w-0">
+            <span className="text-[10px] font-mono font-medium tracking-wider text-muted-foreground uppercase whitespace-nowrap block">
+              AI / KNOWLEDGE
+            </span>
+            <BlueprintCardTitle className="text-sm sm:text-base font-semibold tracking-tight text-foreground truncate">
               Semantic Memory & Constraints
             </BlueprintCardTitle>
           </div>
         </div>
 
-        <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto">
+        <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
           <Button
             type="button"
             variant="outline"
             size="sm"
             onClick={handleSyncProfile}
             disabled={syncingProfile}
-            className="rounded-[4px] font-mono text-xs h-7 px-2.5 gap-1.5 cursor-pointer flex-1 sm:flex-initial"
+            className="rounded-[4px] text-xs h-7 px-2.5 gap-1.5 font-medium border-border hover:bg-muted/40 cursor-pointer"
             title="Import facts from Profile Setup"
           >
-            <RefreshCw className={`h-3 w-3 ${syncingProfile ? "animate-spin text-primary" : ""}`} />
+            <RefreshCw className={cn("h-3 w-3", syncingProfile && "animate-spin text-primary")} />
             <span>{syncingProfile ? "Syncing..." : "Sync Profile"}</span>
           </Button>
 
-          <StatusBadge
-            status="saved"
-            customLabel={`${memories.length} ${memories.length === 1 ? "Fact" : "Facts"}`}
-            size="sm"
-          />
+          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-[4px] font-mono text-[10px] uppercase border border-border bg-muted/40 text-muted-foreground shrink-0">
+            <span className="size-1.5 rounded-full bg-primary/70 shrink-0" />
+            {memories.length} {memories.length === 1 ? "Fact" : "Facts"}
+          </span>
         </div>
       </BlueprintCardHeader>
 
-      <BlueprintCardContent className="space-y-4 pt-4">
+      <BlueprintCardContent className="space-y-4 p-4 sm:p-5 pt-4 sm:pt-5">
         <p className="text-xs text-muted-foreground leading-relaxed">
           Permanent career facts, constraints, and salary expectations automatically recalled by AI during outreach and interview preparation.
         </p>
 
         {/* Add Memory Form */}
-        <form onSubmit={handleAddMemory} className="flex flex-col sm:flex-row gap-2">
-          <select
-            value={newCategory}
-            onChange={(e) => setNewCategory(e.target.value)}
-            className="rounded-[4px] border border-border bg-background px-3 py-1 font-mono text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary h-8 w-full sm:w-auto shrink-0"
-          >
-            <option value="preference">Preference</option>
-            <option value="skill">Skill / Stack</option>
-            <option value="experience">Experience</option>
-            <option value="constraint">Constraint / Notice</option>
-            <option value="general">General</option>
-          </select>
-          <Input
-            placeholder="e.g. Only apply for remote roles in US/EU timezones"
-            value={newContent}
-            onChange={(e) => setNewContent(e.target.value)}
-            disabled={adding}
-            className="rounded-[4px] text-xs h-8 font-mono border-border bg-background flex-1 w-full"
-          />
-          <Button
-            type="submit"
-            size="sm"
-            disabled={adding || !newContent.trim()}
-            className="rounded-[4px] font-mono text-xs h-8 px-4 gap-1.5 shrink-0 cursor-pointer bg-primary hover:bg-primary/90 text-primary-foreground w-full sm:w-auto justify-center"
-          >
-            {adding ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
-            <span>Remember</span>
-          </Button>
+        <form onSubmit={handleAddMemory} className="p-3 sm:p-3.5 rounded-[6px] border border-border bg-muted/15 space-y-2.5">
+          <div className="flex flex-col sm:flex-row gap-2">
+            <select
+              value={newCategory}
+              onChange={(e) => setNewCategory(e.target.value)}
+              className="rounded-[4px] border border-border bg-background px-2.5 py-1 text-xs font-medium text-foreground focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 h-8 w-full sm:w-36 shrink-0 transition-colors cursor-pointer"
+            >
+              <option value="preference">Preference</option>
+              <option value="skill">Skill / Stack</option>
+              <option value="experience">Experience</option>
+              <option value="constraint">Constraint / Notice</option>
+              <option value="general">General</option>
+            </select>
+            <Input
+              placeholder="e.g. Only apply for remote roles in US/EU timezones"
+              value={newContent}
+              onChange={(e) => setNewContent(e.target.value)}
+              disabled={adding}
+              className="rounded-[4px] text-xs h-8 border-border bg-background flex-1 text-foreground placeholder:text-muted-foreground/60 focus-visible:ring-1 focus-visible:ring-primary/20 focus-visible:border-primary transition-colors"
+            />
+            <Button
+              type="submit"
+              size="sm"
+              disabled={adding || !newContent.trim()}
+              className="rounded-[4px] text-xs h-8 px-4 gap-1.5 shrink-0 cursor-pointer bg-primary hover:bg-primary/90 text-primary-foreground font-medium disabled:opacity-50 disabled:cursor-not-allowed shadow-2xs transition-colors self-stretch sm:self-auto justify-center"
+            >
+              {adding ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+              <span>Remember</span>
+            </Button>
+          </div>
         </form>
 
         {/* Category Filters & Search */}
@@ -232,7 +234,7 @@ export function AIMemoryManager({ initialMemories, isLoading = false }: AIMemory
                   type="button"
                   onClick={() => setFilterCategory(cat)}
                   className={cn(
-                    "px-2 py-0.5 rounded-[4px] font-mono text-[10px] uppercase border cursor-pointer transition-colors whitespace-nowrap",
+                    "px-2.5 py-1 rounded-[4px] font-mono text-[10px] uppercase border cursor-pointer transition-colors whitespace-nowrap",
                     filterCategory === cat
                       ? "border-foreground bg-foreground text-background font-semibold"
                       : "border-border bg-muted/30 text-muted-foreground hover:text-foreground"
@@ -250,7 +252,7 @@ export function AIMemoryManager({ initialMemories, isLoading = false }: AIMemory
                 placeholder="Search facts..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full h-6 pl-6 pr-2 rounded-[4px] font-mono text-[11px] border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                className="w-full h-7 pl-6 pr-2 rounded-[4px] font-mono text-[11px] border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
               />
             </div>
           </div>

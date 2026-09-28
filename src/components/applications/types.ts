@@ -65,10 +65,24 @@ export interface WorkbenchAnalysis {
   analyzedAt?: string
 }
 
+export type OutreachChannel = "email" | "linkedin_dm" | "linkedin_connect" | "follow_up"
+
+export interface OutreachChannelBundle {
+  email: { subject: string; body: string }
+  linkedin_dm: { subject: string; body: string }
+  linkedin_connect: { body: string; charCount: number }
+  follow_up: { subject: string; body: string }
+}
+
 export interface OutreachDrafts {
+  channel?: OutreachChannel
   recommendation?: string
   email?: string
   coverLetter?: string
   subjectLines?: string[]
   beforeSendChecklist?: string[]
+  channels?: OutreachChannelBundle
+  detectedEmail?: string | null
+  recommendedChannel?: OutreachChannel
 }
+

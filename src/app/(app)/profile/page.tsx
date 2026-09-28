@@ -7,8 +7,8 @@ import { useUser, useClerk } from "@clerk/nextjs"
 import {
   User,
   FileText,
-  SlidersHorizontal,
-  Bell,
+  Target,
+  BrainCircuit,
   Cpu,
   Settings,
   ChevronRight,
@@ -42,36 +42,36 @@ const MENU_ITEMS: ProfileMenuItem[] = [
   {
     id: "career-profile",
     label: "Career Profile",
-    href: "/profile-setup",
+    href: "/profile-setup?from=profile",
     icon: User,
   },
   {
     id: "resume",
-    label: "Resume",
+    label: "Resume Studio",
     href: "/resumes",
     icon: FileText,
   },
   {
-    id: "preferences",
-    label: "Preferences",
-    href: "/settings?tab=general",
-    icon: SlidersHorizontal,
-  },
-  {
-    id: "job-alerts",
-    label: "Job Alerts",
-    href: "/discovery",
-    icon: Bell,
+    id: "weekly-goals",
+    label: "Weekly Goals",
+    href: "/weekly-goals",
+    icon: Target,
   },
   {
     id: "integrations",
-    label: "Integrations",
-    href: "/settings?tab=integrations",
+    label: "Integrations & AI Keys",
+    href: "/integrations",
     icon: Cpu,
   },
   {
+    id: "ai-memory",
+    label: "AI Knowledge & Memory",
+    href: "/ai-memory",
+    icon: BrainCircuit,
+  },
+  {
     id: "settings",
-    label: "Settings",
+    label: "System Settings",
     href: "/settings",
     icon: Settings,
   },
@@ -179,7 +179,7 @@ export default function ProfilePage() {
         {/* Top subtle edit trigger */}
         <div className="flex items-center justify-between px-1">
           <Link
-            href="/profile-setup"
+            href="/profile-setup?from=profile"
             className="text-muted-foreground hover:text-foreground p-1.5 rounded-[4px] transition-colors"
             title="Edit Profile"
           >
@@ -219,7 +219,7 @@ export default function ProfilePage() {
             size="sm"
             className="mt-3.5 h-8 px-4 text-xs font-medium rounded-[6px] border-border text-foreground hover:bg-muted/40 cursor-pointer shadow-xs active:scale-[0.98] transition-transform"
           >
-            <Link href="/profile-setup">
+            <Link href="/profile-setup?from=profile">
               Edit Profile
             </Link>
           </Button>

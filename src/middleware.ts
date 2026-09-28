@@ -5,6 +5,7 @@ const PROTECTED_PATHS = [
   "/dashboard", "/applications",
   "/ai-assistant", "/profile-setup", "/weekly-goals",
   "/companies", "/resumes", "/calendar", "/interview-prep", "/settings", "/profile",
+  "/integrations", "/ai-memory",
 ]
 
 const PROTECTED_API_PATHS = [

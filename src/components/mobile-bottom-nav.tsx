@@ -20,7 +20,7 @@ const NAV_ITEMS: NavItem[] = [
     isActive: (pathname) => pathname === "/dashboard" || pathname === "/",
   },
   {
-    label: "Opportunities",
+    label: "Discovery",
     href: "/discovery",
     icon: Compass,
     isActive: (pathname) => pathname.startsWith("/discovery"),
@@ -41,7 +41,13 @@ const NAV_ITEMS: NavItem[] = [
     label: "Profile",
     href: "/profile",
     icon: User,
-    isActive: (pathname) => pathname.startsWith("/profile") || pathname.startsWith("/settings"),
+    isActive: (pathname) =>
+      pathname.startsWith("/profile") ||
+      pathname.startsWith("/settings") ||
+      pathname.startsWith("/resumes") ||
+      pathname.startsWith("/weekly-goals") ||
+      pathname.startsWith("/integrations") ||
+      pathname.startsWith("/ai-memory"),
   },
 ];
 

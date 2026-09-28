@@ -157,11 +157,10 @@ describe("Opportunities Redesign Prototype Compliance", () => {
           }}
           onFilterChange={() => {}}
           facetCounts={{
-            total: 128,
-            recommended: 48,
+            today: 128,
+            yesterday: 0,
+            week: 0,
             saved: 12,
-            recent: 14,
-            hidden: 3,
             fullTime: 86,
             partTime: 12,
             contract: 18,
@@ -198,11 +197,10 @@ describe("Opportunities Redesign Prototype Compliance", () => {
           }}
           onFilterChange={() => {}}
           facetCounts={{
-            total: 10,
-            recommended: 5,
+            today: 10,
+            yesterday: 0,
+            week: 0,
             saved: 2,
-            recent: 1,
-            hidden: 0,
             fullTime: 8,
             partTime: 2,
             contract: 0,

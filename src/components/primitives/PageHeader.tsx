@@ -1,4 +1,6 @@
 import * as React from "react";
+import Link from "next/link";
+import { ChevronLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -10,6 +12,8 @@ export interface PageHeaderProps extends Omit<React.HTMLAttributes<HTMLDivElemen
   action?: React.ReactNode;
   secondaryActions?: React.ReactNode;
   skeleton?: boolean;
+  backHref?: string;
+  backLabel?: string;
 }
 
 export function PageHeader({
@@ -20,6 +24,8 @@ export function PageHeader({
   action,
   secondaryActions,
   skeleton = false,
+  backHref,
+  backLabel,
   className,
   ...props
 }: PageHeaderProps) {
@@ -55,6 +61,15 @@ export function PageHeader({
       {...props}
     >
       <div className="min-w-0">
+        {backHref && (
+          <Link
+            href={backHref}
+            className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors mb-2 group py-0.5 cursor-pointer select-none"
+          >
+            <ChevronLeft className="size-3.5 transition-transform group-hover:-translate-x-0.5" />
+            <span>{backLabel || "Back"}</span>
+          </Link>
+        )}
         {overline && (
           <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
             {overline}

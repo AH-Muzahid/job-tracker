@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "sonner"
-import { Application, WorkbenchAnalysis, OutreachDrafts } from "./types"
+import { Application, WorkbenchAnalysis, OutreachDrafts, OutreachChannel, OutreachChannelBundle } from "./types"
 import { FitAssessmentCard } from "./FitAssessmentCard"
 import { OutreachAssistantCard } from "./OutreachAssistantCard"
 import { MilestoneTimeline } from "./MilestoneTimeline"
@@ -17,6 +17,7 @@ import { PackageStudioTab } from "./PackageStudioTab"
 import { NegotiationStudioTab } from "./NegotiationStudioTab"
 
 import { useTags, useCreateTag, useUpdateApplicationAnalysis } from "@/lib/api"
+import { extractContactEmail } from "@/lib/applications/outreach-engine"
 import { DecorIcon } from "@/components/decor-icon"
 import { DashboardCard } from "@/components/dashboard-card"
 
@@ -42,6 +43,7 @@ export function ApplicationWorkbench({
   const [activeTab, setActiveTab] = useState<"package" | "details" | "timeline" | "outreach" | "negotiate">(
     isOffer ? "negotiate" : "package"
   )
+  const [activeChannel, setActiveChannel] = useState<OutreachChannel>("email")
 
   // Edit Form Fields
   const [companyName, setCompanyName] = useState(application.companyName)
@@ -88,23 +90,37 @@ export function ApplicationWorkbench({
     if (analysis && (analysis.outreachBody || analysis.outreachSubject)) {
       const subject = analysis.outreachSubject || `Application for ${application.jobTitle}`
       const body = analysis.outreachBody || ""
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const tailored = (analysis.tailoredResumeJson as any) || {}
+      const channels = tailored.outreachChannels as OutreachChannelBundle | undefined
+      const detectedEmail = tailored.detectedEmail || extractContactEmail(application.notes || "")
+      const recommendedChannel = (tailored.recommendedChannel as OutreachChannel) || (detectedEmail ? "email" : "linkedin_dm")
+
+      if (!initialPopulatedRef.current && recommendedChannel) {
+        setActiveChannel(recommendedChannel)
+      }
+
       setDraftSubject(subject)
       setDraftBody(body)
       setOutreachDrafts({
-        recommendation: "Saved outreach email draft",
+        channel: recommendedChannel,
+        recommendation: "Saved outreach materials",
         email: body,
         subjectLines: [subject],
         beforeSendChecklist: (analysis.outreachChecklist as string[]) || [
           "Verified GitHub/LinkedIn/portfolio links included",
-          "Mentioned 3+ matching skills from JD",
-          "Highlighted best projects from profile",
-          "Addressed key requirements & work setup preference",
+          "Mentioned core technical strengths",
+          "Highlighted top demonstrated projects",
+          "Zero placeholders: 100% ready to submit",
         ],
+        channels,
+        detectedEmail,
+        recommendedChannel,
       })
       setSaveStatus("saved")
       initialPopulatedRef.current = true
     }
-  }, [analysis, application.jobTitle])
+  }, [analysis, application.jobTitle, application.notes])
 
   // One-time legacy migration: if user has old localStorage draft not in DB, sync it & delete localStorage key
   useEffect(() => {
@@ -266,30 +282,35 @@ export function ApplicationWorkbench({
     )
   }
 
-  const handleGenerateOutreach = async () => {
+  const handleChannelChange = (newChannel: OutreachChannel) => {
+    setActiveChannel(newChannel)
+    if (outreachDrafts?.channels) {
+      const chData = outreachDrafts.channels[newChannel]
+      if (chData) {
+        if ("subject" in chData && chData.subject) {
+          setDraftSubject(chData.subject)
+        } else if (newChannel === "linkedin_connect") {
+          setDraftSubject(`${application.jobTitle} - LinkedIn Invitation`)
+        }
+        setDraftBody(chData.body)
+      }
+    }
+  }
+
+  const handleGenerateOutreach = async (channel?: OutreachChannel) => {
+    const targetChannel = channel || activeChannel
     setOutreachLoading(true)
-    setDraftSubject(`Application for ${application.jobTitle}`)
-    setDraftBody("")
-    setOutreachDrafts({
-      recommendation: "Direct application email draft",
-      email: "",
-      subjectLines: [`Application for ${application.jobTitle}`],
-      beforeSendChecklist: [
-        "Verified GitHub/LinkedIn/portfolio links included",
-        "Mentioned 3+ matching skills from JD",
-        "Highlighted best projects from profile",
-        "Addressed key requirements & work setup preference",
-      ],
-    })
 
     try {
       const res = await fetch(`/api/applications/${application.id}/outreach`, {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ channel: targetChannel }),
       })
 
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}))
-        throw new Error(errData.error || "Failed to generate outreach note")
+        throw new Error(errData.error || "Failed to generate outreach materials")
       }
 
       const data = await res.json()
@@ -297,32 +318,36 @@ export function ApplicationWorkbench({
       const fullEmail = data.email || ""
 
       if (finalSubject) setDraftSubject(finalSubject)
-      setOutreachLoading(false)
-
-      let charIdx = 0
-      const timer = setInterval(() => {
-        if (charIdx < fullEmail.length) {
-          charIdx += 4
-          setDraftBody(fullEmail.slice(0, charIdx))
-        } else {
-          setDraftBody(fullEmail)
-          clearInterval(timer)
-          setSaveStatus("saved")
-          toast.success("Outreach email generated and saved to cloud!")
-        }
-      }, 15)
+      setDraftBody(fullEmail)
+      setOutreachDrafts({
+        channel: targetChannel,
+        recommendation: "Direct application outreach draft",
+        email: fullEmail,
+        subjectLines: [finalSubject],
+        beforeSendChecklist: data.beforeSendChecklist || [
+          "Verified GitHub/LinkedIn/portfolio links included",
+          "Mentioned core technical strengths",
+          "Highlighted top demonstrated projects",
+          "Zero placeholders: 100% ready to submit",
+        ],
+        channels: data.channels,
+        detectedEmail: data.detectedEmail,
+        recommendedChannel: data.recommendedChannel,
+      })
+      setSaveStatus("saved")
+      toast.success("Outreach materials generated and saved to cloud!")
     } catch (err: unknown) {
-      setOutreachLoading(false)
       setSaveStatus("error")
       const errMsg = err instanceof Error ? err.message : "Outreach generation failed"
       toast.error(errMsg)
+    } finally {
+      setOutreachLoading(false)
     }
   }
 
-  const handleOpenMailClient = () => {
-    const emailRegex = /([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/gi
-    const inferredEmails = (application.notes || "").match(emailRegex) || []
-    const to = inferredEmails[0] || ""
+  const handleOpenMailClient = (customTo?: string) => {
+    const detected = outreachDrafts?.detectedEmail || extractContactEmail(application.notes || "")
+    const to = customTo || detected || ""
     const subject = encodeURIComponent(draftSubject)
     const body = encodeURIComponent(draftBody)
     window.location.href = `mailto:${to}?subject=${subject}&body=${body}`
@@ -596,6 +621,11 @@ export function ApplicationWorkbench({
                     onMarkAppliedManually={handleMarkAppliedManually}
                     onCopyToClipboard={copyToClipboard}
                     jdNotes={application.notes || ""}
+                    companyName={application.companyName}
+                    jobTitle={application.jobTitle}
+                    jobUrl={application.jobUrl}
+                    activeChannel={activeChannel}
+                    onChannelChange={handleChannelChange}
                   />
                 )}
 

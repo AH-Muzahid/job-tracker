@@ -53,6 +53,7 @@ export interface DashboardFilters {
   source: string
   sort: SortOption
   tag: string
+  followUpOnly?: boolean
 }
 
 export const STATUS_OPTIONS = [
@@ -91,24 +92,27 @@ export const boardColumns = [
     accent: "bg-purple-500/5",
     iconBg: "bg-purple-100 text-purple-700 dark:bg-purple-500/15 dark:text-purple-300",
     dot: "bg-purple-500",
+    description: "Roles queued for tailoring & packaging",
   },
   {
     key: "saved",
-    title: "Saved Jobs",
+    title: "Saved",
     statuses: ["Saved", "SAVED"],
     icon: Bookmark,
     accent: "bg-sky-500/5",
     iconBg: "bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300",
     dot: "bg-sky-500",
+    description: "Bookmarked target roles to apply later",
   },
   {
     key: "applied",
-    title: "Applied Jobs",
+    title: "Applied",
     statuses: ["Applied", "APPLIED"],
     icon: BriefcaseBusiness,
     accent: "bg-indigo-500/5",
     iconBg: "bg-indigo-100 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300",
     dot: "bg-indigo-500",
+    description: "Active submissions awaiting response",
   },
   {
     key: "interviews",
@@ -118,24 +122,27 @@ export const boardColumns = [
     accent: "bg-amber-500/5",
     iconBg: "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300",
     dot: "bg-amber-500",
+    description: "Scheduled rounds & technical tests",
   },
   {
     key: "rejected",
-    title: "Rejected Jobs",
+    title: "Rejected",
     statuses: ["Rejected", "REJECTED"],
     icon: XCircle,
     accent: "bg-rose-500/5",
     iconBg: "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300",
     dot: "bg-rose-500",
+    description: "Archived & closed applications",
   },
   {
     key: "offer",
-    title: "Offered Jobs",
+    title: "Offered",
     statuses: ["Offer", "OFFER", "Accepted"],
     icon: CircleCheck,
     accent: "bg-emerald-500/5",
     iconBg: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300",
     dot: "bg-emerald-500",
+    description: "Active job offers and contracts",
   },
 ] as const
 

@@ -189,6 +189,8 @@ export default function ResumesPage() {
   return (
     <PageContainer>
       <PageHeader
+        backHref="/profile"
+        backLabel="Back to Profile"
         title="Resume Hub"
         description={`${resumes.length} resumes uploaded & indexed in Career Knowledge Graph`}
         action={

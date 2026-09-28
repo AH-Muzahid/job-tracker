@@ -85,12 +85,92 @@ export async function GET(request: NextRequest) {
         message: "জব ক্যাটালগ ব্যাকগ্রাউন্ডে সিঙ্ক হচ্ছে। অনুগ্রহ করে কিছু মুহূর্ত পর পুনরায় রিফ্রেশ করুন।",
         nextBatchAt: getNextBatchReleaseTime(now).toISOString(),
         currentBatchStartedAt: getCurrentBatchStartTime(now).toISOString(),
-        batchSummary: { justIn: 0, earlierToday: 0, yesterday: 0, totalActive: 0 },
+        batchSummary: { today: 0, yesterday: 0, week: 0, totalActive: 0 },
         opportunities: [],
       })
     }
 
-    // 2. Resolve Profile & Demonstrated Projects
+    // 2. FAST PATH: Read pre-computed UserJobMatch records (batch pipeline already scored these)
+    // This is the same strategy Dashboard uses — instant DB read, no vector retrieval or AI re-ranking.
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+    const precomputedMatches = await withDbRetry(() =>
+      prisma.userJobMatch.findMany({
+        where: {
+          userId,
+          status: "PUBLISHED",
+          isSaved: false,
+          publishedAt: { gte: sevenDaysAgo },
+          job: { isExpired: false },
+        },
+        include: {
+          job: {
+            select: {
+              id: true,
+              title: true,
+              company: true,
+              location: true,
+              isRemote: true,
+              url: true,
+              salary: true,
+              salaryMin: true,
+              salaryMax: true,
+              tags: true,
+              description: true,
+              postedAt: true,
+              visaSponsorship: true,
+              sourceBoard: true,
+            },
+          },
+        },
+        orderBy: [{ fitScore: "desc" }, { publishedAt: "desc" }],
+        take: 60,
+      })
+    ) as any[]
+
+    // Also include saved matches (protected from archival)
+    const savedMatchesList = await withDbRetry(() =>
+      prisma.userJobMatch.findMany({
+        where: {
+          userId,
+          isSaved: true,
+          job: { isExpired: false },
+        },
+        include: {
+          job: {
+            select: {
+              id: true,
+              title: true,
+              company: true,
+              location: true,
+              isRemote: true,
+              url: true,
+              salary: true,
+              salaryMin: true,
+              salaryMax: true,
+              tags: true,
+              description: true,
+              postedAt: true,
+              visaSponsorship: true,
+              sourceBoard: true,
+            },
+          },
+        },
+        orderBy: [{ fitScore: "desc" }],
+        take: 30,
+      })
+    ) as any[]
+
+    // Merge & deduplicate (saved may overlap with published)
+    const allMatchesMap = new Map<string, typeof precomputedMatches[0]>()
+    for (const m of precomputedMatches) {
+      allMatchesMap.set(m.jobId, m)
+    }
+    for (const m of savedMatchesList) {
+      if (!allMatchesMap.has(m.jobId)) allMatchesMap.set(m.jobId, m)
+    }
+    const allMatches = Array.from(allMatchesMap.values())
+
+    // 3. Resolve Profile (needed for appMap, and for fallback vector retrieval)
     const [profile, resume] = await Promise.all([
       withDbRetry(() => prisma.userProfile.findUnique({ where: { userId } })),
       withDbRetry(() =>
@@ -141,128 +221,116 @@ export async function GET(request: NextRequest) {
       appMap.set(key, { id: app.id, status: app.status })
     }
 
-    // 2.5 Automated LinkedIn Post Harvesting: If forceRefresh is requested, synchronously harvest 2 targeted queries
-    if (forceRefresh) {
-      try {
-        console.log(`[JobDiscovery API] Force refresh requested. Harvesting targeted LinkedIn posts for userId=${userId}...`)
-        const freshLinkedInJobs = await harvestLinkedInOpportunities(
-          {
-            skills: userSkills,
-            targetRoles,
-            experienceLevel,
-            location,
-            workPreference,
-          },
-          { maxQueries: 2 }
-        )
-        if (freshLinkedInJobs.length > 0) {
-          const res = await ingestLinkedInOpportunitiesToCatalog(freshLinkedInJobs)
-          console.log(`[JobDiscovery API] Force refresh LinkedIn harvest: ${freshLinkedInJobs.length} fetched, ${res.upserted} upserted.`)
-        }
-      } catch (err) {
-        console.warn("[JobDiscovery API] Force refresh LinkedIn harvest failed:", err)
-      }
-    }
+    // Helper: transform a CanonicalJob + match data into UI-ready opportunity format
+    const transformToOpportunity = (jobData: {
+      id: string; title: string; company: string; location: string; isRemote: boolean;
+      url: string; salary: string | null; salaryMin: number | null; salaryMax: number | null;
+      tags: string[]; description: string | null; postedAt: Date | null;
+      visaSponsorship: string; sourceBoard?: string | null;
+    }, matchData: { id: string; fitScore: number; matchRationale: string | null; isSaved: boolean; publishedAt?: Date | null }) => {
+      // The date this job was released into the user's feed (batch publish time).
+      // Bucketing uses this, NOT the original external posting date, so "Today" = today's batch.
+      const releasedAt = matchData.publishedAt || jobData.postedAt || now
+      const daysAgo = Math.floor((now.getTime() - releasedAt.getTime()) / (1000 * 60 * 60 * 24))
 
-    // 3. TIER 1: Dense Vector Retrieval (<30ms)
-    const shortlistedCandidates = await retrieveCandidateJobsTier1({
-      userId,
-      targetRoles,
-      userSkills,
-      projects,
-      workPreference,
-      limit: 25,
-    })
+      const batchSlot: "today" | "yesterday" | "week" =
+        daysAgo === 0 ? "today" : daysAgo === 1 ? "yesterday" : "week"
+      const batchLabel = daysAgo === 0 ? "Today" : daysAgo === 1 ? "Yesterday" : `${daysAgo}d ago`
 
-    console.log(`[JobDiscovery API] Tier 1 retrieved ${shortlistedCandidates.length} vector candidates for userId=${userId}`)
-
-    // 4. TIER 2: Deep Cross-Encoder Re-Ranking (<800ms)
-    const reRankedOpportunities = await deepReRankCandidateJobs({
-      candidateProfile: {
-        userId,
-        targetRoles,
-        skills: userSkills,
-        experienceLevel,
-        location,
-        projects,
-      },
-      jobs: shortlistedCandidates,
-    })
-
-    console.log(`[JobDiscovery API] Tier 2 re-ranked ${reRankedOpportunities.length} opportunities for userId=${userId}`)
-
-    // 5. Query user's saved jobs from the shortlisted candidates
-    const candidateJobIds = reRankedOpportunities.map((o) => o.id)
-    const savedMatches = await withDbRetry(() =>
-      prisma.userJobMatch.findMany({
-        where: {
-          userId,
-          jobId: { in: candidateJobIds },
-          isSaved: true,
-        },
-        select: { jobId: true },
-      })
-    ).catch(() => [])
-    const savedJobIdSet = new Set(savedMatches.map((m) => m.jobId))
-
-    // 6. Transform into UI-ready opportunity format with batch age metadata
-    const opportunities = reRankedOpportunities.map((job) => {
-      const publishedAt = job.postedAt || now
-      const ageHours = (now.getTime() - publishedAt.getTime()) / (1000 * 60 * 60)
-
-      let batchSlot: "just-in" | "earlier-today" | "yesterday" = "just-in"
-      let batchLabel = "Just In (<6h)"
-
-      if (ageHours > 12) {
-        batchSlot = "yesterday"
-        batchLabel = "12-24h Ago"
-      } else if (ageHours > 6) {
-        batchSlot = "earlier-today"
-        batchLabel = "6-12h Ago"
-      }
-
-      const dedupKey = `${normalizeCompany(job.company)}:${normalizeTitle(job.title)}`
+      const dedupKey = `${normalizeCompany(jobData.company)}:${normalizeTitle(jobData.title)}`
       const existingApp = appMap.get(dedupKey)
-      const freshness = calculateJobFreshness(job.postedAt || publishedAt)
+      const freshness = calculateJobFreshness(jobData.postedAt || releasedAt)
       const employmentType = detectEmploymentType({
-        title: job.title,
-        description: job.description || "",
-        tags: job.tags || [],
+        title: jobData.title,
+        description: jobData.description || "",
+        tags: jobData.tags || [],
       })
 
       return {
-        id: job.id,
-        jobId: job.id,
-        title: job.title,
-        company: job.company,
-        location: job.location,
-        url: job.url,
-        sourceBoard: ((job as any).sourceBoard || "curated") as any,
-        tags: job.tags || [],
-        salary: job.salary || (job.salaryMin && job.salaryMax ? `$${job.salaryMin} - $${job.salaryMax}` : undefined),
-        fitScore: job.fitScore,
-        matchRationale: job.matchRationale,
-        descriptionSnippet: job.description || "",
+        id: jobData.id,
+        jobId: jobData.id,
+        title: jobData.title,
+        company: jobData.company,
+        location: jobData.location,
+        url: jobData.url,
+        sourceBoard: (jobData.sourceBoard || "curated") as any,
+        tags: jobData.tags || [],
+        salary: jobData.salary || (jobData.salaryMin && jobData.salaryMax ? `$${jobData.salaryMin} - $${jobData.salaryMax}` : undefined),
+        fitScore: matchData.fitScore,
+        matchRationale: matchData.matchRationale,
+        descriptionSnippet: jobData.description || "",
         batchId: `recsys-${now.toISOString().slice(0, 10)}`,
         batchSlot,
         batchLabel,
-        publishedAt: publishedAt.toISOString(),
-        postedAt: (job.postedAt || publishedAt).toISOString(),
+        publishedAt: releasedAt.toISOString(),
+        postedAt: (jobData.postedAt || releasedAt).toISOString(),
         freshnessLabel: freshness.label,
-        visaSponsorship: (job.visaSponsorship as any) || "unknown",
+        visaSponsorship: (jobData.visaSponsorship as any) || "unknown",
         employmentType,
-        isSaved: savedJobIdSet.has(job.id),
+        isSaved: matchData.isSaved,
         appliedStatus: existingApp?.status || null,
         applicationId: existingApp?.id || null,
-        scoreBreakdown: job.scoreBreakdown,
-        companyEnrichment: getCompanyEnrichment(job.company, {
-          description: job.description || undefined,
-          location: job.location,
-          url: job.url,
-          tags: job.tags || [],
+        companyEnrichment: getCompanyEnrichment(jobData.company, {
+          description: jobData.description || undefined,
+          location: jobData.location,
+          url: jobData.url,
+          tags: jobData.tags || [],
         }),
       }
-    })
+    }
+
+    // 4. Build opportunities from pre-computed matches (instant — no vector retrieval, no AI re-ranking)
+    const opportunities = allMatches
+      .filter((m) => m.job)
+      .map((m) => transformToOpportunity(m.job!, m))
+
+    // 5. FALLBACK: If pre-computed matches are insufficient, run full vector retrieval + re-ranking pipeline
+    const FAST_PATH_MIN_THRESHOLD = 10
+    if (forceRefresh || opportunities.length < FAST_PATH_MIN_THRESHOLD) {
+      console.log(`[JobDiscovery API] Pre-computed matches: ${opportunities.length}. Running full pipeline (forceRefresh=${forceRefresh})...`)
+
+      if (forceRefresh) {
+        try {
+          const freshLinkedInJobs = await harvestLinkedInOpportunities(
+            { skills: userSkills, targetRoles, experienceLevel, location, workPreference },
+            { maxQueries: 2 }
+          )
+          if (freshLinkedInJobs.length > 0) {
+            const res = await ingestLinkedInOpportunitiesToCatalog(freshLinkedInJobs)
+            console.log(`[JobDiscovery API] Force refresh LinkedIn harvest: ${freshLinkedInJobs.length} fetched, ${res.upserted} upserted.`)
+          }
+        } catch (err) {
+          console.warn("[JobDiscovery API] Force refresh LinkedIn harvest failed:", err)
+        }
+      }
+
+      const shortlistedCandidates = await retrieveCandidateJobsTier1({
+        userId, targetRoles, userSkills, projects, workPreference, limit: 25,
+      })
+      console.log(`[JobDiscovery API] Tier 1 retrieved ${shortlistedCandidates.length} vector candidates`)
+
+      const reRankedOpportunities = await deepReRankCandidateJobs({
+        candidateProfile: { userId, targetRoles, skills: userSkills, experienceLevel, location, projects },
+        jobs: shortlistedCandidates,
+      })
+      console.log(`[JobDiscovery API] Tier 2 re-ranked ${reRankedOpportunities.length} opportunities`)
+
+      const pipelineOpps = reRankedOpportunities.map((job) =>
+        transformToOpportunity(job, { id: job.id, fitScore: job.fitScore, matchRationale: job.matchRationale, isSaved: false })
+      )
+
+      // Merge: pre-computed first, then pipeline results (deduplicate by job id)
+      const existingIds = new Set(opportunities.map((o) => o.id))
+      for (const opp of pipelineOpps) {
+        if (!existingIds.has(opp.id)) {
+          opportunities.push(opp)
+          existingIds.add(opp.id)
+        }
+      }
+    }
+
+    // Re-sort by fitScore descending (pre-computed already sorted, but merged results need re-sort)
+    opportunities.sort((a, b) => b.fitScore - a.fitScore)
 
     // Filter by search query if provided
     const filteredOpportunities = query
@@ -276,9 +344,9 @@ export async function GET(request: NextRequest) {
     const currentBatchStartedAt = getCurrentBatchStartTime(now).toISOString()
 
     const batchSummary = {
-      justIn: opportunities.filter((j) => j.batchSlot === "just-in").length,
-      earlierToday: opportunities.filter((j) => j.batchSlot === "earlier-today").length,
+      today: opportunities.filter((j) => j.batchSlot === "today").length,
       yesterday: opportunities.filter((j) => j.batchSlot === "yesterday").length,
+      week: opportunities.filter((j) => j.batchSlot === "week").length,
       totalActive: opportunities.length,
     }
 
@@ -289,7 +357,7 @@ export async function GET(request: NextRequest) {
       batchSummary
     )
 
-    // Non-blocking after() tasks: Fire-and-forget telemetry logging and background LinkedIn post harvesting
+    // Non-blocking after() tasks: telemetry + background LinkedIn harvesting
     after(async () => {
       try {
         logDiscoveryEvent({
@@ -304,16 +372,9 @@ export async function GET(request: NextRequest) {
           },
         })
 
-        // On normal visits (when not forceRefresh), keep catalog fresh by harvesting in background
         if (!forceRefresh) {
           const bgLinkedInJobs = await harvestLinkedInOpportunities(
-            {
-              skills: userSkills,
-              targetRoles,
-              experienceLevel,
-              location,
-              workPreference,
-            },
+            { skills: userSkills, targetRoles, experienceLevel, location, workPreference },
             { maxQueries: 3 }
           )
           if (bgLinkedInJobs.length > 0) {
@@ -330,7 +391,7 @@ export async function GET(request: NextRequest) {
 
     const responsePayload = {
       count: filteredOpportunities.length,
-      totalAvailable: reRankedOpportunities.length,
+      totalAvailable: opportunities.length,
       topPicksCount,
       nextBatchAt,
       currentBatchStartedAt,
@@ -339,7 +400,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (!query) {
-      void setCachedJson(cacheKey, responsePayload, 1800) // 30-minute server cache
+      void setCachedJson(cacheKey, responsePayload, 300) // 5-minute server cache (pipeline invalidates on batch update)
     }
 
     return ResponseUtil.success(responsePayload)

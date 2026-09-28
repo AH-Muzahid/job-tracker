@@ -152,7 +152,7 @@ describe("Pixel-Perfect Dashboard Components & Strict Constraints", () => {
     
     // Group 1: Main navigation
     const mainItems = navGroups[0].items.map((i) => i.title);
-    expect(mainItems).toEqual(["Dashboard", "Opportunities", "Applications", "Interviews"]);
+    expect(mainItems).toEqual(["Dashboard", "Discovery", "Applications", "Interviews"]);
 
     // Group 2: TOOLS
     expect(navGroups[1].label).toBe("TOOLS");

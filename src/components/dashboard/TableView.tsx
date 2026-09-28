@@ -1,10 +1,10 @@
 "use client"
 
 import { useState } from "react"
-import { ExternalLink, CheckSquare, Trash2, Bot, Clock } from "lucide-react"
+import { ExternalLink, CheckSquare, Trash2, Bot, Clock, Inbox, Plus } from "lucide-react"
 import { isFollowUpDue } from "@/lib/applications/follow-up-utils"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { EmptyState } from "@/components/primitives"
 import StatusBadge from "@/components/StatusBadge"
 import { getCompanyColor, getInitials } from "./utils"
 import type { Application } from "./types"
@@ -101,14 +101,30 @@ export default function TableView({ applications, onSelect, onBulkSuccess }: Pro
     }
   }
 
+  if (applications.length === 0) {
+    return (
+      <EmptyState
+        icon={Inbox}
+        title="No applications match criteria"
+        description="Try adjusting your search criteria, clear active filters, or stage your next target role."
+        action={{
+          label: "Add Application",
+          href: "/applications/new",
+          icon: Plus,
+        }}
+      />
+    )
+  }
+
   return (
-    <div className="relative space-y-4">      {/* Bulk Action Bar (if items selected) */}
+    <div className="relative space-y-3">
+      {/* Bulk Action Bar (if items selected) */}
       {selectedIds.length > 0 && (
-        <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 bg-muted/40 border border-border rounded-[6px]">
+        <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-muted/40 border border-border rounded-[6px]">
           <div className="flex items-center gap-2">
-            <CheckSquare className="h-4 w-4 text-foreground" />
-            <span className="text-sm font-semibold text-foreground">
-              {selectedIds.length} item(s) selected
+            <CheckSquare className="size-4 text-primary" />
+            <span className="text-xs font-semibold text-foreground font-mono">
+              {selectedIds.length} of {applications.length} selected
             </span>
           </div>
 
@@ -143,8 +159,8 @@ export default function TableView({ applications, onSelect, onBulkSuccess }: Pro
               disabled={isSubmitting}
               className="h-8 text-xs gap-1.5 rounded-[4px] font-medium cursor-pointer"
             >
-              <Trash2 className="h-3.5 w-3.5" />
-              Delete Selected
+              <Trash2 className="size-3.5" />
+              Delete
             </Button>
           </div>
         </div>
@@ -155,22 +171,22 @@ export default function TableView({ applications, onSelect, onBulkSuccess }: Pro
         <div className="overflow-x-auto min-w-full">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-border bg-background">
+              <tr className="border-b border-border bg-muted/20">
                 <th className="px-4 py-3 w-10 text-center">
                   <input
                     type="checkbox"
                     checked={allSelected}
                     onChange={toggleSelectAll}
-                    className="h-3.5 w-3.5 rounded-[2px] border-border bg-background accent-primary cursor-pointer"
+                    className="size-3.5 rounded-[2px] border-border bg-background accent-primary cursor-pointer"
                   />
                 </th>
                 <th className="px-4 py-3 text-left font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Company</th>
-                <th className="px-4 py-3 text-left font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Job Title</th>
+                <th className="px-4 py-3 text-left font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Role Title</th>
                 <th className="px-4 py-3 text-left font-mono text-[10px] uppercase tracking-wider text-muted-foreground hidden md:table-cell">Tags</th>
                 <th className="px-4 py-3 text-left font-mono text-[10px] uppercase tracking-wider text-muted-foreground hidden lg:table-cell">Source</th>
                 <th className="px-4 py-3 text-left font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Date</th>
-                <th className="px-4 py-3 text-left font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Status</th>
-                <th className="px-4 py-3 text-left font-mono text-[10px] uppercase tracking-wider text-muted-foreground"></th>
+                <th className="px-4 py-3 text-left font-mono text-[10px] uppercase tracking-wider text-muted-foreground">Stage</th>
+                <th className="px-4 py-3 text-right font-mono text-[10px] uppercase tracking-wider text-muted-foreground"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -182,7 +198,7 @@ export default function TableView({ applications, onSelect, onBulkSuccess }: Pro
                 return (
                   <tr
                     key={application.id}
-                    className={`cursor-pointer transition-colors hover:bg-muted/30 ${
+                    className={`cursor-pointer transition-colors hover:bg-muted/30 select-none ${
                       isSelected ? "bg-muted/40" : ""
                     }`}
                     onClick={() => onSelect(application.id)}
@@ -192,64 +208,67 @@ export default function TableView({ applications, onSelect, onBulkSuccess }: Pro
                         type="checkbox"
                         checked={isSelected}
                         onChange={() => {}}
-                        className="h-3.5 w-3.5 rounded-[2px] border-border bg-background accent-primary cursor-pointer"
+                        className="size-3.5 rounded-[2px] border-border bg-background accent-primary cursor-pointer"
                       />
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2.5">
-                        <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-[4px] text-[11px] font-mono font-bold border ${colorClass}`}>
+                        <div className={`flex size-7 shrink-0 items-center justify-center rounded-[4px] text-[11px] font-mono font-bold border ${colorClass}`}>
                           {initials}
                         </div>
-                        <span className="font-semibold text-sm text-foreground">{application.companyName}</span>
+                        <span className="font-semibold text-xs text-foreground truncate max-w-[140px]">{application.companyName}</span>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-foreground/90 font-medium text-sm">{application.jobTitle}</td>
+                    <td className="px-4 py-3 text-foreground/90 font-medium text-xs max-w-[200px] truncate">{application.jobTitle}</td>
                     <td className="px-4 py-3 hidden md:table-cell">
                       <div className="flex flex-wrap gap-1">
-                        {application.tags.slice(0, 2).map(({ tag }) => (
-                          <Badge key={tag.id} variant="outline" className="text-[11px] font-mono px-2 py-0.5 border-border rounded-[4px]">
+                        {application.tags && application.tags.slice(0, 2).map(({ tag }) => (
+                          <span key={tag.id} className="text-[10px] font-mono px-1.5 py-0.5 border border-border rounded-[3px] bg-muted/30 text-muted-foreground">
                             {tag.name}
-                          </Badge>
+                          </span>
                         ))}
                       </div>
                     </td>
                     <td className="px-4 py-3 hidden lg:table-cell">
                       {application.source === "Career Orchestrator" ? (
-                        <span className="inline-flex items-center gap-1 rounded-[4px] border border-primary/20 bg-primary/10 px-2 py-0.5 text-[11px] font-mono text-primary font-semibold">
-                          <Bot className="h-3 w-3" />
+                        <span className="inline-flex items-center gap-1 rounded-[4px] border border-primary/20 bg-primary/10 px-2 py-0.5 text-[10.5px] font-mono text-primary font-semibold">
+                          <Bot className="size-3" />
                           Auto-Staged
                         </span>
                       ) : (
-                        <span className="inline-flex items-center rounded-[4px] border border-border bg-muted/40 px-2 py-0.5 text-[11px] font-mono text-muted-foreground">{application.source}</span>
+                        <span className="inline-flex items-center rounded-[4px] border border-border bg-muted/40 px-2 py-0.5 text-[10.5px] font-mono text-muted-foreground">
+                          {application.source}
+                        </span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-muted-foreground font-mono text-xs whitespace-nowrap">
+                    <td className="px-4 py-3 text-muted-foreground font-mono text-xs tabular-nums whitespace-nowrap">
                       {new Date(application.applicationDate).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
                     </td>
                     <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <StatusBadge status={application.status} />
+                      <div className="flex items-center gap-1.5">
+                        <StatusBadge status={application.status} size="sm" />
                         {isFollowUpDue(application) && (
                           <span
                             className="inline-flex items-center gap-1 text-[9.5px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded-[4px] shrink-0 font-mono"
                             title="Application silent for 5+ business days"
                           >
-                            <Clock className="h-2.5 w-2.5" />
-                            Follow-up Due
+                            <Clock className="size-2.5" />
+                            Due
                           </span>
                         )}
                       </div>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 text-right">
                       {application.jobUrl && (
                         <span
-                          className="text-muted-foreground hover:text-foreground p-1.5 rounded-[4px] hover:bg-muted transition-colors cursor-pointer inline-flex items-center justify-center"
+                          className="text-muted-foreground hover:text-foreground p-1 rounded-[4px] hover:bg-muted transition-colors cursor-pointer inline-flex items-center justify-center"
                           onClick={(e) => {
                             e.stopPropagation()
                             window.open(application.jobUrl!, "_blank")
                           }}
+                          title="Open job posting"
                         >
-                          <ExternalLink className="h-4 w-4" />
+                          <ExternalLink className="size-3.5" />
                         </span>
                       )}
                     </td>

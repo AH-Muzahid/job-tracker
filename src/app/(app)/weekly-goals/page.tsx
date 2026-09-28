@@ -163,6 +163,8 @@ export default function WeeklyGoalsPage() {
     <PageContainer>
       {/* 1. Page Header */}
       <PageHeader
+        backHref="/profile"
+        backLabel="Back to Profile"
         overline="Goal Architecture"
         title="Weekly Goals & Targets"
         description="Track your weekly application velocity, mock interviews, and milestone pace"

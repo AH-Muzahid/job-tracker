@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react"
 import { useUser } from "@clerk/nextjs"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import {
   FileText,
   UploadCloud,
@@ -79,6 +79,7 @@ const WIZARD_STEPS = [
 export default function ProfileSetupPage() {
   const { isLoaded, isSignedIn } = useUser()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [step, setStep] = useState(1)
@@ -325,7 +326,12 @@ export default function ProfileSetupPage() {
       if (!res.ok) throw new Error("Failed to save profile")
 
       toast.success("Profile saved and synchronized with AI memory!")
-      router.push("/dashboard")
+      const from = searchParams?.get("from")
+      if (from === "profile") {
+        router.push("/profile")
+      } else {
+        router.push("/dashboard")
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to save"
       toast.error(msg)
@@ -362,6 +368,8 @@ export default function ProfileSetupPage() {
     <PageContainer className="max-w-4xl pb-16">
       {/* Standardized Header */}
       <PageHeader
+        backHref="/profile"
+        backLabel="Back to Profile"
         overline="ONBOARDING / IDENTITY"
         title="Career Profile & AI Knowledge"
         description="Autofill from your resume or customize your career targets for personalized AI job matching."

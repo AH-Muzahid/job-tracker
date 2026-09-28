@@ -35,7 +35,7 @@ export function getCurrentBatchStartTime(date: Date = new Date()): Date {
 /**
  * Core processor for a single user:
  * 1. Matches & scores in-database Canonical opportunities against user profile (STAGED)
- * 2. Archives matches older than 24h where isSaved == false (Rolling 24h Archival)
+ * 2. Archives matches older than 7 days where isSaved == false (Rolling 7-day Archival)
  * 3. Switches current batch from STAGED -> PUBLISHED
  * 4. Dispatches in-app notification to the user
  */
@@ -51,10 +51,10 @@ export async function processUserJobBatch(
   const batchId = options.batchId || getBatchId(now)
   const shouldNotify = options.notify !== false
 
-  // 1. Step A: Rolling 24-Hour Archival Rule
-  // If publishedAt is older than 24 hours AND isSaved is false -> transition to ARCHIVED first
+  // 1. Step A: Rolling 7-Day Archival Rule
+  // If publishedAt is older than 7 days AND isSaved is false -> transition to ARCHIVED first
   // so the matching engine can revive high-fit opportunities into the new batch.
-  const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000)
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
   const archiveResult = await withDbRetry(() =>
     prisma.userJobMatch.updateMany({
       where: {
@@ -62,7 +62,7 @@ export async function processUserJobBatch(
         status: "PUBLISHED",
         isSaved: false,
         publishedAt: {
-          lt: twentyFourHoursAgo,
+          lt: sevenDaysAgo,
         },
       },
       data: {

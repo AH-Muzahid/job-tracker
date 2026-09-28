@@ -62,12 +62,12 @@ describe("CAG-01: Career Operating System Dashboard & Metrics", () => {
     expect(content).not.toContain("DashboardInvoices");
   });
 
-  it("verifies navigation groups align with 4 primary pillars (Dashboard, Opportunities, Applications, Interviews)", () => {
+  it("verifies navigation groups align with 4 primary pillars (Dashboard, Discovery, Applications, Interviews)", () => {
     const appSharedPath = path.resolve(process.cwd(), "src/components/app-shared.tsx");
     const content = fs.readFileSync(appSharedPath, "utf-8");
 
     expect(content).toContain('"Dashboard"');
-    expect(content).toContain('"Opportunities"');
+    expect(content).toContain('"Discovery"');
     expect(content).toContain('"Applications"');
     expect(content).toContain('"Interviews"');
     expect(content).toContain('"Career Profile"');

@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
 
   if (error || !code || !state) {
     console.error("[Google OAuth Callback Error]:", error || "Missing code or state")
-    return NextResponse.redirect(`${defaultOrigin}/settings?error=oauth_failed`)
+    return NextResponse.redirect(`${defaultOrigin}/integrations?error=oauth_failed`)
   }
 
   let resolvedUserId: string | null = null
@@ -72,19 +72,19 @@ export async function GET(request: NextRequest) {
 
   if (!resolvedUserId) {
     console.error("[Google OAuth Invalid State]: State could not be validated via Encrypted Token, Redis, or Cookie. State length:", state.length)
-    return NextResponse.redirect(`${targetOrigin}/settings?error=invalid_state`)
+    return NextResponse.redirect(`${targetOrigin}/integrations?error=invalid_state`)
   }
 
   try {
     await exchangeGoogleAuthCode(code, resolvedUserId)
     await invalidateCache(`oauth:state:${state}`)
     
-    const response = NextResponse.redirect(`${targetOrigin}/settings?connected=google`)
+    const response = NextResponse.redirect(`${targetOrigin}/integrations?connected=google`)
     response.cookies.delete("ct_oauth_state")
     return response
   } catch (exchangeErr: unknown) {
     const errorMsg = exchangeErr instanceof Error ? exchangeErr.message : "exchange_failed"
     console.error("[Google OAuth Exchange Failed]:", exchangeErr)
-    return NextResponse.redirect(`${targetOrigin}/settings?error=${encodeURIComponent(errorMsg)}`)
+    return NextResponse.redirect(`${targetOrigin}/integrations?error=${encodeURIComponent(errorMsg)}`)
   }
 }

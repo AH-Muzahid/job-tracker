@@ -37,11 +37,10 @@ export function DiscoveryFilterSidebar({
   })
 
   const counts: DiscoveryFacetCounts = facetCounts || {
-    total: totalCount ?? 128,
-    recommended: 48,
+    today: totalCount ?? 128,
+    yesterday: 0,
+    week: 0,
     saved: 12,
-    recent: 14,
-    hidden: 3,
     fullTime: 86,
     partTime: 12,
     contract: 18,
@@ -56,6 +55,7 @@ export function DiscoveryFilterSidebar({
     filters.location ||
     filters.minScore ||
     filters.visaSponsorship ||
+    filters.postedWithin ||
     filters.tags.length > 0 ||
     filters.hideApplied
   )
@@ -71,6 +71,7 @@ export function DiscoveryFilterSidebar({
       minScore: "",
       visaSponsorship: "",
       batchSlot: filters.batchSlot,
+      postedWithin: "",
       tags: [],
       hideApplied: false,
     })
@@ -172,6 +173,33 @@ export function DiscoveryFilterSidebar({
               </label>
             )
           })}
+        </div>
+      </div>
+
+      {/* Posted Within (date window) */}
+      <div className="space-y-2 pt-2 border-t border-border">
+        <label className="text-xs font-semibold text-foreground uppercase tracking-wider">
+          Posted Within
+        </label>
+        <div className="space-y-1.5">
+          {[
+            { value: "", label: "Any Time" },
+            { value: "today", label: "Today" },
+            { value: "yesterday", label: "Yesterday" },
+            { value: "3d", label: "Last 3 Days" },
+            { value: "7d", label: "Last 7 Days" },
+          ].map((opt) => (
+            <label key={opt.value} className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground cursor-pointer">
+              <input
+                type="radio"
+                name="postedWithin"
+                checked={(filters.postedWithin || "") === opt.value}
+                onChange={() => update({ postedWithin: opt.value as DiscoveryFilters["postedWithin"] })}
+                className="size-3.5 text-primary accent-primary cursor-pointer"
+              />
+              <span>{opt.label}</span>
+            </label>
+          ))}
         </div>
       </div>
 
@@ -287,7 +315,7 @@ export function DiscoveryFilterSidebar({
           Apply Filters
         </Button>
         <div className="text-center text-[11px] text-muted-foreground font-mono tabular-nums">
-          {totalCount ?? counts.total} results
+          {totalCount ?? counts.today + counts.yesterday + counts.week} results
         </div>
       </div>
     </div>
