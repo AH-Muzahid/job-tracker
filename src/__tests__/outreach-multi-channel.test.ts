@@ -3,6 +3,9 @@ import {
   extractContactEmail,
   sanitizeOutreachPlaceholders,
   generateDeterministicOutreachBundle,
+  detectApplicationStrategy,
+  generateDeterministicScreenerAnswers,
+  pruneRelevantStack,
   OutreachContext,
 } from "@/lib/applications/outreach-engine"
 import fs from "fs"
@@ -103,6 +106,78 @@ describe("Multi-Channel Outreach Engine & Zero-Placeholder Enforcement", () => {
       // 4. Follow-Up Channel
       expect(bundle.follow_up.subject).toContain("Following up: Full Stack Developer - Next.js application - AH Muzahid")
       expect(bundle.follow_up.body).toContain("Dear nextjobz Hiring Team,")
+    })
+
+    it("enforces strict under-120-word limit and anti-boilerplate opening in email", () => {
+      const bundle = generateDeterministicOutreachBundle(mockContext)
+      const wordCount = bundle.email.body.split(/\s+/).length
+      expect(wordCount).toBeLessThan(120)
+      // Must not contain cliché corporate openings
+      expect(bundle.email.body).not.toContain("I am writing to express my strong interest")
+      expect(bundle.email.body).not.toContain("I hope this email finds you well")
+      // Must contain high-converting elements
+      expect(bundle.email.body).toContain("10-minute intro chat")
+      expect(bundle.email.body).toContain("latency")
+    })
+  })
+
+  describe("detectApplicationStrategy", () => {
+    it("detects email strategy when direct email instructions exist", () => {
+      const jd = "Send your resume and portfolio directly to engineering-lead@startup.com for fast-track interview."
+      const result = detectApplicationStrategy(jd, "Career Site", "https://startup.com/jobs/1")
+      expect(result.strategy).toBe("email")
+      expect(result.detectedEmail).toBe("engineering-lead@startup.com")
+    })
+
+    it("detects form_portal strategy when ATS link like greenhouse or lever is used", () => {
+      const jd = "Please submit your application online through our jobs portal."
+      const result = detectApplicationStrategy(jd, "Indeed", "https://boards.greenhouse.io/acmecorp/jobs/56789")
+      expect(result.strategy).toBe("form_portal")
+      expect(result.reason).toContain("ATS application portal detected")
+    })
+
+    it("detects linkedin_dm strategy when LinkedIn DM or recruiter reach-out is prompted", () => {
+      const jd = "We are hiring! Reach out directly on LinkedIn or message me with your portfolio."
+      const result = detectApplicationStrategy(jd, "LinkedIn", null)
+      expect(result.strategy).toBe("linkedin_dm")
+    })
+  })
+
+  describe("generateDeterministicScreenerAnswers & form_portal bundle", () => {
+    it("generates targeted screener answers and form_portal in outreach bundle", () => {
+      const bundle = generateDeterministicOutreachBundle(mockContext)
+      expect(bundle.form_portal).toBeDefined()
+      expect(bundle.form_portal?.portalNote).toContain("nextjobz")
+      expect(bundle.form_portal?.portalNote).toContain("CodeArena")
+      expect(bundle.form_portal?.screenerAnswers.length).toBeGreaterThanOrEqual(3)
+
+      const screenerQAs = generateDeterministicScreenerAnswers(mockContext, "frontend")
+      expect(screenerQAs.length).toBe(3)
+      expect(screenerQAs[0].question).toContain("nextjobz")
+      expect(screenerQAs[1].answer).toContain("CodeArena")
+      expect(screenerQAs[0].answer).not.toContain("[")
+      expect(screenerQAs[0].answer).not.toContain("]")
+    })
+  })
+
+  describe("pruneRelevantStack Anti-Buzzword Engine", () => {
+    it("prunes a 14-tool buzzword list down to at most 3-4 top relevant tools", () => {
+      const bloatedStack =
+        "React, Next.js, TypeScript, JavaScript, Node.js, MongoDB, TailwindCSS, Docker, Firebase, Zustand, Express.js, CI/CD, WebSocket, AI"
+      const pruned = pruneRelevantStack(bloatedStack, "Full Stack Developer - Next.js", 3)
+      
+      // Should not contain JavaScript when TypeScript is present
+      expect(pruned).not.toContain("JavaScript")
+      // Should prioritize Next.js for a Next.js role
+      expect(pruned).toContain("Next.js")
+      // Should not chain 5+ tools
+      const toolCount = pruned.split(/,| and /).filter(Boolean).length
+      expect(toolCount).toBeLessThanOrEqual(3)
+    })
+
+    it("falls back to modern clean stack when input stack is empty", () => {
+      const fallback = pruneRelevantStack("", "Frontend Developer")
+      expect(fallback).toContain("TypeScript")
     })
   })
 

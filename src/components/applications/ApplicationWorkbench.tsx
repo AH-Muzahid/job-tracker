@@ -94,7 +94,10 @@ export function ApplicationWorkbench({
       const tailored = (analysis.tailoredResumeJson as any) || {}
       const channels = tailored.outreachChannels as OutreachChannelBundle | undefined
       const detectedEmail = tailored.detectedEmail || extractContactEmail(application.notes || "")
-      const recommendedChannel = (tailored.recommendedChannel as OutreachChannel) || (detectedEmail ? "email" : "linkedin_dm")
+      const recommendedChannel =
+        (tailored.strategy as OutreachChannel) ||
+        (tailored.recommendedChannel as OutreachChannel) ||
+        (detectedEmail ? "email" : "form_portal")
 
       if (!initialPopulatedRef.current && recommendedChannel) {
         setActiveChannel(recommendedChannel)
@@ -104,6 +107,12 @@ export function ApplicationWorkbench({
       setDraftBody(body)
       setOutreachDrafts({
         channel: recommendedChannel,
+        strategy: tailored.strategy || recommendedChannel,
+        strategyReason: tailored.strategyReason,
+        conversionScore: tailored.conversionScore,
+        conversionJudge: tailored.conversionJudge,
+        portalNote: channels?.form_portal?.portalNote,
+        screenerAnswers: channels?.form_portal?.screenerAnswers,
         recommendation: "Saved outreach materials",
         email: body,
         subjectLines: [subject],
@@ -291,8 +300,16 @@ export function ApplicationWorkbench({
           setDraftSubject(chData.subject)
         } else if (newChannel === "linkedin_connect") {
           setDraftSubject(`${application.jobTitle} - LinkedIn Invitation`)
+        } else if (newChannel === "form_portal") {
+          setDraftSubject(`${application.jobTitle} - Application Cover Note & Screener Q&A`)
+          if ("portalNote" in chData && chData.portalNote) {
+            setDraftBody(chData.portalNote)
+            return
+          }
         }
-        setDraftBody(chData.body)
+        if ("body" in chData) {
+          setDraftBody(chData.body)
+        }
       }
     }
   }
@@ -320,9 +337,15 @@ export function ApplicationWorkbench({
       if (finalSubject) setDraftSubject(finalSubject)
       setDraftBody(fullEmail)
       setOutreachDrafts({
-        channel: targetChannel,
+        channel: data.channel || targetChannel,
+        strategy: data.strategy || targetChannel,
+        strategyReason: data.strategyReason,
+        conversionScore: data.conversionScore,
+        conversionJudge: data.conversionJudge,
         recommendation: "Direct application outreach draft",
         email: fullEmail,
+        portalNote: data.portalNote,
+        screenerAnswers: data.screenerAnswers,
         subjectLines: [finalSubject],
         beforeSendChecklist: data.beforeSendChecklist || [
           "Verified GitHub/LinkedIn/portfolio links included",
@@ -334,6 +357,9 @@ export function ApplicationWorkbench({
         detectedEmail: data.detectedEmail,
         recommendedChannel: data.recommendedChannel,
       })
+      if (data.channel) {
+        setActiveChannel(data.channel)
+      }
       setSaveStatus("saved")
       toast.success("Outreach materials generated and saved to cloud!")
     } catch (err: unknown) {

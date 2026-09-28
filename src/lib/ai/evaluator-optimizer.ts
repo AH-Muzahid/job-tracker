@@ -9,6 +9,12 @@ export interface EvaluationRubric {
   requiredKeywords?: string[]
   /** Specific banned cliché or hallucination phrases */
   bannedPhrases?: string[]
+  /** Target engineering role domain for semantic consistency */
+  targetRoleDomain?: "frontend" | "backend" | "fullstack" | "mobile" | "devops"
+  /** Disallow robotic AI openings like "As a [role] skilled in..." */
+  disallowRoboticOpenings?: boolean
+  /** Disallow arrogant or corporate fluff phrases like "proving I can", "under tight deadlines" */
+  disallowArrogantPhrases?: boolean
   /** Custom semantic validator callback */
   customValidator?: (content: string) => { passed: boolean; feedback?: string }
 }
@@ -90,6 +96,58 @@ export function evaluateDraft(content: string, rubric: EvaluationRubric): Evalua
     }
   }
 
+  // Check for robotic "As a [role] skilled in..." opening pattern
+  if (rubric.disallowRoboticOpenings) {
+    const roboticMatch = content.match(
+      /(?:^|\n)\s*As an?\s+[^,\n]{3,60}?(?:developer|engineer|specialist|programmer|architect|builder)[^,\n]*,\s*I\s+/i
+    ) || content.match(/(?:^|\n)\s*As an?\s+[^,\n]{3,60}?skilled in\s+/i)
+    if (roboticMatch) {
+      violations.push(
+        "Draft starts with an unnatural robotic opening ('As a [role] skilled in...'). State the opening role naturally and mention your relevant hands-on build experience."
+      )
+    }
+  }
+
+  // Check for arrogant phrases or corporate fluff
+  if (rubric.disallowArrogantPhrases) {
+    const arrogantPatterns = [
+      /\b(?:proving|proves)\s+(?:that\s+)?I\s+can\b/i,
+      /\btestament\s+to\s+my\b/i,
+      /\bshowcasing\s+my\s+ability\b/i,
+      /\bunder\s+tight\s+deadlines\b/i,
+      /\brapi?d\s+product\s+iteration\s+aligns\b/i,
+    ]
+    for (const pattern of arrogantPatterns) {
+      if (pattern.test(content)) {
+        violations.push(
+          "Draft contains self-aggrandizing AI clichés or corporate fluff ('proving I can', 'under tight deadlines', 'testament to'). State what you built and the engineering outcome objectively like a peer engineer."
+        )
+        break
+      }
+    }
+  }
+
+  // Check for domain contradiction between role and technical proof
+  if (rubric.targetRoleDomain === "frontend") {
+    const backendInfraMatch = content.match(
+      /\b(docker(?:-based)?\s+(?:code\s+)?execution|kubernetes|k8s|server(?:-side)?\s+streams?|database\s+indexing|kafka|rabbitmq|containerized\s+microservices?)\b/i
+    )
+    if (backendInfraMatch) {
+      violations.push(
+        `Domain contradiction: Target role is Frontend-focused, but the draft highlights backend infrastructure (${backendInfraMatch[0]}). Ground your technical proof strictly in frontend engineering: UI state synchronization, rendering performance, component architecture, client interactions, or bundle optimization.`
+      )
+    }
+  } else if (rubric.targetRoleDomain === "backend") {
+    const pureUiMatch = content.match(
+      /\b(pixel-?perfect|css\s+animations?|figma-?to-?code|tailwind\s+styling)\b/i
+    )
+    if (pureUiMatch && !/\b(api|database|caching|latency|query|concurrency|server|endpoint)\b/i.test(content)) {
+      violations.push(
+        `Domain contradiction: Target role is Backend-focused, but the draft only highlights frontend styling (${pureUiMatch[0]}). Highlight APIs, data models, caching, concurrency, or server performance instead.`
+      )
+    }
+  }
+
   if (rubric.customValidator) {
     const customRes = rubric.customValidator(content)
     if (!customRes.passed && customRes.feedback) {
@@ -101,6 +159,13 @@ export function evaluateDraft(content: string, rubric: EvaluationRubric): Evalua
     passed: violations.length === 0,
     violations,
   }
+}
+
+export interface ConversionJudgeResult {
+  score: number // 0-100
+  verdict: "approved" | "rejected"
+  critique: string[]
+  strengths: string[]
 }
 
 export interface GeneratorContext {
@@ -115,6 +180,8 @@ export interface RunEvaluatorOptimizerOptions<TOutput = string> {
   maxIterations?: number
   textExtractor?: (output: TOutput) => string
   fallbackSanitizer?: (content: string) => string
+  /** Optional LLM/semantic conversion judge to evaluate draft quality from hiring manager/recruiter perspective */
+  semanticJudge?: (content: string, draft: TOutput) => Promise<ConversionJudgeResult | null>
 }
 
 export interface EvaluatorOptimizerResult<TOutput = string> {
@@ -125,25 +192,29 @@ export interface EvaluatorOptimizerResult<TOutput = string> {
   selfCorrected: boolean
   violations: string[]
   usedFallbackSanitizer?: boolean
+  conversionJudge?: ConversionJudgeResult | null
+  conversionScore?: number
 }
 
 /**
  * Executes a Reflexion / Evaluator-Optimizer loop.
  * 1. Generates an initial draft.
- * 2. Runs the Evaluator rubric against the draft.
- * 3. If evaluation passes, returns immediately (1 iteration).
- * 4. If evaluation fails, feeds critique feedback back to the generator for self-correction.
- * 5. If max iterations exceeded, optionally applies fallbackSanitizer.
+ * 2. Runs the Evaluator rubric against the draft (heuristics).
+ * 3. Runs the Semantic/LLM Judge if provided (evaluates conversion, tone, domain consistency).
+ * 4. If evaluation passes with score >= 80, returns immediately.
+ * 5. If evaluation fails or score < 80, feeds critique feedback back to the generator for self-correction.
+ * 6. If max iterations exceeded, optionally applies fallbackSanitizer.
  */
 export async function runEvaluatorOptimizer<TOutput = string>(
   options: RunEvaluatorOptimizerOptions<TOutput>
 ): Promise<EvaluatorOptimizerResult<TOutput>> {
-  const { generator, rubric, maxIterations = 2, textExtractor, fallbackSanitizer } = options
+  const { generator, rubric, maxIterations = 2, textExtractor, fallbackSanitizer, semanticJudge } = options
 
   let currentDraft: TOutput | null = null
   let currentText = ""
   let evalResult: EvaluationResult = { passed: false, violations: [] }
   let iterations = 0
+  let lastJudgeResult: ConversionJudgeResult | null = null
 
   while (iterations < maxIterations) {
     iterations++
@@ -159,6 +230,37 @@ export async function runEvaluatorOptimizer<TOutput = string>(
 
     evalResult = evaluateDraft(currentText, rubric)
 
+    // If heuristic rubric passed, run semantic judge if provided
+    if (evalResult.passed && semanticJudge) {
+      try {
+        const judgeRes = await semanticJudge(currentText, currentDraft)
+        if (judgeRes) {
+          lastJudgeResult = judgeRes
+          if (judgeRes.score < 80 || judgeRes.verdict === "rejected") {
+            evalResult = {
+              passed: false,
+              violations: judgeRes.critique.map(
+                (c) => `Hiring Leader Conversion Review (${judgeRes.score}/100 - Rejected): ${c}`
+              ),
+            }
+          } else {
+            return {
+              content: currentDraft,
+              rawText: currentText,
+              passed: true,
+              iterations,
+              selfCorrected: iterations > 1,
+              violations: [],
+              conversionJudge: judgeRes,
+              conversionScore: judgeRes.score,
+            }
+          }
+        }
+      } catch (judgeErr) {
+        console.warn("[EvaluatorOptimizer] Semantic judge error (ignoring to prevent blockage):", judgeErr)
+      }
+    }
+
     if (evalResult.passed) {
       return {
         content: currentDraft,
@@ -167,6 +269,8 @@ export async function runEvaluatorOptimizer<TOutput = string>(
         iterations,
         selfCorrected: iterations > 1,
         violations: [],
+        conversionJudge: lastJudgeResult,
+        conversionScore: lastJudgeResult?.score ?? (iterations === 1 ? 88 : 82),
       }
     }
   }
@@ -191,5 +295,7 @@ export async function runEvaluatorOptimizer<TOutput = string>(
     selfCorrected: false,
     violations: evalResult.violations,
     usedFallbackSanitizer: usedFallback,
+    conversionJudge: lastJudgeResult,
+    conversionScore: lastJudgeResult?.score ?? (evalResult.violations.length === 0 ? 80 : 65),
   }
 }

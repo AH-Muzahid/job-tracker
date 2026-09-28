@@ -17,6 +17,7 @@ import {
   extractContactEmail,
   sanitizeOutreachPlaceholders,
   generateDeterministicOutreachBundle,
+  pruneRelevantStack,
   OutreachChannelBundle,
 } from "@/lib/applications/outreach-engine"
 
@@ -76,25 +77,26 @@ function generateDeterministicMaterials(
   if (topProject.stack) {
     candidateSkills.push(...topProject.stack.split(/[,/|\n]+/).map((s: string) => s.trim()))
   }
-  const uniqueSkills = Array.from(new Set(candidateSkills.filter((s) => s.length > 1))).slice(0, 6)
-  const skillsDisplay = uniqueSkills.join(", ") || "TypeScript, React, Next.js, and Node.js"
+  const uniqueSkills = Array.from(new Set(candidateSkills.filter((s) => s.length > 1)))
+  const prunedSkills = pruneRelevantStack(uniqueSkills, jobTitle, 3)
+  const prunedTopProjStack = pruneRelevantStack(topProject.stack || prunedSkills, jobTitle, 3)
 
   const coverLetter = `Dear Hiring Team at ${companyName},
 
-I am writing to express my strong interest in the ${jobTitle} position. With proven hands-on experience developing modern, resilient web systems using ${skillsDisplay}, I am excited by the opportunity to contribute directly to ${companyName}'s engineering goals.
+I noticed ${companyName} is expanding its engineering team for the ${jobTitle} position. With hands-on experience building production web systems using ${prunedSkills}, I am writing to share how my background aligns with your engineering goals.
 
-In my recent work on "${topProject.name}", I engineered core architecture with ${topProject.stack || "modern technologies"}, focusing on high performance, clean modular component design, and reliable data synchronization.${
-    secondProject ? ` Additionally, through my "${secondProject.name}" project, I implemented production features using ${secondProject.stack || "full-stack tools"} with an emphasis on developer ergonomics and system stability.` : ""
+In my recent work on "${topProject.name}", I engineered core architecture using ${prunedTopProjStack}, focusing on high performance, clean modular component design, and reliable data synchronization.${
+    secondProject ? ` Additionally, through my "${secondProject.name}" project, I implemented production features using ${pruneRelevantStack(secondProject.stack || "modern web stack", jobTitle, 3)} with an emphasis on developer ergonomics and system stability.` : ""
   } My focus is always on delivering measurable product impact while maintaining maintainable, type-safe codebases.
 
-I admire ${companyName}'s vision and would welcome the opportunity to discuss how my technical foundation, autonomous execution, and problem-solving skills align with your team's upcoming roadmap. Thank you for your time and consideration.
+I would welcome the opportunity to discuss how my technical foundation, autonomous execution, and problem-solving skills align with ${companyName}'s upcoming roadmap. Thank you for your time and consideration.
 
 Sincerely,
 ${candidateName}`
 
   const highlights = [
-    `Engineered "${topProject.name}" using ${topProject.stack || "TypeScript and React"}, delivering end-to-end features with high test coverage and robust type safety.`,
-    `Architected full-stack workflows with ${skillsDisplay}, optimizing response latencies and database queries for seamless user experiences.`,
+    `Engineered "${topProject.name}" using ${prunedTopProjStack}, delivering end-to-end features with high test coverage and robust type safety.`,
+    `Architected full-stack workflows with ${prunedSkills}, optimizing response latencies and database queries for seamless user experiences.`,
     `Demonstrated autonomous ownership and rapid delivery of complex product features from conception to deployment.`,
   ]
 
@@ -108,13 +110,13 @@ ${candidateName}`
     notes: context.notes,
   })
 
-  const outreachPitch = `Hi there! I saw the opening for ${jobTitle} at ${companyName}. I've recently built ${topProject.name} using ${skillsDisplay}. Would love to share my GitHub and discuss how my hands-on experience aligns with your team!`
+  const outreachPitch = `Hi ${companyName} Team! I saw the opening for ${jobTitle} at ${companyName}. I recently engineered ${topProject.name} using ${prunedTopProjStack}. Would love to share my portfolio and discuss how my hands-on build experience aligns with your roadmap!`
 
   return {
     coverLetter,
     highlights,
     outreachPitch,
-    strategyTip: `Focus on highlighting your hands-on experience with ${topProject.name} and your proficiency in ${skillsDisplay}.`,
+    strategyTip: `Focus on highlighting your hands-on experience with ${topProject.name} and your proficiency in ${prunedSkills}.`,
     atsKeywords: uniqueSkills.map((s) => toCanonical(s)),
     outreachChannels: outreachBundle,
   }
@@ -205,11 +207,13 @@ ${systemPromptContext}
 ${strategySection}
 ${critiqueNote}
 
-CRITICAL NO-PLACEHOLDER & QUALITY RULES:
+CRITICAL ANTI-BUZZWORD & HIGH-CONVERSION RULES (STRIPE / LINEAR STANDARD):
 1. NEVER output placeholders like "[Hiring Manager/Recruiter]", "[Your Name]", or "[Company Name]".
 2. Always address the team naturally as "${context.companyName} Hiring Team" or "${context.companyName} Team".
 3. Sign off directly with the candidate's actual name: "${candidateName}".
-4. In outreachPitch, write a ready-to-send, high-converting outreach message (under 120 words) referencing real project experience from the candidate's verified dossier.
+4. STRICT ANTI-BUZZWORD MANDATE: Mention AT MOST 3-4 technologies. NEVER list redundant tools together (e.g. no JS + TS) and never dump 5+ libraries in a sentence.
+5. In outreachPitch, write a ready-to-send, high-converting outreach message (strictly under 110 words) highlighting 1 hero project with a concrete engineering challenge/metric, 1-sentence company bridge, and a low-friction 10-minute intro chat CTA.
+6. In coverLetter, avoid generic boilerplate like "I am writing to express my strong interest in...". Jump straight to relevant technical alignment.
 
 Respond in valid JSON format:
 {

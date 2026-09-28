@@ -65,19 +65,38 @@ export interface WorkbenchAnalysis {
   analyzedAt?: string
 }
 
-export type OutreachChannel = "email" | "linkedin_dm" | "linkedin_connect" | "follow_up"
+export type OutreachChannel = "email" | "linkedin_dm" | "linkedin_connect" | "follow_up" | "form_portal"
+
+export interface ScreenerQA {
+  question: string
+  answer: string
+}
+
+export interface ConversionJudgeScore {
+  score: number // 0-100
+  verdict: "approved" | "rejected"
+  critique: string[]
+  strengths: string[]
+}
 
 export interface OutreachChannelBundle {
   email: { subject: string; body: string }
   linkedin_dm: { subject: string; body: string }
   linkedin_connect: { body: string; charCount: number }
   follow_up: { subject: string; body: string }
+  form_portal?: { portalNote: string; screenerAnswers: ScreenerQA[] }
 }
 
 export interface OutreachDrafts {
   channel?: OutreachChannel
+  strategy?: OutreachChannel
+  strategyReason?: string
+  conversionScore?: number
+  conversionJudge?: ConversionJudgeScore | null
   recommendation?: string
   email?: string
+  portalNote?: string
+  screenerAnswers?: ScreenerQA[]
   coverLetter?: string
   subjectLines?: string[]
   beforeSendChecklist?: string[]
@@ -85,4 +104,5 @@ export interface OutreachDrafts {
   detectedEmail?: string | null
   recommendedChannel?: OutreachChannel
 }
+
 

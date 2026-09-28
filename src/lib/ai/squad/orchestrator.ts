@@ -49,8 +49,8 @@ function createDeterministicSquadFallback(
   const cleanName = candidateName || "Applicant"
 
   return {
-    coverLetter: `Dear ${cleanCompany} Hiring Team,\n\nI am writing to express my strong interest in the ${cleanJob} position. With hands-on experience building production-grade web applications and high-performance backend systems, I am excited about the opportunity to contribute to ${cleanCompany}.\n\nThroughout my career, I have focused on writing clean, modular code, optimizing latency, and shipping reliable features. I welcome the opportunity to discuss how my technical background aligns with your team's upcoming roadmap.\n\nSincerely,\n${cleanName}`,
-    outreachPitch: `Hi ${cleanCompany} Team — I saw the ${cleanJob} opening and wanted to reach out directly. I specialize in modern full-stack architecture with TypeScript and React. Would love to connect! — ${cleanName}`,
+    coverLetter: `Dear ${cleanCompany} Hiring Team,\n\nI noticed ${cleanCompany} is expanding its team for the ${cleanJob} position. With hands-on experience building production-grade web systems and high-performance applications, I am writing to share how my background aligns with your engineering goals.\n\nThroughout my work, I focus on measurable product impact, optimizing response latency, and shipping reliable features. I would welcome the opportunity to discuss how my technical background directly supports your team's upcoming roadmap.\n\nSincerely,\n${cleanName}`,
+    outreachPitch: `Hi ${cleanCompany} Team — I saw the ${cleanJob} opening and wanted to reach out directly. I specialize in modern full-stack architecture with TypeScript, Next.js, and Node.js. Would love to share my portfolio if you have 5 minutes! — ${cleanName}`,
     highlights: [
       `Demonstrated production experience relevant to ${cleanJob}`,
       "Proven track record in high-velocity full-stack engineering",
