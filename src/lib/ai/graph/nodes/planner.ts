@@ -64,12 +64,15 @@ export function createPlannerNode(model: BaseChatModel) {
 
     let routeContextText = ""
     if (state.routeContext) {
-      const { currentRoute, entityType, entityId, entitySummary } = state.routeContext
+      const { currentRoute, entityType, entityId, entitySummary, metadata } = state.routeContext as any
       const sanitizedSummary = entitySummary ? sanitizeUntrustedContext(JSON.stringify(entitySummary)) : ""
 
       routeContextText = `Active Screen Context:\n- Route: ${currentRoute || "Unknown"}`
       if (entityType) routeContextText += `\n- Entity Type: ${entityType}`
       if (entityId) routeContextText += `\n- Entity ID: ${entityId}`
+      if (metadata?.candidate) {
+        routeContextText += `\n- Candidate Background: ${sanitizeUntrustedContext(metadata.candidate)}`
+      }
       if (sanitizedSummary) {
         routeContextText += `\n- Entity Details:\n<untrusted_content>\n${sanitizedSummary}\n</untrusted_content>`
       }

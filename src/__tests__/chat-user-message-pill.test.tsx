@@ -35,9 +35,9 @@ describe("ChatMessage User Pill Bubble & Hover Actions", () => {
     expect(html).toContain('title="Retry"')
     expect(html).toContain('title="Edit"')
 
-    // Verify hover-only opacity classes on the action bar
-    expect(html).toContain("sm:opacity-0")
-    expect(html).toContain("sm:group-hover:opacity-100")
+    // Verify default-hidden opacity classes on the action bar
+    expect(html).toContain("opacity-0")
+    expect(html).toContain("group-hover:opacity-100")
 
     // Verify old clunky text labels ("<span>Copy</span>") are removed
     expect(html).not.toContain("<span>Copy</span>")

@@ -93,84 +93,124 @@ export async function POST(request: NextRequest) {
     console.warn("[Session Upsert Warning]:", dbErr)
   }
 
+  // Candidate Profile Context to prevent generic placeholder hallucination
+  let candidateContext = ""
+  try {
+    const userRecord = await withDbRetry(() =>
+      prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          name: true,
+          profile: {
+            select: {
+              targetRoles: true,
+              experienceLevel: true,
+              strengths: true,
+            },
+          },
+        },
+      })
+    )
+    if (userRecord) {
+      const parts: string[] = []
+      if (userRecord.name) parts.push(`Candidate Name: ${userRecord.name}`)
+      if (userRecord.profile?.targetRoles && userRecord.profile.targetRoles.length > 0) {
+        parts.push(`Target Role: ${userRecord.profile.targetRoles.join(", ")}`)
+      }
+      if (userRecord.profile?.experienceLevel) {
+        parts.push(`Experience Level: ${userRecord.profile.experienceLevel}`)
+      }
+      if (userRecord.profile?.strengths) {
+        parts.push(`Key Strengths: ${userRecord.profile.strengths}`)
+      }
+      candidateContext = parts.join(" | ")
+    }
+  } catch (err) {
+    console.warn("[Candidate Context Warning]:", err)
+  }
+
   // Ambient Copilot: Enrich route context with verified tenant-isolated entity data
   let enrichedRouteContext: any = null
-  if (routeContext) {
-    const { currentRoute, entityId, entityType, metadata } = routeContext
-    let entitySummary: Record<string, any> | undefined = undefined
+  const currentRoute = routeContext?.currentRoute || "/"
+  const entityId = routeContext?.entityId
+  const entityType = routeContext?.entityType
+  const metadata = routeContext?.metadata || {}
+  let entitySummary: Record<string, any> | undefined = undefined
 
-    if (entityId && entityType === "application") {
-      try {
-        const app = await withDbRetry(() =>
-          prisma.application.findFirst({
-            where: { id: entityId, userId },
-            select: {
-              id: true,
-              companyName: true,
-              jobTitle: true,
-              status: true,
-              interviewDate: true,
-              interviewRound: true,
-              notes: true,
-            },
-          })
-        )
-        if (app) {
-          entitySummary = {
-            applicationId: app.id,
-            companyName: app.companyName,
-            jobTitle: app.jobTitle,
-            status: app.status,
-            interviewDate: app.interviewDate ? app.interviewDate.toISOString() : null,
-            interviewRound: app.interviewRound || null,
-            notes: app.notes || null,
-          }
+  if (entityId && entityType === "application") {
+    try {
+      const app = await withDbRetry(() =>
+        prisma.application.findFirst({
+          where: { id: entityId, userId },
+          select: {
+            id: true,
+            companyName: true,
+            jobTitle: true,
+            status: true,
+            interviewDate: true,
+            interviewRound: true,
+            notes: true,
+          },
+        })
+      )
+      if (app) {
+        entitySummary = {
+          applicationId: app.id,
+          companyName: app.companyName,
+          jobTitle: app.jobTitle,
+          status: app.status,
+          interviewDate: app.interviewDate ? app.interviewDate.toISOString() : null,
+          interviewRound: app.interviewRound || null,
+          notes: app.notes || null,
         }
-      } catch (appErr) {
-        console.warn("[RouteContext App Lookup Warning]:", appErr)
       }
-    } else if (entityId && entityType === "opportunity") {
-      try {
-        const match = await withDbRetry(async () => {
-          if (!prisma.userJobMatch?.findFirst) return null
-          return await prisma.userJobMatch.findFirst({
-            where: { id: entityId, userId },
-            include: {
-              job: {
-                select: {
-                  id: true,
-                  title: true,
-                  company: true,
-                  location: true,
-                  salary: true,
-                  url: true,
-                },
+    } catch (appErr) {
+      console.warn("[RouteContext App Lookup Warning]:", appErr)
+    }
+  } else if (entityId && entityType === "opportunity") {
+    try {
+      const match = await withDbRetry(async () => {
+        if (!prisma.userJobMatch?.findFirst) return null
+        return await prisma.userJobMatch.findFirst({
+          where: { id: entityId, userId },
+          include: {
+            job: {
+              select: {
+                id: true,
+                title: true,
+                company: true,
+                location: true,
+                salary: true,
+                url: true,
               },
             },
-          })
+          },
         })
-        if (match) {
-          entitySummary = {
-            matchId: match.id,
-            fitScore: match.fitScore,
-            jobTitle: match.job?.title,
-            companyName: match.job?.company,
-            location: match.job?.location,
-            salary: match.job?.salary,
-          }
+      })
+      if (match) {
+        entitySummary = {
+          matchId: match.id,
+          fitScore: match.fitScore,
+          jobTitle: match.job?.title,
+          companyName: match.job?.company,
+          location: match.job?.location,
+          salary: match.job?.salary,
         }
-      } catch (matchErr) {
-        console.warn("[RouteContext Match Lookup Warning]:", matchErr)
       }
+    } catch (matchErr) {
+      console.warn("[RouteContext Match Lookup Warning]:", matchErr)
     }
+  }
 
-    enrichedRouteContext = {
-      currentRoute,
-      entityId,
-      entityType,
-      entitySummary,
-      metadata,
-    }
+  enrichedRouteContext = {
+    currentRoute,
+    entityId,
+    entityType,
+    entitySummary,
+    metadata: {
+      ...metadata,
+      candidate: candidateContext || undefined,
+    },
   }
 
   const encoder = new TextEncoder()

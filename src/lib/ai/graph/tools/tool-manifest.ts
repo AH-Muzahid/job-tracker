@@ -476,10 +476,18 @@ export const TOOL_MANIFEST: Record<string, ToolDefinition<any>> = {
     requiresConfirmation: false,
     allowedInHeadless: true,
     category: "email",
-    execute: async () => ({
-      success: true,
-      message: "Outreach email draft generated in conversational context.",
-    }),
+    execute: async (_userId, input) => {
+      const company = (input as any)?.companyName || "the team"
+      const role = (input as any)?.role || "Software Engineer"
+      return {
+        success: true,
+        subject: `Application for ${role} — ${company}`,
+        body: `Dear Hiring Team,\n\nI am writing to express my strong interest in joining ${company} as a ${role}. With hands-on engineering experience in building scalable, production-grade applications, I am eager to contribute to your technical initiatives.\n\nI look forward to discussing how my experience aligns with your team's goals.\n\nBest regards,\nCandidate`,
+        companyName: company,
+        format: "Outreach Email Draft",
+        isEmailDraft: true,
+      }
+    },
   },
 
   scrapeJobLink: {

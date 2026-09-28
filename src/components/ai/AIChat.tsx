@@ -1071,20 +1071,20 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar, onToggl
                   </Button>
                 </div>
               )}
-              <div className="h-2 shrink-0" ref={messagesEndRef} />
+              <div className="h-8 shrink-0" ref={messagesEndRef} />
             </div>
           )}
         </div>
 
         {/* Unified, Persistent Bottom Input Dock (Never Floating Over Content) */}
         <div className="shrink-0 border-t border-border bg-background p-2.5 sm:p-3 relative z-10">
-          {/* Scroll-to-bottom FAB cleanly anchored directly above dock */}
+          {/* Scroll-to-bottom FAB cleanly anchored directly above dock on the right to prevent overlapping text */}
           {showScrollBtn && (
             <Button
               variant="outline"
               size="icon"
               onClick={() => scrollToBottom(true)}
-              className="absolute -top-9 left-1/2 -translate-x-1/2 size-7 rounded-full border border-border bg-background shadow-xs hover:bg-muted transition-colors z-20 cursor-pointer"
+              className="absolute -top-10 right-4 sm:right-6 size-7 rounded-full border border-border bg-background shadow-xs hover:bg-muted text-muted-foreground hover:text-foreground transition-all z-20 cursor-pointer"
               aria-label="Scroll to bottom"
             >
               <ArrowDown className="size-3.5" />

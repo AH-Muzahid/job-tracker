@@ -316,6 +316,7 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
   const isUser = message.role === "user"
   const [copied, setCopied] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
+  const [showActions, setShowActions] = useState(false)
   const [editText, setEditText] = useState(message.content)
   
   const hasEmbeddedSuggestions = Boolean(message.content && message.content.includes("```suggestions"))
@@ -543,12 +544,15 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
         try {
           rawData = JSON.parse(rawText)
         } catch {
-          return (
-            <div className="my-3 p-4 border border-border bg-muted/30 text-xs rounded-none">
-              <div className="font-semibold text-foreground mb-2">Email Outreach Draft</div>
-              <pre className="whitespace-pre-wrap text-muted-foreground font-mono text-xs">{rawText}</pre>
-            </div>
-          )
+          const subjectMatch = rawText.match(/Subject:\s*([^\n]+)/i)
+          const subject = subjectMatch ? subjectMatch[1].trim() : "Job Application Outreach"
+          const body = rawText.replace(/Subject:\s*[^\n]+\n*/i, "").trim()
+          rawData = {
+            subject,
+            body: body || rawText,
+            format: "Email Outreach Draft",
+            isEmailDraft: true,
+          }
         }
         return (
           <div className="my-3 not-prose">
@@ -692,14 +696,24 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
 
     return (
       <div className="flex flex-col items-end w-full my-1.5 group select-text">
-        {/* User Pill Bubble */}
-        <div className="max-w-[85%] sm:max-w-[75%] rounded-2xl sm:rounded-3xl px-4 py-2 sm:px-4.5 sm:py-2.5 text-xs sm:text-[13.5px] font-normal bg-blue-600 dark:bg-blue-600 text-white shadow-xs break-words whitespace-pre-wrap leading-relaxed tracking-normal">
+        {/* User Pill Bubble - Clean pill with tap-to-toggle for actions on mobile */}
+        <div
+          onClick={() => setShowActions((prev) => !prev)}
+          className="max-w-[85%] sm:max-w-[75%] rounded-2xl sm:rounded-3xl px-4 py-2 sm:px-4.5 sm:py-2.5 text-xs sm:text-[13.5px] font-normal bg-blue-600 dark:bg-blue-600 text-white shadow-xs break-words whitespace-pre-wrap leading-relaxed tracking-normal cursor-pointer active:scale-[0.99] transition-transform"
+        >
           {message.content}
         </div>
 
-        {/* Hover Action Bar Underneath - Aligned to right of the pill */}
+        {/* Hover / Tap Action Bar Underneath - Aligned to right of the pill */}
         {!isStreaming && (
-          <div className="flex items-center gap-0.5 mt-1 mr-1 text-muted-foreground opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 transition-opacity duration-150 not-prose">
+          <div
+            className={cn(
+              "flex items-center gap-0.5 mt-1 mr-1 text-muted-foreground transition-opacity duration-150 not-prose",
+              showActions
+                ? "opacity-100"
+                : "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"
+            )}
+          >
             <button
               type="button"
               onClick={() => {
