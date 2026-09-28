@@ -5,7 +5,7 @@ import Link from "next/link"
 import { cn } from "@/lib/utils"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
-import { Bot, ChevronDown, ChevronUp, Copy, Check, Pencil } from "lucide-react"
+import { MessageSquare, ChevronDown, ChevronUp, Copy, Check, Pencil } from "lucide-react"
 import { toast } from "sonner"
 import AnalysisResult from "./AnalysisResult"
 import OutreachResult from "./OutreachResult"
@@ -439,9 +439,9 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
         return (
           <button
             onClick={handleActionClick}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs border border-primary/20 my-2 cursor-pointer shadow-xs transition-all duration-150 active:scale-95 not-prose"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-sm bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs border border-primary/20 my-2 cursor-pointer shadow-none transition-all duration-150 active:scale-95 not-prose"
           >
-            <Bot className="h-3.5 w-3.5 shrink-0" />
+            <MessageSquare className="h-3.5 w-3.5 shrink-0" />
             <span>{children}</span>
           </button>
         )
@@ -453,15 +453,15 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
       )
     },
     table: ({ children, ...props }: React.TableHTMLAttributes<HTMLTableElement>) => (
-      <div className="my-6 w-full overflow-y-auto rounded-xl border border-border/70">
-        <table className="w-full text-left text-sm" {...props}>{children}</table>
+      <div className="my-4 w-full overflow-x-auto rounded-[6px] border border-border">
+        <table className="w-full text-left text-xs" {...props}>{children}</table>
       </div>
     ),
     th: ({ children, ...props }: React.ThHTMLAttributes<HTMLTableHeaderCellElement>) => (
-      <th className="border-b border-border/70 bg-muted/50 px-4 py-3 font-semibold text-muted-foreground text-xs" {...props}>{children}</th>
+      <th className="border-b border-border bg-muted/60 px-3.5 py-2.5 font-semibold text-muted-foreground text-xs" {...props}>{children}</th>
     ),
     td: ({ children, ...props }: React.TdHTMLAttributes<HTMLTableDataCellElement>) => (
-      <td className="border-b border-border/50 px-4 py-3 align-top last:border-0 text-xs" {...props}>{children}</td>
+      <td className="border-b border-border/60 px-3.5 py-2.5 align-top last:border-0 text-xs text-foreground" {...props}>{children}</td>
     ),
     pre: ({ children, ...props }: React.HTMLAttributes<HTMLElement>) => {
       // If the child is a custom interactive block (suggestions, analysis, outreach, toolchips, etc.), unwrap it directly
@@ -501,12 +501,13 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
         <div className="relative group my-4 not-prose">
           <button
             onClick={handleCopy}
-            className="absolute top-2.5 right-2.5 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-md bg-white/90 dark:bg-zinc-800/90 text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-white dark:hover:bg-zinc-700 border border-zinc-200 dark:border-zinc-700 shadow-xs z-10 cursor-pointer"
+            className="absolute top-2.5 right-2.5 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity p-1.5 rounded-sm bg-background/90 text-muted-foreground hover:text-foreground border border-border shadow-xs z-10 cursor-pointer"
             title="Copy code"
+            aria-label="Copy code block to clipboard"
           >
             <Copy className="h-3.5 w-3.5" />
           </button>
-          <pre className="whitespace-pre-wrap break-words rounded-xl border border-zinc-200/90 dark:border-zinc-800 bg-zinc-100/90 dark:bg-zinc-900/90 text-zinc-800 dark:text-zinc-100 p-4 text-xs font-mono leading-relaxed overflow-x-auto shadow-2xs" {...props}>
+          <pre className="whitespace-pre-wrap break-words rounded-[6px] border border-border bg-muted/40 text-foreground p-3.5 text-xs font-mono leading-relaxed overflow-x-auto shadow-none" {...props}>
             {children}
           </pre>
         </div>
@@ -649,8 +650,8 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
   return (
     <div className={cn("flex gap-3 w-full group", isUser ? "justify-end" : "justify-start")}>
       {showAvatar && (
-        <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-purple-500/10 border border-purple-500/20 text-purple-500 mt-0.5 shadow-2xs">
-          <Bot className="h-3.5 w-3.5" />
+        <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-sm bg-primary/10 border border-primary/20 text-primary mt-0.5 shadow-none" aria-hidden="true">
+          <MessageSquare className="h-3.5 w-3.5" />
         </div>
       )}
       
@@ -658,7 +659,7 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
         className={cn(
           "prose prose-sm dark:prose-invert",
           isUser 
-            ? "max-w-[85%] sm:max-w-[75%] bg-muted/60 border border-border/70 rounded-xl px-3.5 py-2 text-foreground text-xs" 
+            ? "max-w-[85%] sm:max-w-[75%] bg-muted/60 border border-border/70 rounded-[6px] px-3.5 py-2 text-foreground text-xs" 
             : "max-w-none flex-1 min-w-0 pt-0.5",
           "prose-p:leading-relaxed prose-p:my-0",
           "prose-a:text-primary prose-a:no-underline hover:prose-a:underline",

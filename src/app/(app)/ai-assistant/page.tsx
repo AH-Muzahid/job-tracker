@@ -1,12 +1,13 @@
 "use client"
 
-import { useEffect, useCallback } from "react"
+import { useEffect, useCallback, useState } from "react"
 import { useUser } from "@clerk/nextjs"
 import { useRouter, useSearchParams } from "next/navigation"
 import AIChat from "@/components/ai/AIChat"
 import { WorkspaceProvider } from "@/components/ai/WorkspaceContext"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useAI } from "@/lib/store"
+import ChatHistorySidebar from "@/components/ai/ChatHistorySidebar"
 
 interface ChatSession {
   id: string
@@ -23,6 +24,10 @@ export default function AIAssistantPage() {
   const queryClient = useQueryClient()
   const { activeChatId, setActiveChatId } = useAI()
 
+  // Sidebar visibility states
+  const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(true)
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
+
   useQuery({
     queryKey: ["ai", "sessions"],
     queryFn: async () => {
@@ -38,9 +43,9 @@ export default function AIAssistantPage() {
 
   useEffect(() => {
     if (isLoaded && !isSignedIn) {
-      router.push("/");
+      router.push("/")
     }
-  }, [isLoaded, isSignedIn, router]);
+  }, [isLoaded, isSignedIn, router])
 
   // Sync activeChatId with URL param and localStorage on mount
   useEffect(() => {
@@ -67,10 +72,33 @@ export default function AIAssistantPage() {
     }
   }, [activeChatId, searchParams])
 
+  // Global keyboard shortcut: Cmd+K / Ctrl+K creates a new chat
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault()
+        setActiveChatId(null)
+        setMobileSidebarOpen(false)
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [setActiveChatId])
+
   const handleSessionCreated = useCallback((id: string) => {
     setActiveChatId(id)
     queryClient.invalidateQueries({ queryKey: ["ai", "sessions"] })
   }, [queryClient, setActiveChatId])
+
+  const handleSelectChat = useCallback((id: string) => {
+    setActiveChatId(id)
+    setMobileSidebarOpen(false)
+  }, [setActiveChatId])
+
+  const handleNewChat = useCallback(() => {
+    setActiveChatId(null)
+    setMobileSidebarOpen(false)
+  }, [setActiveChatId])
 
   if (!isLoaded) {
     return null
@@ -78,11 +106,40 @@ export default function AIAssistantPage() {
 
   return (
     <WorkspaceProvider>
-      <div className="flex h-[calc(100vh-3.5rem)] w-full overflow-hidden">
+      <div className="flex h-[calc(100dvh-3.5rem)] w-full overflow-hidden bg-background">
+        {/* Desktop History Sidebar */}
+        <div className="hidden md:flex h-full shrink-0">
+          <ChatHistorySidebar
+            activeChatId={activeChatId}
+            onSelectChat={handleSelectChat}
+            onNewChat={handleNewChat}
+            isOpen={desktopSidebarOpen}
+            onToggleOpen={() => setDesktopSidebarOpen(!desktopSidebarOpen)}
+          />
+        </div>
+
+        {/* Mobile History Drawer */}
+        <ChatHistorySidebar
+          activeChatId={activeChatId}
+          onSelectChat={handleSelectChat}
+          onNewChat={handleNewChat}
+          isOpen={mobileSidebarOpen}
+          onToggleOpen={() => setMobileSidebarOpen(!mobileSidebarOpen)}
+          isMobileDrawer={true}
+        />
+
         {/* Main Chat area */}
-        <main role="main" aria-label="AI Conversation Workspace" className="flex-1 flex flex-col min-w-0 relative overflow-hidden bg-background">
+        <main
+          role="main"
+          aria-label="AI Conversation Workspace"
+          className="flex-1 flex flex-col min-w-0 relative overflow-hidden bg-background"
+        >
           <div className="flex-1 overflow-hidden relative">
-            <AIChat sessionId={activeChatId} onSessionCreated={handleSessionCreated} />
+            <AIChat
+              sessionId={activeChatId}
+              onSessionCreated={handleSessionCreated}
+              onToggleHistory={() => setMobileSidebarOpen(!mobileSidebarOpen)}
+            />
           </div>
         </main>
       </div>

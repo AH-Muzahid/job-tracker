@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react"
 import { usePathname, useParams } from "next/navigation"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { Send, Square, FileText, Briefcase, Target, MessageSquare, ArrowDown, Plus, RotateCcw, Bot } from "lucide-react"
+import { Send, Square, FileText, Briefcase, Target, MessageSquare, ArrowDown, Plus, RotateCcw, PanelLeft } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -140,6 +140,7 @@ interface Props {
   sessionId: string | null
   onSessionCreated?: (id: string) => void
   isSidebar?: boolean
+  onToggleHistory?: () => void
 }
 
 function dedupeMessages(msgs: Message[]): Message[] {
@@ -151,7 +152,7 @@ function dedupeMessages(msgs: Message[]): Message[] {
   })
 }
 
-export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props) {
+export default function AIChat({ sessionId, onSessionCreated, isSidebar, onToggleHistory }: Props) {
   const [messages, _setMessages] = useState<Message[]>([])
   const setMessages = useCallback((updater: Message[] | ((prev: Message[]) => Message[])) => {
     _setMessages((prev) => {
@@ -824,6 +825,28 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
     <div className="flex h-full w-full overflow-hidden bg-background">
       {/* Main Chat Pane */}
       <div className="flex-1 flex flex-col h-full min-w-0 bg-background overflow-hidden relative">
+        {/* Mobile Top Bar with History Toggle */}
+        {onToggleHistory && (
+          <div className="md:hidden flex items-center justify-between px-3 py-2 border-b border-border bg-card/60 shrink-0">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onToggleHistory}
+              className="h-8 px-2.5 gap-1.5 text-xs text-muted-foreground hover:text-foreground cursor-pointer"
+              aria-label="Toggle chat history"
+            >
+              <PanelLeft className="size-4" />
+              <span>History</span>
+            </Button>
+            <div className="flex items-center gap-1.5">
+              <div className="flex size-5 items-center justify-center rounded-xs bg-primary/10 text-primary">
+                <MessageSquare className="size-3" />
+              </div>
+              <span className="text-xs font-semibold text-foreground">Career Copilot</span>
+            </div>
+          </div>
+        )}
+
         {/* Messages or Starter View */}
         <div
           className="flex-1 min-h-0 overflow-y-auto"
@@ -838,7 +861,7 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
                   <div className="space-y-1">
                     <div className="flex items-center gap-1.5">
                       <div className="flex size-6 items-center justify-center rounded-sm bg-primary/10 text-primary">
-                        <Bot className="size-3.5" />
+                        <MessageSquare className="size-3.5" />
                       </div>
                       <span className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground font-semibold">
                         Career Copilot
@@ -886,7 +909,7 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
                 <div className="w-full max-w-2xl space-y-6 my-auto">
                   <div className="text-center space-y-2">
                     <div className="inline-flex size-10 items-center justify-center rounded-sm bg-primary/10 text-primary mb-1">
-                      <Bot className="size-5" />
+                      <MessageSquare className="size-5" />
                     </div>
                     <h2 className="text-lg font-semibold tracking-tight text-foreground">
                       CareerTrack Copilot
@@ -994,7 +1017,8 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
                     ? "Ask a question, paste a JD..."
                     : "Ask a question, paste a job description, or type an update..."
                 }
-                className="w-full bg-transparent border-0 outline-none resize-none text-xs placeholder:text-muted-foreground/60 min-h-[38px] max-h-[140px] px-1 py-0.5 leading-relaxed"
+                aria-label="Ask Career Copilot, paste a job description, or instruct action"
+                className="w-full bg-transparent border-0 outline-none resize-none text-xs placeholder:text-muted-foreground min-h-[44px] max-h-[140px] px-1 py-1 leading-relaxed"
                 rows={Math.min(5, Math.max(1, input.split("\n").length))}
                 disabled={isStreaming || loading}
               />
@@ -1004,11 +1028,12 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className="size-6 rounded-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer shrink-0"
+                    className="size-8 sm:size-6 rounded-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer shrink-0"
                     title="Add context"
+                    aria-label="Add context"
                     disabled={loading}
                   >
-                    <Plus className="size-3.5" />
+                    <Plus className="size-4 sm:size-3.5" />
                   </Button>
                   {activeMode && (
                     <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-xs bg-muted text-foreground text-[10px] font-medium border border-border truncate">
@@ -1028,20 +1053,22 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar }: Props
                       size="icon"
                       variant="destructive"
                       onClick={stopStreaming}
-                      className="size-6 rounded-sm transition-colors shadow-none cursor-pointer"
+                      className="size-8 sm:size-6 rounded-sm transition-colors shadow-none cursor-pointer"
                       title="Stop response"
+                      aria-label="Stop response"
                     >
-                      <Square className="size-3" />
+                      <Square className="size-3.5 sm:size-3" />
                     </Button>
                   ) : (
                     <Button
                       size="icon"
                       onClick={() => sendMessage(input)}
                       disabled={!input.trim() || loading}
-                      className="size-6 rounded-sm bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-none cursor-pointer"
+                      className="size-8 sm:size-6 rounded-sm bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-none cursor-pointer"
                       title="Send message"
+                      aria-label="Send message"
                     >
-                      <Send className="size-3" />
+                      <Send className="size-3.5 sm:size-3" />
                     </Button>
                   )}
                 </div>

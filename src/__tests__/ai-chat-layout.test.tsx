@@ -5,17 +5,53 @@ import { renderToString } from "react-dom/server";
 vi.mock("@tanstack/react-query", () => ({
   useQueryClient: vi.fn(() => ({
     invalidateQueries: vi.fn(),
+    setQueryData: vi.fn(),
   })),
-  useQuery: vi.fn(() => ({
-    data: [],
-    isLoading: false,
-    error: null,
+  useQuery: vi.fn((opts: { queryKey?: string[] }) => {
+    if (opts?.queryKey?.[1] === "sessions") {
+      return {
+        data: [
+          {
+            id: "session-1",
+            title: "Stripe Senior Backend JD",
+            updatedAt: new Date().toISOString(),
+            createdAt: new Date().toISOString(),
+          },
+          {
+            id: "session-2",
+            title: "Mock Interview Prep",
+            updatedAt: new Date(Date.now() - 30 * 3600 * 1000).toISOString(),
+            createdAt: new Date(Date.now() - 30 * 3600 * 1000).toISOString(),
+          },
+        ],
+        isLoading: false,
+        error: null,
+      };
+    }
+    return {
+      data: null,
+      isLoading: false,
+      error: null,
+    };
+  }),
+  useMutation: vi.fn(() => ({
+    mutate: vi.fn(),
   })),
 }));
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/ai-assistant",
   useParams: () => ({}),
+  useSearchParams: () => new URLSearchParams(),
+  useRouter: () => ({ push: vi.fn() }),
+}));
+
+vi.mock("@clerk/nextjs", () => ({
+  useUser: () => ({
+    user: { firstName: "Candidate" },
+    isSignedIn: true,
+    isLoaded: true,
+  }),
 }));
 
 vi.mock("@/lib/store", () => {
@@ -27,6 +63,10 @@ vi.mock("@/lib/store", () => {
   return {
     useUI: (selector?: (s: typeof uiState) => unknown) =>
       typeof selector === "function" ? selector(uiState) : uiState,
+    useAI: () => ({
+      activeChatId: "session-1",
+      setActiveChatId: vi.fn(),
+    }),
   };
 });
 
@@ -34,7 +74,11 @@ vi.mock("@/components/ai/WorkspaceContext", () => ({
   useWorkspace: () => ({
     drawerOpen: false,
     setDrawerOpen: vi.fn(),
+    setToolInvocations: vi.fn(),
+    setPlan: vi.fn(),
+    setIsStreaming: vi.fn(),
   }),
+  WorkspaceProvider: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
 
 vi.mock("@/components/ai/WorkspaceDrawer", () => ({
@@ -50,6 +94,8 @@ vi.mock("@/components/ai/ModelSelector", () => ({
 }));
 
 import AIChat from "@/components/ai/AIChat";
+import ChatHistorySidebar from "@/components/ai/ChatHistorySidebar";
+import AIAssistantPage from "@/app/(app)/ai-assistant/page";
 
 describe("AIChat Layout & Architecture Verification", () => {
   it("renders single-column starter list in sidebar mode without squishing cards", () => {
@@ -78,5 +124,36 @@ describe("AIChat Layout & Architecture Verification", () => {
     expect(html).toContain("shrink-0 border-t border-border bg-background");
     // Must NOT contain the old overlapping absolute floating dock
     expect(html).not.toContain("absolute bottom-3 left-0 right-0 px-4");
+  });
+
+  it("strictly enforces accessibility: textarea contains aria-label and buttons have accessible titles", () => {
+    const html = renderToString(<AIChat sessionId={null} isSidebar={false} />);
+    expect(html).toContain('aria-label="Ask Career Copilot, paste a job description, or instruct action"');
+    expect(html).toContain('aria-label="Add context"');
+    expect(html).toContain('aria-label="Send message"');
+  });
+
+  it("renders ChatHistorySidebar with New Chat button, search bar, and relative date groupings", () => {
+    const html = renderToString(
+      <ChatHistorySidebar
+        activeChatId="session-1"
+        onSelectChat={vi.fn()}
+        onNewChat={vi.fn()}
+        isOpen={true}
+        onToggleOpen={vi.fn()}
+      />
+    );
+    expect(html).toContain("New Chat");
+    expect(html).toContain("Search conversations...");
+    expect(html).toContain("Today");
+    expect(html).toContain("Yesterday");
+    expect(html).toContain("Stripe Senior Backend JD");
+    expect(html).toContain("Mock Interview Prep");
+  });
+
+  it("renders AIAssistantPage with 100dvh viewport and wires ChatHistorySidebar", () => {
+    const html = renderToString(<AIAssistantPage />);
+    expect(html).toContain("h-[calc(100dvh-3.5rem)]");
+    expect(html).toContain("aria-label=\"Chat History\"");
   });
 });

@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { X, ExternalLink, Bot } from "lucide-react"
+import { X, ExternalLink, MessageSquare } from "lucide-react"
 import { useUI } from "@/lib/store"
 import AIChat from "./AIChat"
 import { cn } from "@/lib/utils"
@@ -47,7 +47,7 @@ export default function GlobalAISidebar() {
         <div className="flex h-14 sm:h-15 items-center justify-between border-b border-border px-3.5 bg-background shrink-0 gap-2">
           <div className="flex items-center gap-2 min-w-0">
             <div className="flex size-7 items-center justify-center rounded-sm bg-primary/10 text-primary shrink-0">
-              <Bot className="size-4" />
+              <MessageSquare className="size-4" />
             </div>
             <h2 className="text-xs sm:text-sm font-semibold tracking-tight text-foreground truncate">
               Career Copilot
