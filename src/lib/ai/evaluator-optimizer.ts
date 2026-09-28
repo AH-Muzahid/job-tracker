@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 export interface EvaluationRubric {
   /** Disallow brackets/tokens like [Company Name], [Your Name], [Hiring Manager] */
   disallowPlaceholders?: boolean
