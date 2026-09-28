@@ -380,7 +380,7 @@ describe("CAG-14: Bi-directional Interview Feedback Loop", () => {
 
       // Verify generateText was called with weakness notes in prompt
       const promptArg = (vi.mocked(generateText).mock.calls[0][0] as any).prompt
-      expect(promptArg).toContain("Areas of Prior Technical Weakness / Feedback")
+      expect(promptArg.toLowerCase()).toContain("areas of prior technical feedback")
       expect(promptArg).toContain("CSS Grid")
     })
   })

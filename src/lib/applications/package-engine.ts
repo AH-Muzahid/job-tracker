@@ -3,6 +3,25 @@ import { extractTechTagsFromText } from "@/lib/discovery/scrapers"
 import { getCompanyEnrichment, type CompanyEnrichmentInfo } from "@/lib/discovery/company-enrichment"
 import { isFollowUpDue, calculateBusinessDays } from "@/lib/applications/follow-up-engine"
 
+export interface SquadTraceDeliberation {
+  scoutSummary?: {
+    company: string
+    role: string
+    techStackDetected: string[]
+  }
+  strategistBrief?: {
+    targetRole: string
+    matchedSkills: Array<{ skill: string; proofProject?: string; metric?: string }>
+    cautionSkills: string[]
+    positioningPitch: string
+  }
+  criticAudit?: {
+    approved: boolean
+    rounds: number
+    feedback?: string[]
+  }
+}
+
 export interface ApplicationPackageItem {
   application: {
     id: string
@@ -52,6 +71,7 @@ export interface ApplicationPackageItem {
     hasOfferData: boolean
     offerDetails?: unknown | null
   }
+  squadTrace?: SquadTraceDeliberation | null
   nextBestAction: {
     type: "SUBMIT_APPLICATION" | "SEND_FOLLOWUP" | "AWAIT_RESPONSE" | "PREP_INTERVIEW" | "BENCHMARK_OFFER" | "RETROSPECTIVE" | "PACKAGE_ASSETS"
     title: string
@@ -321,6 +341,9 @@ export async function compileApplicationPackage(
       hasOfferData: Boolean(application.offerDetails),
       offerDetails: application.offerDetails || null,
     },
+    squadTrace: (analysis?.resumeAdvice && typeof analysis.resumeAdvice === "object" && "squadTrace" in analysis.resumeAdvice)
+      ? ((analysis.resumeAdvice as { squadTrace?: SquadTraceDeliberation }).squadTrace || null)
+      : null,
     nextBestAction,
     timeline: application.statusChanges.map((sc) => ({
       fromStatus: sc.fromStatus,

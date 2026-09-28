@@ -4,18 +4,35 @@ import { getUserAIConfig } from "@/lib/ai/config"
 import { getProvider } from "@/lib/ai/client"
 import { generateText } from "ai"
 import { toCanonical } from "@/lib/ai/knowledge-graph"
-import { getUserWeaknesses } from "@/lib/ai/memory"
 import { traceAIGeneration } from "@/lib/ai/telemetry"
 import { extractJsonObject } from "@/lib/ai/json-extractor"
 import { getCachedJson } from "@/lib/redis"
 import { assembleAgenticCandidateContext } from "@/lib/ai/agentic-context"
-import { runEvaluatorOptimizer } from "@/lib/ai/evaluator-optimizer"
+import {
+  coordinateApplicationPackageSquad,
+  StrategistBrief,
+  ApplicationMaterialsDraft,
+} from "@/lib/ai/squad/orchestrator"
 import {
   extractContactEmail,
   sanitizeOutreachPlaceholders,
   generateDeterministicOutreachBundle,
   OutreachChannelBundle,
 } from "@/lib/applications/outreach-engine"
+
+export interface SquadTraceDeliberation {
+  scoutSummary?: {
+    company: string
+    role: string
+    techStackDetected: string[]
+  }
+  strategistBrief?: StrategistBrief
+  criticAudit?: {
+    approved: boolean
+    rounds: number
+    feedback?: string[]
+  }
+}
 
 export interface GeneratedApplicationMaterials {
   coverLetter: string
@@ -25,6 +42,7 @@ export interface GeneratedApplicationMaterials {
   atsKeywords: string[]
   outreachSubject?: string
   outreachChannels?: OutreachChannelBundle
+  squadTrace?: SquadTraceDeliberation
 }
 
 /**
@@ -146,22 +164,45 @@ export async function generateApplicationMaterialsAgent(
 
       const systemPromptContext = dossier?.summaryContextText || `Candidate Name: ${candidateName}`
 
-      // Run Reflexion (Evaluator-Optimizer) Loop for self-correction
-      const evalResult = await runEvaluatorOptimizer<GeneratedApplicationMaterials>({
-        maxIterations: 2,
-        generator: async ({ iteration, critiqueFeedback }) => {
+      // Coordinate Level 4 Multi-Agent Squad (Scout -> Strategist -> Scribe -> Critic)
+      const squadResult = await coordinateApplicationPackageSquad({
+        jobTitle: context.jobTitle,
+        companyName: context.companyName,
+        candidateName,
+        candidateEmail: dossier?.candidateEmail,
+        dossierContext: dossier?.summaryContextText,
+        strategistFn: async ({ jobTitle, companyName }) => {
+          const matchedSkills = (dossier?.matchedSkills || []).map((s) => ({
+            skill: s.skill,
+            proofProject: s.proofProjects?.[0]?.projectName,
+            metric: s.proofProjects?.[0]?.metrics?.[0],
+          }))
+          const cautionSkills = dossier?.missingSkills || []
+          const positioningPitch = `Positioning ${candidateName} for ${jobTitle} at ${companyName} emphasizing verified strengths in ${(dossier?.adaptiveBoosts || []).slice(0, 3).join(", ") || "full-stack engineering"}.`
+          return {
+            targetRole: jobTitle,
+            matchedSkills,
+            cautionSkills,
+            positioningPitch,
+          }
+        },
+        scribeFn: async (brief, critiqueFeedback) => {
           const critiqueNote =
             critiqueFeedback && critiqueFeedback.length > 0
               ? `\nCRITICAL FIXES REQUIRED FROM PREVIOUS DRAFT EVALUATION:\n${critiqueFeedback.map((f) => `- ${f}`).join("\n")}\nPlease rewrite fixing these exact violations while maintaining factual accuracy.`
               : ""
 
-          const prompt = `You are the CareerTrack Master Application Craftsman.
+          const strategySection = `STRATEGY BRIEF:\n- Target Role: ${brief.targetRole}\n- Positioning Pitch: ${brief.positioningPitch}\n- Verified Skills & Proof: ${JSON.stringify(brief.matchedSkills.slice(0, 5))}`
+
+          const prompt = `You are the CareerTrack Master Application Craftsman (Scribe).
 Draft tailored application materials for a candidate applying to:
 Job Title: ${context.jobTitle}
 Company: ${context.companyName}
 Location: ${context.location || "Remote"}
 
 ${systemPromptContext}
+
+${strategySection}
 ${critiqueNote}
 
 CRITICAL NO-PLACEHOLDER & QUALITY RULES:
@@ -184,26 +225,46 @@ Respond in valid JSON format:
             prompt,
           })
 
-          const parsed = extractJsonObject<GeneratedApplicationMaterials>(result.text)
+          const parsed = extractJsonObject<ApplicationMaterialsDraft>(result.text)
           if (!parsed || !parsed.coverLetter) {
             throw new Error("Invalid materials JSON returned by model")
           }
-          return parsed
+          return {
+            coverLetter: parsed.coverLetter,
+            highlights: parsed.highlights || [],
+            outreachPitch: parsed.outreachPitch || "",
+            strategyTip: parsed.strategyTip,
+            atsKeywords: parsed.atsKeywords || [],
+          }
         },
-        rubric: {
-          disallowPlaceholders: true,
-          maxCharacters: 6000,
-        },
-        textExtractor: (output) => `${output.coverLetter}\n${output.outreachPitch}`,
-        fallbackSanitizer: (content) =>
-          sanitizeOutreachPlaceholders(content, {
-            companyName: context.companyName,
-            jobTitle: context.jobTitle,
-            candidateName,
-          }),
+        maxCriticRounds: 2,
       })
 
-      materials = evalResult.content
+      if (squadResult.isDeterministicFallback) {
+        materials = generateDeterministicMaterials(candidateName, dossier, context)
+      } else {
+        materials = {
+          coverLetter: squadResult.materials.coverLetter,
+          highlights: squadResult.materials.highlights || [],
+          outreachPitch: squadResult.materials.outreachPitch,
+          strategyTip: squadResult.materials.strategyTip,
+          atsKeywords: squadResult.materials.atsKeywords || [],
+          squadTrace: {
+            scoutSummary: {
+              company: context.companyName,
+              role: context.jobTitle,
+              techStackDetected: squadResult.materials.atsKeywords || [],
+            },
+            strategistBrief: squadResult.strategistBrief,
+            criticAudit: {
+              approved: squadResult.approvedByCritic,
+              rounds: squadResult.rounds,
+              feedback: squadResult.criticFeedback,
+            },
+          },
+        }
+      }
+
       const outreachCtx = {
         companyName: context.companyName,
         jobTitle: context.jobTitle,
@@ -237,12 +298,13 @@ Respond in valid JSON format:
           outreachPitch: materials.outreachPitch,
           strategyTip: materials.strategyTip,
           atsKeywords: materials.atsKeywords,
-          selfCorrected: evalResult.selfCorrected,
-          iterations: evalResult.iterations,
+          selfCorrected: squadResult.rounds > 1,
+          iterations: squadResult.rounds,
+          approvedByCritic: squadResult.approvedByCritic,
         },
         latencyMs: Date.now() - startTime,
         status: "success",
-        tags: ["discovery", "cover-letter", "package", "reflexion"],
+        tags: ["discovery", "cover-letter", "package", "multi-agent-squad"],
         flush: true,
       })
     } else {
@@ -364,7 +426,8 @@ Respond in valid JSON format:
           resumeAdvice: {
             highlights: materials.highlights,
             atsKeywords: materials.atsKeywords,
-          },
+            squadTrace: materials.squadTrace,
+          } as any,
           applyStrategy: {
             outreachPitch: materials.outreachPitch,
             strategyTip: materials.strategyTip,
@@ -383,7 +446,8 @@ Respond in valid JSON format:
           resumeAdvice: {
             highlights: materials.highlights,
             atsKeywords: materials.atsKeywords,
-          },
+            squadTrace: materials.squadTrace,
+          } as any,
           applyStrategy: {
             outreachPitch: materials.outreachPitch,
             strategyTip: materials.strategyTip,
