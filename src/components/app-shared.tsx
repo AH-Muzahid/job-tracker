@@ -8,6 +8,7 @@ import {
 	Compass,
 	Briefcase,
 	CalendarDays,
+	BrainCircuit,
 } from "lucide-react";
 
 export type SidebarNavItem = {
@@ -58,6 +59,11 @@ export const navGroups: SidebarNavGroup[] = [
 				title: "Career Profile",
 				path: "/profile-setup",
 				icon: <User className="size-4" />,
+			},
+			{
+				title: "Career Brain",
+				path: "/brain",
+				icon: <BrainCircuit className="size-4" />,
 			},
 			{
 				title: "Settings",

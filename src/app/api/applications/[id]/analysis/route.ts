@@ -123,6 +123,53 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
     const data = parsed.data
 
+    // Closed-Loop Learning (AGT-04): Learn candidate tone and length preferences from edits
+    if (data.outreachBody && typeof data.outreachBody === "string" && prisma.userMemory?.create) {
+      try {
+        const existing = await withDbRetry(() =>
+          prisma.applicationAnalysis.findUnique({
+            where: { applicationId: id },
+            select: { outreachBody: true },
+          })
+        )
+        if (existing?.outreachBody && existing.outreachBody !== data.outreachBody) {
+          const oldLen = existing.outreachBody.length
+          const newLen = data.outreachBody.length
+          let preferenceNote = ""
+
+          if (newLen < oldLen * 0.75) {
+            preferenceNote = "Prefers concise, punchy outreach pitches (candidate trimmed generated draft by >25%)."
+          } else if (newLen > oldLen * 1.35) {
+            preferenceNote = "Prefers detailed, comprehensive outreach messages with in-depth technical explanation."
+          }
+
+          if (preferenceNote) {
+            const existingPref = await withDbRetry(() =>
+              prisma.userMemory.findFirst({
+                where: { userId, category: "preference", content: preferenceNote },
+              })
+            ).catch(() => null)
+
+            if (!existingPref) {
+              await withDbRetry(() =>
+                prisma.userMemory.create({
+                  data: {
+                    userId,
+                    category: "preference",
+                    content: preferenceNote,
+                    source: "closed_loop_edit_learning",
+                    confidence: 0.85,
+                  },
+                })
+              ).catch(() => null)
+            }
+          }
+        }
+      } catch {
+        // Non-blocking preference learning
+      }
+    }
+
     const updatedAnalysis = await withDbRetry(() =>
       prisma.applicationAnalysis.upsert({
         where: { applicationId: id },

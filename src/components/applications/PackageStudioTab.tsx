@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { ApplicationPackageItem } from "@/lib/applications/package-engine"
 
+import { SquadDeliberationCard } from "@/components/applications/SquadDeliberationCard"
+
 interface PackageStudioTabProps {
   applicationId: string
 }
@@ -168,6 +170,9 @@ export function PackageStudioTab({ applicationId }: PackageStudioTabProps) {
           </div>
         </div>
       </div>
+
+      {/* 2.5 Autonomous Squad Deliberation Trace */}
+      {pkg.squadTrace && <SquadDeliberationCard squadTrace={pkg.squadTrace} />}
 
       {/* 3. Matched Canonical Tech Stack */}
       {techStack.length > 0 && (
