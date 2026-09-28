@@ -131,7 +131,7 @@ export default function LoadingState({
   // Tool calls in progress - show like OpenCode/terminal style
   if (hasToolCalls) {
     return (
-      <div className={cn("w-full not-prose my-1 text-[11px] font-mono select-none", className)}>
+      <div className={cn("w-full not-prose my-1 text-[11px] font-mono select-none", className)} role="status" aria-live="polite">
         {toolInvocations.map((tool, idx) => {
           const isRunning = tool.state === "call";
           const isDone = tool.state === "result";
@@ -139,24 +139,24 @@ export default function LoadingState({
           const icon = getToolIcon(tool.toolName);
 
           return (
-            <div key={tool.toolCallId || idx} className="flex items-center gap-1.5 py-0.5 text-muted-foreground/70">
-              <span className="text-muted-foreground/40 w-3 text-right shrink-0">
+            <div key={tool.toolCallId || idx} className="flex items-center gap-1.5 py-0.5 text-muted-foreground">
+              <span className="text-muted-foreground w-3 text-right shrink-0">
                 {isRunning ? (
                   <Loader2 className="h-2.5 w-2.5 animate-spin text-amber-500" />
                 ) : (
-                  <span className="text-emerald-500">✓</span>
+                  <span className="text-emerald-500 font-bold">✓</span>
                 )}
               </span>
-              <span className="text-muted-foreground/50 shrink-0">{icon}</span>
+              <span className="text-muted-foreground shrink-0">{icon}</span>
               <span className={cn(
                 "truncate",
-                isRunning && "text-foreground/70",
-                isDone && "text-muted-foreground/50"
+                isRunning && "text-foreground font-medium",
+                isDone && "text-muted-foreground"
               )}>
                 {label}
               </span>
               {isRunning && (
-                <span className="text-muted-foreground/40 tabular-nums shrink-0">{elapsed}</span>
+                <span className="text-muted-foreground tabular-nums shrink-0">{elapsed}</span>
               )}
             </div>
           );
@@ -167,12 +167,12 @@ export default function LoadingState({
 
   // Default thinking state
   return (
-    <div role="status" className={cn("flex items-center gap-1.5 py-0.5 select-none", className)}>
+    <div role="status" aria-live="polite" className={cn("flex items-center gap-1.5 py-0.5 select-none", className)}>
       <Loader2 className="h-3 w-3 animate-spin text-muted-foreground shrink-0" />
-      <span className="text-[11px] font-medium text-foreground/70">
+      <span className="text-[11px] font-medium text-foreground">
         {label || "Thinking"}
       </span>
-      <span className="text-[10px] text-muted-foreground/50 tabular-nums">
+      <span className="text-[10px] text-muted-foreground tabular-nums">
         {elapsed}
       </span>
     </div>

@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect, useRef } from "react"
-import { Cpu, Clock, Layers, Coins } from "lucide-react"
+import { Terminal, Clock, Layers, Coins } from "lucide-react"
 import { useWorkspace } from "./WorkspaceContext"
 import AgenticProcessViewer from "./AgenticProcessViewer"
 import { DecorIcon } from "@/components/decor-icon"
@@ -99,7 +99,7 @@ export default function TerminalTab() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="space-y-1">
             <div className="text-[10px] text-muted-foreground font-sans font-semibold tracking-wider flex items-center gap-1.5">
-              <Cpu className="h-3 w-3 text-primary shrink-0" />
+              <Terminal className="h-3 w-3 text-primary shrink-0" />
               <span>PROVIDER ROUTE</span>
             </div>
             <div className="text-sm font-semibold truncate capitalize text-foreground">

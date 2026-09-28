@@ -15,8 +15,8 @@ import {
   PanelLeftClose,
   UserPlus,
   Trash2,
-  Brain,
-  Bot,
+  MessageSquare,
+  Target,
   FileText,
 } from "lucide-react";
 import GlideMenu from "@/components/primitives/GlideMenu";
@@ -51,7 +51,7 @@ export function IconPlusMedium({ size = 16, className = "" }: { size?: number; c
   return <Plus size={size} className={className} />;
 }
 export function IconPopsicle2({ size = 18, className = "" }: { size?: number; className?: string }) {
-  return <Bot size={size} className={className} />;
+  return <MessageSquare size={size} className={className} />;
 }
 export function IconSettingsGear1({ size = 16, className = "" }: { size?: number; className?: string }) {
   return <Settings size={size} className={className} />;
@@ -71,7 +71,7 @@ export function IconUserAdd({ size = 18, className = "" }: { size?: number; clas
  * ───────────────────────────────────────────────────────── */
 
 const DEFAULT_NAV_ITEMS = [
-  { key: "prep", label: "Interview Prep", href: "/interview-prep", icon: <Brain size={18} /> },
+  { key: "prep", label: "Interview Prep", href: "/interview-prep", icon: <Target size={18} /> },
   { key: "resumes", label: "Resumes", href: "/resumes", icon: <FileText size={18} /> },
 ];
 
