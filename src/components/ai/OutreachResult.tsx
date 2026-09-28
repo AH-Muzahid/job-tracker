@@ -92,11 +92,11 @@ export default function OutreachResult({ data }: { data: Record<string, unknown>
   if (!outreach.body && !outreach.subject) return null
 
   return (
-    <Card className="rounded-xl border border-border/80 bg-card/70 backdrop-blur-2xl shadow-xs overflow-hidden">
-      <CardHeader className="flex flex-row items-center justify-between border-b border-border/50 bg-muted/30 px-4 py-2.5 space-y-0">
+    <Card className="rounded-[6px] border border-border bg-card shadow-none overflow-hidden my-3">
+      <CardHeader className="flex flex-row items-center justify-between border-b border-border bg-muted/30 px-3.5 py-2.5 space-y-0">
         <div className="flex items-center gap-2 text-xs font-bold text-foreground">
-          <Mail className="h-4 w-4 text-indigo-500" />
-          <CardTitle className="text-xs font-bold">
+          <Mail className="h-4 w-4 text-primary" />
+          <CardTitle className="text-xs font-semibold">
             {outreach.format || (outreach.isEmailDraft ? "AI Email Outreach Draft" : "Outreach Template")}
           </CardTitle>
         </div>
@@ -104,7 +104,8 @@ export default function OutreachResult({ data }: { data: Record<string, unknown>
           variant="ghost"
           size="sm"
           onClick={handleCopy}
-          className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+          className="h-7 px-2 text-xs rounded-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+          aria-label="Copy draft"
         >
           {copied ? (
             <>
@@ -120,10 +121,10 @@ export default function OutreachResult({ data }: { data: Record<string, unknown>
         </Button>
       </CardHeader>
       
-      <CardContent className="p-4 space-y-4">
+      <CardContent className="p-4 space-y-3.5">
         {/* Recipient Field */}
         <div className="space-y-1">
-          <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+          <label className="text-[10px] font-mono font-bold text-muted-foreground uppercase tracking-wider">
             Recipient Email (To)
           </label>
           <input
@@ -135,13 +136,14 @@ export default function OutreachResult({ data }: { data: Record<string, unknown>
               setRecipient(e.target.value)
             }}
             disabled={isSent || isSending}
-            className="w-full rounded-lg border border-border/80 bg-background px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary disabled:opacity-60"
+            aria-label="Recipient Email"
+            className="w-full rounded-sm border border-border bg-background px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-foreground/40 disabled:opacity-60 transition-colors"
           />
         </div>
 
         {/* Subject Field */}
         <div className="space-y-1">
-          <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+          <label className="text-[10px] font-mono font-bold text-muted-foreground uppercase tracking-wider">
             Subject
           </label>
           <input
@@ -152,13 +154,14 @@ export default function OutreachResult({ data }: { data: Record<string, unknown>
               setSubject(e.target.value)
             }}
             disabled={isSent || isSending}
-            className="w-full rounded-lg border border-border/80 bg-background px-3 py-1.5 text-xs font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary disabled:opacity-60"
+            aria-label="Email Subject"
+            className="w-full rounded-sm border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground focus:outline-none focus:border-foreground/40 disabled:opacity-60 transition-colors"
           />
         </div>
         
         {/* Body Field */}
         <div className="space-y-1">
-          <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+          <label className="text-[10px] font-mono font-bold text-muted-foreground uppercase tracking-wider">
             Message Body
           </label>
           <textarea
@@ -169,14 +172,15 @@ export default function OutreachResult({ data }: { data: Record<string, unknown>
               setBodyText(e.target.value)
             }}
             disabled={isSent || isSending}
-            className="w-full rounded-lg border border-border/80 bg-background p-3 text-xs text-foreground/90 leading-relaxed focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary disabled:opacity-60 resize-y"
+            aria-label="Email Body"
+            className="w-full rounded-sm border border-border bg-background p-3 text-xs text-foreground leading-relaxed focus:outline-none focus:border-foreground/40 disabled:opacity-60 resize-y transition-colors font-mono"
           />
         </div>
 
         {/* Action Button */}
-        <div className="pt-2 flex items-center justify-between">
+        <div className="pt-1 flex items-center justify-between gap-2">
           {outreach.companyName && (
-            <Badge variant="outline" className="text-[10px] font-mono border-border/60">
+            <Badge variant="outline" className="text-[10px] font-mono border-border rounded-xs">
               Linked to: {outreach.companyName}
             </Badge>
           )}
@@ -185,10 +189,10 @@ export default function OutreachResult({ data }: { data: Record<string, unknown>
               onClick={handleSendEmail}
               disabled={isSending || isSent}
               size="sm"
-              className={`h-8 rounded-lg text-xs font-semibold shadow-xs transition-all ${
+              className={`h-8 rounded-sm text-xs font-medium shadow-none transition-all cursor-pointer ${
                 isSent
                   ? "bg-emerald-600 hover:bg-emerald-600 text-white cursor-default"
-                  : "bg-indigo-600 hover:bg-indigo-500 text-white"
+                  : "bg-primary hover:bg-primary/90 text-primary-foreground"
               }`}
             >
               {isSending ? (
@@ -212,12 +216,14 @@ export default function OutreachResult({ data }: { data: Record<string, unknown>
         </div>
 
         {outreach.checklist && outreach.checklist.length > 0 && (
-          <div className="pt-3 border-t border-border/50">
-            <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-2 block">Outreach Checklist</span>
+          <div className="pt-2.5 border-t border-border/50">
+            <span className="text-[10px] font-mono font-bold text-muted-foreground uppercase tracking-wider mb-1.5 block">
+              Outreach Checklist
+            </span>
             <ul className="space-y-1">
               {outreach.checklist.map((item, i) => (
                 <li key={i} className="text-xs text-muted-foreground flex items-start gap-1.5">
-                  <div className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-indigo-500" />
+                  <div className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-primary" />
                   <span>{item}</span>
                 </li>
               ))}
