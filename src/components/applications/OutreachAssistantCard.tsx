@@ -15,7 +15,7 @@ import {
   UserCheck,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { OutreachDrafts, OutreachChannel, OutreachChannelBundle } from "./types"
+import { OutreachDrafts, OutreachChannel } from "./types"
 import { extractContactEmail, sanitizeOutreachPlaceholders } from "@/lib/applications/outreach-engine"
 
 interface OutreachAssistantCardProps {

@@ -15,6 +15,10 @@ vi.mock("@/lib/prisma", () => {
       findUnique: vi.fn(),
       upsert: vi.fn(),
     },
+    userMemory: {
+      findFirst: vi.fn(),
+      create: vi.fn(),
+    },
   }
   return {
     prisma: mockPrisma,
@@ -190,4 +194,40 @@ describe("CAG-02: Outreach Drafts PostgreSQL Persistence & Tenant Security", () 
     const json = await res.json()
     expect(json.error).toBe("Invalid analysis payload")
   })
+
+  it("learns candidate conciseness preference when candidate significantly trims generated outreach draft", async () => {
+    vi.mocked(prisma.application.findFirst).mockResolvedValueOnce({
+      id: mockAppId,
+      userId: mockUserId,
+    } as any)
+
+    const existingBody = "Dear Stripe Team,\n\nI am writing to express my deepest interest in the position. Here is a very long paragraph detailing every single project and milestone from 2018 to 2026. Furthermore, I would like to elaborate on multiple distributed systems architectural paradigms that I have evaluated..."
+    vi.mocked(prisma.applicationAnalysis.findUnique).mockResolvedValueOnce({
+      outreachBody: existingBody,
+    } as any)
+    vi.mocked(prisma.userMemory.findFirst).mockResolvedValueOnce(null)
+    vi.mocked(prisma.userMemory.create).mockResolvedValueOnce({ id: "mem-1" } as any)
+    vi.mocked(prisma.applicationAnalysis.upsert).mockResolvedValueOnce({ id: "analysis-1" } as any)
+
+    const shortenedBody = "Hi Stripe Team, I saw the open role and built high-scale systems. Let's chat!"
+    const req = new NextRequest(`http://localhost:3000/api/applications/${mockAppId}/analysis`, {
+      method: "PATCH",
+      body: JSON.stringify({ outreachBody: shortenedBody }),
+    })
+
+    const res = await PATCH(req, { params: Promise.resolve({ id: mockAppId }) })
+    expect(res.status).toBe(200)
+
+    expect(prisma.userMemory.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          userId: mockUserId,
+          category: "preference",
+          content: expect.stringContaining("Prefers concise, punchy outreach pitches"),
+          source: "closed_loop_edit_learning",
+        }),
+      })
+    )
+  })
 })
+

@@ -109,7 +109,7 @@ export async function POST(
 
   // Base deterministic fallback bundle
   const deterministicBundle = generateDeterministicOutreachBundle(outreachCtx)
-  let finalBundle: OutreachChannelBundle = deterministicBundle
+  const finalBundle: OutreachChannelBundle = deterministicBundle
 
   const aiConfig = await getUserAIConfig(userId, undefined, { requireUserKey: true })
 
