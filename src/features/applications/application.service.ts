@@ -1,6 +1,7 @@
 import { ApplicationRepository } from "./application.repository"
 import { validateCreateApplication, validateUpdateApplication } from "./application.validation"
 import { invalidateCache } from "@/lib/redis"
+import { handleApplicationOutcomeFeedback } from "@/lib/ai/learning-engine"
 import type {
   ApplicationQueryFilters,
   CreateApplicationDto,
@@ -65,6 +66,14 @@ export class ApplicationService {
     const updated = await ApplicationRepository.update(id, existing.status, data)
     void invalidateCache(`user:stats:${userId}`)
     void invalidateCache(`user:stats:v2:${userId}`)
+
+    // Level 5 Closed-Loop Self-Evolution: recalibrate learning engine on outcome transitions
+    if (data.status && data.status !== existing.status) {
+      void handleApplicationOutcomeFeedback(userId, updated).catch((err) =>
+        console.warn("[ApplicationService] Learning outcome calibration error:", err)
+      )
+    }
+
     return { data: updated, status: 200 }
   }
 
