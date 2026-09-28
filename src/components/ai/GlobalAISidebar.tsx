@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { X, ExternalLink, MessageSquare } from "lucide-react"
+import { X, ExternalLink, MessageSquare, Plus } from "lucide-react"
 import { useUI } from "@/lib/store"
 import AIChat from "./AIChat"
 import { cn } from "@/lib/utils"
@@ -11,16 +11,12 @@ export default function GlobalAISidebar() {
   const { aiSidebarOpen, setAiSidebarOpen } = useUI()
   const [sessionId, setSessionId] = useState<string | null>(null)
 
+  // Every time the Copilot sidebar is opened, always start a fresh chat session
   useEffect(() => {
-    const storedId = localStorage.getItem("last-active-chat")
-    if (storedId) setSessionId(storedId)
-  }, [])
-
-  useEffect(() => {
-    if (sessionId) {
-      localStorage.setItem("last-active-chat", sessionId)
+    if (aiSidebarOpen) {
+      setSessionId(null)
     }
-  }, [sessionId])
+  }, [aiSidebarOpen])
 
   return (
     <>
@@ -64,6 +60,14 @@ export default function GlobalAISidebar() {
           </div>
 
           <div className="flex items-center gap-1 shrink-0">
+            <button
+              onClick={() => setSessionId(null)}
+              className="flex size-7 items-center justify-center rounded-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
+              title="New Chat"
+              aria-label="New Chat"
+            >
+              <Plus className="size-4" />
+            </button>
             <button
               onClick={() => setAiSidebarOpen(false)}
               className="flex size-7 items-center justify-center rounded-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
