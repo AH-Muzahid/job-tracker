@@ -153,7 +153,7 @@ describe("AIChat Layout & Architecture Verification", () => {
 
   it("renders AIAssistantPage with 100dvh viewport and wires ChatHistorySidebar", () => {
     const html = renderToString(<AIAssistantPage />);
-    expect(html).toContain("h-[calc(100dvh-3.5rem)]");
+    expect(html).toContain("h-dvh");
     expect(html).toContain("aria-label=\"Chat History\"");
   });
 });

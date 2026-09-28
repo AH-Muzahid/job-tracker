@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { SidebarInset, SidebarProvider, useSidebar } from "@/components/ui/sidebar";
 import { AppHeader } from "@/components/app-header";
 import { AppSidebar } from "@/components/app-sidebar";
 import CommandPalette from "@/components/CommandPalette";
@@ -11,6 +11,22 @@ import GlobalAISidebar from "@/components/ai/GlobalAISidebar";
 import { UniversalJDEvaluatorModal } from "@/components/discovery/UniversalJDEvaluatorModal";
 import { MobileBottomNav } from "@/components/mobile-bottom-nav";
 import { useUI } from "@/lib/store";
+
+function NavigationAutoCollapse() {
+	const aiSidebarOpen = useUI((s) => s.aiSidebarOpen);
+	const { setOpen, isMobile, setOpenMobile } = useSidebar();
+
+	useEffect(() => {
+		if (aiSidebarOpen) {
+			setOpen(false);
+			if (isMobile) {
+				setOpenMobile(false);
+			}
+		}
+	}, [aiSidebarOpen, setOpen, isMobile, setOpenMobile]);
+
+	return null;
+}
 
 export function AppShell({ children }: { children: React.ReactNode }) {
 	const initTheme = useUI((s) => s.initTheme);
@@ -35,16 +51,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
 	return (
 		<SidebarProvider className={cn("[--app-wrapper-max-width:86rem]")}>
-			<div className="hidden md:contents">
-				<AppSidebar />
-			</div>
+			<NavigationAutoCollapse />
+			{!isFullscreen && (
+				<div className="hidden md:contents">
+					<AppSidebar />
+				</div>
+			)}
 			<SidebarInset className="min-w-0 max-w-full flex flex-col bg-background">
-				<AppHeader />
+				{!isFullscreen && <AppHeader />}
 				<div
 					className={cn(
 						"flex flex-1 flex-col min-w-0 max-w-full",
-						isFullscreen ? "p-0" : "px-3 sm:px-5 lg:px-6 py-3.5 sm:py-5 pb-20 md:pb-5",
-						"mx-auto w-full max-w-(--app-wrapper-max-width)"
+						isFullscreen ? "p-0 max-w-none" : "px-3 sm:px-5 lg:px-6 py-3.5 sm:py-5 pb-20 md:pb-5 mx-auto w-full max-w-(--app-wrapper-max-width)"
 					)}
 				>
 					{children}

@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import Link from "next/link"
 import {
   SquarePen,
   Search,
@@ -13,6 +14,7 @@ import {
   PanelLeftClose,
   PanelLeft,
   Loader2,
+  ChevronLeft,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -169,11 +171,19 @@ export default function ChatHistorySidebar({
     return (
       <div className="hidden md:flex flex-col items-center justify-between py-3 px-1.5 border-r border-border bg-card/40 w-12 shrink-0 h-full select-none">
         <div className="flex flex-col items-center gap-2">
+          <Link
+            href="/dashboard"
+            className="flex size-8 items-center justify-center rounded-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+            title="Back to Dashboard"
+            aria-label="Back to Dashboard"
+          >
+            <ChevronLeft className="size-4" />
+          </Link>
           <Button
             variant="ghost"
             size="icon"
             onClick={onToggleOpen}
-            className="size-8 rounded-sm text-muted-foreground hover:text-foreground hover:bg-muted"
+            className="size-8 rounded-sm text-muted-foreground hover:text-foreground hover:bg-muted cursor-pointer"
             title="Expand chat history"
             aria-label="Expand chat history"
           >
@@ -183,7 +193,7 @@ export default function ChatHistorySidebar({
             variant="outline"
             size="icon"
             onClick={onNewChat}
-            className="size-8 rounded-sm border-border bg-background hover:bg-muted text-foreground"
+            className="size-8 rounded-sm border-border bg-background hover:bg-muted text-foreground cursor-pointer"
             title="New Chat"
             aria-label="New Chat"
           >
@@ -202,6 +212,20 @@ export default function ChatHistorySidebar({
       )}
       aria-label="Chat History"
     >
+      {/* Brand & Back to Dashboard */}
+      <div className="px-3 pt-3 pb-2 flex items-center justify-between border-b border-border/50 shrink-0">
+        <Link
+          href="/dashboard"
+          className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors group cursor-pointer"
+          title="Back to Dashboard"
+          aria-label="Back to Dashboard"
+        >
+          <ChevronLeft className="size-3.5 transition-transform group-hover:-translate-x-0.5" />
+          <span>Dashboard</span>
+        </Link>
+        <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/60 select-none">CareerTrack</span>
+      </div>
+
       {/* Top action header: New Chat + Collapse */}
       <div className="p-3 border-b border-border/70 flex items-center justify-between gap-2 shrink-0">
         <Button
