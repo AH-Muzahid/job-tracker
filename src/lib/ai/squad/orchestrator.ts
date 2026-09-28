@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { evaluateDraft, EvaluationRubric } from "../evaluator-optimizer"
 import { sanitizeOutreachPlaceholders } from "@/lib/applications/outreach-engine"
 
@@ -34,6 +33,7 @@ export interface ApplicationSquadResult {
   rounds: number
   criticFeedback?: string[]
   isDeterministicFallback?: boolean
+  strategistBrief?: StrategistBrief
 }
 
 /**
@@ -122,6 +122,7 @@ export async function coordinateApplicationPackageSquad(
           approvedByCritic: true,
           rounds,
           isDeterministicFallback: false,
+          strategistBrief: brief,
         }
       }
 
@@ -151,6 +152,7 @@ export async function coordinateApplicationPackageSquad(
         rounds,
         criticFeedback: critiqueFeedback,
         isDeterministicFallback: false,
+        strategistBrief: brief,
       }
     }
 
