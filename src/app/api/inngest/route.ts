@@ -13,6 +13,7 @@ import {
 import { careerOrchestratorPipeline } from "@/inngest/functions/career-orchestrator-pipeline"
 import { interviewReminderPipeline } from "@/inngest/functions/interview-reminder-pipeline"
 import { companyDossierPipeline } from "@/inngest/functions/company-dossier-pipeline"
+import { agentProactiveDaemon } from "@/inngest/functions/agent-proactive-daemon"
 
 export const { GET, POST, PUT } = serve({
   client: inngest,
@@ -29,6 +30,7 @@ export const { GET, POST, PUT } = serve({
     careerOrchestratorPipeline,
     interviewReminderPipeline,
     companyDossierPipeline,
+    agentProactiveDaemon,
   ],
 })
 
