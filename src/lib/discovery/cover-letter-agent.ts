@@ -8,6 +8,8 @@ import { getUserWeaknesses } from "@/lib/ai/memory"
 import { traceAIGeneration } from "@/lib/ai/telemetry"
 import { extractJsonObject } from "@/lib/ai/json-extractor"
 import { getCachedJson } from "@/lib/redis"
+import { assembleAgenticCandidateContext } from "@/lib/ai/agentic-context"
+import { runEvaluatorOptimizer } from "@/lib/ai/evaluator-optimizer"
 import {
   extractContactEmail,
   sanitizeOutreachPlaceholders,
@@ -119,17 +121,15 @@ export async function generateApplicationMaterialsAgent(
     matchScore?: number
   }
 ): Promise<GeneratedApplicationMaterials> {
-  const [profile, user, weaknesses] = await Promise.all([
-    withDbRetry<any>(() => prisma.userProfile.findUnique({ where: { userId } })),
-    withDbRetry<any>(() => prisma.user.findUnique({ where: { id: userId }, select: { name: true, email: true } })),
-    getUserWeaknesses(userId, 3).catch(() => []),
-  ])
+  // Autonomously assemble rich, grounded candidate dossier from Knowledge Graph, Vector Memory & Weaknesses
+  const dossier = await assembleAgenticCandidateContext(userId, {
+    jobTitle: context.jobTitle,
+    companyName: context.companyName,
+    location: context.location,
+    jdText: context.notes,
+  }).catch(() => null)
 
-  const candidateName = user?.name || profile?.fullName || "Applicant"
-  const weaknessNotes =
-    weaknesses && weaknesses.length > 0
-      ? weaknesses.map((w: any) => `- ${w.content}`).join("\n")
-      : ""
+  const candidateName = dossier?.candidateName || "Applicant"
 
   let materials: GeneratedApplicationMaterials
 
@@ -143,24 +143,32 @@ export async function generateApplicationMaterialsAgent(
       const resolved = getProvider(aiConfig)
       modelToUse = aiConfig.model || resolved.defaultModel
       providerType = aiConfig.providerType
-      const prompt = `You are an elite career coach and staff software engineer.
+
+      const systemPromptContext = dossier?.summaryContextText || `Candidate Name: ${candidateName}`
+
+      // Run Reflexion (Evaluator-Optimizer) Loop for self-correction
+      const evalResult = await runEvaluatorOptimizer<GeneratedApplicationMaterials>({
+        maxIterations: 2,
+        generator: async ({ iteration, critiqueFeedback }) => {
+          const critiqueNote =
+            critiqueFeedback && critiqueFeedback.length > 0
+              ? `\nCRITICAL FIXES REQUIRED FROM PREVIOUS DRAFT EVALUATION:\n${critiqueFeedback.map((f) => `- ${f}`).join("\n")}\nPlease rewrite fixing these exact violations while maintaining factual accuracy.`
+              : ""
+
+          const prompt = `You are the CareerTrack Master Application Craftsman.
 Draft tailored application materials for a candidate applying to:
 Job Title: ${context.jobTitle}
 Company: ${context.companyName}
 Location: ${context.location || "Remote"}
-Candidate Profile:
-- Name: ${candidateName}
-- Target Roles: ${(profile?.targetRoles || []).join(", ")}
-- Strengths & Tech: ${profile?.strengths || "React, TypeScript, Node.js"}
-- Best Projects: ${JSON.stringify(profile?.bestProjects || [])}
-- Experience Level: ${profile?.experienceLevel || "Mid-level"}
-${weaknessNotes ? `- Areas of Prior Technical Weakness / Feedback (Counteract with verifiable proof or avoid unsubstantiated claims):\n${weaknessNotes}` : ""}
+
+${systemPromptContext}
+${critiqueNote}
 
 CRITICAL NO-PLACEHOLDER & QUALITY RULES:
 1. NEVER output placeholders like "[Hiring Manager/Recruiter]", "[Your Name]", or "[Company Name]".
 2. Always address the team naturally as "${context.companyName} Hiring Team" or "${context.companyName} Team".
 3. Sign off directly with the candidate's actual name: "${candidateName}".
-4. In outreachPitch, write a ready-to-send, high-converting outreach message (under 120 words) referencing real project experience from the candidate's profile.
+4. In outreachPitch, write a ready-to-send, high-converting outreach message (under 120 words) referencing real project experience from the candidate's verified dossier.
 
 Respond in valid JSON format:
 {
@@ -169,35 +177,49 @@ Respond in valid JSON format:
   "outreachPitch": "Ready-to-send outreach message for ${context.companyName} with zero placeholders",
   "strategyTip": "Strategic advice for applying",
   "atsKeywords": ["skill1", "skill2", "skill3"]
-} `
+}`
 
-      const result = await generateText({
-        model: resolved.model(modelToUse),
-        prompt,
+          const result = await generateText({
+            model: resolved.model(modelToUse),
+            prompt,
+          })
+
+          const parsed = extractJsonObject<GeneratedApplicationMaterials>(result.text)
+          if (!parsed || !parsed.coverLetter) {
+            throw new Error("Invalid materials JSON returned by model")
+          }
+          return parsed
+        },
+        rubric: {
+          disallowPlaceholders: true,
+          maxCharacters: 6000,
+        },
+        textExtractor: (output) => `${output.coverLetter}\n${output.outreachPitch}`,
+        fallbackSanitizer: (content) =>
+          sanitizeOutreachPlaceholders(content, {
+            companyName: context.companyName,
+            jobTitle: context.jobTitle,
+            candidateName,
+          }),
       })
 
-      const parsed = extractJsonObject<GeneratedApplicationMaterials>(result.text)
-      if (parsed && parsed.coverLetter) {
-        materials = parsed
-        const outreachCtx = {
-          companyName: context.companyName,
-          jobTitle: context.jobTitle,
-          candidateName,
-          candidateEmail: user?.email,
-          githubUrl: profile?.githubUrl,
-          linkedinUrl: profile?.linkedinUrl,
-          portfolioUrl: profile?.portfolioUrl,
-          skills: parsed.atsKeywords || [],
-          topProjects: profile?.bestProjects,
-        }
-        materials.coverLetter = sanitizeOutreachPlaceholders(materials.coverLetter, outreachCtx)
-        materials.outreachPitch = sanitizeOutreachPlaceholders(materials.outreachPitch, outreachCtx)
-        materials.outreachChannels = generateDeterministicOutreachBundle(outreachCtx)
-        if (materials.outreachPitch) {
-          materials.outreachChannels.email.body = materials.outreachPitch
-        }
-      } else {
-        materials = generateDeterministicMaterials(candidateName, profile, context)
+      materials = evalResult.content
+      const outreachCtx = {
+        companyName: context.companyName,
+        jobTitle: context.jobTitle,
+        candidateName,
+        candidateEmail: dossier?.candidateEmail,
+        githubUrl: dossier?.links.github,
+        linkedinUrl: dossier?.links.linkedin,
+        portfolioUrl: dossier?.links.portfolio,
+        skills: materials.atsKeywords || [],
+        topProjects: dossier?.bestProjects,
+      }
+      materials.coverLetter = sanitizeOutreachPlaceholders(materials.coverLetter, outreachCtx)
+      materials.outreachPitch = sanitizeOutreachPlaceholders(materials.outreachPitch, outreachCtx)
+      materials.outreachChannels = generateDeterministicOutreachBundle(outreachCtx)
+      if (materials.outreachPitch) {
+        materials.outreachChannels.email.body = materials.outreachPitch
       }
 
       void traceAIGeneration({
@@ -215,16 +237,16 @@ Respond in valid JSON format:
           outreachPitch: materials.outreachPitch,
           strategyTip: materials.strategyTip,
           atsKeywords: materials.atsKeywords,
+          selfCorrected: evalResult.selfCorrected,
+          iterations: evalResult.iterations,
         },
-        promptTokens: (result as any).usage?.promptTokens,
-        completionTokens: (result as any).usage?.completionTokens,
         latencyMs: Date.now() - startTime,
         status: "success",
-        tags: ["discovery", "cover-letter", "package"],
+        tags: ["discovery", "cover-letter", "package", "reflexion"],
         flush: true,
       })
     } else {
-      materials = generateDeterministicMaterials(candidateName, profile, context)
+      materials = generateDeterministicMaterials(candidateName, dossier, context)
     }
   } catch (error) {
     console.warn("[CoverLetterAgent] AI generation failed, using deterministic materials:", error)
@@ -244,7 +266,7 @@ Respond in valid JSON format:
       tags: ["discovery", "cover-letter", "error", "fallback-to-deterministic"],
       flush: true,
     })
-    materials = generateDeterministicMaterials(candidateName, profile, context)
+    materials = generateDeterministicMaterials(candidateName, dossier, context)
   }
 
   // Persist the generated materials to ApplicationAnalysis
@@ -253,12 +275,12 @@ Respond in valid JSON format:
       companyName: context.companyName,
       jobTitle: context.jobTitle,
       candidateName,
-      candidateEmail: user?.email,
-      githubUrl: profile?.githubUrl,
-      linkedinUrl: profile?.linkedinUrl,
-      portfolioUrl: profile?.portfolioUrl,
+      candidateEmail: dossier?.candidateEmail,
+      githubUrl: dossier?.links.github,
+      linkedinUrl: dossier?.links.linkedin,
+      portfolioUrl: dossier?.links.portfolio,
       skills: materials.atsKeywords || [],
-      topProjects: profile?.bestProjects,
+      topProjects: dossier?.bestProjects,
     }
     const detectedEmail = extractContactEmail(context.notes || "")
     const outreachBundle = materials.outreachChannels || generateDeterministicOutreachBundle(outreachCtx)
@@ -312,8 +334,8 @@ Respond in valid JSON format:
       }
     }
     if (!resolvedMatchScore) {
-      // Deterministic calculation from profile strengths vs target role
-      const candidateSkills = (profile?.strengths || "").toLowerCase()
+      // Deterministic calculation from dossier matched skills vs target role
+      const candidateSkills = (dossier?.matchedSkills?.map((s) => s.skill).join(", ") || "").toLowerCase()
       const roleLower = context.jobTitle.toLowerCase()
       let overlapCount = 0
       for (const skill of candidateSkills.split(/[,/|\n]+/)) {

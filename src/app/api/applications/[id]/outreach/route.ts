@@ -7,6 +7,7 @@ import { getProvider } from "@/lib/ai/client"
 import { getUserAIConfig } from "@/lib/ai/config"
 import { traceAIGeneration } from "@/lib/ai/telemetry"
 import { extractJsonObject } from "@/lib/ai/json-extractor"
+import { runEvaluatorOptimizer } from "@/lib/ai/evaluator-optimizer"
 import {
   extractContactEmail,
   sanitizeOutreachPlaceholders,
@@ -193,13 +194,39 @@ ${jsonSchema}`
 
     const startTime = Date.now()
     try {
-      const textResult = await generateText({
-        model: targetModel,
-        prompt: `Generate tailored ${activeChannel} outreach for ${app.jobTitle} at ${app.companyName}. Output JSON only.`,
-        system: systemPrompt,
+      const evalResult = await runEvaluatorOptimizer<any>({
+        maxIterations: 2,
+        generator: async ({ critiqueFeedback }) => {
+          const critiqueNote =
+            critiqueFeedback && critiqueFeedback.length > 0
+              ? `\nCRITICAL FIXES REQUIRED FROM PREVIOUS DRAFT EVALUATION:\n${critiqueFeedback.map((f) => `- ${f}`).join("\n")}\nPlease rewrite fixing these exact violations.`
+              : ""
+
+          const textResult = await generateText({
+            model: targetModel,
+            prompt: `Generate tailored ${activeChannel} outreach for ${app.jobTitle} at ${app.companyName}.${critiqueNote}\nOutput JSON only.`,
+            system: systemPrompt,
+          })
+
+          const parsed = extractJsonObject<any>(textResult.text || "")
+          if (!parsed) throw new Error("Invalid outreach JSON returned by model")
+          return parsed
+        },
+        rubric: {
+          disallowPlaceholders: true,
+          maxCharacters: activeChannel === "linkedin_connect" ? 280 : 3000,
+        },
+        textExtractor: (parsed) => {
+          if (parsed.email?.body) return parsed.email.body
+          if (parsed.linkedin_connect?.body) return parsed.linkedin_connect.body
+          if (parsed.linkedin_dm?.body) return parsed.linkedin_dm.body
+          if (parsed.follow_up?.body) return parsed.follow_up.body
+          return JSON.stringify(parsed)
+        },
+        fallbackSanitizer: (content) => sanitizeOutreachPlaceholders(content, outreachCtx),
       })
 
-      const parsed = extractJsonObject<any>(textResult.text || "")
+      const parsed = evalResult.content
       if (parsed) {
         if (parsed.email?.body) {
           finalBundle.email = {
