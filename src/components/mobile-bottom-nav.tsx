@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutGrid, Compass, FileText, Calendar, User } from "lucide-react";
+import { LayoutGrid, Compass, MessageSquare, Briefcase, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface NavItem {
@@ -26,16 +26,16 @@ const NAV_ITEMS: NavItem[] = [
     isActive: (pathname) => pathname.startsWith("/discovery"),
   },
   {
-    label: "Applications",
-    href: "/applications",
-    icon: FileText,
-    isActive: (pathname) => pathname.startsWith("/applications"),
+    label: "AI Chat",
+    href: "/ai-assistant",
+    icon: MessageSquare,
+    isActive: (pathname) => pathname.startsWith("/ai-assistant"),
   },
   {
-    label: "Interviews",
-    href: "/interview-prep",
-    icon: Calendar,
-    isActive: (pathname) => pathname.startsWith("/interview-prep") || pathname.startsWith("/calendar"),
+    label: "Applications",
+    href: "/applications",
+    icon: Briefcase,
+    isActive: (pathname) => pathname.startsWith("/applications"),
   },
   {
     label: "Profile",
@@ -47,7 +47,9 @@ const NAV_ITEMS: NavItem[] = [
       pathname.startsWith("/resumes") ||
       pathname.startsWith("/weekly-goals") ||
       pathname.startsWith("/integrations") ||
-      pathname.startsWith("/ai-memory"),
+      pathname.startsWith("/ai-memory") ||
+      pathname.startsWith("/interview-prep") ||
+      pathname.startsWith("/calendar"),
   },
 ];
 

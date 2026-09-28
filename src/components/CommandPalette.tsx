@@ -2,7 +2,24 @@
 
 import { useEffect, useState, useRef, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import { Search, LayoutDashboard, Briefcase, Building2, Brain, FileText, CalendarDays, Settings, ArrowRight, Plus, Mail, Zap } from "lucide-react"
+import {
+  Search,
+  LayoutDashboard,
+  Briefcase,
+  Building2,
+  FileText,
+  CalendarDays,
+  Settings,
+  ArrowRight,
+  Plus,
+  Mail,
+  Zap,
+  Target,
+  Database,
+  SlidersHorizontal,
+  User,
+  MessageSquare,
+} from "lucide-react"
 import { useUI } from "@/lib/store"
 import { toast } from "sonner"
 
@@ -11,9 +28,14 @@ const pages = [
   { title: "Applications", href: "/applications", icon: Briefcase },
   { title: "Job Discovery Feed", href: "/discovery", icon: Zap },
   { title: "Evaluate Job Description / URL", href: "action:evaluate", icon: Zap },
+  { title: "AI Assistant & Copilot", href: "/ai-assistant", icon: MessageSquare },
+  { title: "Interview Prep", href: "/interview-prep", icon: CalendarDays },
+  { title: "Resume Studio", href: "/resumes", icon: FileText },
+  { title: "Weekly Goals", href: "/weekly-goals", icon: Target },
+  { title: "Career Profile", href: "/profile-setup", icon: User },
+  { title: "AI Knowledge & Memory", href: "/ai-memory", icon: Database },
+  { title: "Integrations & AI Keys", href: "/integrations", icon: SlidersHorizontal },
   { title: "Companies", href: "/companies", icon: Building2 },
-  { title: "Interview Prep", href: "/interview-prep", icon: Brain },
-  { title: "Resumes", href: "/resumes", icon: FileText },
   { title: "Calendar", href: "/calendar", icon: CalendarDays },
   { title: "Settings", href: "/settings", icon: Settings },
 ]
@@ -23,7 +45,7 @@ const slashCommands = [
   { title: "/status", placeholder: "/status [Company] [Status]", description: "Change status of a job (e.g. /status Acme Applied)", icon: Briefcase },
   { title: "/add", placeholder: "/add [Company] [Title]", description: "Add a new job application (e.g. /add Google Frontend)", icon: Plus },
   { title: "/outreach", placeholder: "/outreach [Company]", description: "Open AI outreach draft workbench", icon: Mail },
-  { title: "/prep", placeholder: "/prep [Company]", description: "Open AI interview prep workbench", icon: Brain },
+  { title: "/prep", placeholder: "/prep [Company]", description: "Open AI interview prep workbench", icon: Target },
 ]
 
 interface SearchResult {

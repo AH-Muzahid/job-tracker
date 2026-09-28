@@ -4,7 +4,7 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { CustomSidebarTrigger } from "@/components/custom-sidebar-trigger";
 import { NavUser } from "@/components/nav-user";
-import { SearchIcon, Zap, Bot } from "lucide-react";
+import { SearchIcon, Zap, MessageSquare } from "lucide-react";
 import { NotificationCenter } from "@/components/notifications/NotificationCenter";
 import { useUI } from "@/lib/store";
 
@@ -75,7 +75,7 @@ export function AppHeader() {
 					className="flex items-center gap-1.5 h-9.5 sm:h-10 rounded-full border border-border bg-background hover:bg-muted px-3 text-xs font-medium text-foreground transition-colors cursor-pointer shadow-2xs"
 					title="Open Career Copilot (⌘J / Ctrl+J)"
 				>
-					<Bot className="h-3.5 w-3.5 text-primary" />
+					<MessageSquare className="h-3.5 w-3.5 text-primary" />
 					<span>Copilot</span>
 					<kbd className="ml-1 pointer-events-none inline-flex h-4 select-none items-center rounded border border-border px-1 font-sans text-[10px] text-muted-foreground">
 						⌘J
@@ -102,7 +102,7 @@ export function AppHeader() {
 					title="Open Career Copilot"
 					aria-label="Open Career Copilot"
 				>
-					<Bot className="size-4 text-primary" />
+					<MessageSquare className="size-4 text-primary" />
 				</button>
 
 				<NotificationCenter />

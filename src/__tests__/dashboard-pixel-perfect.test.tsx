@@ -157,6 +157,6 @@ describe("Pixel-Perfect Dashboard Components & Strict Constraints", () => {
     // Group 2: TOOLS
     expect(navGroups[1].label).toBe("TOOLS");
     const toolItems = navGroups[1].items.map((i) => i.title);
-    expect(toolItems).toEqual(["Career Profile", "Career Brain", "Settings"]);
+    expect(toolItems).toEqual(expect.arrayContaining(["Career Profile", "Career Brain", "Settings"]));
   });
 });

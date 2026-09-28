@@ -5,7 +5,6 @@ import {
   LayoutDashboard,
   Building2,
   Calendar,
-  BrainCircuit,
   MessageSquare,
   FileText,
   User,
@@ -13,7 +12,7 @@ import {
   Search,
   Bell,
   TrendingUp,
-  Bot,
+  Zap,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 
@@ -46,7 +45,7 @@ export function HeroDashboardMockup() {
           </div>
 
           <div className="flex items-center gap-1.5 h-8 px-2.5 rounded-md border border-primary/20 bg-primary/5 text-primary text-xs font-medium">
-            <Bot className="size-3.5" />
+            <MessageSquare className="size-3.5" />
             <span className="hidden sm:inline text-xs">Ask AI</span>
           </div>
 
@@ -98,13 +97,13 @@ export function HeroDashboardMockup() {
               <nav className="space-y-0.5 text-xs">
                 <div className="flex items-center justify-between rounded-md px-2.5 py-1.5 text-muted-foreground hover:bg-muted/40 transition-colors">
                   <div className="flex items-center gap-2.5">
-                    <BrainCircuit className="size-3.5 text-primary" />
+                    <MessageSquare className="size-3.5 text-primary" />
                     <span>AI Assistant</span>
                   </div>
                   <span className="size-1.5 rounded-full bg-primary" />
                 </div>
                 <div className="flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-muted-foreground hover:bg-muted/40 transition-colors">
-                  <MessageSquare className="size-3.5" />
+                  <Calendar className="size-3.5" />
                   <span>Interview Prep</span>
                 </div>
                 <div className="flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-muted-foreground hover:bg-muted/40 transition-colors">
@@ -136,7 +135,7 @@ export function HeroDashboardMockup() {
               <span className="text-xs font-mono text-muted-foreground">Pipeline Status: Active</span>
             </div>
             <div className="flex items-center gap-1.5 h-8 px-3 rounded-md bg-foreground text-background text-xs font-semibold shadow-2xs">
-              <BrainCircuit className="size-3.5 text-primary-foreground fill-primary" />
+              <Zap className="size-3.5 text-primary-foreground fill-primary" />
               <span>Intake & Match with AI</span>
             </div>
           </div>

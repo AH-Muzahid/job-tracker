@@ -1,0 +1,209 @@
+import { describe, it, expect, vi } from "vitest";
+import React from "react";
+import { renderToString } from "react-dom/server";
+import { createResponderNode } from "@/lib/ai/graph/nodes/responder";
+import { MobileBottomNav } from "@/components/mobile-bottom-nav";
+import { navGroups } from "@/components/app-shared";
+import { NavUser } from "@/components/nav-user";
+import { AppHeader } from "@/components/app-header";
+
+// Mock Clerk auth
+vi.mock("@clerk/nextjs", () => ({
+  useUser: () => ({
+    user: {
+      fullName: "Tanvir Ahmed",
+      primaryEmailAddress: { emailAddress: "tanvir@example.com" },
+      imageUrl: "/avatars/tanvir.png",
+    },
+    isSignedIn: true,
+    isLoaded: true,
+  }),
+  useClerk: () => ({
+    signOut: vi.fn(),
+  }),
+}));
+
+// Mock navigation
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/dashboard",
+  useRouter: () => ({ push: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(),
+  useParams: () => ({}),
+}));
+
+// Mock UI store
+vi.mock("@/lib/store", () => {
+  const uiState = {
+    searchOpen: false,
+    setSearchOpen: vi.fn(),
+    evaluatorModal: false,
+    setEvaluatorModal: vi.fn(),
+    aiSidebarOpen: false,
+    setAiSidebarOpen: vi.fn(),
+  };
+  return {
+    useUI: (selector?: (s: typeof uiState) => unknown) =>
+      typeof selector === "function" ? selector(uiState) : uiState,
+  };
+});
+
+vi.mock("@/components/notifications/NotificationCenter", () => ({
+  NotificationCenter: () => <div data-testid="notification-center" />,
+}));
+
+vi.mock("@/components/custom-sidebar-trigger", () => ({
+  CustomSidebarTrigger: () => <div data-testid="custom-sidebar-trigger" />,
+}));
+
+describe("Word-by-Word LLM Token Streaming Suite", () => {
+  it("streams tokens via onToken callback when model.stream yields chunks", async () => {
+    const tokens: string[] = [];
+    const mockStreamChunks = [
+      { content: "Hello" },
+      { content: " there! " },
+      { content: "How can I help you " },
+      { content: "today?" },
+    ];
+
+    const mockModel: any = {
+      stream: vi.fn(async function* () {
+        for (const chunk of mockStreamChunks) {
+          yield chunk;
+        }
+      }),
+      invoke: vi.fn(),
+    };
+
+    const responder = createResponderNode(mockModel, (delta) => {
+      tokens.push(delta);
+    });
+
+    const result = await responder({
+      goal: "Hello CareerTrack",
+      messages: [],
+      plan: [],
+      currentStepIndex: 0,
+      reflection: { passed: true, retryCount: 0 },
+      userId: "user-123",
+      sessionId: "sess-123",
+    });
+
+    expect(tokens.join("")).toBe("Hello there! How can I help you today?");
+    expect(result.responseContent).toBe("Hello there! How can I help you today?");
+    expect(mockModel.stream).toHaveBeenCalled();
+  });
+
+  it("handles complex content chunks (array text) gracefully during streaming", async () => {
+    const tokens: string[] = [];
+    const mockModel: any = {
+      stream: vi.fn(async function* () {
+        yield { content: [{ type: "text", text: "Software " }, { type: "text", text: "Engineer" }] };
+        yield { content: " role analysis" };
+      }),
+      invoke: vi.fn(),
+    };
+
+    const responder = createResponderNode(mockModel, (delta) => {
+      tokens.push(delta);
+    });
+
+    const result = await responder({
+      goal: "Analyze this role",
+      messages: [],
+      plan: [],
+      currentStepIndex: 0,
+      reflection: { passed: true, retryCount: 0 },
+      userId: "user-123",
+      sessionId: "sess-123",
+    });
+
+    expect(tokens.join("")).toBe("Software Engineer role analysis");
+    expect(result.responseContent).toBe("Software Engineer role analysis");
+  });
+
+  it("immediately forwards responseContent to onToken if planner already created error response", async () => {
+    const tokens: string[] = [];
+    const mockModel: any = {
+      stream: vi.fn(),
+      invoke: vi.fn(),
+    };
+
+    const responder = createResponderNode(mockModel, (delta) => {
+      tokens.push(delta);
+    });
+
+    const result = await responder({
+      goal: "Invalid query",
+      messages: [],
+      plan: [],
+      responseContent: "I could not understand your request.",
+      currentStepIndex: 0,
+      reflection: { passed: true, retryCount: 0 },
+      userId: "user-123",
+      sessionId: "sess-123",
+    });
+
+    expect(tokens).toEqual(["I could not understand your request."]);
+    expect(result.responseContent).toBe("I could not understand your request.");
+    expect(mockModel.stream).not.toHaveBeenCalled();
+  });
+});
+
+describe("Mobile Bottom Dock Dedicated AI Chat Suite", () => {
+  it("renders a dedicated AI Chat tab linking to /ai-assistant with MessageSquare", () => {
+    const html = renderToString(<MobileBottomNav />);
+    expect(html).toContain("AI Chat");
+    expect(html).toContain("href=\"/ai-assistant\"");
+    expect(html).toContain("aria-label=\"Mobile Navigation\"");
+  });
+
+  it("contains all 5 essential tabs in mobile dock", () => {
+    const html = renderToString(<MobileBottomNav />);
+    expect(html).toContain("Dashboard");
+    expect(html).toContain("Discovery");
+    expect(html).toContain("AI Chat");
+    expect(html).toContain("Applications");
+    expect(html).toContain("Profile");
+  });
+});
+
+describe("Desktop Accessibility of Mobile Profile Tools Suite", () => {
+  it("exposes all mobile profile tools in desktop sidebar navGroups", () => {
+    const toolsGroup = navGroups.find((g) => g.label === "TOOLS");
+    expect(toolsGroup).toBeDefined();
+
+    const paths = (toolsGroup?.items || []).map((item) => item.path);
+    expect(paths).toContain("/resumes");
+    expect(paths).toContain("/weekly-goals");
+    expect(paths).toContain("/profile-setup");
+    expect(paths).toContain("/ai-memory");
+    expect(paths).toContain("/brain");
+    expect(paths).toContain("/integrations");
+    expect(paths).toContain("/settings");
+  });
+
+  it("renders NavUser dropdown trigger with user info", () => {
+    const html = renderToString(<NavUser />);
+    expect(html).toContain("Tanvir Ahmed");
+    expect(html).toContain("Job Seeker");
+  });
+});
+
+describe("Iconography & Visual Style Rules (AGENTS.md)", () => {
+  it("strictly prohibits Bot, Sparkles, Brain, and Cpu icons in AppHeader", () => {
+    const html = renderToString(<AppHeader />);
+    expect(html).not.toContain("lucide-bot");
+    expect(html).not.toContain("lucide-sparkles");
+    expect(html).not.toContain("lucide-brain");
+    expect(html).not.toContain("lucide-cpu");
+    expect(html).toContain("Copilot");
+  });
+
+  it("strictly prohibits Bot, Sparkles, Brain, and Cpu icons in MobileBottomNav", () => {
+    const html = renderToString(<MobileBottomNav />);
+    expect(html).not.toContain("lucide-bot");
+    expect(html).not.toContain("lucide-sparkles");
+    expect(html).not.toContain("lucide-brain");
+    expect(html).not.toContain("lucide-cpu");
+  });
+});
