@@ -3,6 +3,7 @@ import { AgentState, type AgentStateType } from "./state"
 import { createPlannerNode } from "./nodes/planner"
 import { createExecutorNode } from "./nodes/executor"
 import { createReflectionNode } from "./nodes/reflection"
+import { createReplannerNode } from "./nodes/replanner"
 import { createResponderNode } from "./nodes/responder"
 import { getGraphCheckpointer } from "./checkpointer"
 import { getLangChainChatModel } from "./llm"
@@ -17,12 +18,14 @@ export async function buildCareerAgentGraph(aiConfig: AIProviderConfig) {
   const plannerNode = createPlannerNode(model)
   const executorNode = createExecutorNode()
   const reflectionNode = createReflectionNode()
+  const replannerNode = createReplannerNode(model)
   const responderNode = createResponderNode(model)
 
   const workflow = new StateGraph(AgentState)
     .addNode("planner", plannerNode)
     .addNode("executor", executorNode)
     .addNode("reflector", reflectionNode)
+    .addNode("replanner", replannerNode)
     .addNode("responder", responderNode)
 
     .addEdge(START, "planner")
@@ -30,9 +33,9 @@ export async function buildCareerAgentGraph(aiConfig: AIProviderConfig) {
     .addEdge("executor", "reflector")
 
     .addConditionalEdges("reflector", (state: AgentStateType) => {
-      // If reflection failed and needs retry on current step
+      // If reflection failed and needs retry on current step -> route to Cognitive Re-Planner!
       if (!state.reflection.passed) {
-        return "executor"
+        return "replanner"
       }
 
       // If more steps remain in plan
@@ -44,6 +47,7 @@ export async function buildCareerAgentGraph(aiConfig: AIProviderConfig) {
       return "responder"
     })
 
+    .addEdge("replanner", "executor")
     .addEdge("responder", END)
 
   const checkpointer = await getGraphCheckpointer()

@@ -5,7 +5,10 @@ import type { AgentStateType } from "../state"
  * Inspects a step result to determine if it succeeded logically/semantically
  * rather than just checking if the object exists.
  */
-function evaluateStepSemanticOutcome(result: any): { isSuccess: boolean; reason?: string } {
+function evaluateStepSemanticOutcome(result: any, hasTool = true): { isSuccess: boolean; reason?: string } {
+  if (!hasTool && (result === undefined || result === null)) {
+    return { isSuccess: true }
+  }
   if (result === undefined || result === null) {
     return { isSuccess: false, reason: "No outcome was produced by tool execution." }
   }
@@ -69,7 +72,7 @@ export function createReflectionNode() {
     }
 
     // 2. Semantic Evaluation of Completed Step
-    const semanticEval = evaluateStepSemanticOutcome(currentStep.result)
+    const semanticEval = evaluateStepSemanticOutcome(currentStep.result, Boolean(currentStep.toolName))
 
     if (!semanticEval.isSuccess) {
       if (isRetryable && retryCount < 2) {
