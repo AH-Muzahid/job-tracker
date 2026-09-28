@@ -12,14 +12,19 @@ import type { AIProviderConfig } from "@/lib/ai/client"
 /**
  * Builds and compiles the LangGraph StateGraph instance with persistent checkpointer
  */
-export async function buildCareerAgentGraph(aiConfig: AIProviderConfig) {
-  const model = getLangChainChatModel(aiConfig)
+export async function buildCareerAgentGraph(
+  aiConfig: AIProviderConfig,
+  callbacks?: {
+    onToken?: (delta: string) => void
+  }
+) {
+  const model = getLangChainChatModel(aiConfig, { streaming: true })
 
   const plannerNode = createPlannerNode(model)
   const executorNode = createExecutorNode()
   const reflectionNode = createReflectionNode()
   const replannerNode = createReplannerNode(model)
-  const responderNode = createResponderNode(model)
+  const responderNode = createResponderNode(model, callbacks?.onToken)
 
   const workflow = new StateGraph(AgentState)
     .addNode("planner", plannerNode)

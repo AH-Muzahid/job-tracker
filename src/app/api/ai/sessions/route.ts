@@ -37,16 +37,14 @@ export async function GET() {
 
   const formattedSessions = sessions.map((s) => {
     let cleanTitle = s.title || "New Chat"
-    // If title has raw boilerplate prefixes or is casual greeting, format it nicely
+    // If title has raw boilerplate prefixes or is excessively long, format it nicely
     if (
       cleanTitle.startsWith("Analyze this") ||
       cleanTitle.startsWith("Provide a concise") ||
       cleanTitle.startsWith("Generate 5") ||
       cleanTitle.startsWith("Draft a professional") ||
       cleanTitle.startsWith("We socket") ||
-      cleanTitle.toLowerCase() === "hi" ||
-      cleanTitle.toLowerCase() === "hi bro" ||
-      cleanTitle.length > 30
+      cleanTitle.length > 35
     ) {
       cleanTitle = generateHeuristicTitle(cleanTitle)
     }

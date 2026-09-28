@@ -1,9 +1,10 @@
 "use client"
 
 import { useState, useRef, useEffect, useCallback } from "react"
+import Link from "next/link"
 import { usePathname, useParams } from "next/navigation"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { Send, Square, FileText, Briefcase, Target, MessageSquare, ArrowDown, Plus, RotateCcw, PanelLeft } from "lucide-react"
+import { Send, Square, FileText, Briefcase, Target, MessageSquare, ArrowDown, Plus, RotateCcw, PanelLeft, ArrowLeft } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -208,7 +209,7 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar, onToggl
 
   const hasMessages = messages.length > 0
 
-  // React Query cached session messages — aggressive caching for speed
+  // React Query cached session messages — staleTime 0 ensures fresh messages upon opening any session
   const { data: sessionData, isLoading: isSessionLoading, error: sessionQueryError } = useQuery({
     queryKey: ["ai", "session", sessionId],
     queryFn: async () => {
@@ -218,10 +219,11 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar, onToggl
       return res.json()
     },
     enabled: Boolean(sessionId),
-    staleTime: 10 * 60 * 1000,
+    staleTime: 0,
     gcTime: 60 * 60 * 1000,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
+    refetchOnMount: "always",
     retry: 1,
   })
 
@@ -241,8 +243,6 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar, onToggl
       return
     }
 
-    if (loadedSessionIdRef.current === sessionId) return
-
     if (sessionData) {
       loadedSessionIdRef.current = sessionId
       const loadedMsgs = (sessionData?.messages || []).map(
@@ -251,7 +251,10 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar, onToggl
           toolInvocations: m.toolInvocations || m.metadata?.toolInvocations || [],
         })
       )
-      setMessages(loadedMsgs)
+      // Only sync if not actively streaming to prevent overwriting active tokens
+      if (!isStreamingRef.current) {
+        setMessages(loadedMsgs)
+      }
       setLoading(false)
       setError(null)
     } else {
@@ -461,6 +464,7 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar, onToggl
               const lines = buffer.split("\n\n")
               buffer = lines.pop() || ""
 
+              let hasUpdates = false
               for (const block of lines) {
                 const matchEvent = block.match(/^event:\s*(.+)$/m)
                 const matchData = block.match(/^data:\s*(.+)$/m)
@@ -470,10 +474,17 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar, onToggl
                   try {
                     const data = JSON.parse(matchData[1])
 
-                    if (event === "planner" && data.plan) {
+                    if (event === "token" && data.delta) {
+                      accumulatedText += data.delta
+                      hasUpdates = true
+                    } else if (event === "planner" && data.plan) {
                       accumulatedPlan = data.plan
+                      hasUpdates = true
                     } else if (event === "executor") {
-                      if (data.plan) accumulatedPlan = data.plan
+                      if (data.plan) {
+                        accumulatedPlan = data.plan
+                        hasUpdates = true
+                      }
                       if (data.toolName) {
                         const existingIdx = accumulatedTools.findIndex((t) => t.toolCallId === data.toolCallId)
                         if (existingIdx !== -1) {
@@ -493,34 +504,41 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar, onToggl
                             result: data.result,
                           })
                         }
+                        hasUpdates = true
                       }
                     } else if (event === "responder" && data.responseContent) {
                       accumulatedText = data.responseContent
+                      hasUpdates = true
                     } else if (event === "interrupt") {
                       interruptPayload = data.interrupts?.[0]?.value || data
+                      hasUpdates = true
                     } else if (event === "done") {
                       if (data.state?.responseContent) accumulatedText = data.state.responseContent
                       if (data.state?.plan) accumulatedPlan = data.state.plan
+                      hasUpdates = true
                     } else if (event === "error") {
                       setError(data.error || "Graph execution error")
+                      hasUpdates = true
                     }
-
-                    setMessages((prev) => {
-                      const updated = [...prev]
-                      const lastIdx = updated.findIndex((m) => m.id === assistantMsgId)
-                      if (lastIdx !== -1) {
-                        updated[lastIdx] = {
-                          ...updated[lastIdx],
-                          content: accumulatedText,
-                          plan: accumulatedPlan.length > 0 ? accumulatedPlan : updated[lastIdx].plan,
-                          toolInvocations: accumulatedTools.length > 0 ? [...accumulatedTools] : updated[lastIdx].toolInvocations,
-                          interruptData: interruptPayload,
-                        }
-                      }
-                      return updated
-                    })
                   } catch {}
                 }
+              }
+
+              if (hasUpdates) {
+                setMessages((prev) => {
+                  const updated = [...prev]
+                  const lastIdx = updated.findIndex((m) => m.id === assistantMsgId)
+                  if (lastIdx !== -1) {
+                    updated[lastIdx] = {
+                      ...updated[lastIdx],
+                      content: accumulatedText,
+                      plan: accumulatedPlan.length > 0 ? accumulatedPlan : updated[lastIdx].plan,
+                      toolInvocations: accumulatedTools.length > 0 ? [...accumulatedTools] : updated[lastIdx].toolInvocations,
+                      interruptData: interruptPayload,
+                    }
+                  }
+                  return updated
+                })
               }
             }
           }
@@ -741,6 +759,7 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar, onToggl
                 const lines = buffer.split("\n\n")
                 buffer = lines.pop() || ""
 
+                let hasUpdates = false
                 for (const block of lines) {
                   const matchEvent = block.match(/^event:\s*(.+)$/m)
                   const matchData = block.match(/^data:\s*(.+)$/m)
@@ -750,10 +769,17 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar, onToggl
                     try {
                       const data = JSON.parse(matchData[1])
 
-                      if (event === "planner" && data.plan) {
+                      if (event === "token" && data.delta) {
+                        accumulatedText += data.delta
+                        hasUpdates = true
+                      } else if (event === "planner" && data.plan) {
                         accumulatedPlan = data.plan
+                        hasUpdates = true
                       } else if (event === "executor") {
-                        if (data.plan) accumulatedPlan = data.plan
+                        if (data.plan) {
+                          accumulatedPlan = data.plan
+                          hasUpdates = true
+                        }
                         if (data.toolName) {
                           const existingIdx = accumulatedTools.findIndex((t) => t.toolCallId === data.toolCallId)
                           if (existingIdx !== -1) {
@@ -773,34 +799,41 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar, onToggl
                               result: data.result,
                             })
                           }
+                          hasUpdates = true
                         }
                       } else if (event === "responder" && data.responseContent) {
                         accumulatedText = data.responseContent
+                        hasUpdates = true
                       } else if (event === "interrupt") {
                         interruptPayload = data.interrupts?.[0]?.value || data
+                        hasUpdates = true
                       } else if (event === "done") {
                         if (data.state?.responseContent) accumulatedText = data.state.responseContent
                         if (data.state?.plan) accumulatedPlan = data.state.plan
+                        hasUpdates = true
                       } else if (event === "error") {
                         setError(data.error || "Graph execution error")
+                        hasUpdates = true
                       }
-
-                      setMessages((prev) => {
-                        const updated = [...prev]
-                        const lastIdx = updated.findIndex((m) => m.id === assistantMsgId)
-                        if (lastIdx !== -1) {
-                          updated[lastIdx] = {
-                            ...updated[lastIdx],
-                            content: accumulatedText,
-                            plan: accumulatedPlan.length > 0 ? accumulatedPlan : updated[lastIdx].plan,
-                            toolInvocations: accumulatedTools.length > 0 ? [...accumulatedTools] : updated[lastIdx].toolInvocations,
-                            interruptData: interruptPayload,
-                          }
-                        }
-                        return updated
-                      })
                     } catch {}
                   }
+                }
+
+                if (hasUpdates) {
+                  setMessages((prev) => {
+                    const updated = [...prev]
+                    const lastIdx = updated.findIndex((m) => m.id === assistantMsgId)
+                    if (lastIdx !== -1) {
+                      updated[lastIdx] = {
+                        ...updated[lastIdx],
+                        content: accumulatedText,
+                        plan: accumulatedPlan.length > 0 ? accumulatedPlan : updated[lastIdx].plan,
+                        toolInvocations: accumulatedTools.length > 0 ? [...accumulatedTools] : updated[lastIdx].toolInvocations,
+                        interruptData: interruptPayload,
+                      }
+                    }
+                    return updated
+                  })
                 }
               }
             }
@@ -844,6 +877,14 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar, onToggl
               </div>
               <span className="text-xs font-semibold text-foreground">Career Copilot</span>
             </div>
+            <Link
+              href="/dashboard"
+              className="inline-flex items-center gap-1 h-8 px-2 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-sm transition-colors cursor-pointer select-none"
+              title="Return to Dashboard"
+            >
+              <ArrowLeft className="size-3.5" />
+              <span>Dashboard</span>
+            </Link>
           </div>
         )}
 
@@ -990,21 +1031,20 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar, onToggl
           )}
         </div>
 
-        {/* Scroll-to-bottom FAB */}
-        {showScrollBtn && (
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => scrollToBottom(true)}
-            className="absolute bottom-20 left-1/2 -translate-x-1/2 size-7 rounded-sm border border-border bg-background shadow-xs hover:bg-muted transition-colors z-20 cursor-pointer"
-            aria-label="Scroll to bottom"
-          >
-            <ArrowDown className="size-3.5" />
-          </Button>
-        )}
-
         {/* Unified, Persistent Bottom Input Dock (Never Floating Over Content) */}
         <div className="shrink-0 border-t border-border bg-background p-2.5 sm:p-3 relative z-10">
+          {/* Scroll-to-bottom FAB cleanly anchored directly above dock */}
+          {showScrollBtn && (
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => scrollToBottom(true)}
+              className="absolute -top-9 left-1/2 -translate-x-1/2 size-7 rounded-full border border-border bg-background shadow-xs hover:bg-muted transition-colors z-20 cursor-pointer"
+              aria-label="Scroll to bottom"
+            >
+              <ArrowDown className="size-3.5" />
+            </Button>
+          )}
           <div className="w-full max-w-3xl mx-auto">
             <Card className="flex flex-col rounded-[6px] border border-border bg-card p-2 sm:p-2.5 shadow-none focus-within:border-foreground/40 transition-colors">
               <textarea

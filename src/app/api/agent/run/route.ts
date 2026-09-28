@@ -10,6 +10,8 @@ import { Command } from "@langchain/langgraph"
 import { trackGraphExecution, createLangfuseCallbackHandler, flushLangfuse } from "@/lib/ai/graph/telemetry"
 import { prisma, withDbRetry } from "@/lib/prisma"
 import { triggerBackgroundSummarize } from "@/lib/ai/conversation-summarizer"
+import { generateAndSaveSessionTitle } from "@/lib/ai/title-generator"
+import { invalidateCache } from "@/lib/redis"
 
 export async function POST(request: NextRequest) {
   const userId = await getInternalUserId()
@@ -85,6 +87,7 @@ export async function POST(request: NextRequest) {
           },
         })
       )
+      void invalidateCache(`session:data:${sessionId}`, `user:sessions:${userId}`)
     }
   } catch (dbErr) {
     console.warn("[Session Upsert Warning]:", dbErr)
@@ -183,7 +186,15 @@ export async function POST(request: NextRequest) {
       }
 
       try {
-        const app = await buildCareerAgentGraph(aiConfig)
+        let accumulatedResponseContent = ""
+        let accumulatedPlan: any[] = []
+
+        const app = await buildCareerAgentGraph(aiConfig, {
+          onToken: (delta: string) => {
+            accumulatedResponseContent += delta
+            sendEvent("token", { delta })
+          },
+        })
         const threadConfig = {
           configurable: {
             thread_id: sessionId,
@@ -228,6 +239,12 @@ export async function POST(request: NextRequest) {
         for await (const update of events) {
           for (const [nodeName, nodeState] of Object.entries(update)) {
             sendEvent(nodeName, nodeState)
+            if ((nodeState as any)?.responseContent) {
+              accumulatedResponseContent = String((nodeState as any).responseContent)
+            }
+            if (Array.isArray((nodeState as any)?.plan) && (nodeState as any).plan.length > 0) {
+              accumulatedPlan = (nodeState as any).plan
+            }
             if (!langfuseHandler) {
               void trackGraphExecution({
                 userId,
@@ -249,8 +266,9 @@ export async function POST(request: NextRequest) {
             state: finalState.values,
           })
         } else {
-          const finalValues: any = finalState.values
-          const responseText = finalValues?.responseContent || ""
+          const finalValues: any = finalState.values || {}
+          const responseText = (finalValues?.responseContent || accumulatedResponseContent || "").trim()
+          const planToSave = (Array.isArray(finalValues?.plan) && finalValues.plan.length > 0) ? finalValues.plan : accumulatedPlan
 
           // Persist assistant message in DB
           if (responseText) {
@@ -262,11 +280,14 @@ export async function POST(request: NextRequest) {
                     role: "assistant",
                     content: responseText,
                     metadata: {
-                      plan: finalValues?.plan || [],
+                      plan: planToSave,
                     },
                   },
                 })
               )
+
+              // Invalidate session cache in Redis so subsequent reads get the saved assistant message
+              void invalidateCache(`session:data:${sessionId}`, `user:sessions:${userId}`)
 
               // Asynchronously check & trigger background summarizer if threshold reached
               void (async () => {
@@ -277,6 +298,28 @@ export async function POST(request: NextRequest) {
                   }
                 } catch (summaryTriggerErr) {
                   console.warn("[Background Summarizer Trigger Warning]:", summaryTriggerErr)
+                }
+              })()
+
+              // Asynchronously generate smart session title if needed
+              void (async () => {
+                try {
+                  const currentSession = await prisma.chatSession.findUnique({
+                    where: { id: sessionId },
+                    select: { title: true },
+                  })
+                  const title = currentSession?.title || ""
+                  if (
+                    !title ||
+                    title === "New Chat" ||
+                    title === "Agent Session" ||
+                    title.toLowerCase().startsWith("hi") ||
+                    title.length <= 4
+                  ) {
+                    await generateAndSaveSessionTitle(sessionId, message || "", responseText)
+                  }
+                } catch (titleErr) {
+                  console.warn("[Smart Title Generation Warning]:", titleErr)
                 }
               })()
             } catch (saveErr) {

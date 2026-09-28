@@ -5,7 +5,7 @@ import Link from "next/link"
 import { cn } from "@/lib/utils"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
-import { MessageSquare, ChevronDown, ChevronUp, Copy, Check, Pencil } from "lucide-react"
+import { MessageSquare, ChevronDown, ChevronUp, Copy, Check, Pencil, RotateCcw } from "lucide-react"
 import { toast } from "sonner"
 import AnalysisResult from "./AnalysisResult"
 import OutreachResult from "./OutreachResult"
@@ -959,6 +959,20 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
               toolInvocations={message.toolInvocations}
               isFinished={false}
             />
+          </div>
+        ) : !isUser ? (
+          <div className="py-2.5 px-3 rounded-md bg-muted/40 border border-border/70 text-xs text-muted-foreground flex items-center justify-between gap-3 not-prose">
+            <span>No response text recorded.</span>
+            {onRetry && (
+              <button
+                type="button"
+                onClick={() => onRetry(message.id)}
+                className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-sm border border-border bg-background hover:bg-muted text-foreground transition-colors cursor-pointer"
+              >
+                <RotateCcw className="h-3 w-3" />
+                <span>Retry</span>
+              </button>
+            )}
           </div>
         ) : null}
       </div>

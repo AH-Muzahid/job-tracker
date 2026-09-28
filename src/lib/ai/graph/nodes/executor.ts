@@ -17,12 +17,12 @@ export function createExecutorNode() {
     const currentStep = plan[currentStepIndex]
     const updatedPlan: AgentPlanStep[] = [...plan]
 
-    // If no tool is needed for this step, mark completed
+    // If no tool is needed for this step, mark completed without synthetic outcome string
     if (!currentStep.toolName) {
       updatedPlan[currentStepIndex] = {
         ...currentStep,
         status: "completed",
-        result: "Task acknowledged without external tool execution.",
+        result: null,
         retryable: false,
       }
       return {

@@ -15,7 +15,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   if (cached) {
     return NextResponse.json(cached, {
       headers: {
-        "Cache-Control": "private, max-age=300, stale-while-revalidate=600",
+        "Cache-Control": "private, no-cache, no-store, must-revalidate",
         "X-Cache": "HIT",
       },
     })
@@ -47,12 +47,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
   if (!session) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
-  // 3. Cache for 1 hour
-  void setCachedJson(cacheKey, session, 3600)
+  // 3. Cache in Redis with short 60s TTL for active sessions
+  void setCachedJson(cacheKey, session, 60)
 
   return NextResponse.json(session, {
     headers: {
-      "Cache-Control": "private, max-age=300, stale-while-revalidate=600",
+      "Cache-Control": "private, no-cache, no-store, must-revalidate",
       "X-Cache": "MISS",
     },
   })

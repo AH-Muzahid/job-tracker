@@ -14,31 +14,49 @@ import {
 export function getResponderSystemPrompt(): string {
   return `${getChatPolicyPack()}
 
-You are CareerTrack AI, the elite career and job application assistant.
+You are CareerTrack AI, the elite career operating system copilot.
 Your mission is to help job seekers land their dream roles through intelligent tracking, resume optimization, interview preparation, and strategic outreach.
 
-Guidelines:
-1. When the user's message is a greeting, introduction, or general inquiry, respond warmly, conversationally, and proactively offer assistance with their applications, resume, or job search.
-2. If tool actions were executed, seamlessly weave their outcomes into your response. Highlight key metrics, saved applications, or job opportunities clearly with markdown formatting.
-3. NEVER output robotic status logs, internal step descriptions, or phrases like "Task acknowledged without external tool execution".
-4. STRICT PROHIBITION: NEVER use the Sparkles icon or generic AI filler. Maintain a professional, clean, and empowering tone.
-5. Respect user's language choice (English, Bangla, or mixed Banglish).
+CRITICAL CONVERSATIONAL & EXECUTION RULES:
+1. Conversational Greetings & Casual Chat:
+   - When the user's message is a greeting (e.g., "hi", "hello", "hey", "assalamu alaikum"), reply warmly and naturally.
+   - Offer 2-3 specific ways you can assist them right now.
+   - STRICT AMBIENT CONTEXT GUARDRAIL: Even if Active Screen Context contains a job, opportunity, or application, NEVER unilaterally launch into an unprompted mock interview, quiz, or unsolicited evaluation on a casual greeting! You may gently acknowledge what they are currently viewing (e.g., "I see you're viewing the [Job Title] role at [Company]. Would you like me to analyze the requirements, check your resume alignment, or practice interview questions?"), but DO NOT start asking interview questions or grading without user request.
+2. Tool Execution Outcomes:
+   - If tools were executed, synthesize their outcomes following Rule 6 (Action -> Outcome -> Insight -> Next Steps).
+   - Highlight key metrics and application records clearly with markdown formatting.
+3. Strict Log Prohibition (Rule 6):
+   - NEVER output internal step logs, execution status codes, plan IDs, or robotic phrases like "Step: completed" or "Task acknowledged without external tool execution".
+4. Iconography & Design Rules:
+   - STRICT PROHIBITION: NEVER use the Sparkles icon anywhere.
+   - Maintain a clean, professional, Stripe/Linear standard tone.
+5. Multilingual Fluency:
+   - Seamlessly match the user's language (English, Bangla, or mixed Banglish).
 `
 }
 
-export function createResponderNode(model: BaseChatModel) {
+export function createResponderNode(
+  model: BaseChatModel,
+  onToken?: (delta: string) => void
+) {
   return async (state: AgentStateType): Promise<Partial<AgentStateType>> => {
     const { goal, plan, sessionId } = state
 
     // If planner already returned a high-priority user error message (e.g. parse failure)
     if (state.responseContent && (!plan || plan.length === 0)) {
+      if (onToken && state.responseContent) {
+        onToken(state.responseContent)
+      }
       return {
         responseContent: state.responseContent,
         messages: [new AIMessage(state.responseContent)],
       }
     }
 
-    const meaningfulSteps = (plan || []).filter((s) => s.toolName || s.result)
+    // Filter strictly to valid tool execution steps with real outputs
+    const meaningfulSteps = (plan || []).filter(
+      (s) => Boolean(s.toolName && s.toolName !== "null" && s.status === "completed" && s.result)
+    )
     const hasToolOutcomes = meaningfulSteps.length > 0
 
     const planSummary = meaningfulSteps
@@ -79,12 +97,40 @@ export function createResponderNode(model: BaseChatModel) {
 
     try {
       const systemPrompt = getResponderSystemPrompt()
-      const response = await model.invoke([
-        new SystemMessage(systemPrompt),
-        new HumanMessage(promptText),
-      ])
+      let responseText = ""
 
-      const responseText = String(response.content)
+      if (onToken) {
+        const stream = await model.stream([
+          new SystemMessage(systemPrompt),
+          new HumanMessage(promptText),
+        ])
+
+        for await (const chunk of stream) {
+          let delta = ""
+          if (typeof chunk.content === "string") {
+            delta = chunk.content
+          } else if (Array.isArray(chunk.content)) {
+            delta = chunk.content
+              .map((c) => (typeof c === "string" ? c : (c as any)?.text || ""))
+              .join("")
+          }
+          if (delta) {
+            responseText += delta
+            onToken(delta)
+          }
+        }
+      }
+
+      if (!responseText) {
+        const response = await model.invoke([
+          new SystemMessage(systemPrompt),
+          new HumanMessage(promptText),
+        ])
+        responseText = String(response.content)
+        if (onToken && responseText) {
+          onToken(responseText)
+        }
+      }
 
       return {
         responseContent: responseText,
@@ -98,6 +144,7 @@ export function createResponderNode(model: BaseChatModel) {
       const isGreeting = GREETING_REGEX.test(cleanGoal)
 
       if (isGreeting || !hasToolOutcomes) {
+        if (onToken) onToken(FALLBACK_GREETING_MESSAGE)
         return {
           responseContent: FALLBACK_GREETING_MESSAGE,
           messages: [new AIMessage(FALLBACK_GREETING_MESSAGE)],
@@ -109,6 +156,7 @@ export function createResponderNode(model: BaseChatModel) {
         .join("\n")
 
       const fallbackText = `I have processed your request:\n\n${readableSummary}\n\nHow would you like to proceed next?`
+      if (onToken) onToken(fallbackText)
       return {
         responseContent: fallbackText,
         messages: [new AIMessage(fallbackText)],

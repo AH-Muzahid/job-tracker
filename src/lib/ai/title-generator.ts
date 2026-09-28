@@ -50,9 +50,9 @@ export function generateHeuristicTitle(prompt: string): string {
     return "Resume Review & Polish"
   }
 
-  // 6. Greetings / Casual
+  // 6. Greetings / Casual - keep as New Chat until substantive prompt
   if (lower === "hi" || lower === "hi bro" || lower === "hello" || lower === "hey" || lower.startsWith("hi ") || lower.startsWith("hello ")) {
-    return "Career Strategy Chat"
+    return "New Chat"
   }
 
   // 7. General concise fallback (first 3-5 words without trailing punctuation)
