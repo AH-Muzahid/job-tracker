@@ -244,6 +244,7 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar, onToggl
     }
 
     if (sessionData) {
+      const isSessionSwitch = loadedSessionIdRef.current !== sessionId
       loadedSessionIdRef.current = sessionId
       const loadedMsgs = (sessionData?.messages || []).map(
         (m: { id: string; role: string; content: string; toolInvocations?: ToolInvocation[]; metadata?: { toolInvocations?: ToolInvocation[] } }) => ({
@@ -253,7 +254,31 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar, onToggl
       )
       // Only sync if not actively streaming to prevent overwriting active tokens
       if (!isStreamingRef.current) {
-        setMessages(loadedMsgs)
+        if (isSessionSwitch) {
+          // Genuine session switch: load the fetched messages directly
+          setMessages(loadedMsgs)
+        } else {
+          // Same active session: safe merge to prevent wiping just-streamed assistant responses
+          setMessages((prev) => {
+            if (prev.length > loadedMsgs.length) {
+              // Local has more messages (e.g. streaming finished before DB write/cache invalidation synced)
+              return prev.map((localMsg) => {
+                const dbMatch = loadedMsgs.find((m: { id: string }) => m.id === localMsg.id)
+                if (dbMatch) {
+                  return {
+                    ...localMsg,
+                    ...dbMatch,
+                    content: dbMatch.content?.trim() ? dbMatch.content : localMsg.content,
+                    toolInvocations: localMsg.toolInvocations?.length ? localMsg.toolInvocations : dbMatch.toolInvocations,
+                    plan: localMsg.plan || dbMatch.plan,
+                  }
+                }
+                return localMsg
+              })
+            }
+            return loadedMsgs
+          })
+        }
       }
       setLoading(false)
       setError(null)
@@ -548,7 +573,10 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar, onToggl
 
         console.log(`[Chat] 7. Stream finished successfully`)
 
-        // Check backend session for persisted message
+        // Consolidate final assistant response text and persisted ID
+        let finalContent = accumulatedText.trim()
+        let persistedId = assistantMsgId
+
         try {
           console.log(`[Chat] 8. Fetching session from DB`)
           const sessionRes = await fetch(`/api/ai/sessions/${currentSessionId}`)
@@ -559,35 +587,38 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar, onToggl
               .pop()
 
             if (lastAsstMsg) {
-              setMessages((prev) => {
-                const updated = [...prev]
-                const lastIdx = updated.findIndex((m) => m.id === assistantMsgId)
-                if (lastIdx !== -1) {
-                  updated[lastIdx] = {
-                    ...updated[lastIdx],
-                    id: lastAsstMsg.id || updated[lastIdx].id,
-                    content: lastAsstMsg.content || accumulatedText || updated[lastIdx].content,
-                  }
-                }
-                return updated
-              })
+              if (lastAsstMsg.id) persistedId = lastAsstMsg.id
+              if (lastAsstMsg.content?.trim()) {
+                finalContent = lastAsstMsg.content.trim()
+              }
             }
           }
         } catch {}
 
-        if (!accumulatedText.trim()) {
-          setMessages((prev) => {
-            const updated = [...prev]
-            const lastIdx = updated.findIndex((m) => m.id === assistantMsgId)
-            if (lastIdx !== -1) {
-              updated[lastIdx] = {
-                ...updated[lastIdx],
-                content: "The agent completed processing. Please check your dashboard or refresh session.",
-              }
-            }
-            return updated
-          })
+        // Fallback guardrail: Never leave assistant message empty or blank
+        if (!finalContent) {
+          if (accumulatedTools.length > 0) {
+            finalContent = `Actions processed successfully (${accumulatedTools.length} step${accumulatedTools.length > 1 ? "s" : ""}). How would you like to proceed next?`
+          } else {
+            finalContent = "I have processed your request. How would you like to proceed next?"
+          }
         }
+
+        setMessages((prev) => {
+          const updated = [...prev]
+          const targetIdx = updated.findIndex((m) => m.id === assistantMsgId || m.id === persistedId)
+          if (targetIdx !== -1) {
+            updated[targetIdx] = {
+              ...updated[targetIdx],
+              id: persistedId,
+              content: finalContent,
+              plan: accumulatedPlan.length > 0 ? accumulatedPlan : updated[targetIdx].plan,
+              toolInvocations: accumulatedTools.length > 0 ? [...accumulatedTools] : updated[targetIdx].toolInvocations,
+              interruptData: interruptPayload,
+            }
+          }
+          return updated
+        })
       }
     } catch (e: unknown) {
       if (e instanceof Error && e.name === "AbortError") {
@@ -602,8 +633,22 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar, onToggl
           )
         )
       } else {
-        setError(e instanceof Error ? e.message : "Failed to get response")
-        setMessages((prev) => prev.filter((m) => (retryOptions?.isRetry ? true : m.id !== userMsgId) && m.id !== assistantMsgId))
+        const errorMsg = e instanceof Error ? e.message : "Failed to get response"
+        setError(errorMsg)
+        // Defensive: Never delete the assistant card. Show error in-card with retry option
+        setMessages((prev) => {
+          const updated = [...prev]
+          const targetIdx = updated.findIndex((m) => m.id === assistantMsgId)
+          if (targetIdx !== -1) {
+            updated[targetIdx] = {
+              ...updated[targetIdx],
+              content: updated[targetIdx].content?.trim()
+                ? updated[targetIdx].content
+                : `⚠️ ${errorMsg}. Please try clicking Retry below.`,
+            }
+          }
+          return updated
+        })
       }
     } finally {
       console.log(`[Chat] 9. Streaming complete — cleaning up`)

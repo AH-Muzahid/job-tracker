@@ -407,7 +407,7 @@ export async function executeGetPipelineStats(userId: string) {
   if (!userId) return { success: false, error: "Unauthorized" }
 
   try {
-    const [groups, total] = await withDbRetry(() =>
+    const [groups, total, savedMatchesCount] = await withDbRetry(() =>
       Promise.all([
         prisma.application.groupBy({
           by: ["status"],
@@ -415,6 +415,9 @@ export async function executeGetPipelineStats(userId: string) {
           _count: true,
         }),
         prisma.application.count({ where: { userId } }),
+        prisma.userJobMatch
+          ? prisma.userJobMatch.count({ where: { userId, isSaved: true } }).catch(() => 0)
+          : Promise.resolve(0),
       ])
     )
 
@@ -433,11 +436,16 @@ export async function executeGetPipelineStats(userId: string) {
       breakdown[g.status] = g._count
     })
 
+    const totalSavedJobs = (breakdown.Saved || 0) + (savedMatchesCount || 0)
+
     return {
       success: true,
       total,
+      totalSavedJobs,
+      savedTrackerApplications: breakdown.Saved || 0,
+      savedDiscoveryOpportunities: savedMatchesCount || 0,
       breakdown,
-      message: `Total applications: ${total}. Saved: ${breakdown.Saved || 0}, Applied: ${breakdown.Applied || 0}, Interview: ${breakdown.Interview || 0}, Offer: ${breakdown.Offer || 0}, Rejected: ${breakdown.Rejected || 0}`,
+      message: `You have ${totalSavedJobs} total saved job(s): ${breakdown.Saved || 0} saved application(s) in Tracker and ${savedMatchesCount || 0} saved opportunity(ies) in Discovery. Pipeline distribution: Total: ${total}, Applied: ${breakdown.Applied || 0}, Interview: ${breakdown.Interview || 0}, Offer: ${breakdown.Offer || 0}, Rejected: ${breakdown.Rejected || 0}.`,
     }
   } catch (error: any) {
     return { success: false, error: error?.message || "Failed to retrieve pipeline stats" }

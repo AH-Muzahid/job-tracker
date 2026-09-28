@@ -6,6 +6,7 @@ import { MobileBottomNav } from "@/components/mobile-bottom-nav";
 import { navGroups } from "@/components/app-shared";
 import { NavUser } from "@/components/nav-user";
 import { AppHeader } from "@/components/app-header";
+import GlobalAISidebar from "@/components/ai/GlobalAISidebar";
 
 // Mock Clerk auth
 vi.mock("@clerk/nextjs", () => ({
@@ -38,7 +39,7 @@ vi.mock("@/lib/store", () => {
     setSearchOpen: vi.fn(),
     evaluatorModal: false,
     setEvaluatorModal: vi.fn(),
-    aiSidebarOpen: false,
+    aiSidebarOpen: true,
     setAiSidebarOpen: vi.fn(),
   };
   return {
@@ -46,6 +47,10 @@ vi.mock("@/lib/store", () => {
       typeof selector === "function" ? selector(uiState) : uiState,
   };
 });
+
+vi.mock("@/components/ai/AIChat", () => ({
+  default: () => <div data-testid="ai-chat" />,
+}));
 
 vi.mock("@/components/notifications/NotificationCenter", () => ({
   NotificationCenter: () => <div data-testid="notification-center" />,
@@ -86,7 +91,11 @@ describe("Word-by-Word LLM Token Streaming Suite", () => {
       reflection: { passed: true, retryCount: 0 },
       userId: "user-123",
       sessionId: "sess-123",
-    });
+      interruptData: null,
+      responseContent: "",
+      routeContext: null,
+      isHeadlessMode: false,
+    } as any);
 
     expect(tokens.join("")).toBe("Hello there! How can I help you today?");
     expect(result.responseContent).toBe("Hello there! How can I help you today?");
@@ -115,7 +124,11 @@ describe("Word-by-Word LLM Token Streaming Suite", () => {
       reflection: { passed: true, retryCount: 0 },
       userId: "user-123",
       sessionId: "sess-123",
-    });
+      interruptData: null,
+      responseContent: "",
+      routeContext: null,
+      isHeadlessMode: false,
+    } as any);
 
     expect(tokens.join("")).toBe("Software Engineer role analysis");
     expect(result.responseContent).toBe("Software Engineer role analysis");
@@ -141,7 +154,10 @@ describe("Word-by-Word LLM Token Streaming Suite", () => {
       reflection: { passed: true, retryCount: 0 },
       userId: "user-123",
       sessionId: "sess-123",
-    });
+      interruptData: null,
+      routeContext: null,
+      isHeadlessMode: false,
+    } as any);
 
     expect(tokens).toEqual(["I could not understand your request."]);
     expect(result.responseContent).toBe("I could not understand your request.");
@@ -205,5 +221,54 @@ describe("Iconography & Visual Style Rules (AGENTS.md)", () => {
     expect(html).not.toContain("lucide-sparkles");
     expect(html).not.toContain("lucide-brain");
     expect(html).not.toContain("lucide-cpu");
+  });
+
+  it("strictly prohibits Bot, Sparkles, Brain, and Cpu icons in GlobalAISidebar", () => {
+    const html = renderToString(<GlobalAISidebar />);
+    expect(html).not.toContain("lucide-bot");
+    expect(html).not.toContain("lucide-sparkles");
+    expect(html).not.toContain("lucide-brain");
+    expect(html).not.toContain("lucide-cpu");
+  });
+});
+
+describe("Copilot Fresh Chat & Non-Empty Responder Guarantees", () => {
+  it("renders GlobalAISidebar with New Chat button and clean copilot header", () => {
+    const html = renderToString(<GlobalAISidebar />);
+    expect(html).toContain("Career Copilot");
+    expect(html).toContain("New Chat");
+    expect(html).toContain("Close Copilot");
+  });
+
+  it("guarantees responder node produces non-empty fallback when model streams empty tokens", async () => {
+    const tokens: string[] = [];
+    const mockModel: any = {
+      stream: vi.fn(async function* () {
+        yield { content: "" };
+        yield { content: "   " };
+      }),
+      invoke: vi.fn().mockResolvedValue({ content: "" }),
+    };
+
+    const responder = createResponderNode(mockModel, (delta) => {
+      tokens.push(delta);
+    });
+
+    const result = await responder({
+      goal: "amar save kora job koita?",
+      messages: [],
+      plan: [],
+      currentStepIndex: 0,
+      reflection: { passed: true, retryCount: 0 },
+      userId: "user-123",
+      sessionId: "sess-123",
+      interruptData: null,
+      responseContent: "",
+      routeContext: null,
+      isHeadlessMode: false,
+    } as any);
+
+    expect(result.responseContent).toBeTruthy();
+    expect(result.responseContent!.length).toBeGreaterThan(10);
   });
 });

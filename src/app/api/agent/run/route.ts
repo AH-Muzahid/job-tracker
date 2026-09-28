@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
           },
         })
       )
-      void invalidateCache(`session:data:${sessionId}`, `user:sessions:${userId}`)
+      await invalidateCache(`session:data:${sessionId}`, `user:sessions:${userId}`)
     }
   } catch (dbErr) {
     console.warn("[Session Upsert Warning]:", dbErr)
@@ -267,27 +267,39 @@ export async function POST(request: NextRequest) {
           })
         } else {
           const finalValues: any = finalState.values || {}
-          const responseText = (finalValues?.responseContent || accumulatedResponseContent || "").trim()
+          let responseText = (finalValues?.responseContent || accumulatedResponseContent || "").trim()
           const planToSave = (Array.isArray(finalValues?.plan) && finalValues.plan.length > 0) ? finalValues.plan : accumulatedPlan
 
-          // Persist assistant message in DB
-          if (responseText) {
-            try {
-              await withDbRetry(() =>
-                prisma.chatMessage.create({
-                  data: {
-                    sessionId,
-                    role: "assistant",
-                    content: responseText,
-                    metadata: {
-                      plan: planToSave,
-                    },
-                  },
-                })
-              )
+          if (!responseText) {
+            if (Array.isArray(planToSave) && planToSave.some((s: any) => s.status === "completed" && s.result)) {
+              const completedTasks = planToSave
+                .filter((s: any) => s.status === "completed")
+                .map((s: any) => `• ${s.task}`)
+                .join("\n")
+              responseText = `I have completed the requested actions:\n\n${completedTasks}\n\nPlease let me know how you would like to proceed next.`
+            } else {
+              responseText = "I have processed your request. How would you like to proceed next?"
+            }
+            finalValues.responseContent = responseText
+          }
 
-              // Invalidate session cache in Redis so subsequent reads get the saved assistant message
-              void invalidateCache(`session:data:${sessionId}`, `user:sessions:${userId}`)
+          // Persist assistant message in DB
+          try {
+            await withDbRetry(() =>
+              prisma.chatMessage.create({
+                data: {
+                  sessionId,
+                  role: "assistant",
+                  content: responseText,
+                  metadata: {
+                    plan: planToSave,
+                  },
+                },
+              })
+            )
+
+            // Await Redis cache invalidation so immediate client refetches guaranteed see the assistant message
+            await invalidateCache(`session:data:${sessionId}`, `user:sessions:${userId}`)
 
               // Asynchronously check & trigger background summarizer if threshold reached
               void (async () => {
@@ -325,7 +337,6 @@ export async function POST(request: NextRequest) {
             } catch (saveErr) {
               console.warn("[Save Assistant Msg Warning]:", saveErr)
             }
-          }
 
           sendEvent("done", {
             state: finalValues,

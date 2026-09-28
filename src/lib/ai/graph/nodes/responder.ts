@@ -121,12 +121,28 @@ export function createResponderNode(
         }
       }
 
-      if (!responseText) {
+      if (!responseText.trim() && typeof model.invoke === "function") {
         const response = await model.invoke([
           new SystemMessage(systemPrompt),
           new HumanMessage(promptText),
         ])
-        responseText = String(response.content)
+        responseText = String(response.content || "")
+        if (onToken && responseText) {
+          onToken(responseText)
+        }
+      }
+
+      if (!responseText.trim()) {
+        const cleanGoal = (goal || "").trim().toLowerCase()
+        const isGreeting = GREETING_REGEX.test(cleanGoal)
+        if (isGreeting || !hasToolOutcomes) {
+          responseText = FALLBACK_GREETING_MESSAGE
+        } else {
+          const readableSummary = meaningfulSteps
+            .map((s) => `• **${s.task}**: ${s.status === "completed" ? "Completed successfully" : s.error || "Processed"}`)
+            .join("\n")
+          responseText = `I have processed your request:\n\n${readableSummary}\n\nHow would you like to proceed next?`
+        }
         if (onToken && responseText) {
           onToken(responseText)
         }

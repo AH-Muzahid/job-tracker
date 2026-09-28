@@ -798,7 +798,7 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
               </button>
             </div>
           </div>
-        ) : message.content ? (
+        ) : message.content?.trim() ? (
           <>
             <div className={cn(
               "transition-all duration-200 overflow-hidden relative",
@@ -884,7 +884,7 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
             )}
 
             {/* Smart Action Bar & Follow-ups */}
-            {!isUser && !isStreaming && message.content && (
+            {!isUser && !isStreaming && message.content?.trim() && (
               <div className="mt-3 not-prose">
                 {/* Action Icons Row */}
                 <div className="flex items-center gap-1 text-muted-foreground">
