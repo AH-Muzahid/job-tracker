@@ -3,8 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react"
 import Link from "next/link"
 import {
-  Cpu,
-  Bot,
+  MessageSquare,
   Zap,
   Check,
   ChevronDown,
@@ -13,6 +12,7 @@ import {
   RefreshCw,
   Layers,
   Radio,
+  Terminal,
 } from "lucide-react"
 import {
   DropdownMenu,
@@ -257,9 +257,9 @@ export default function ModelSelector({
         return <Layers className="h-3.5 w-3.5 text-purple-500" />
       case "custom-openai":
       case "custom-anthropic":
-        return <Cpu className="h-3.5 w-3.5 text-emerald-500" />
+        return <Terminal className="h-3.5 w-3.5 text-emerald-500" />
       default:
-        return <Bot className="h-3.5 w-3.5 text-primary" />
+        return <MessageSquare className="h-3.5 w-3.5 text-primary" />
     }
   }
 
@@ -290,7 +290,7 @@ export default function ModelSelector({
   if (loading) {
     return (
       <div className={cn("inline-flex items-center gap-1.5 px-2 py-1 text-xs text-muted-foreground animate-pulse", className)}>
-        <Bot className="h-3 w-3" />
+        <MessageSquare className="h-3 w-3" />
         <span className="text-[11px]">Loading...</span>
       </div>
     )
@@ -433,7 +433,7 @@ export default function ModelSelector({
                   )}
                 >
                   <div className="flex items-center gap-2 overflow-hidden">
-                    <Cpu className={cn("h-3.5 w-3.5 shrink-0", isSelected ? "text-primary" : "text-muted-foreground")} />
+                    <Terminal className={cn("h-3.5 w-3.5 shrink-0", isSelected ? "text-primary" : "text-muted-foreground")} />
                     <div className="overflow-hidden">
                       <p className="font-mono text-xs truncate text-foreground">
                         {m.id}
