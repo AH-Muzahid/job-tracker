@@ -5,7 +5,7 @@ import Link from "next/link"
 import { cn } from "@/lib/utils"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
-import { MessageSquare, ChevronDown, ChevronUp, Copy, Check, Pencil, RotateCcw } from "lucide-react"
+import { MessageSquare, Copy, Check, Pencil, RotateCcw } from "lucide-react"
 import { toast } from "sonner"
 import AnalysisResult from "./AnalysisResult"
 import OutreachResult from "./OutreachResult"
@@ -314,8 +314,6 @@ function getAnalysisContent(rawText: string): string {
 
 export default function ChatMessage({ message, isLast, isStreaming, onSuggestionClick, onRetry, onToolConfirm, onEdit }: Props) {
   const isUser = message.role === "user"
-  const isLongMessage = isUser && message.content && message.content.length > 250
-  const [isExpanded, setIsExpanded] = useState(false)
   const [copied, setCopied] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [editText, setEditText] = useState(message.content)
@@ -640,15 +638,127 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
     }
   }), [onSuggestionClick, message.content])
 
+  if (isUser) {
+    if (isEditing) {
+      return (
+        <div className="flex w-full justify-end my-2">
+          <div className="flex flex-col items-end w-full max-w-[85%] sm:max-w-[75%] space-y-2">
+            <textarea
+              value={editText}
+              onChange={(e) => setEditText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                  e.preventDefault()
+                  if (editText.trim() && editText.trim() !== message.content) {
+                    setIsEditing(false)
+                    onEdit?.(message.id, editText.trim())
+                  }
+                } else if (e.key === "Escape") {
+                  setIsEditing(false)
+                  setEditText(message.content)
+                }
+              }}
+              rows={Math.min(6, Math.max(2, editText.split("\n").length))}
+              className="w-full bg-background border border-border rounded-xl p-3 text-xs sm:text-sm text-foreground outline-none resize-y min-h-[60px] focus:ring-1 focus:ring-primary focus:border-primary shadow-xs"
+              autoFocus
+            />
+            <div className="flex items-center justify-end gap-1.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsEditing(false)
+                  setEditText(message.content)
+                }}
+                className="px-3 py-1 text-xs font-medium border border-border bg-background hover:bg-muted text-foreground transition-colors cursor-pointer rounded-md active:scale-95"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={!editText.trim() || editText.trim() === message.content}
+                onClick={() => {
+                  setIsEditing(false)
+                  onEdit?.(message.id, editText.trim())
+                }}
+                className="px-3 py-1 text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer rounded-md active:scale-95"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )
+    }
+
+    return (
+      <div className="flex flex-col items-end w-full my-1.5 group select-text">
+        {/* User Pill Bubble */}
+        <div className="max-w-[85%] sm:max-w-[75%] rounded-2xl sm:rounded-3xl px-4 py-2 sm:px-4.5 sm:py-2.5 text-xs sm:text-[13.5px] font-normal bg-blue-600 dark:bg-blue-600 text-white shadow-xs break-words whitespace-pre-wrap leading-relaxed tracking-normal">
+          {message.content}
+        </div>
+
+        {/* Hover Action Bar Underneath - Aligned to right of the pill */}
+        {!isStreaming && (
+          <div className="flex items-center gap-0.5 mt-1 mr-1 text-muted-foreground opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100 transition-opacity duration-150 not-prose">
+            <button
+              type="button"
+              onClick={() => {
+                navigator.clipboard.writeText(message.content)
+                setCopied(true)
+                toast.success("Copied to clipboard")
+                setTimeout(() => setCopied(false), 2000)
+              }}
+              className="flex size-7 items-center justify-center rounded-sm hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+              title="Copy"
+              aria-label="Copy message"
+            >
+              {copied ? (
+                <Check className="size-3.5 text-emerald-500" />
+              ) : (
+                <Copy className="size-3.5" />
+              )}
+            </button>
+
+            {onRetry && (
+              <button
+                type="button"
+                onClick={() => onRetry(message.id)}
+                className="flex size-7 items-center justify-center rounded-sm hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                title="Retry"
+                aria-label="Retry message"
+              >
+                <RotateCcw className="size-3.5" />
+              </button>
+            )}
+
+            {onEdit && (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsEditing(true)
+                  setEditText(message.content)
+                }}
+                className="flex size-7 items-center justify-center rounded-sm hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                title="Edit"
+                aria-label="Edit message"
+              >
+                <Pencil className="size-3.5" />
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    )
+  }
+
   const showAvatar =
-    !isUser &&
-    (Boolean(message.content) ||
-      (message.toolInvocations && message.toolInvocations.length > 0) ||
-      (message.plan && message.plan.length > 0) ||
-      Boolean(message.interruptData))
+    Boolean(message.content) ||
+    (message.toolInvocations && message.toolInvocations.length > 0) ||
+    (message.plan && message.plan.length > 0) ||
+    Boolean(message.interruptData)
 
   return (
-    <div className={cn("flex gap-3 w-full group", isUser ? "justify-end" : "justify-start")}>
+    <div className="flex gap-3 w-full group justify-start my-1.5">
       {showAvatar && (
         <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-sm bg-primary/10 border border-primary/20 text-primary mt-0.5 shadow-none" aria-hidden="true">
           <MessageSquare className="h-3.5 w-3.5" />
@@ -657,17 +767,13 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
       
       <div
         className={cn(
-          "prose prose-sm dark:prose-invert",
-          isUser 
-            ? "max-w-[85%] sm:max-w-[75%] bg-muted/60 border border-border/70 rounded-[6px] px-3.5 py-2 text-foreground text-xs" 
-            : "max-w-none flex-1 min-w-0 pt-0.5",
+          "prose prose-sm dark:prose-invert max-w-none flex-1 min-w-0 pt-0.5",
           "prose-p:leading-relaxed prose-p:my-0",
           "prose-a:text-primary prose-a:no-underline hover:prose-a:underline",
           "prose-ul:list-[circle] prose-ul:my-2 prose-li:my-1",
           "prose-headings:text-foreground prose-headings:mb-2 prose-headings:mt-4 first:prose-headings:mt-0",
           "prose-strong:text-foreground prose-strong:font-semibold font-normal",
-          "prose-blockquote:border-l-primary prose-blockquote:text-muted-foreground",
-          isUser && "relative pr-9" // Make room for the toggle button
+          "prose-blockquote:border-l-primary prose-blockquote:text-muted-foreground"
         )}
       >
         {/* Reasoning / Thought Process Accordion */}
@@ -766,125 +872,26 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
           </div>
         )}
 
-        {isEditing ? (
-          <div className="flex flex-col gap-2 w-full min-w-[240px]">
-            <textarea
-              value={editText}
-              onChange={(e) => setEditText(e.target.value)}
-              className="w-full bg-background border border-border rounded-lg p-2 text-xs text-foreground outline-none resize-y min-h-[60px] focus:border-foreground/35"
-              autoFocus
-            />
-            <div className="flex justify-end gap-1.5">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsEditing(false)
-                  setEditText(message.content)
-                }}
-                className="px-2.5 py-1 text-[10px] font-medium border border-border bg-background hover:bg-muted text-foreground transition-colors cursor-pointer rounded-sm active:scale-95"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={!editText.trim() || editText.trim() === message.content}
-                onClick={() => {
-                  setIsEditing(false)
-                  onEdit?.(message.id, editText.trim())
-                }}
-                className="px-2.5 py-1 text-[10px] font-medium bg-primary text-primary-foreground hover:bg-primary/95 disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer rounded-sm active:scale-95"
-              >
-                Save
-              </button>
-            </div>
-          </div>
-        ) : message.content?.trim() ? (
+        {message.content?.trim() ? (
           <>
-            <div className={cn(
-              "transition-all duration-200 overflow-hidden relative",
-              isLongMessage && !isExpanded ? "max-h-[120px]" : "max-h-none"
-            )}>
+            <div className="relative">
               <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
                 {(() => {
                   let text = message.content || ""
-                  if (isStreaming && !isUser) {
+                  if (isStreaming) {
                     // Hide unclosed ```suggestions block while streaming to prevent flickering / jumping
                     text = text.replace(/```suggestions[\s\S]*$/i, "").trim()
-                  }
-                  if (isUser) {
-                    const parts = text.split("```")
-                    if (parts.length === 3 && parts[0].trim() === "" && parts[2].trim() === "") {
-                      text = parts[1].replace(/^[a-zA-Z]*\n/, "")
-                    }
                   }
                   return text
                 })()}
               </ReactMarkdown>
-              {isStreaming && !isUser && (
+              {isStreaming && (
                 <span className="inline-block w-1.5 h-3.5 ml-1 bg-primary/70 rounded-xs animate-pulse align-middle" />
               )}
-              {isLongMessage && !isExpanded && (
-                <div className="absolute bottom-0 left-0 right-0 h-6 bg-muted/80 backdrop-blur-xs border-t border-border/50 pointer-events-none" />
-              )}
             </div>
-            
-            {isLongMessage && (
-              <button 
-                onClick={() => setIsExpanded(!isExpanded)}
-                className="absolute bottom-2 right-2 p-1 bg-background/60 hover:bg-background/90 text-muted-foreground hover:text-foreground rounded-full transition-colors"
-                title={isExpanded ? "Collapse" : "Expand"}
-              >
-                {isExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-              </button>
-            )}
-
-            {/* User message action bar */}
-            {isUser && !isStreaming && (
-              <div className="flex items-center justify-end gap-1 mt-1.5 not-prose">
-                <button
-                  type="button"
-                  onClick={() => {
-                    navigator.clipboard.writeText(message.content)
-                    toast.success("Copied to clipboard")
-                  }}
-                  className="inline-flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                  title="Copy message"
-                >
-                  <Copy className="h-3 w-3" />
-                  <span>Copy</span>
-                </button>
-                {onEdit && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsEditing(true)
-                      setEditText(message.content)
-                    }}
-                    className="inline-flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                    title="Edit message"
-                  >
-                    <Pencil className="h-3 w-3" />
-                    <span>Edit</span>
-                  </button>
-                )}
-                {onRetry && (
-                  <button
-                    type="button"
-                    onClick={() => onRetry(message.id)}
-                    className="inline-flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                    title="Retry this message"
-                  >
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6" />
-                    </svg>
-                    <span>Retry</span>
-                  </button>
-                )}
-              </div>
-            )}
 
             {/* Smart Action Bar & Follow-ups */}
-            {!isUser && !isStreaming && message.content?.trim() && (
+            {!isStreaming && message.content?.trim() && (
               <div className="mt-3 not-prose">
                 {/* Action Icons Row */}
                 <div className="flex items-center gap-1 text-muted-foreground">
@@ -960,7 +967,7 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
               isFinished={false}
             />
           </div>
-        ) : !isUser ? (
+        ) : (
           <div className="py-2.5 px-3 rounded-md bg-muted/40 border border-border/70 text-xs text-muted-foreground flex items-center justify-between gap-3 not-prose">
             <span>No response text recorded.</span>
             {onRetry && (
@@ -974,7 +981,7 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
               </button>
             )}
           </div>
-        ) : null}
+        )}
       </div>
     </div>
   )
