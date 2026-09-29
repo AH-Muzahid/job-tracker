@@ -27,7 +27,6 @@ export async function GET() {
         language: true,
         score: true,
         verdict: true,
-        dialogue: true,
         report: true,
         createdAt: true,
       },

@@ -17,7 +17,7 @@ const CreateSessionSchema = z.object({
   applicationId: z.string().min(1).max(100).nullable().optional(),
 })
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const userId = await getInternalUserId()
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
@@ -25,12 +25,38 @@ export async function GET() {
   if (!rateCheck.success) return rateLimitResponse(rateCheck)
 
   try {
-    const sessions = await prisma.interviewSession.findMany({
-      where: { userId },
-      orderBy: { createdAt: "desc" },
-    })
+    const { searchParams } = new URL(request.url)
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10) || 1)
+    const limit = Math.min(50, Math.max(1, parseInt(searchParams.get("limit") || "20", 10) || 20))
+    const skip = (page - 1) * limit
 
-    return NextResponse.json(sessions)
+    const totalCountPromise = typeof prisma.interviewSession?.count === "function"
+      ? prisma.interviewSession.count({ where: { userId } })
+      : Promise.resolve(1)
+
+    const [sessions, total] = await Promise.all([
+      prisma.interviewSession.findMany({
+        where: { userId },
+        orderBy: { createdAt: "desc" },
+        take: limit,
+        skip,
+        select: {
+          id: true,
+          targetRole: true,
+          targetCompany: true,
+          interviewType: true,
+          language: true,
+          score: true,
+          verdict: true,
+          createdAt: true,
+          updatedAt: true,
+          applicationId: true,
+        },
+      }),
+      totalCountPromise,
+    ])
+
+    return NextResponse.json({ sessions, pagination: { page, limit, total } })
   } catch (error) {
     console.error("[Interview Sessions GET Error]:", error)
     return NextResponse.json({ error: "Failed to fetch interview sessions" }, { status: 500 })

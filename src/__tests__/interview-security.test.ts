@@ -37,6 +37,7 @@ vi.mock("@/lib/prisma", () => ({
     interviewSession: {
       findMany: vi.fn(),
       delete: vi.fn(),
+      count: vi.fn().mockResolvedValue(1),
     },
   },
 }))
@@ -144,7 +145,8 @@ describe("INT-20: Comprehensive Interview Security & IDOR Defense Suite", () => 
         },
       ] as any)
 
-      const res = await sessionsGet()
+      const req = new NextRequest("http://localhost:3000/api/interview-sessions")
+      const res = await sessionsGet(req)
       expect(res.status).toBe(200)
 
       expect(prisma.interviewSession.findMany).toHaveBeenCalledWith(
