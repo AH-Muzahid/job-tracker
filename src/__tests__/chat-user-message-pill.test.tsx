@@ -78,6 +78,7 @@ describe("ChatMessage User Pill Bubble & Hover Actions", () => {
     expect(html).toContain("You have 5 saved jobs in your pipeline.")
     expect(html).toContain("justify-start")
     expect(html).toContain("prose")
+    expect(html).toContain('title="Save to Revision Notes"')
   })
 
   it("does not render generic hardcoded suggestion pills for general answers", () => {
@@ -177,6 +178,37 @@ describe("ChatMessage User Pill Bubble & Hover Actions", () => {
 
     expect(html).toContain("Voice Mock")
     expect(html).toContain("Model STAR Answers")
+  })
+
+  it("renders interactive Tailored Resume Studio card when tailored-resume codeblock is present", () => {
+    const resumeBlock = "```tailored-resume\n" + JSON.stringify({
+      companyName: "Google",
+      role: "Staff Infrastructure Engineer",
+      matchScore: 95,
+      highlights: ["Quantified distributed consensus achievements", "Injected Go/Kubernetes keywords"],
+      summary: "Tailored specifically for Staff Infrastructure Engineer at Google."
+    }) + "\n```"
+
+    const html = renderToString(
+      <ChatMessage
+        message={{
+          id: "asst-msg-resume",
+          role: "assistant",
+          content: resumeBlock,
+        }}
+        isLast={true}
+        isStreaming={false}
+      />
+    )
+
+    expect(html).toContain("Tailored Resume Studio")
+    expect(html).toContain("ATS Fit:")
+    expect(html).toContain("95")
+    expect(html).toContain("Staff Infrastructure Engineer")
+    expect(html).toContain("Google")
+    expect(html).toContain("Open in Tailor Studio")
+    expect(html).toContain("tailor=true")
+    expect(html).toContain("company=Google")
   })
 })
 

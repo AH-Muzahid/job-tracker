@@ -1,8 +1,8 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, Suspense } from "react"
 import { useUser } from "@clerk/nextjs"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { toast } from "sonner"
 import { FileText, Star, Trash2, Upload, Eye, Bot } from "lucide-react"
 import { Card } from "@/components/ui/card"
@@ -33,13 +33,26 @@ function formatSize(bytes: number) {
   return `${(bytes / 1048576).toFixed(1)} MB`
 }
 
-export default function ResumesPage() {
+function ResumesContent() {
   const { isLoaded, isSignedIn } = useUser()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const customCompany = searchParams?.get("company") || ""
+  const customRole = searchParams?.get("role") || ""
+  const customJD = searchParams?.get("jd") || ""
+  const autostartTailor = searchParams?.get("tailor") === "true" || searchParams?.get("autostart") === "true"
+
   const [resumes, setResumes] = useState<Resume[]>([])
   const [loading, setLoading] = useState(true)
   const [addOpen, setAddOpen] = useState(false)
   const [tailorOpen, setTailorOpen] = useState(false)
+
+  // 1-Click Autostart from AI chat or external links
+  useEffect(() => {
+    if (autostartTailor) {
+      setTailorOpen(true)
+    }
+  }, [autostartTailor])
   const [form, setForm] = useState({ title: "" })
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -403,7 +416,59 @@ export default function ResumesPage() {
         </DialogContent>
       </Dialog>
 
-      <TailorResumeModal open={tailorOpen} onOpenChange={setTailorOpen} />
+      <TailorResumeModal
+        open={tailorOpen}
+        onOpenChange={setTailorOpen}
+        initialCompany={customCompany}
+        initialRole={customRole}
+        initialJD={customJD}
+      />
     </PageContainer>
+  )
+}
+
+function ResumesSkeleton() {
+  return (
+    <PageContainer>
+      <PageHeader
+        title="Resume Hub"
+        description="Loading resumes & career knowledge..."
+        action={
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-9 w-32 rounded-[4px]" />
+            <Skeleton className="h-9 w-32 rounded-[4px]" />
+          </div>
+        }
+      />
+
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <Card key={i} className="rounded-[6px] border border-border p-4 space-y-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start gap-3">
+                <Skeleton className="size-9 rounded-[4px] shrink-0" />
+                <div className="space-y-1.5 flex-1">
+                  <Skeleton className="h-4 w-32 rounded-[4px]" />
+                  <Skeleton className="h-3 w-24 rounded-[4px]" />
+                </div>
+              </div>
+              <Skeleton className="size-7 rounded-[4px]" />
+            </div>
+            <div className="flex items-center justify-between pt-2 border-t border-border">
+              <Skeleton className="h-3 w-16 rounded-[4px]" />
+              <Skeleton className="h-7 w-20 rounded-[4px]" />
+            </div>
+          </Card>
+        ))}
+      </div>
+    </PageContainer>
+  )
+}
+
+export default function ResumesPage() {
+  return (
+    <Suspense fallback={<ResumesSkeleton />}>
+      <ResumesContent />
+    </Suspense>
   )
 }

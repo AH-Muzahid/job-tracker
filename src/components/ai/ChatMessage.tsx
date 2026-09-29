@@ -5,11 +5,12 @@ import Link from "next/link"
 import { cn } from "@/lib/utils"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
-import { MessageSquare, Copy, Check, Pencil, RotateCcw, Mic, ArrowRight } from "lucide-react"
+import { MessageSquare, Copy, Check, Pencil, RotateCcw, Mic, ArrowRight, Bookmark, BookmarkCheck, Loader2, FileText } from "lucide-react"
 import { toast } from "sonner"
 import AnalysisResult from "./AnalysisResult"
 import OutreachResult from "./OutreachResult"
 import MockInterviewResult from "./MockInterviewResult"
+import TailoredResumeResult from "./TailoredResumeResult"
 import ToolChips from "./ToolChips"
 import StreamingText from "./StreamingText"
 import LoadingState from "./LoadingState"
@@ -396,9 +397,50 @@ function getAnalysisContent(rawText: string): string {
 export default function ChatMessage({ message, isLast, isStreaming, onSuggestionClick, onRetry, onToolConfirm, onEdit }: Props) {
   const isUser = message.role === "user"
   const [copied, setCopied] = useState(false)
+  const [isSavingNote, setIsSavingNote] = useState(false)
+  const [isNoteSaved, setIsNoteSaved] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [showActions, setShowActions] = useState(false)
   const [editText, setEditText] = useState(message.content)
+
+  const handleSaveToNotes = async () => {
+    if (isNoteSaved || isSavingNote || !message.content?.trim()) return
+    setIsSavingNote(true)
+
+    const firstLine = message.content.split("\n").find((l) => l.trim().length > 0) || "AI Career Note"
+    const cleanTitle = firstLine.replace(/^[#*\s-]+/, "").slice(0, 60).trim() || "AI Revision Note"
+
+    const lower = message.content.toLowerCase()
+    let category = "General"
+    if (lower.includes("star") || lower.includes("behavioral") || lower.includes("situation")) category = "Behavioral"
+    else if (lower.includes("system design") || lower.includes("architecture") || lower.includes("scalability")) category = "System Design"
+    else if (lower.includes("javascript") || lower.includes("react") || lower.includes("node") || lower.includes("technical") || lower.includes("algorithm")) category = "Technical"
+
+    try {
+      const res = await fetch("/api/prep-notes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: cleanTitle,
+          content: message.content,
+          category,
+        }),
+      })
+
+      if (!res.ok) throw new Error("Failed to save note")
+      setIsNoteSaved(true)
+      toast.success("Saved to your Revision Notes!", {
+        action: {
+          label: "View Notes",
+          onClick: () => window.open("/interview-prep", "_blank"),
+        },
+      })
+    } catch {
+      toast.error("Failed to save note to Revision Notes")
+    } finally {
+      setIsSavingNote(false)
+    }
+  }
   
   const hasEmbeddedSuggestions = Boolean(message.content && message.content.includes("```suggestions"))
   
@@ -434,6 +476,19 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
             className="inline-flex items-center gap-1.5 px-3.5 py-1.5 my-2 rounded-[4px] bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs no-underline transition-all hover:shadow-xs group/btn cursor-pointer shadow-none"
           >
             <Mic className="size-3.5 shrink-0" />
+            <span>{children}</span>
+            <ArrowRight className="size-3 transition-transform group-hover/btn:translate-x-0.5" />
+          </Link>
+        )
+      }
+
+      if (href && href.startsWith("/resumes")) {
+        return (
+          <Link
+            href={href}
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 my-2 rounded-[4px] bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs no-underline transition-all hover:shadow-xs group/btn cursor-pointer shadow-none"
+          >
+            <FileText className="size-3.5 shrink-0" />
             <span>{children}</span>
             <ArrowRight className="size-3 transition-transform group-hover/btn:translate-x-0.5" />
           </Link>
@@ -567,6 +622,8 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
           className.includes("language-outreach") ||
           className.includes("language-interview") ||
           className.includes("language-mock-interview") ||
+          className.includes("language-tailored-resume") ||
+          className.includes("language-resume") ||
           className.includes("language-toolchips") ||
           className.includes("language-tools") ||
           className.includes("language-streaming") ||
@@ -650,6 +707,25 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
         return (
           <div className="my-3 not-prose">
             <MockInterviewResult data={rawData} />
+          </div>
+        )
+      }
+      if (className === "language-tailored-resume" || className === "language-resume") {
+        const rawText = String(children)
+        let rawData: Record<string, unknown> = {}
+        try {
+          rawData = JSON.parse(rawText)
+        } catch {
+          const entity = extractTargetEntity(message.content, message.toolInvocations)
+          rawData = {
+            summary: rawText,
+            companyName: entity.company || "Target Company",
+            role: entity.role || "Software Engineer",
+          }
+        }
+        return (
+          <div className="my-3 not-prose">
+            <TailoredResumeResult data={rawData} />
           </div>
         )
       }
@@ -1049,6 +1125,26 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
                         <rect x="9" y="9" width="12" height="12" rx="2.5" />
                         <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
                       </svg>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleSaveToNotes}
+                    disabled={isSavingNote}
+                    className={cn(
+                      "flex size-7 items-center justify-center rounded-md hover:bg-muted/80 transition-colors cursor-pointer",
+                      isNoteSaved ? "text-primary hover:text-primary" : "hover:text-foreground"
+                    )}
+                    title={isNoteSaved ? "Saved to Revision Notes" : "Save to Revision Notes"}
+                    aria-label="Save to Revision Notes"
+                  >
+                    {isSavingNote ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                    ) : isNoteSaved ? (
+                      <BookmarkCheck className="h-3.5 w-3.5 text-primary" />
+                    ) : (
+                      <Bookmark className="h-3.5 w-3.5" />
                     )}
                   </button>
 
