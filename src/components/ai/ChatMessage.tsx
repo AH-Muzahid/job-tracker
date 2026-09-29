@@ -41,27 +41,110 @@ interface Suggestion {
   prompt: string
 }
 
-function getContextualSuggestions(content: string): Suggestion[] {
+function extractTargetEntity(content: string, toolInvocations?: ToolInvocation[]): { company?: string; role?: string } {
+  // Check tool invocations first for highest precision
+  if (toolInvocations && toolInvocations.length > 0) {
+    for (const tool of toolInvocations) {
+      if (tool.result && typeof tool.result === "object") {
+        const res = tool.result as Record<string, unknown>
+        const app = res.application && typeof res.application === "object" ? (res.application as Record<string, unknown>) : null
+        const comp = typeof res.companyName === "string" ? res.companyName : typeof app?.companyName === "string" ? app.companyName : undefined
+        const role = typeof res.role === "string" ? res.role : typeof res.jobTitle === "string" ? res.jobTitle : typeof app?.jobTitle === "string" ? app.jobTitle : undefined
+        if (comp) return { company: comp, role }
+      }
+      if (tool.args && typeof tool.args === "object") {
+        const args = tool.args as Record<string, unknown>
+        const comp = typeof args.companyName === "string" ? args.companyName : undefined
+        const role = typeof args.role === "string" ? args.role : typeof args.jobTitle === "string" ? args.jobTitle : undefined
+        if (comp) return { company: comp, role }
+      }
+    }
+  }
+
+  // Regex lookup from content
+  const compMatch = content.match(/(?:at|for|to|company:?)\s+([A-Z][A-Za-z0-9&.-]{1,20})/i)
+  const roleMatch = content.match(/(?:role|position|as\s+a(?:n)?)\s+([A-Z][A-Za-z0-9\s&.-]{2,25})/i)
+
+  return {
+    company: compMatch?.[1]?.trim(),
+    role: roleMatch?.[1]?.trim(),
+  }
+}
+
+function getContextualSuggestions(content: string, toolInvocations?: ToolInvocation[]): Suggestion[] {
   const lower = content.toLowerCase()
-  // If it's a short greeting or casual conversation, never dump generic buttons
-  if (content.length < 120 && (lower.includes("hi") || lower.includes("hello") || lower.includes("hey") || lower.includes("good") || lower.includes("welcome"))) {
+  // If it's a short greeting or brief message, never show suggestions
+  if (content.length < 80 && (lower.includes("hi") || lower.includes("hello") || lower.includes("hey") || lower.includes("welcome"))) {
     return []
   }
 
+  const { company, role } = extractTargetEntity(content, toolInvocations)
   const list: Suggestion[] = []
 
+  // Case 1: Outreach Email Draft or Email Pitch was produced
+  const hasOutreach = lower.includes("outreach email") || lower.includes("email outreach") || toolInvocations?.some((t) => t.toolName === "draftOutreachEmail")
+  if (hasOutreach) {
+    if (company) {
+      list.push({
+        icon: "",
+        label: `Track ${company} as Applied`,
+        prompt: `Track my application to ${company}${role ? ` for ${role}` : ""} as Applied`,
+      })
+      list.push({
+        icon: "",
+        label: `Interview Questions (${company})`,
+        prompt: `What technical and behavioral questions does ${company} typically ask for ${role || "this role"}?`,
+      })
+      list.push({
+        icon: "",
+        label: `Company Intel & Culture`,
+        prompt: `Give me an intel summary on ${company}'s engineering culture, tech stack, and interview rounds.`,
+      })
+    } else {
+      list.push({
+        icon: "",
+        label: "Track in Application Board",
+        prompt: "Track this application in my Application Board as Applied",
+      })
+      list.push({
+        icon: "",
+        label: "Expected Interview Questions",
+        prompt: "What technical and behavioral questions are typically asked for this role?",
+      })
+    }
+    return list.slice(0, 3)
+  }
+
+  // Case 2: JD Scan / Match Analysis
   if (lower.includes("analysis") || lower.includes("match score") || lower.includes("requirements") || lower.includes("verdict")) {
-    list.push({
-      icon: "",
-      label: "Draft Tailored Cover Letter",
-      prompt: "Write a customized cover letter for this role focusing on my relevant skills and projects.",
-    })
-    list.push({
-      icon: "",
-      label: "5 Interview Questions",
-      prompt: "Give me 5 specific technical and behavioral interview questions tailored for this role.",
-    })
-  } else if (lower.includes("interview") || lower.includes("mock") || lower.includes("assessment")) {
+    if (company) {
+      list.push({
+        icon: "",
+        label: `Draft Cover Letter (${company})`,
+        prompt: `Write a customized, high-impact cover letter for the ${role || "role"} at ${company} focusing on my relevant projects.`,
+      })
+      list.push({
+        icon: "",
+        label: `5 Interview Questions (${company})`,
+        prompt: `Give me 5 specific technical and behavioral interview questions tailored for this role at ${company}.`,
+      })
+    } else {
+      list.push({
+        icon: "",
+        label: "Draft Tailored Cover Letter",
+        prompt: "Write a customized cover letter for this role focusing on my relevant skills and projects.",
+      })
+      list.push({
+        icon: "",
+        label: "5 Interview Questions",
+        prompt: "Give me 5 specific technical and behavioral interview questions tailored for this role.",
+      })
+    }
+    return list.slice(0, 3)
+  }
+
+  // Case 3: Interview Prep / Mock Interview
+  if (lower.includes("interview") || lower.includes("mock") || lower.includes("assessment")) {
     list.push({
       icon: "",
       label: "Model STAR Answers",
@@ -72,7 +155,11 @@ function getContextualSuggestions(content: string): Suggestion[] {
       label: "Start Mock Interview",
       prompt: "Let's conduct a live interactive mock interview based on these questions.",
     })
-  } else if (lower.includes("resume") || lower.includes("ats")) {
+    return list.slice(0, 2)
+  }
+
+  // Case 4: Resume / ATS
+  if (lower.includes("resume") || lower.includes("ats")) {
     list.push({
       icon: "",
       label: "Optimize Resume Points",
@@ -80,23 +167,14 @@ function getContextualSuggestions(content: string): Suggestion[] {
     })
     list.push({
       icon: "",
-      label: "Identify Missing High-Priority Keywords",
+      label: "Identify Missing Keywords",
       prompt: "Analyze this response and identify any key technical skills or keywords I should emphasize.",
     })
-  } else {
-    list.push({
-      icon: "",
-      label: "Elaborate with detailed examples & metrics",
-      prompt: "Can you elaborate further with concrete examples and quantifiable impact?",
-    })
-    list.push({
-      icon: "",
-      label: "What are the recommended action items?",
-      prompt: "What are the recommended action items and next steps from here?",
-    })
+    return list.slice(0, 2)
   }
 
-  return list.slice(0, 3)
+  // Default: Return EMPTY array! NEVER dump generic hardcoded buttons!
+  return []
 }
 
 // Dedicated memoized FollowUps component to eliminate re-renders and animation resets
@@ -323,9 +401,9 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
   
   const suggestions = React.useMemo(() => {
     return !isUser && isLast && !isStreaming && message.content && !hasEmbeddedSuggestions
-      ? getContextualSuggestions(message.content)
+      ? getContextualSuggestions(message.content, message.toolInvocations)
       : []
-  }, [isUser, isLast, isStreaming, message.content, hasEmbeddedSuggestions])
+  }, [isUser, isLast, isStreaming, message.content, hasEmbeddedSuggestions, message.toolInvocations])
 
   // Custom renderer overrides for ReactMarkdown with stable useMemo
   const mdComponents = React.useMemo(() => ({

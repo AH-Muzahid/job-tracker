@@ -2,6 +2,7 @@
 import { sendEmail, formatOutreachEmailHtml } from "@/lib/email"
 import { getConnectedGoogleAccount, sendGmailMessage } from "@/lib/gmail"
 import { prisma, withDbRetry } from "@/lib/prisma"
+import { pruneRelevantStack } from "@/lib/applications/outreach-engine"
 
 export async function executeDraftOutreachEmail(
   userId: string,
@@ -17,34 +18,48 @@ export async function executeDraftOutreachEmail(
   const company = input.companyName?.trim() || "the team"
   let role = input.role?.trim()
   let candidateName = ""
-  let candidateSummary = ""
+
+  type ProfileSelectResult = {
+    targetRoles: string[]
+    experienceLevel: string | null
+    strengths: string | null
+    bestProjects: unknown
+    githubUrl: string | null
+    linkedInUrl: string | null
+    portfolioUrl: string | null
+  } | null
+
+  let profileRecord: ProfileSelectResult = null
 
   try {
-    const [userRecord, profileRecord] = await withDbRetry(async () => {
+    const [userRecord, p] = await withDbRetry(async () => {
       const u = await prisma.user.findUnique({
         where: { id: userId },
         select: { name: true },
       })
-      const p = await prisma.userProfile.findUnique({
+      const prof = await prisma.userProfile.findUnique({
         where: { userId },
         select: {
           targetRoles: true,
           experienceLevel: true,
           strengths: true,
+          bestProjects: true,
+          githubUrl: true,
+          linkedInUrl: true,
+          portfolioUrl: true,
         },
       })
-      return [u, p]
+      return [u, prof]
     })
 
     if (userRecord?.name) {
       candidateName = userRecord.name
     }
+    profileRecord = p
+
     if (profileRecord) {
       if (!role && profileRecord.targetRoles && profileRecord.targetRoles.length > 0) {
         role = profileRecord.targetRoles[0]
-      }
-      if (profileRecord.strengths) {
-        candidateSummary = ` With core strengths in ${profileRecord.strengths},`
       }
     }
   } catch (err) {
@@ -54,8 +69,39 @@ export async function executeDraftOutreachEmail(
   const finalRole = role || "Software Engineer"
   const signoffName = candidateName || "Candidate"
 
-  const subject = `Application for ${finalRole} — ${company}`
-  const body = `Dear Hiring Team,\n\nI am writing to express my strong interest in joining ${company} as a ${finalRole}.${candidateSummary} I have a proven track record of shipping scalable, production-grade applications and collaborating closely with engineering teams to deliver impact.\n\nI have followed ${company}'s work and would welcome the opportunity to discuss how my technical skills and enthusiasm can support your team's upcoming initiatives.\n\nThank you for your time and consideration.\n\nBest regards,\n${signoffName}`
+  // Extract hero project or fallback to high-value project
+  type ProjectItem = { name?: string; stack?: string }
+  const rawProjects = Array.isArray(profileRecord?.bestProjects) ? (profileRecord.bestProjects as unknown[]) : []
+  const topProj = (rawProjects[0] && typeof rawProjects[0] === "object" ? (rawProjects[0] as ProjectItem) : null) || {
+    name: "Full-Stack Web Architecture",
+    stack: profileRecord?.strengths || "TypeScript, Next.js, Node.js",
+  }
+
+  const prunedSkills = pruneRelevantStack(
+    profileRecord?.strengths || "TypeScript, React, Next.js, Node.js",
+    finalRole,
+    3
+  )
+  const prunedProjStack = pruneRelevantStack(topProj.stack || prunedSkills, finalRole, 3)
+
+  const linksList: string[] = []
+  if (profileRecord?.portfolioUrl) linksList.push(`Portfolio: ${profileRecord.portfolioUrl}`)
+  if (profileRecord?.githubUrl) linksList.push(`GitHub: ${profileRecord.githubUrl}`)
+  if (profileRecord?.linkedInUrl) linksList.push(`LinkedIn: ${profileRecord.linkedInUrl}`)
+  const linksLine = linksList.length > 0 ? `\n${linksList.join(" | ")}` : ""
+
+  // High-conversion Linear/Stripe builder standard (under 110 words, 10-minute intro chat CTA)
+  const subject = `Application for ${finalRole} at ${company} — ${signoffName}`
+  const body = `Dear ${company} Hiring Team,
+
+I noticed ${company} is looking for a ${finalRole}. Given my background engineering scalable, production web applications with ${prunedSkills}, I wanted to reach out directly.
+
+Recently, I engineered ${topProj.name} using ${prunedProjStack}. I focused on solving core architectural challenges around performance and clean modular component design, keeping latency low and system reliability high.
+
+Given ${company}'s focus on high-velocity execution, I can make an immediate contribution to your upcoming product milestones. Would you be open to a brief 10-minute intro chat this week?
+
+Best regards,
+${signoffName}${linksLine}`
 
   return {
     success: true,

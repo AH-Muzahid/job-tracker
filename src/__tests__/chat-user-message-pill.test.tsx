@@ -79,4 +79,55 @@ describe("ChatMessage User Pill Bubble & Hover Actions", () => {
     expect(html).toContain("justify-start")
     expect(html).toContain("prose")
   })
+
+  it("does not render generic hardcoded suggestion pills for general answers", () => {
+    const html = renderToString(
+      <ChatMessage
+        message={{
+          id: "asst-msg-2",
+          role: "assistant",
+          content: "Here is general advice on system design principles.",
+        }}
+        isLast={true}
+        isStreaming={false}
+      />
+    )
+
+    // Hardcoded generic questions must be strictly removed
+    expect(html).not.toContain("Elaborate with detailed examples & metrics")
+    expect(html).not.toContain("What are the recommended action items?")
+  })
+
+  it("renders contextual follow-up suggestions when toolInvocation contains company entity", () => {
+    const html = renderToString(
+      <ChatMessage
+        message={{
+          id: "asst-msg-3",
+          role: "assistant",
+          content: "I have prepared an outreach draft for Stripe.",
+          toolInvocations: [
+            {
+              toolCallId: "call-1",
+              toolName: "draftOutreachEmail",
+              args: { companyName: "Stripe", role: "Software Engineer" },
+              state: "result",
+              result: {
+                success: true,
+                companyName: "Stripe",
+                isEmailDraft: true,
+              },
+            },
+          ],
+        }}
+        isLast={true}
+        isStreaming={false}
+        onSuggestionClick={vi.fn()}
+      />
+    )
+
+    expect(html).toContain("Track Stripe as Applied")
+    expect(html).toContain("Interview Questions (Stripe)")
+    expect(html).toContain("Company Intel &amp; Culture")
+  })
 })
+
