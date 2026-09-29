@@ -86,40 +86,40 @@ describe("Multi-Channel Outreach Engine & Zero-Placeholder Enforcement", () => {
       expect(bundle).toHaveProperty("follow_up")
 
       // 1. Email Channel
-      expect(bundle.email.subject).toContain("Full Stack Developer - Next.js - AH Muzahid")
-      expect(bundle.email.body).toContain("Dear nextjobz Hiring Team,")
-      expect(bundle.email.body).toContain("CodeArena")
-      expect(bundle.email.body).toContain("AH Muzahid")
-      expect(bundle.email.body).not.toContain("[")
-      expect(bundle.email.body).not.toContain("]")
+      expect(bundle.email!.subject).toContain("Full Stack Developer - Next.js - AH Muzahid")
+      expect(bundle.email!.body).toContain("Dear nextjobz Hiring Team,")
+      expect(bundle.email!.body).toContain("CodeArena")
+      expect(bundle.email!.body).toContain("AH Muzahid")
+      expect(bundle.email!.body).not.toContain("[")
+      expect(bundle.email!.body).not.toContain("]")
 
       // 2. LinkedIn InMail / DM Channel
-      expect(bundle.linkedin_dm.subject).toContain("Full Stack Developer - Next.js role inquiry - AH Muzahid")
-      expect(bundle.linkedin_dm.body).toContain("Hi nextjobz Team,")
-      expect(bundle.linkedin_dm.body).toContain("CodeArena")
-      expect(bundle.linkedin_dm.body.split(/\s+/).length).toBeLessThan(120)
+      expect(bundle.linkedin_dm!.subject).toContain("Full Stack Developer - Next.js role inquiry - AH Muzahid")
+      expect(bundle.linkedin_dm!.body).toContain("Hi nextjobz Team,")
+      expect(bundle.linkedin_dm!.body).toContain("CodeArena")
+      expect(bundle.linkedin_dm!.body.split(/\s+/).length).toBeLessThan(120)
 
       // 3. LinkedIn Connection Note Channel (Strict <= 300 characters)
-      expect(bundle.linkedin_connect.charCount).toBeLessThanOrEqual(300)
-      expect(bundle.linkedin_connect.body.length).toBeLessThanOrEqual(300)
-      expect(bundle.linkedin_connect.body).toContain("nextjobz")
-      expect(bundle.linkedin_connect.body).toContain("CodeArena")
+      expect(bundle.linkedin_connect!.charCount).toBeLessThanOrEqual(300)
+      expect(bundle.linkedin_connect!.body.length).toBeLessThanOrEqual(300)
+      expect(bundle.linkedin_connect!.body).toContain("nextjobz")
+      expect(bundle.linkedin_connect!.body).toContain("CodeArena")
 
       // 4. Follow-Up Channel
-      expect(bundle.follow_up.subject).toContain("Following up: Full Stack Developer - Next.js application - AH Muzahid")
-      expect(bundle.follow_up.body).toContain("Dear nextjobz Hiring Team,")
+      expect(bundle.follow_up!.subject).toContain("Following up: Full Stack Developer - Next.js application - AH Muzahid")
+      expect(bundle.follow_up!.body).toContain("Dear nextjobz Hiring Team,")
     })
 
     it("enforces strict under-120-word limit and anti-boilerplate opening in email", () => {
       const bundle = generateDeterministicOutreachBundle(mockContext)
-      const wordCount = bundle.email.body.split(/\s+/).length
+      const wordCount = bundle.email!.body.split(/\s+/).length
       expect(wordCount).toBeLessThan(120)
       // Must not contain cliché corporate openings
-      expect(bundle.email.body).not.toContain("I am writing to express my strong interest")
-      expect(bundle.email.body).not.toContain("I hope this email finds you well")
+      expect(bundle.email!.body).not.toContain("I am writing to express my strong interest")
+      expect(bundle.email!.body).not.toContain("I hope this email finds you well")
       // Must contain high-converting elements
-      expect(bundle.email.body).toContain("10-minute intro chat")
-      expect(bundle.email.body).toContain("latency")
+      expect(bundle.email!.body).toContain("10-minute intro chat")
+      expect(bundle.email!.body).toContain("latency")
     })
   })
 
@@ -271,21 +271,21 @@ describe("Multi-Channel Outreach Engine & Zero-Placeholder Enforcement", () => {
       const bundle = generateDeterministicOutreachBundle(hashtagContext)
 
       // Email subject must contain clean title, not hashtags
-      expect(bundle.email.subject).toBe("Application for Junior Full Stack Developer - AH Muzahid")
-      expect(bundle.email.body).toContain("looking for a Junior Full Stack Developer")
-      expect(bundle.email.body).not.toMatch(/#\w+/)
+      expect(bundle.email!.subject).toBe("Application for Junior Full Stack Developer - AH Muzahid")
+      expect(bundle.email!.body).toContain("looking for a Junior Full Stack Developer")
+      expect(bundle.email!.body).not.toMatch(/#\w+/)
 
       // LinkedIn InMail
-      expect(bundle.linkedin_dm.subject).toBe("Junior Full Stack Developer role inquiry - AH Muzahid")
-      expect(bundle.linkedin_dm.body).not.toMatch(/#\w+/)
+      expect(bundle.linkedin_dm!.subject).toBe("Junior Full Stack Developer role inquiry - AH Muzahid")
+      expect(bundle.linkedin_dm!.body).not.toMatch(/#\w+/)
 
       // LinkedIn Connect
-      expect(bundle.linkedin_connect.body).toContain("Junior Full Stack Developer")
-      expect(bundle.linkedin_connect.body).not.toMatch(/#\w+/)
+      expect(bundle.linkedin_connect!.body).toContain("Junior Full Stack Developer")
+      expect(bundle.linkedin_connect!.body).not.toMatch(/#\w+/)
 
       // Follow-up
-      expect(bundle.follow_up.subject).toBe("Following up: Junior Full Stack Developer application - AH Muzahid")
-      expect(bundle.follow_up.body).not.toMatch(/#\w+/)
+      expect(bundle.follow_up!.subject).toBe("Following up: Junior Full Stack Developer application - AH Muzahid")
+      expect(bundle.follow_up!.body).not.toMatch(/#\w+/)
 
       // Form Portal
       expect(bundle.form_portal?.portalNote).toContain("Junior Full Stack Developer")
@@ -295,4 +295,118 @@ describe("Multi-Channel Outreach Engine & Zero-Placeholder Enforcement", () => {
       )
     })
   })
+
+  describe("Selective Single-Channel Staging (Zero-Token Waste)", () => {
+    it("generates ONLY form_portal when targetChannel is form_portal", () => {
+      const bundle = generateDeterministicOutreachBundle(mockContext, "form_portal")
+
+      expect(bundle.form_portal).toBeDefined()
+      expect(bundle.form_portal?.portalNote).toContain("nextjobz")
+      expect(bundle.form_portal?.portalNote).toContain("CodeArena")
+
+      // Crucial: other channels must NOT be generated to prevent token waste
+      expect(bundle.email).toBeUndefined()
+      expect(bundle.linkedin_dm).toBeUndefined()
+      expect(bundle.linkedin_connect).toBeUndefined()
+      expect(bundle.follow_up).toBeUndefined()
+    })
+
+    it("generates ONLY direct email when targetChannel is email", () => {
+      const bundle = generateDeterministicOutreachBundle(mockContext, "email")
+
+      expect(bundle.email).toBeDefined()
+      expect(bundle.email?.subject).toContain("Full Stack Developer - Next.js - AH Muzahid")
+      expect(bundle.email?.body).toContain("Dear nextjobz Hiring Team")
+
+      // Other channels remain ungenerated
+      expect(bundle.linkedin_dm).toBeUndefined()
+      expect(bundle.linkedin_connect).toBeUndefined()
+      expect(bundle.follow_up).toBeUndefined()
+      expect(bundle.form_portal).toBeUndefined()
+    })
+
+    it("generates ONLY linkedin_dm when targetChannel is linkedin_dm", () => {
+      const bundle = generateDeterministicOutreachBundle(mockContext, "linkedin_dm")
+
+      expect(bundle.linkedin_dm).toBeDefined()
+      expect(bundle.linkedin_dm?.subject).toContain("Full Stack Developer - Next.js role inquiry - AH Muzahid")
+      expect(bundle.linkedin_dm?.body).toContain("Hi nextjobz Team")
+
+      expect(bundle.email).toBeUndefined()
+      expect(bundle.linkedin_connect).toBeUndefined()
+      expect(bundle.follow_up).toBeUndefined()
+      expect(bundle.form_portal).toBeUndefined()
+    })
+
+    it("generates ONLY linkedin_connect when targetChannel is linkedin_connect", () => {
+      const bundle = generateDeterministicOutreachBundle(mockContext, "linkedin_connect")
+
+      expect(bundle.linkedin_connect).toBeDefined()
+      expect(bundle.linkedin_connect?.charCount).toBeLessThanOrEqual(300)
+      expect(bundle.linkedin_connect?.body).toContain("nextjobz")
+
+      expect(bundle.email).toBeUndefined()
+      expect(bundle.linkedin_dm).toBeUndefined()
+      expect(bundle.follow_up).toBeUndefined()
+      expect(bundle.form_portal).toBeUndefined()
+    })
+
+    it("generates ONLY follow_up when targetChannel is follow_up", () => {
+      const bundle = generateDeterministicOutreachBundle(mockContext, "follow_up")
+
+      expect(bundle.follow_up).toBeDefined()
+      expect(bundle.follow_up?.subject).toContain("Following up: Full Stack Developer - Next.js application - AH Muzahid")
+
+      expect(bundle.email).toBeUndefined()
+      expect(bundle.linkedin_dm).toBeUndefined()
+      expect(bundle.linkedin_connect).toBeUndefined()
+      expect(bundle.form_portal).toBeUndefined()
+    })
+  })
+
+  describe("On-Demand Custom Application Form Q&A Engine", () => {
+    it("generates tailored answers for custom user-pasted form questions", () => {
+      const customQuestions = [
+        "What is your experience building real-time applications with WebSockets?",
+        "How do you handle state consistency across client and server in Next.js?",
+        "Are you authorized to work in the US or available for remote PST overlap?",
+      ]
+
+      const qas = generateDeterministicScreenerAnswers(mockContext, customQuestions)
+
+      expect(qas.length).toBe(3)
+      expect(qas[0].question).toBe(customQuestions[0])
+      expect(qas[0].answer).toContain("CodeArena")
+      expect(qas[0].answer).toContain("WebSockets")
+      expect(qas[0].answer).not.toContain("[")
+      expect(qas[0].answer).not.toContain("]")
+
+      expect(qas[1].question).toBe(customQuestions[1])
+      expect(qas[1].answer).toContain("Next.js")
+      expect(qas[1].answer).not.toContain("[")
+
+      expect(qas[2].question).toBe(customQuestions[2])
+      expect(qas[2].answer.length).toBeGreaterThan(20)
+    })
+
+    it("embeds custom screening answers inside form_portal when provided to bundle", () => {
+      const customQuestions = [
+        "Why do you want to join nextjobz?",
+        "Tell us about a technical architecture decision you made in CodeArena.",
+      ]
+
+      const bundle = generateDeterministicOutreachBundle(
+        mockContext,
+        "form_portal",
+        customQuestions
+      )
+
+      expect(bundle.form_portal).toBeDefined()
+      expect(bundle.form_portal?.screenerAnswers.length).toBe(2)
+      expect(bundle.form_portal?.screenerAnswers[0].question).toBe(customQuestions[0])
+      expect(bundle.form_portal?.screenerAnswers[1].question).toBe(customQuestions[1])
+      expect(bundle.form_portal?.screenerAnswers[1].answer).toContain("CodeArena")
+    })
+  })
 })
+

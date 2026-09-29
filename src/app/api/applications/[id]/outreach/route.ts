@@ -108,9 +108,16 @@ export async function POST(
     notes: rawJd,
   }
 
-  // Base deterministic fallback bundle
-  const deterministicBundle = generateDeterministicOutreachBundle(outreachCtx)
-  const finalBundle: OutreachChannelBundle = deterministicBundle
+  // Existing channels from previous generations or initial staging
+  const existingTailored = (app.analysis?.tailoredResumeJson as any) || {}
+  const existingChannels: OutreachChannelBundle = (existingTailored.outreachChannels as any) || {}
+
+  // Generate deterministic fallback for ONLY the requested active channel (zero token waste)
+  const deterministicSingle = generateDeterministicOutreachBundle(outreachCtx, activeChannel)
+  const finalBundle: OutreachChannelBundle = {
+    ...existingChannels,
+    ...(deterministicSingle[activeChannel] ? { [activeChannel]: deterministicSingle[activeChannel] } : {}),
+  }
   let optimizerResult: EvaluatorOptimizerResult<any> | null = null
 
   const aiConfig = await getUserAIConfig(userId, undefined, { requireUserKey: true })
@@ -414,7 +421,7 @@ Respond in JSON ONLY matching:
         if (parsed.form_portal) {
           finalBundle.form_portal = {
             portalNote: sanitizeOutreachPlaceholders(
-              parsed.form_portal.portalNote || deterministicBundle.form_portal?.portalNote || "",
+              parsed.form_portal.portalNote || deterministicSingle.form_portal?.portalNote || "",
               outreachCtx
             ),
             screenerAnswers: Array.isArray(parsed.form_portal.screenerAnswers)
@@ -422,18 +429,18 @@ Respond in JSON ONLY matching:
                   question: sanitizeOutreachPlaceholders(qa.question || "", outreachCtx),
                   answer: sanitizeOutreachPlaceholders(qa.answer || "", outreachCtx),
                 }))
-              : deterministicBundle.form_portal?.screenerAnswers || [],
+              : deterministicSingle.form_portal?.screenerAnswers || [],
           }
         }
         if (parsed.email?.body) {
           finalBundle.email = {
-            subject: sanitizeOutreachPlaceholders(parsed.email.subject || deterministicBundle.email.subject, outreachCtx),
+            subject: sanitizeOutreachPlaceholders(parsed.email.subject || deterministicSingle.email?.subject || `Application for ${cleanRole} - ${candidateName}`, outreachCtx),
             body: sanitizeOutreachPlaceholders(parsed.email.body, outreachCtx),
           }
         }
         if (parsed.linkedin_dm?.body) {
           finalBundle.linkedin_dm = {
-            subject: sanitizeOutreachPlaceholders(parsed.linkedin_dm.subject || deterministicBundle.linkedin_dm.subject, outreachCtx),
+            subject: sanitizeOutreachPlaceholders(parsed.linkedin_dm.subject || deterministicSingle.linkedin_dm?.subject || `${cleanRole} role inquiry - ${candidateName}`, outreachCtx),
             body: sanitizeOutreachPlaceholders(parsed.linkedin_dm.body, outreachCtx),
           }
         }
@@ -446,7 +453,7 @@ Respond in JSON ONLY matching:
         }
         if (parsed.follow_up?.body) {
           finalBundle.follow_up = {
-            subject: sanitizeOutreachPlaceholders(parsed.follow_up.subject || deterministicBundle.follow_up.subject, outreachCtx),
+            subject: sanitizeOutreachPlaceholders(parsed.follow_up.subject || deterministicSingle.follow_up?.subject || `Following up: ${cleanRole} application - ${candidateName}`, outreachCtx),
             body: sanitizeOutreachPlaceholders(parsed.follow_up.body, outreachCtx),
           }
         }
@@ -458,7 +465,7 @@ Respond in JSON ONLY matching:
         model: aiConfig.model || resolvedProvider.defaultModel,
         provider: aiConfig.providerType,
         input: { companyName: app.companyName, jobTitle: app.jobTitle, channel: activeChannel },
-        output: { channel: activeChannel, subject: finalBundle[activeChannel === "linkedin_connect" ? "linkedin_dm" : activeChannel === "form_portal" ? "email" : activeChannel]?.subject },
+        output: { channel: activeChannel, subject: activeChannel === "form_portal" ? (finalBundle.form_portal?.portalNote?.slice(0, 50) ?? "") : (finalBundle[activeChannel] as { subject?: string } | undefined)?.subject || activeChannel },
         promptTokens: usageMetrics?.promptTokens,
         completionTokens: usageMetrics?.completionTokens,
         latencyMs: Date.now() - startTime,
@@ -484,21 +491,24 @@ Respond in JSON ONLY matching:
   }
 
   // Active channel payload
-  let activeSubject = finalBundle.email.subject
-  let activeBody = finalBundle.email.body
+  let activeSubject = `Application for ${cleanRole} - ${candidateName}`
+  let activeBody = ""
 
   if (activeChannel === "form_portal") {
-    activeSubject = `${app.jobTitle} - Application Cover Note & Screener Q&A`
-    activeBody = finalBundle.form_portal?.portalNote || finalBundle.email.body
+    activeSubject = `${cleanRole} - Application Cover Note & Screener Q&A`
+    activeBody = finalBundle.form_portal?.portalNote || ""
   } else if (activeChannel === "linkedin_dm") {
-    activeSubject = finalBundle.linkedin_dm.subject
-    activeBody = finalBundle.linkedin_dm.body
+    activeSubject = finalBundle.linkedin_dm?.subject || `${cleanRole} role inquiry - ${candidateName}`
+    activeBody = finalBundle.linkedin_dm?.body || ""
   } else if (activeChannel === "linkedin_connect") {
-    activeSubject = `${app.jobTitle} - LinkedIn Invitation`
-    activeBody = finalBundle.linkedin_connect.body
+    activeSubject = `${cleanRole} - LinkedIn Invitation`
+    activeBody = finalBundle.linkedin_connect?.body || ""
   } else if (activeChannel === "follow_up") {
-    activeSubject = finalBundle.follow_up.subject
-    activeBody = finalBundle.follow_up.body
+    activeSubject = finalBundle.follow_up?.subject || `Following up: ${cleanRole} application - ${candidateName}`
+    activeBody = finalBundle.follow_up?.body || ""
+  } else {
+    activeSubject = finalBundle.email?.subject || `Application for ${cleanRole} - ${candidateName}`
+    activeBody = finalBundle.email?.body || ""
   }
 
   const defaultChecklist = [

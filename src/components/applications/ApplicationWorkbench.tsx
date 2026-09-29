@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "sonner"
-import { Application, WorkbenchAnalysis, OutreachDrafts, OutreachChannel, OutreachChannelBundle } from "./types"
+import { Application, WorkbenchAnalysis, OutreachDrafts, OutreachChannel, OutreachChannelBundle, ScreenerQA } from "./types"
 import { FitAssessmentCard } from "./FitAssessmentCard"
 import { OutreachAssistantCard } from "./OutreachAssistantCard"
 import { MilestoneTimeline } from "./MilestoneTimeline"
@@ -293,25 +293,49 @@ export function ApplicationWorkbench({
 
   const handleChannelChange = (newChannel: OutreachChannel) => {
     setActiveChannel(newChannel)
-    if (outreachDrafts?.channels) {
-      const chData = outreachDrafts.channels[newChannel]
-      if (chData) {
-        if ("subject" in chData && chData.subject) {
-          setDraftSubject(chData.subject)
-        } else if (newChannel === "linkedin_connect") {
-          setDraftSubject(`${application.jobTitle} - LinkedIn Invitation`)
-        } else if (newChannel === "form_portal") {
-          setDraftSubject(`${application.jobTitle} - Application Cover Note & Screener Q&A`)
-          if ("portalNote" in chData && chData.portalNote) {
-            setDraftBody(chData.portalNote)
-            return
-          }
-        }
-        if ("body" in chData) {
-          setDraftBody(chData.body)
+    const chData = outreachDrafts?.channels?.[newChannel]
+    if (chData) {
+      if ("subject" in chData && chData.subject) {
+        setDraftSubject(chData.subject)
+      } else if (newChannel === "linkedin_connect") {
+        setDraftSubject(`${application.jobTitle} - LinkedIn Invitation`)
+      } else if (newChannel === "form_portal") {
+        setDraftSubject(`${application.jobTitle} - Application Cover Note & Screener Q&A`)
+        if ("portalNote" in chData && chData.portalNote) {
+          setDraftBody(chData.portalNote)
+          return
         }
       }
+      if ("body" in chData && chData.body) {
+        setDraftBody(chData.body)
+        return
+      }
+    } else {
+      // Channel has not been generated yet
+      setDraftSubject("")
+      setDraftBody("")
     }
+  }
+
+  const handleFormQuestionsUpdated = (newQAs: ScreenerQA[]) => {
+    setOutreachDrafts((prev) => {
+      if (!prev) return prev
+      const existingChannels = prev.channels || {}
+      const existingPortal = existingChannels.form_portal || { portalNote: draftBody || "" }
+      return {
+        ...prev,
+        screenerAnswers: newQAs,
+        portalNote: existingPortal.portalNote,
+        channels: {
+          ...existingChannels,
+          form_portal: {
+            ...existingPortal,
+            screenerAnswers: newQAs,
+          },
+        },
+      }
+    })
+    toast.success("Application form questions answered and saved!")
   }
 
   const handleGenerateOutreach = async (channel?: OutreachChannel) => {
@@ -335,27 +359,32 @@ export function ApplicationWorkbench({
       const fullEmail = data.email || ""
 
       if (finalSubject) setDraftSubject(finalSubject)
-      setDraftBody(fullEmail)
-      setOutreachDrafts({
-        channel: data.channel || targetChannel,
-        strategy: data.strategy || targetChannel,
-        strategyReason: data.strategyReason,
-        conversionScore: data.conversionScore,
-        conversionJudge: data.conversionJudge,
-        recommendation: "Direct application outreach draft",
-        email: fullEmail,
-        portalNote: data.portalNote,
-        screenerAnswers: data.screenerAnswers,
-        subjectLines: [finalSubject],
-        beforeSendChecklist: data.beforeSendChecklist || [
-          "Verified GitHub/LinkedIn/portfolio links included",
-          "Mentioned core technical strengths",
-          "Highlighted top demonstrated projects",
-          "Zero placeholders: 100% ready to submit",
-        ],
-        channels: data.channels,
-        detectedEmail: data.detectedEmail,
-        recommendedChannel: data.recommendedChannel,
+      setOutreachDrafts((prev) => {
+        const mergedChannels = {
+          ...(prev?.channels || {}),
+          ...(data.channels || {}),
+        }
+        return {
+          channel: data.channel || targetChannel,
+          strategy: data.strategy || targetChannel,
+          strategyReason: data.strategyReason || prev?.strategyReason,
+          conversionScore: data.conversionScore ?? prev?.conversionScore,
+          conversionJudge: data.conversionJudge || prev?.conversionJudge,
+          recommendation: "Direct application outreach draft",
+          email: fullEmail,
+          portalNote: data.portalNote || prev?.portalNote,
+          screenerAnswers: data.screenerAnswers || prev?.screenerAnswers,
+          subjectLines: [finalSubject],
+          beforeSendChecklist: data.beforeSendChecklist || prev?.beforeSendChecklist || [
+            "Verified GitHub/LinkedIn/portfolio links included",
+            "Mentioned core technical strengths",
+            "Highlighted top demonstrated projects",
+            "Zero placeholders: 100% ready to submit",
+          ],
+          channels: mergedChannels,
+          detectedEmail: data.detectedEmail || prev?.detectedEmail,
+          recommendedChannel: data.recommendedChannel || prev?.recommendedChannel,
+        }
       })
       if (data.channel) {
         setActiveChannel(data.channel)
@@ -652,6 +681,8 @@ export function ApplicationWorkbench({
                     jobUrl={application.jobUrl}
                     activeChannel={activeChannel}
                     onChannelChange={handleChannelChange}
+                    applicationId={application.id}
+                    onFormQuestionsUpdated={handleFormQuestionsUpdated}
                   />
                 )}
 

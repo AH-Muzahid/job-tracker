@@ -80,10 +80,10 @@ export interface ConversionJudgeScore {
 }
 
 export interface OutreachChannelBundle {
-  email: { subject: string; body: string }
-  linkedin_dm: { subject: string; body: string }
-  linkedin_connect: { body: string; charCount: number }
-  follow_up: { subject: string; body: string }
+  email?: { subject: string; body: string }
+  linkedin_dm?: { subject: string; body: string }
+  linkedin_connect?: { body: string; charCount: number }
+  follow_up?: { subject: string; body: string }
   form_portal?: { portalNote: string; screenerAnswers: ScreenerQA[] }
 }
 
