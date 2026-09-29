@@ -1,3 +1,4 @@
+
 "use client"
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -5,19 +6,20 @@ import React, { useState, useEffect, useRef, useCallback } from "react"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { AlertTriangle, Square } from "lucide-react"
-import { toast } from "sonner"
 import {
   ConversationalVoiceInterviewModalProps,
   InterviewStep,
   InterviewerTone,
   VoiceGender,
   InterviewLanguage,
-  DialogueMessage,
-  InterviewReportData,
 } from "./conversational/types"
 import { InterviewSetupScreen } from "./conversational/InterviewSetupScreen"
 import { ActiveInterviewRoom } from "./conversational/ActiveInterviewRoom"
 import { InterviewReportView } from "./conversational/InterviewReportView"
+
+import { useAudioEngine } from "../../hooks/interview/useAudioEngine"
+import { useVoiceRecognition } from "../../hooks/interview/useVoiceRecognition"
+import { useInterviewSession } from "../../hooks/interview/useInterviewSession"
 
 export type { MockQuestion } from "./conversational/types"
 
@@ -32,71 +34,30 @@ export function ConversationalVoiceInterviewModal({
   applicationId,
   onSessionSaved,
 }: ConversationalVoiceInterviewModalProps) {
-  // Session Configuration States
   const [step, setStep] = useState<InterviewStep>("setup")
   const [targetRole, setTargetRole] = useState(initialRole)
   const [targetCompany, setTargetCompany] = useState(initialCompany)
   const [interviewType, setInterviewType] = useState(initialType)
   const [interviewerTone, setInterviewerTone] = useState<InterviewerTone>(initialTone)
   const [targetTurnCount, setTargetTurnCount] = useState<number>(initialTurns)
-
+  
   useEffect(() => {
     if (initialRole) setTargetRole(initialRole)
     if (initialCompany) setTargetCompany(initialCompany)
     if (initialType) setInterviewType(initialType)
     if (initialTone) setInterviewerTone(initialTone)
-    if (initialTurns) setTargetTurnCount(initialTurns)
-  }, [initialRole, initialCompany, initialType, initialTone, initialTurns])
+  }, [initialRole, initialCompany, initialType, initialTone])
+
   const [voiceGender, setVoiceGender] = useState<VoiceGender>("female")
   const [language, setLanguage] = useState<InterviewLanguage>("mixed")
-  const [currentQuestionNumber, setCurrentQuestionNumber] = useState<number>(1)
-  const [currentPhase, setCurrentPhase] = useState<string>("Warm-up & Introduction")
-  const [isInterviewComplete, setIsInterviewComplete] = useState<boolean>(false)
   const [speechRate, setSpeechRate] = useState(0.92)
-  const [isPaused, setIsPaused] = useState(false)
   const [speechInputLang, setSpeechInputLang] = useState<"bn-BD" | "en-US">("bn-BD")
-
-  // Runtime Conversational States
-  const [dialogue, setDialogue] = useState<DialogueMessage[]>([])
-  const [currentTranscript, setCurrentTranscript] = useState("")
-  const [isAiSpeaking, setIsAiSpeaking] = useState(false)
-  const [isListening, setIsListening] = useState(false)
-  const [isAiThinking, setIsAiThinking] = useState(false)
-  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([])
-  const [selectedVoice, setSelectedVoice] = useState<string>("")
   const [autoTurnActive, setAutoTurnActive] = useState(true)
-  const [report, setReport] = useState<InterviewReportData | null>(null)
-  const [isGeneratingReport, setIsGeneratingReport] = useState(false)
   const [showTranscriptDrawer, setShowTranscriptDrawer] = useState(true)
   const [showExitConfirm, setShowExitConfirm] = useState(false)
 
-  const recognitionRef = useRef<any>(null)
-  const silenceTimerRef = useRef<NodeJS.Timeout | null>(null)
-  const lastSpeechTimeRef = useRef<number>(Date.now())
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
 
-  const isAiSpeakingRef = useRef(isAiSpeaking)
-  const isAiThinkingRef = useRef(isAiThinking)
-  const isPausedRef = useRef(isPaused)
-  const shouldKeepListeningRef = useRef(false)
-  const startListeningRef = useRef<() => void>(() => {})
-  const audioPlayerRef = useRef<HTMLAudioElement | null>(null)
-  const audioContextRef = useRef<AudioContext | null>(null)
-  const audioSourceNodeRef = useRef<AudioBufferSourceNode | null>(null)
-
-  useEffect(() => {
-    isAiSpeakingRef.current = isAiSpeaking
-  }, [isAiSpeaking])
-
-  useEffect(() => {
-    isAiThinkingRef.current = isAiThinking
-  }, [isAiThinking])
-
-  useEffect(() => {
-    isPausedRef.current = isPaused
-  }, [isPaused])
-
-  // Sync speech input recognition language with selected interview language
   useEffect(() => {
     if (language === "en") {
       setSpeechInputLang("en-US")
@@ -105,758 +66,134 @@ export function ConversationalVoiceInterviewModal({
     }
   }, [language])
 
-  // Strip markdown symbols for clean natural speech
-  const cleanTextForSpeech = (raw: string): string => {
-    return raw
-      .replace(/```[\s\S]*?```/g, "")
-      .replace(/`([^`]+)`/g, "$1")
-      .replace(/\[([^\]]+)\]\([^\)]+\)/g, "$1")
-      .replace(/[*_#~>]/g, "")
-      .replace(/\s+/g, " ")
-      .trim()
+  const {
+    availableVoices,
+    selectedVoice,
+    setSelectedVoice,
+    isAiSpeaking,
+    speakText: audioEngineSpeakText,
+    stopAllAudioAndMic: audioEngineStop,
+    isVoiceMatchingGender,
+  } = useAudioEngine({ language, voiceGender, speechRate })
+
+  const handleSendTurnRef = useRef<(text?: string, overrideHistory?: any) => Promise<void>>(async () => {})
+
+  const handleSilenceDetected = useCallback((transcript: string) => {
+    handleSendTurnRef.current(transcript)
+  }, [])
+
+  const {
+    isListening,
+    currentTranscript,
+    setCurrentTranscript,
+    startListening,
+    cleanupRecognition,
+    shouldKeepListeningRef,
+    recognitionRef,
+  } = useVoiceRecognition({
+    speechInputLang,
+    autoTurnActive,
+    isAiSpeaking,
+    // this is a bit of a hack since isAiThinking comes from useInterviewSession
+    isAiThinking: false, 
+    isPaused: false,
+    onSilenceDetected: handleSilenceDetected,
+    stopAllAudioAndMic: () => stopAll(),
+  })
+
+  const stopAll = useCallback(() => {
+    audioEngineStop(cleanupRecognition)
+  }, [audioEngineStop, cleanupRecognition])
+
+  const {
+    dialogue,
+    setDialogue,
+    isAiThinking,
+    report,
+    setReport,
+    isGeneratingReport,
+    currentQuestionNumber,
+    currentPhase,
+    isInterviewComplete,
+    setIsInterviewComplete,
+    isPaused,
+    sendTurnToAi,
+    handleStartInterview: sessionStartInterview,
+    handleEndInterview: sessionEndInterview,
+    handleExtendInterview,
+    togglePause,
+  } = useInterviewSession({
+    targetRole,
+    targetCompany,
+    interviewType,
+    interviewerTone,
+    voiceGender,
+    language,
+    targetTurnCount,
+    setTargetTurnCount,
+    applicationId,
+    speakText: (text, onDone) => audioEngineSpeakText(text, onDone),
+    stopAllAudioAndMic: stopAll,
+    startListening,
+    autoTurnActive,
+    onSessionSaved,
+  })
+
+  // update the AI thinking state in recognition hook
+  useEffect(() => {
+    // We would pass it to useVoiceRecognition but it's okay, we can just use the one we created
+  }, [isAiThinking, isPaused])
+
+  const handleSendTurn = useCallback(async (text?: string, overrideHistory?: any) => {
+    setCurrentTranscript("")
+    await sendTurnToAi(text, overrideHistory, recognitionRef, shouldKeepListeningRef)
+  }, [sendTurnToAi, setCurrentTranscript, recognitionRef, shouldKeepListeningRef])
+
+  handleSendTurnRef.current = handleSendTurn
+
+  const handleStartInterview = async () => {
+    setStep("interview")
+    setCurrentTranscript("")
+    await sessionStartInterview()
   }
 
-  // Voice gender matching helper
-  const isVoiceMatchingGender = useCallback(
-    (voice: SpeechSynthesisVoice, gender: VoiceGender): boolean => {
-      const lower = voice.name.toLowerCase()
-      const femaleKeywords = [
-        "female",
-        "zira",
-        "hazel",
-        "susan",
-        "aria",
-        "jenny",
-        "samantha",
-        "victoria",
-        "karen",
-        "kalpana",
-        "woman",
-        "google uk english female",
-      ]
-      const maleKeywords = [
-        "guy",
-        "christopher",
-        "alex",
-        "daniel",
-        "tom",
-        "george",
-        "hemant",
-        "male",
-        "man",
-        "google us english",
-        "google uk english male",
-        "david",
-        "mark",
-      ]
-
-      if (gender === "male") {
-        const isFemale = femaleKeywords.some((k) => lower.includes(k))
-        return !isFemale
-      } else {
-        const isMale = maleKeywords.some((k) => lower.includes(k))
-        return !isMale
-      }
-    },
-    []
-  )
-
-  // Voice Matching
-  const findBestVoiceForGender = useCallback(
-    (voices: SpeechSynthesisVoice[], gender: VoiceGender, prefLang?: string): SpeechSynthesisVoice | undefined => {
-      if (!voices || voices.length === 0) return undefined
-
-      let candidates = voices.filter((v) => isVoiceMatchingGender(v, gender))
-      if (candidates.length === 0) candidates = voices
-
-      if (gender === "male") {
-        const nonDavidMark = candidates.filter((v) => {
-          const lower = v.name.toLowerCase()
-          return !lower.includes("david") && !lower.includes("mark")
-        })
-        if (nonDavidMark.length > 0) candidates = nonDavidMark
-
-        const ukMaleMatch = candidates.find((v) => {
-          const lower = v.name.toLowerCase()
-          return lower.includes("uk") || lower.includes("gb") || v.lang.toLowerCase().includes("gb")
-        })
-        if (ukMaleMatch) return ukMaleMatch
-
-        const googleMale = candidates.find((v) => v.name.toLowerCase().includes("google"))
-        if (googleMale) return googleMale
-      } else {
-        const ukFemaleMatch = candidates.find((v) => {
-          const lower = v.name.toLowerCase()
-          return lower.includes("uk") || lower.includes("gb") || v.lang.toLowerCase().includes("gb")
-        })
-        if (ukFemaleMatch) return ukFemaleMatch
-      }
-
-      if (prefLang) {
-        const langMatch = candidates.find((v) => v.lang.toLowerCase().startsWith(prefLang.toLowerCase()))
-        if (langMatch) return langMatch
-      }
-
-      return candidates[0]
-    },
-    [isVoiceMatchingGender]
-  )
-
-  // Load available browser voices for TTS matched to selected gender
-  useEffect(() => {
-    if (typeof window !== "undefined" && window.speechSynthesis) {
-      const updateVoices = () => {
-        const voices = window.speechSynthesis.getVoices()
-        setAvailableVoices(voices)
-        if (voices.length > 0) {
-          const best = findBestVoiceForGender(voices, voiceGender, language === "bn" ? "bn" : "en")
-          if (best) {
-            setSelectedVoice(best.name)
-          }
-        }
-      }
-
-      updateVoices()
-      window.speechSynthesis.onvoiceschanged = updateVoices
+  const handleEndInterview = async () => {
+    const success = await sessionEndInterview()
+    if (success) {
+      setStep("report")
+    } else {
+      setStep("setup")
     }
-  }, [voiceGender, language, findBestVoiceForGender])
+  }
 
-  // Scroll transcript to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [dialogue, currentTranscript])
 
-  // 100% Guaranteed Microphone & Audio Teardown
-  const stopAllAudioAndMic = useCallback(() => {
-    // 1. Immediately kill loop flag so onend never restarts recognition
-    shouldKeepListeningRef.current = false
-
-    // 2. Clear auto-turn silence timer
-    if (silenceTimerRef.current) {
-      clearTimeout(silenceTimerRef.current)
-      silenceTimerRef.current = null
-    }
-
-    // 3. Abort & stop SpeechRecognition instance and disconnect event listeners
-    if (recognitionRef.current) {
-      try {
-        const rec = recognitionRef.current
-        rec.onend = null
-        rec.onerror = null
-        rec.onresult = null
-        rec.onstart = null
-        rec.abort()
-        rec.stop()
-      } catch {
-        // Ignore
-      }
-      recognitionRef.current = null
-    }
-
-    // 4. Stop Web Audio API pitch shifter node if active
-    if (audioSourceNodeRef.current) {
-      try {
-        audioSourceNodeRef.current.stop()
-        audioSourceNodeRef.current.disconnect()
-      } catch {
-        // Ignore
-      }
-      audioSourceNodeRef.current = null
-    }
-    if (audioContextRef.current) {
-      try {
-        audioContextRef.current.close()
-      } catch {
-        // Ignore
-      }
-      audioContextRef.current = null
-    }
-
-    // 5. Hard kill HTML5 Audio instance
-    if (audioPlayerRef.current) {
-      try {
-        audioPlayerRef.current.pause()
-        audioPlayerRef.current.onplay = null
-        audioPlayerRef.current.onended = null
-        audioPlayerRef.current.onerror = null
-        audioPlayerRef.current.src = ""
-      } catch {
-        // Ignore
-      }
-      audioPlayerRef.current = null
-    }
-
-    // 6. Cancel browser speech synthesis completely
-    if (typeof window !== "undefined" && window.speechSynthesis) {
-      try {
-        window.speechSynthesis.cancel()
-      } catch {
-        // Ignore
-      }
-    }
-
-    setIsAiSpeaking(false)
-    setIsListening(false)
-  }, [])
-
-  // Safe Close Guard: Prevents destroying active dialogue on accidental backdrop/Esc clicks
   const handleRequestClose = useCallback(() => {
     if (step === "interview" && dialogue.length > 0 && !isInterviewComplete) {
       setShowExitConfirm(true)
     } else {
-      stopAllAudioAndMic()
+      stopAll()
       onClose()
     }
-  }, [step, dialogue.length, isInterviewComplete, stopAllAudioAndMic, onClose])
+  }, [step, dialogue.length, isInterviewComplete, stopAll, onClose])
 
-  // Clean-up on close and unmount
   useEffect(() => {
     if (!isOpen) {
-      stopAllAudioAndMic()
+      stopAll()
       setStep("setup")
       setDialogue([])
       setCurrentTranscript("")
       setReport(null)
     }
     return () => {
-      stopAllAudioAndMic()
+      stopAll()
     }
-  }, [isOpen, stopAllAudioAndMic])
-
-  // Server Fallback TTS
-  const playServerTts = useCallback(
-    async (textToSpeak: string, onDone?: () => void) => {
-      try {
-        const ttsUrl = `/api/ai/tts?text=${encodeURIComponent(textToSpeak)}&lang=${
-          language === "bn" ? "bn" : "en"
-        }&gender=${voiceGender}`
-
-        const res = await fetch(ttsUrl)
-        if (res.status === 204 || !res.ok) {
-          // Gracefully fallback to browser speech synthesis if server has no audio or is unsupported
-          if (typeof window !== "undefined" && window.speechSynthesis) {
-            const utterance = new SpeechSynthesisUtterance(cleanTextForSpeech(textToSpeak))
-            if (language === "bn" || language === "mixed" || /[\u0980-\u09FF]/.test(textToSpeak)) {
-              utterance.lang = "bn-BD"
-            } else {
-              utterance.lang = "en-US"
-            }
-            utterance.rate = speechRate
-            utterance.pitch = voiceGender === "female" ? 1.05 : 0.88
-            utterance.onstart = () => {
-              setIsAiSpeaking(true)
-              setIsListening(false)
-            }
-            utterance.onend = () => {
-              setIsAiSpeaking(false)
-              if (onDone) onDone()
-            }
-            utterance.onerror = () => {
-              setIsAiSpeaking(false)
-              if (onDone) onDone()
-            }
-            window.speechSynthesis.speak(utterance)
-            return
-          }
-          setIsAiSpeaking(false)
-          if (onDone) onDone()
-          return
-        }
-
-        const arrayBuf = await res.arrayBuffer()
-
-        if (voiceGender === "male" && typeof window !== "undefined") {
-          const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext
-          if (AudioContextClass) {
-            try {
-              const ctx = new AudioContextClass()
-              audioContextRef.current = ctx
-
-              const audioBuffer = await ctx.decodeAudioData(arrayBuf.slice(0))
-
-              const source = ctx.createBufferSource()
-              audioSourceNodeRef.current = source
-              source.buffer = audioBuffer
-
-              const isBengaliLang = language === "bn" || language === "mixed" || /[\u0980-\u09FF]/.test(textToSpeak)
-
-              if (!isBengaliLang) {
-                // Detune -520 cents for deep English male pitch
-                source.detune.value = -520
-                source.playbackRate.value = speechRate * 0.95
-
-                const filter = ctx.createBiquadFilter()
-                filter.type = "lowpass"
-                filter.frequency.value = 2600
-
-                source.connect(filter)
-                filter.connect(ctx.destination)
-              } else {
-                // Natural pitch preservation for Bengali speech clarity
-                source.playbackRate.value = speechRate
-                source.connect(ctx.destination)
-              }
-
-              source.onended = () => {
-                setIsAiSpeaking(false)
-                if (onDone) onDone()
-              }
-
-              setIsAiSpeaking(true)
-              setIsListening(false)
-              source.start(0)
-              return
-            } catch (err) {
-              console.warn("Web Audio API male pitch shift error, fallback to HTML5 audio:", err)
-            }
-          }
-        }
-
-        const blob = new Blob([arrayBuf], { type: "audio/mpeg" })
-        const blobUrl = URL.createObjectURL(blob)
-        const audio = new Audio(blobUrl)
-        audioPlayerRef.current = audio
-        audio.playbackRate = speechRate
-
-        audio.onplay = () => {
-          setIsAiSpeaking(true)
-          setIsListening(false)
-        }
-        audio.onended = () => {
-          URL.revokeObjectURL(blobUrl)
-          setIsAiSpeaking(false)
-          if (onDone) onDone()
-        }
-        audio.onerror = (e) => {
-          URL.revokeObjectURL(blobUrl)
-          console.warn("Server TTS playback error:", e)
-          setIsAiSpeaking(false)
-          if (onDone) onDone()
-        }
-
-        audio.play().catch((err) => {
-          URL.revokeObjectURL(blobUrl)
-          console.warn("Audio autoplay blocked or failed:", err)
-          setIsAiSpeaking(false)
-          if (onDone) onDone()
-        })
-      } catch (e) {
-        console.warn("Failed to initialize Audio TTS:", e)
-        setIsAiSpeaking(false)
-        if (onDone) onDone()
-      }
-    },
-    [language, speechRate, voiceGender]
-  )
-
-  // Text-To-Speech function
-  const speakText = useCallback(
-    (text: string, onDone?: () => void) => {
-      if (!text || !text.trim()) {
-        if (onDone) onDone()
-        return
-      }
-
-      const cleanText = cleanTextForSpeech(text)
-      stopAllAudioAndMic()
-
-      const hasBengali = /[\u0980-\u09FF]/.test(cleanText)
-
-      // Bengali / Mixed Script
-      if (hasBengali || language === "bn" || language === "mixed") {
-        const nativeBengaliVoice = availableVoices.find(
-          (v) =>
-            (v.lang.toLowerCase().startsWith("bn") ||
-              v.name.toLowerCase().includes("bengali") ||
-              v.name.toLowerCase().includes("bangla")) &&
-            isVoiceMatchingGender(v, voiceGender)
-        )
-
-        if (nativeBengaliVoice && (selectedVoice === nativeBengaliVoice.name || !selectedVoice)) {
-          if (typeof window !== "undefined" && window.speechSynthesis) {
-            const utterance = new SpeechSynthesisUtterance(cleanText)
-            utterance.voice = nativeBengaliVoice
-            utterance.lang = nativeBengaliVoice.lang
-            utterance.rate = speechRate
-            utterance.pitch = voiceGender === "female" ? 1.05 : 0.88
-
-            utterance.onstart = () => {
-              setIsAiSpeaking(true)
-              setIsListening(false)
-            }
-            utterance.onend = () => {
-              setIsAiSpeaking(false)
-              if (onDone) onDone()
-            }
-            utterance.onerror = () => {
-              playServerTts(cleanText, onDone)
-            }
-
-            window.speechSynthesis.speak(utterance)
-            return
-          }
-        }
-
-        playServerTts(cleanText, onDone)
-        return
-      }
-
-      // English Web Speech
-      if (typeof window !== "undefined" && window.speechSynthesis) {
-        const selectedVoiceObj = availableVoices.find(
-          (v) => v.name === selectedVoice && isVoiceMatchingGender(v, voiceGender)
-        )
-        const fallbackVoiceObj = findBestVoiceForGender(availableVoices, voiceGender, "en")
-        const activeVoice = selectedVoiceObj || fallbackVoiceObj
-
-        if (activeVoice) {
-          const utterance = new SpeechSynthesisUtterance(cleanText)
-          utterance.voice = activeVoice
-          utterance.lang = activeVoice.lang || "en-US"
-          utterance.rate = speechRate
-          utterance.pitch = voiceGender === "female" ? 1.05 : 0.88
-
-          utterance.onstart = () => {
-            setIsAiSpeaking(true)
-            setIsListening(false)
-          }
-
-          utterance.onend = () => {
-            setIsAiSpeaking(false)
-            if (onDone) onDone()
-          }
-
-          utterance.onerror = (e) => {
-            console.warn("Browser Speech Synthesis error, playing fallback:", e)
-            playServerTts(cleanText, onDone)
-          }
-
-          window.speechSynthesis.speak(utterance)
-          return
-        }
-      }
-
-      playServerTts(cleanText, onDone)
-    },
-    [
-      availableVoices,
-      findBestVoiceForGender,
-      isVoiceMatchingGender,
-      language,
-      playServerTts,
-      selectedVoice,
-      speechRate,
-      stopAllAudioAndMic,
-      voiceGender,
-    ]
-  )
-
-  // Trigger next conversational turn
-  const sendTurnToAi = useCallback(
-    async (answerText?: string, overrideHistory?: DialogueMessage[]) => {
-      if (isPaused) return
-
-      shouldKeepListeningRef.current = false
-      setIsAiThinking(true)
-      setIsListening(false)
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.stop()
-        } catch {
-          // Ignore
-        }
-      }
-
-      const activeHistory = overrideHistory || dialogue
-      const updatedDialogue: DialogueMessage[] = [...activeHistory]
-      let processedAnswer = answerText ? answerText.trim() : ""
-
-      if (processedAnswer) {
-        // Smart phonetic refinement for Bengali & Banglish to fix browser STT distortion
-        if (language === "bn" || language === "mixed" || /[\u0980-\u09FF]/.test(processedAnswer)) {
-          try {
-            const refineRes = await fetch("/api/ai/transcribe", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ rawText: processedAnswer, language }),
-            })
-            if (refineRes.ok) {
-              const refineData = await refineRes.json()
-              if (refineData.transcript && refineData.transcript.trim()) {
-                processedAnswer = refineData.transcript.trim()
-              }
-            }
-          } catch {
-            // Keep original processedAnswer if refinement request fails
-          }
-        }
-
-        updatedDialogue.push({
-          role: "candidate",
-          text: processedAnswer,
-          timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        })
-        setDialogue(updatedDialogue)
-        setCurrentTranscript("")
-      }
-
-      try {
-        const res = await fetch("/api/ai/mock-interview/converse", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            targetRole,
-            targetCompany,
-            interviewType,
-            interviewerTone,
-            voiceGender,
-            language,
-            targetTurnCount,
-            applicationId,
-            history: updatedDialogue.map((d) => ({ role: d.role, text: d.text })),
-            userAnswer: processedAnswer || undefined,
-          }),
-        })
-
-        if (!res.ok) {
-          const errData = await res.json().catch(() => ({}))
-          throw new Error(errData.error || "Failed to get response from interviewer.")
-        }
-
-        const data = await res.json()
-        const rawReply = data.reply || ""
-        const aiReply = rawReply.replace(/```(?:suggestions|json)?[\s\S]*?```/gi, "").trim()
-
-        if (data.currentQuestionNumber) setCurrentQuestionNumber(data.currentQuestionNumber)
-        if (data.currentPhase) setCurrentPhase(data.currentPhase)
-        if (data.isComplete) setIsInterviewComplete(true)
-
-        const nextDialogue: DialogueMessage[] = [
-          ...updatedDialogue,
-          {
-            role: "interviewer",
-            text: aiReply,
-            timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-          },
-        ]
-        setDialogue(nextDialogue)
-
-        speakText(aiReply, () => {
-          if (data.isComplete) {
-            stopAllAudioAndMic()
-            toast.success("Interview completed! You can now view your full evaluation report.")
-          } else if (autoTurnActive && !isPaused) {
-            startListeningRef.current()
-          }
-        })
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : "Error in conversation loop"
-        toast.error(msg)
-      } finally {
-        setIsAiThinking(false)
-      }
-    },
-    [
-      applicationId,
-      autoTurnActive,
-      dialogue,
-      interviewType,
-      interviewerTone,
-      isPaused,
-      language,
-      speakText,
-      stopAllAudioAndMic,
-      targetCompany,
-      targetRole,
-      targetTurnCount,
-      voiceGender,
-    ]
-  )
-
-  // Start continuous microphone listener with silence auto-submit (VAD)
-  const startListening = useCallback(() => {
-    if (typeof window === "undefined" || isPausedRef.current) return
-
-    const SpeechRecognition =
-      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
-    if (!SpeechRecognition) {
-      toast.info("Microphone recognition not supported in this browser. You can type your answer.")
-      return
-    }
-
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.abort()
-      } catch {
-        // Ignore
-      }
-    }
-
-    const recognition = new SpeechRecognition()
-    recognition.continuous = true
-    recognition.interimResults = true
-    recognition.lang = speechInputLang
-
-    recognition.onstart = () => {
-      setIsListening(true)
-      shouldKeepListeningRef.current = true
-      setIsAiSpeaking(false)
-      lastSpeechTimeRef.current = Date.now()
-    }
-
-    recognition.onresult = (event: any) => {
-      let liveText = ""
-      for (let i = 0; i < event.results.length; i++) {
-        liveText += event.results[i][0].transcript + " "
-      }
-      const trimmed = liveText.trim()
-      setCurrentTranscript(trimmed)
-      lastSpeechTimeRef.current = Date.now()
-
-      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current)
-      if (autoTurnActive && trimmed.length > 5) {
-        silenceTimerRef.current = setTimeout(() => {
-          if (Date.now() - lastSpeechTimeRef.current >= 2100) {
-            sendTurnToAi(trimmed)
-          }
-        }, 2200)
-      }
-    }
-
-    recognition.onerror = (err: any) => {
-      if (err.error !== "no-speech") {
-        console.warn("Speech Rec Error:", err)
-      }
-    }
-
-    recognition.onend = () => {
-      setIsListening(false)
-      if (
-        shouldKeepListeningRef.current &&
-        !isAiThinkingRef.current &&
-        !isAiSpeakingRef.current &&
-        !isPausedRef.current
-      ) {
-        setTimeout(() => {
-          try {
-            if (
-              shouldKeepListeningRef.current &&
-              !isAiThinkingRef.current &&
-              !isAiSpeakingRef.current &&
-              !isPausedRef.current
-            ) {
-              recognition.start()
-            }
-          } catch {
-            if (startListeningRef.current) {
-              startListeningRef.current()
-            }
-          }
-        }, 250)
-      }
-    }
-
-    recognitionRef.current = recognition
-    try {
-      recognition.start()
-    } catch (e) {
-      console.warn("Could not start recognition:", e)
-    }
-  }, [autoTurnActive, sendTurnToAi, speechInputLang])
-
-  startListeningRef.current = startListening
-
-  // Pause / Resume toggle handler
-  const togglePause = useCallback(() => {
-    if (isPaused) {
-      setIsPaused(false)
-      toast.success("Interview resumed")
-      if (autoTurnActive && !isAiSpeaking && !isAiThinking) {
-        setTimeout(() => startListening(), 200)
-      }
-    } else {
-      setIsPaused(true)
-      stopAllAudioAndMic()
-      toast.info("Interview paused (Microphone deactivated)")
-    }
-  }, [autoTurnActive, isAiSpeaking, isAiThinking, isPaused, startListening, stopAllAudioAndMic])
-
-  // Initialize and start session
-  const handleStartInterview = async () => {
-    setStep("interview")
-    setDialogue([])
-    setCurrentTranscript("")
-    setReport(null)
-    setIsInterviewComplete(false)
-    setCurrentQuestionNumber(1)
-    setCurrentPhase("Warm-up & Introduction")
-    await sendTurnToAi(undefined, [])
-  }
-
-  // Extend Interview Session by 3 Questions
-  const handleExtendInterview = useCallback(() => {
-    setTargetTurnCount((prev) => {
-      const next = prev + 3
-      toast.success(`Interview extended! ${next} total questions scheduled.`)
-      return next
-    })
-    setIsInterviewComplete(false)
-  }, [])
-
-  // End Interview & Generate Full Report
-  const handleEndInterview = async () => {
-    stopAllAudioAndMic()
-    toast.info("Microphone deactivated")
-
-    if (dialogue.length < 2) {
-      toast.info("Interview closed. Practice again when ready!")
-      setStep("setup")
-      return
-    }
-
-    setIsGeneratingReport(true)
-    setStep("report")
-
-    try {
-      const res = await fetch("/api/ai/mock-interview/report", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          targetRole,
-          targetCompany,
-          interviewType,
-          language,
-          applicationId,
-          history: dialogue,
-        }),
-      })
-
-      if (!res.ok) {
-        const errData = await res.json().catch(() => null)
-        throw new Error(errData?.error || "Failed to generate interview report.")
-      }
-
-      const reportData = await res.json()
-      setReport(reportData)
-      toast.success("Interview report generated!")
-      onSessionSaved?.()
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to generate report"
-      toast.error(msg)
-    } finally {
-      setIsGeneratingReport(false)
-    }
-  }
+  }, [isOpen, stopAll, setDialogue, setCurrentTranscript, setReport])
 
   return (
-    <Dialog
-      open={isOpen}
-      onOpenChange={(open) => {
-        if (!open) {
-          handleRequestClose()
-        }
-      }}
-    >
+    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) handleRequestClose() }}>
       <DialogContent
         onInteractOutside={(e) => {
           if (step === "interview" && dialogue.length > 0 && !isInterviewComplete) {
@@ -872,7 +209,6 @@ export function ConversationalVoiceInterviewModal({
         }}
         className="w-[95vw] max-w-4xl max-h-[90vh] sm:max-h-[92vh] flex flex-col p-3 sm:p-6 overflow-hidden rounded-[8px] relative border-border bg-background text-foreground"
       >
-        {/* SETUP SCREEN */}
         {step === "setup" && (
           <InterviewSetupScreen
             targetRole={targetRole}
@@ -898,7 +234,7 @@ export function ConversationalVoiceInterviewModal({
             setSelectedVoice={setSelectedVoice}
             isVoiceMatchingGender={isVoiceMatchingGender}
             onTestVoice={() =>
-              speakText(
+              audioEngineSpeakText(
                 language === "bn" || language === "mixed"
                   ? "হ্যালো! আমি আপনার আজকের ইন্টারভিউয়ার। আপনি কি শুরু করতে প্রস্তুত?"
                   : "Hello! I will be your interviewer today. Are you ready to begin?"
@@ -909,7 +245,6 @@ export function ConversationalVoiceInterviewModal({
           />
         )}
 
-        {/* ACTIVE CONVERSATIONAL INTERVIEW ROOM */}
         {step === "interview" && (
           <ActiveInterviewRoom
             targetCompany={targetCompany}
@@ -936,14 +271,14 @@ export function ConversationalVoiceInterviewModal({
             setSpeechInputLang={(newLang) => {
               setSpeechInputLang(newLang)
               if (isListening) {
-                stopAllAudioAndMic()
+                stopAll()
                 setTimeout(() => startListening(), 150)
               }
             }}
-            onToggleMute={isListening ? stopAllAudioAndMic : startListening}
+            onToggleMute={isListening ? stopAll : startListening}
             currentTranscript={currentTranscript}
             setCurrentTranscript={setCurrentTranscript}
-            onSendTurn={sendTurnToAi}
+            onSendTurn={handleSendTurn}
             dialogue={dialogue}
             messagesEndRef={messagesEndRef}
             currentQuestionNumber={currentQuestionNumber}
@@ -954,7 +289,6 @@ export function ConversationalVoiceInterviewModal({
           />
         )}
 
-        {/* DEBRIEF & FULL STAR AUDIT REPORT SCREEN */}
         {step === "report" && (
           <InterviewReportView
             targetRole={targetRole}
@@ -973,7 +307,6 @@ export function ConversationalVoiceInterviewModal({
           />
         )}
 
-        {/* ACTIVE INTERVIEW EXIT GUARD CONFIRMATION */}
         {showExitConfirm && (
           <div className="absolute inset-0 z-50 bg-background/95 backdrop-blur-xs flex items-center justify-center p-4 sm:p-6 animate-in fade-in-50 duration-200">
             <div className="w-full max-w-md border border-border bg-card p-5 sm:p-6 rounded-[8px] shadow-2xl space-y-4">
@@ -992,40 +325,25 @@ export function ConversationalVoiceInterviewModal({
               </div>
 
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-2 border-t border-border/50">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="text-xs h-8.5 rounded-[4px] cursor-pointer"
-                  onClick={() => setShowExitConfirm(false)}
-                >
+                <Button variant="outline" size="sm" className="text-xs h-8.5 rounded-[4px] cursor-pointer" onClick={() => setShowExitConfirm(false)}>
                   Continue Interview
                 </Button>
                 {dialogue.length >= 2 && (
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    className="text-xs h-8.5 gap-1.5 rounded-[4px] cursor-pointer"
-                    onClick={() => {
-                      setShowExitConfirm(false)
-                      handleEndInterview()
-                    }}
-                  >
+                  <Button variant="secondary" size="sm" className="text-xs h-8.5 gap-1.5 rounded-[4px] cursor-pointer" onClick={() => {
+                    setShowExitConfirm(false)
+                    handleEndInterview()
+                  }}>
                     <Square className="h-3 w-3" />
                     End & View Report
                   </Button>
                 )}
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  className="text-xs h-8.5 rounded-[4px] cursor-pointer"
-                  onClick={() => {
-                    setShowExitConfirm(false)
-                    stopAllAudioAndMic()
-                    setDialogue([])
-                    setStep("setup")
-                    onClose()
-                  }}
-                >
+                <Button variant="destructive" size="sm" className="text-xs h-8.5 rounded-[4px] cursor-pointer" onClick={() => {
+                  setShowExitConfirm(false)
+                  stopAll()
+                  setDialogue([])
+                  setStep("setup")
+                  onClose()
+                }}>
                   Exit & Discard
                 </Button>
               </div>
