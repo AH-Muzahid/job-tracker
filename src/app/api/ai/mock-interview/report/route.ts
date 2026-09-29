@@ -149,7 +149,7 @@ export async function POST(request: NextRequest) {
     const targetCompany = sanitizeUntrustedContext(parsed.data.targetCompany)
 
     const dialogueTranscript = history
-      .map((h: any) => `${h.role === "interviewer" ? "INTERVIEWER" : "CANDIDATE"}: ${h.text}`)
+      .map((h: any) => `${h.role === "interviewer" ? "INTERVIEWER" : "CANDIDATE"}: ${sanitizeUntrustedContext(h.text)}`)
       .join("\n\n")
 
     const systemPrompt = `${getSystemBase()}
@@ -213,6 +213,7 @@ ${dialogueTranscript}
 `
 
     let report: any = null
+    let graphProducedReport = false
 
     try {
       const { runInterviewCoachPipeline } = await import("@/lib/ai/graph/workflows/interview-coach")
@@ -226,6 +227,7 @@ ${dialogueTranscript}
       })
       if (agentResult?.evaluationReport && typeof agentResult.evaluationReport === "object") {
         report = agentResult.evaluationReport
+        graphProducedReport = true
       }
     } catch (graphErr) {
       console.warn("[Interview Coach Graph fallback to direct resilient generator]:", graphErr)
@@ -273,97 +275,107 @@ ${dialogueTranscript}
         if (ownedApp) verifiedAppId = ownedApp.id
       }
 
-      const session = await prisma.interviewSession.create({
-        data: {
-          userId,
-          applicationId: verifiedAppId,
-          targetRole: targetRole || "Software Engineer",
-          targetCompany: targetCompany || "Tech Company",
-          interviewType: interviewType || "Technical",
-          language: language || "mixed",
-          score: typeof report.overallScore === "number" ? report.overallScore : null,
-          verdict: report.verdict || "Hire",
-          dialogue: history,
-          report,
-        },
+      const executeTransaction = typeof prisma.$transaction === "function"
+        ? (fn: (tx: any) => Promise<any>) => prisma.$transaction(fn)
+        : (fn: (tx: any) => Promise<any>) => fn(prisma)
+
+      const session = await executeTransaction(async (tx) => {
+        const newSession = await tx.interviewSession.create({
+          data: {
+            userId,
+            applicationId: verifiedAppId,
+            targetRole: targetRole || "Software Engineer",
+            targetCompany: targetCompany || "Tech Company",
+            interviewType: interviewType || "Technical",
+            language: language || "mixed",
+            score: typeof report.overallScore === "number" ? report.overallScore : null,
+            verdict: report.verdict || "Hire",
+            dialogue: history,
+            report,
+          },
+        })
+
+        // Synchronize interview evaluation findings into ApplicationAnalysis & Application
+        if (verifiedAppId && tx.applicationAnalysis?.findUnique) {
+          try {
+            const gapRecord = {
+              interviewScore: report.overallScore,
+              verdict: report.verdict,
+              interviewType: interviewType || "Technical",
+              knowledgeGaps: report.knowledgeGaps || [],
+              evaluatedAt: new Date().toISOString(),
+            }
+
+            const existingAnalysis = await tx.applicationAnalysis.findUnique({
+              where: { applicationId: verifiedAppId },
+            })
+
+            if (existingAnalysis) {
+              await tx.applicationAnalysis.update({
+                where: { applicationId: verifiedAppId },
+                data: {
+                  gapAnalysis: gapRecord,
+                },
+              })
+            } else {
+              await tx.applicationAnalysis.create({
+                data: {
+                  applicationId: verifiedAppId,
+                  matchScore: report.overallScore || 75,
+                  confidence: "medium",
+                  verdict: report.verdict || "Interview Evaluated",
+                  gapAnalysis: gapRecord,
+                },
+              })
+            }
+
+            const summaryNote = `[Interview ${interviewType || "Technical"} - Score: ${
+              report.overallScore || "N/A"
+            }/100, Verdict: ${report.verdict || "Evaluated"}]: ${report.executiveSummary || ""}`
+            if (tx.application?.update) {
+              await tx.application.update({
+                where: { id: verifiedAppId },
+                data: {
+                  interviewNotes: summaryNote,
+                  updatedAt: new Date(),
+                },
+              })
+            }
+          } catch (analysisErr) {
+            console.warn("[ApplicationAnalysis Sync Error (non-fatal)]:", analysisErr)
+          }
+        }
+
+        return newSession
       })
 
-      // Automatically resolve previous weaknesses if candidate demonstrated strong STAR performance (>= 80%)
-      if (typeof report.overallScore === "number" && report.overallScore >= 80) {
-        try {
-          const { resolveInterviewWeaknesses } = await import("@/lib/ai/memory")
-          await resolveInterviewWeaknesses(userId, {
-            targetRole,
-            topics: Array.isArray(report.strengths) ? report.strengths : [],
-            overallScore: report.overallScore,
-          })
-        } catch (resolveErr) {
-          console.warn("[Memory Weakness Resolution Error (non-fatal)]:", resolveErr)
+      if (!graphProducedReport) {
+        // Automatically resolve previous weaknesses if candidate demonstrated strong STAR performance (>= 80%)
+        if (typeof report.overallScore === "number" && report.overallScore >= 80) {
+          try {
+            const { resolveInterviewWeaknesses } = await import("@/lib/ai/memory")
+            await resolveInterviewWeaknesses(userId, {
+              targetRole,
+              topics: Array.isArray(report.strengths) ? report.strengths : [],
+              overallScore: report.overallScore,
+            })
+          } catch (resolveErr) {
+            console.warn("[Memory Weakness Resolution Error (non-fatal)]:", resolveErr)
+          }
         }
-      }
 
-      // Persist identified knowledge gaps to long-term UserMemory
-      if (Array.isArray(report.knowledgeGaps) && report.knowledgeGaps.length > 0) {
-        try {
-          const { persistInterviewWeaknesses } = await import("@/lib/ai/memory")
-          await persistInterviewWeaknesses(userId, report.knowledgeGaps, {
-            targetRole,
-            targetCompany,
-            roundType: interviewType,
-          })
-        } catch (memErr) {
-          console.warn("[Memory Persistence Error (non-fatal)]:", memErr)
-        }
-      }
-
-      // Synchronize interview evaluation findings into ApplicationAnalysis & Application
-      if (verifiedAppId && prisma?.applicationAnalysis?.findUnique) {
-        try {
-          const gapRecord = {
-            interviewScore: report.overallScore,
-            verdict: report.verdict,
-            interviewType: interviewType || "Technical",
-            knowledgeGaps: report.knowledgeGaps || [],
-            evaluatedAt: new Date().toISOString(),
-          }
-
-          const existingAnalysis = await prisma.applicationAnalysis.findUnique({
-            where: { applicationId: verifiedAppId },
-          })
-
-          if (existingAnalysis) {
-            await prisma.applicationAnalysis.update({
-              where: { applicationId: verifiedAppId },
-              data: {
-                gapAnalysis: gapRecord,
-              },
+        // Persist identified knowledge gaps to long-term UserMemory
+        if (Array.isArray(report.knowledgeGaps) && report.knowledgeGaps.length > 0) {
+          try {
+            const { persistInterviewWeaknesses } = await import("@/lib/ai/memory")
+            await persistInterviewWeaknesses(userId, report.knowledgeGaps, {
+              targetRole,
+              targetCompany,
+              roundType: interviewType,
             })
-          } else {
-            await prisma.applicationAnalysis.create({
-              data: {
-                applicationId: verifiedAppId,
-                matchScore: report.overallScore || 75,
-                confidence: "medium",
-                verdict: report.verdict || "Interview Evaluated",
-                gapAnalysis: gapRecord,
-              },
-            })
+          } catch (memErr) {
+            console.warn("[Memory Persistence Error (non-fatal)]:", memErr)
           }
-
-          const summaryNote = `[Interview ${interviewType || "Technical"} - Score: ${
-            report.overallScore || "N/A"
-          }/100, Verdict: ${report.verdict || "Evaluated"}]: ${report.executiveSummary || ""}`
-          if (prisma?.application?.update) {
-            await prisma.application.update({
-              where: { id: verifiedAppId },
-              data: {
-                interviewNotes: summaryNote,
-                updatedAt: new Date(),
-              },
-            })
-          }
-        } catch (analysisErr) {
-          console.warn("[ApplicationAnalysis Sync Error (non-fatal)]:", analysisErr)
         }
       }
 
