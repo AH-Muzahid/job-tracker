@@ -5,12 +5,32 @@ import Link from "next/link"
 import { cn } from "@/lib/utils"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
-import { MessageSquare, Copy, Check, Pencil, RotateCcw, Mic, ArrowRight, Bookmark, BookmarkCheck, Loader2, FileText } from "lucide-react"
+import {
+  MessageSquare,
+  Copy,
+  Check,
+  Pencil,
+  RotateCcw,
+  Mic,
+  ArrowRight,
+  Bookmark,
+  BookmarkCheck,
+  Loader2,
+  FileText,
+  Layers,
+  Target,
+  FileSpreadsheet,
+  Briefcase,
+  Compass,
+  Building2,
+  Sliders,
+} from "lucide-react"
 import { toast } from "sonner"
 import AnalysisResult from "./AnalysisResult"
 import OutreachResult from "./OutreachResult"
 import MockInterviewResult from "./MockInterviewResult"
 import TailoredResumeResult from "./TailoredResumeResult"
+import CoverLetterResult from "./CoverLetterResult"
 import ToolChips from "./ToolChips"
 import StreamingText from "./StreamingText"
 import LoadingState from "./LoadingState"
@@ -173,6 +193,36 @@ function getContextualSuggestions(content: string, toolInvocations?: ToolInvocat
       icon: "",
       label: "Identify Missing Keywords",
       prompt: "Analyze this response and identify any key technical skills or keywords I should emphasize.",
+    })
+    return list.slice(0, 2)
+  }
+
+  // Case 5: Weekly Goals / Target Tracking
+  if (lower.includes("goal") || lower.includes("target")) {
+    list.push({
+      icon: "",
+      label: "View Weekly Goals",
+      prompt: "Show me my active weekly goals and current progress.",
+    })
+    list.push({
+      icon: "",
+      label: "Set New Application Goal",
+      prompt: "Help me set an ambitious, achievable weekly goal for applications and networking.",
+    })
+    return list.slice(0, 2)
+  }
+
+  // Case 6: Integrations / Google Sheets
+  if (lower.includes("sheet") || lower.includes("export") || lower.includes("csv") || lower.includes("sync")) {
+    list.push({
+      icon: "",
+      label: "Sync to Google Sheets",
+      prompt: "Sync all my tracked job applications to Google Sheets.",
+    })
+    list.push({
+      icon: "",
+      label: "Integration Settings",
+      prompt: "What integrations are currently active and how do I configure them?",
     })
     return list.slice(0, 2)
   }
@@ -495,25 +545,94 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
         )
       }
 
+      if (href && href.startsWith("/weekly-goals")) {
+        return (
+          <Link
+            href={href}
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 my-2 rounded-[4px] bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs no-underline transition-all hover:shadow-xs group/btn cursor-pointer shadow-none"
+          >
+            <Target className="size-3.5 shrink-0" />
+            <span>{children}</span>
+            <ArrowRight className="size-3 transition-transform group-hover/btn:translate-x-0.5" />
+          </Link>
+        )
+      }
+
+      if (href && href.startsWith("/discovery")) {
+        return (
+          <Link
+            href={href}
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 my-2 rounded-[4px] bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs no-underline transition-all hover:shadow-xs group/btn cursor-pointer shadow-none"
+          >
+            <Compass className="size-3.5 shrink-0" />
+            <span>{children}</span>
+            <ArrowRight className="size-3 transition-transform group-hover/btn:translate-x-0.5" />
+          </Link>
+        )
+      }
+
+      if (href && href.startsWith("/companies")) {
+        return (
+          <Link
+            href={href}
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 my-2 rounded-[4px] bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs no-underline transition-all hover:shadow-xs group/btn cursor-pointer shadow-none"
+          >
+            <Building2 className="size-3.5 shrink-0" />
+            <span>{children}</span>
+            <ArrowRight className="size-3 transition-transform group-hover/btn:translate-x-0.5" />
+          </Link>
+        )
+      }
+
+      if (href && href.startsWith("/integrations")) {
+        return (
+          <Link
+            href={href}
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 my-2 rounded-[4px] bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs no-underline transition-all hover:shadow-xs group/btn cursor-pointer shadow-none"
+          >
+            <Sliders className="size-3.5 shrink-0" />
+            <span>{children}</span>
+            <ArrowRight className="size-3 transition-transform group-hover/btn:translate-x-0.5" />
+          </Link>
+        )
+      }
+
       if (href && href.startsWith("/actions/")) {
         const url = new URL(href, "http://localhost")
         const actionType = url.pathname.replace("/actions/", "")
         
+        let ActionIcon = MessageSquare
+        if (actionType === "stage") ActionIcon = Layers
+        else if (actionType === "goal") ActionIcon = Target
+        else if (actionType === "sync-sheets") ActionIcon = FileSpreadsheet
+        else if (actionType === "note") ActionIcon = Bookmark
+        else if (actionType === "add") ActionIcon = Briefcase
+
         const handleActionClick = async () => {
           const company = url.searchParams.get("company")?.trim()
           const status = url.searchParams.get("status")?.trim() || "Saved"
           const title = url.searchParams.get("title")?.trim() || "Software Engineer"
           
-          if (!company) {
+          if (!company && actionType !== "sync-sheets" && actionType !== "goal" && actionType !== "note") {
             toast.error("Company name is required to execute this AI action")
             return
           }
 
-          const toastId = toast.loading(`Processing ${company}...`)
+          const toastId = toast.loading(
+            actionType === "sync-sheets"
+              ? "Syncing to Google Sheets..."
+              : actionType === "goal"
+              ? "Setting weekly goal..."
+              : actionType === "note"
+              ? "Saving to revision notes..."
+              : actionType === "stage"
+              ? `Packaging & staging ${company}...`
+              : `Processing ${company || "action"}...`
+          )
           
           try {
             if (actionType === "status") {
-              const searchRes = await fetch(`/api/applications?search=${encodeURIComponent(company)}&limit=1`)
+              const searchRes = await fetch(`/api/applications?search=${encodeURIComponent(company!)}&limit=1`)
               if (!searchRes.ok) throw new Error("Failed to search applications")
               const searchData = await searchRes.json()
               const app = searchData.applications?.[0] || searchData.data?.[0]
@@ -530,6 +649,120 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
                 action: {
                   label: "View Board",
                   onClick: () => window.open(`/applications/${app.id}`, "_blank"),
+                },
+                duration: 5000,
+              })
+            } else if (actionType === "stage") {
+              const currentContent = message.content ? `[AI Staged from Assistant]\n${message.content}` : null
+              const stageRes = await fetch("/api/applications", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  companyName: company,
+                  jobTitle: title,
+                  source: "AI Assistant",
+                  status: "Staged",
+                  notes: currentContent,
+                  applicationDate: new Date().toISOString(),
+                }),
+              })
+              if (!stageRes.ok) {
+                const errJson = await stageRes.json().catch(() => ({}))
+                throw new Error(errJson.error || "Failed to stage application")
+              }
+              const newApp = await stageRes.json()
+
+              toast.success(`Packaged & Staged ${company} (${title})!`, { 
+                id: toastId,
+                description: "Application moved to Staged on your tracking board.",
+                action: {
+                  label: "View in Board",
+                  onClick: () => window.open(`/applications/${newApp.id}`, "_blank"),
+                },
+                duration: 6000,
+              })
+            } else if (actionType === "goal") {
+              const goalText =
+                url.searchParams.get("goal") ||
+                url.searchParams.get("title") ||
+                (company ? `Apply to ${company}` : "Complete weekly job search goals")
+              const target = parseInt(url.searchParams.get("target") || "1", 10)
+
+              const goalRes = await fetch("/api/weekly-goals", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  goal1: goalText,
+                  goal1Target: target,
+                  goal1Progress: 0,
+                  goal1Status: "InProgress",
+                  notes: company ? `Target company: ${company}` : "Created from Career Copilot",
+                }),
+              })
+
+              if (!goalRes.ok) {
+                const errJson = await goalRes.json().catch(() => ({}))
+                throw new Error(errJson.error || "Failed to set weekly goal")
+              }
+
+              toast.success(`Set as Weekly Goal!`, {
+                id: toastId,
+                description: `Goal: "${goalText}" (${target} target)`,
+                action: {
+                  label: "View Goals",
+                  onClick: () => window.open("/weekly-goals", "_blank"),
+                },
+                duration: 6000,
+              })
+            } else if (actionType === "sync-sheets") {
+              const syncRes = await fetch("/api/integrations/google-sheets/sync", {
+                method: "POST",
+              })
+              const syncData = await syncRes.json().catch(() => ({}))
+              if (!syncRes.ok) {
+                if (syncRes.status === 400 && syncData.error?.toLowerCase().includes("webhook")) {
+                  toast.error("Google Sheets Webhook Not Configured", {
+                    id: toastId,
+                    description: "Connect your Google Sheet in Integrations settings.",
+                    action: {
+                      label: "Configure",
+                      onClick: () => window.open("/integrations", "_blank"),
+                    },
+                    duration: 7000,
+                  })
+                  return
+                }
+                throw new Error(syncData.error || "Failed to sync applications to Google Sheets")
+              }
+
+              toast.success(`Synced ${syncData.count ?? 0} applications to Google Sheets!`, {
+                id: toastId,
+                duration: 5000,
+              })
+            } else if (actionType === "note") {
+              const noteTitle = url.searchParams.get("title") || `${company || "Career Advice"} Notes`
+              const noteRes = await fetch("/api/prep-notes", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  title: noteTitle,
+                  content: message.content,
+                  companyName: company || null,
+                  category: "INTERVIEW_QA",
+                }),
+              })
+
+              if (!noteRes.ok) {
+                const errJson = await noteRes.json().catch(() => ({}))
+                throw new Error(errJson.error || "Failed to save note")
+              }
+
+              toast.success("Saved to Revision Notes!", {
+                id: toastId,
+                description: noteTitle,
+                action: {
+                  label: "View Notes",
+                  onClick: () => window.open("/interview-prep", "_blank"),
                 },
                 duration: 5000,
               })
@@ -589,7 +822,7 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
             onClick={handleActionClick}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-sm bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs border border-primary/20 my-2 cursor-pointer shadow-none transition-all duration-150 active:scale-95 not-prose"
           >
-            <MessageSquare className="h-3.5 w-3.5 shrink-0" />
+            <ActionIcon className="h-3.5 w-3.5 shrink-0" />
             <span>{children}</span>
           </button>
         )
@@ -620,6 +853,8 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
           className.includes("language-suggestions") ||
           className.includes("language-analysis") ||
           className.includes("language-outreach") ||
+          className.includes("language-cover-letter") ||
+          className.includes("language-coverletter") ||
           className.includes("language-interview") ||
           className.includes("language-mock-interview") ||
           className.includes("language-tailored-resume") ||
@@ -755,6 +990,19 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
         return (
           <div className="my-3 not-prose">
             <OutreachResult data={rawData} />
+          </div>
+        )
+      }
+      if (className === "language-cover-letter" || className === "language-coverletter") {
+        const rawText = String(children)
+        const entity = extractTargetEntity(message.content, message.toolInvocations)
+        return (
+          <div className="my-3 not-prose">
+            <CoverLetterResult
+              content={rawText}
+              companyName={entity.company}
+              role={entity.role}
+            />
           </div>
         )
       }

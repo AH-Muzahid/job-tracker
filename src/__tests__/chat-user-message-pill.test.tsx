@@ -210,5 +210,112 @@ describe("ChatMessage User Pill Bubble & Hover Actions", () => {
     expect(html).toContain("tailor=true")
     expect(html).toContain("company=Google")
   })
+
+  it("renders interactive Cover Letter Draft card when cover-letter codeblock is present", () => {
+    const coverLetterBlock = "```cover-letter\nDear Hiring Team at Linear,\nI am writing to express my enthusiasm for the Senior Frontend Engineer role.\n```"
+
+    const html = renderToString(
+      <ChatMessage
+        message={{
+          id: "asst-msg-cover-letter",
+          role: "assistant",
+          content: coverLetterBlock,
+        }}
+        isLast={true}
+        isStreaming={false}
+      />
+    )
+
+    expect(html).toContain("Cover Letter Draft")
+    expect(html).toContain("Dear Hiring Team at Linear")
+    expect(html).toContain("Copy Draft")
+    expect(html).toContain("Download (.txt)")
+  })
+
+  it("renders actionable execution buttons for /actions/ endpoints", () => {
+    const content = `
+[Package & Stage](/actions/stage?company=Vercel&title=Staff+DX+Engineer)
+[Set as Weekly Goal](/actions/goal?company=Vercel&goal=Apply%20to%20Vercel&target=1)
+[Sync to Google Sheets](/actions/sync-sheets)
+    `
+
+    const html = renderToString(
+      <ChatMessage
+        message={{
+          id: "asst-msg-actions",
+          role: "assistant",
+          content,
+        }}
+        isLast={true}
+        isStreaming={false}
+      />
+    )
+
+    expect(html).toContain("Package &amp; Stage")
+    expect(html).toContain("Set as Weekly Goal")
+    expect(html).toContain("Sync to Google Sheets")
+  })
+
+  it("renders styled link buttons for core platform routes", () => {
+    const content = `
+[Open Weekly Goals](/weekly-goals)
+[Open Discovery Hub](/discovery)
+[Open Companies](/companies)
+[Open Integrations](/integrations)
+    `
+
+    const html = renderToString(
+      <ChatMessage
+        message={{
+          id: "asst-msg-links",
+          role: "assistant",
+          content,
+        }}
+        isLast={true}
+        isStreaming={false}
+      />
+    )
+
+    expect(html).toContain('href="/weekly-goals"')
+    expect(html).toContain('href="/discovery"')
+    expect(html).toContain('href="/companies"')
+    expect(html).toContain('href="/integrations"')
+    expect(html).toContain("Open Weekly Goals")
+    expect(html).toContain("Open Discovery Hub")
+    expect(html).toContain("Open Companies")
+    expect(html).toContain("Open Integrations")
+  })
+
+  it("suggests weekly goals and sheets sync pills when discussing those topics", () => {
+    const htmlGoals = renderToString(
+      <ChatMessage
+        message={{
+          id: "asst-msg-goals",
+          role: "assistant",
+          content: "Let's review your weekly target and goal progress.",
+        }}
+        isLast={true}
+        isStreaming={false}
+        onSuggestionClick={vi.fn()}
+      />
+    )
+    expect(htmlGoals).toContain("View Weekly Goals")
+    expect(htmlGoals).toContain("Set New Application Goal")
+
+    const htmlSheets = renderToString(
+      <ChatMessage
+        message={{
+          id: "asst-msg-sheets",
+          role: "assistant",
+          content: "You can sync and export your applications to Google Sheets.",
+        }}
+        isLast={true}
+        isStreaming={false}
+        onSuggestionClick={vi.fn()}
+      />
+    )
+    expect(htmlSheets).toContain("Sync to Google Sheets")
+  })
 })
+
 
