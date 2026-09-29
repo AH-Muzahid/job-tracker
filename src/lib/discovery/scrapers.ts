@@ -16,6 +16,7 @@ import {
   NON_TECH_ROLE_DISQUALIFIER_REGEX,
 } from "./matching"
 import { generateBatchJobEmbeddings } from "./embedding"
+import { cleanJobTitle } from "@/lib/applications/outreach-engine"
 
 /**
  * Resilient Curated Seed Reservoir
@@ -369,7 +370,8 @@ export async function fetchAdzunaJobs(query: string, location?: string): Promise
     if (!data || !Array.isArray(data.results)) return []
 
     return data.results.map((item: any) => {
-      const title = String(item.title || "").replace(/<\/?strong>/gi, "")
+      const rawTitle = String(item.title || "").replace(/<\/?strong>/gi, "")
+      const title = cleanJobTitle(rawTitle) || "Software Engineer"
       const description = String(item.description || "").replace(/<[^>]+>/g, " ")
       const postedAt = item.created ? new Date(item.created).toISOString() : undefined
 
@@ -393,7 +395,6 @@ export async function fetchAdzunaJobs(query: string, location?: string): Promise
   }
 }
 
-/**
 /**
  * Fetches live LinkedIn jobs using LinkedIn's public guest search endpoint
  * Operates without paid API keys, fetching local and remote engineering roles.
@@ -428,12 +429,13 @@ export async function fetchLinkedInGuestJobs(query: string, location?: string): 
     const jobs: UnifiedRawJob[] = []
     for (let i = 0; i < titleMatches.length; i++) {
       const rawTitle = titleMatches[i]?.[1]?.trim() || ""
-      const title = rawTitle
+      const unescapedTitle = rawTitle
         .replace(/&amp;/g, "&")
         .replace(/&quot;/g, '"')
         .replace(/&#39;/g, "'")
         .replace(/&lt;/g, "<")
         .replace(/&gt;/g, ">")
+      const title = cleanJobTitle(unescapedTitle) || "Software Engineer"
       const company = companyMatches[i]?.[1]?.replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").trim() || "Tech Company"
       const loc = locationMatches[i]?.[1]?.trim() || searchLocation
       const isRemote = /remote/i.test(loc) || /remote/i.test(title) || /remote/i.test(searchLocation)

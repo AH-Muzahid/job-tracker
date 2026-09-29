@@ -102,6 +102,23 @@ describe("Evaluator-Optimizer (Reflexion) Engine", () => {
       expect(result.passed).toBe(false)
       expect(result.violations).toContain("Unsubstantiated guarantee claim")
     })
+
+    it("detects and rejects raw social media hashtags when disallowHashtags is true", () => {
+      const rubric: EvaluationRubric = {
+        disallowHashtags: true,
+      }
+      const draftWithHashtags =
+        "Application for #hiring #wearehiring #juniordeveloper #fullstackdeveloper. I noticed Recruit 360 is looking for #mernstack."
+      const result = evaluateDraft(draftWithHashtags, rubric)
+
+      expect(result.passed).toBe(false)
+      expect(result.violations.some((v) => v.includes("raw social media hashtags"))).toBe(true)
+      expect(result.violations.some((v) => v.includes("#hiring"))).toBe(true)
+
+      const cleanDraft = "Application for Junior Full Stack Developer. I noticed Recruit 360 is looking for a developer."
+      const cleanResult = evaluateDraft(cleanDraft, rubric)
+      expect(cleanResult.passed).toBe(true)
+    })
   })
 
   describe("runEvaluatorOptimizer", () => {

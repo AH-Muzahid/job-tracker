@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState } from "react"
+import { useRouter } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Copy, Check, Download, FileText, Layers, ArrowRight, Loader2 } from "lucide-react"
@@ -13,7 +14,22 @@ interface Props {
   role?: string
 }
 
+function useSafeRouter() {
+  try {
+    return useRouter()
+  } catch {
+    return {
+      push: (url: string) => {
+        if (typeof window !== "undefined") {
+          window.location.href = url
+        }
+      },
+    }
+  }
+}
+
 export default function CoverLetterResult({ content, companyName, role }: Props) {
+  const router = useSafeRouter()
   const [copied, setCopied] = useState(false)
   const [isStaging, setIsStaging] = useState(false)
   const [isStaged, setIsStaged] = useState(false)
@@ -73,7 +89,7 @@ export default function CoverLetterResult({ content, companyName, role }: Props)
         description: "Application staged with tailored cover letter attached.",
         action: {
           label: "View Board",
-          onClick: () => window.open(newApp?.id ? `/applications/${newApp.id}` : "/applications", "_blank"),
+          onClick: () => router.push(newApp?.id ? `/applications/${newApp.id}` : "/applications"),
         },
         duration: 5000,
       })

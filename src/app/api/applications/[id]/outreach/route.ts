@@ -9,6 +9,7 @@ import { traceAIGeneration } from "@/lib/ai/telemetry"
 import { extractJsonObject } from "@/lib/ai/json-extractor"
 import { runEvaluatorOptimizer, EvaluatorOptimizerResult } from "@/lib/ai/evaluator-optimizer"
 import {
+  cleanJobTitle,
   sanitizeOutreachPlaceholders,
   generateDeterministicOutreachBundle,
   detectApplicationStrategy,
@@ -87,13 +88,15 @@ export async function POST(
   const recommendedChannel: OutreachChannel = detectedStrategy.strategy
   const activeChannel: OutreachChannel = requestedChannel || recommendedChannel
 
+  const cleanRole = cleanJobTitle(app.jobTitle) || "Software Engineer"
+
   const candidateSkills = profile?.strengths
     ? profile.strengths.split(/[,/|\n]+/).map((s) => s.trim()).filter((s) => s.length > 1)
     : ["React", "TypeScript", "Next.js", "Node.js"]
 
   const outreachCtx: OutreachContext = {
     companyName: app.companyName,
-    jobTitle: app.jobTitle,
+    jobTitle: cleanRole,
     candidateName,
     candidateEmail,
     githubUrl: profile?.githubUrl || undefined,
@@ -124,7 +127,7 @@ export async function POST(
     const truncatedJd = rawJd.length > 800 ? rawJd.slice(0, 800) + "..." : rawJd
 
     // Determine target engineering domain to eliminate cross-domain cognitive dissonance
-    const jobTitleLower = app.jobTitle.toLowerCase()
+    const jobTitleLower = cleanRole.toLowerCase()
     let targetRoleDomain: "frontend" | "backend" | "fullstack" | "mobile" | "devops" = "fullstack"
     if (/front-?end|ui|ux|react|vue|angular|web design|client/i.test(jobTitleLower) && !/full-?stack/i.test(jobTitleLower)) {
       targetRoleDomain = "frontend"
@@ -136,12 +139,12 @@ export async function POST(
       targetRoleDomain = "mobile"
     }
 
-    const prunedCandidateSkills = pruneRelevantStack(candidateSkills, app.jobTitle, 4)
+    const prunedCandidateSkills = pruneRelevantStack(candidateSkills, cleanRole, 4)
 
     const bestProjectList = Array.isArray(profile?.bestProjects)
       ? (profile.bestProjects as any[])
           .map((p) => {
-            const prunedStack = pruneRelevantStack(p.stack || "", app.jobTitle, 3)
+            const prunedStack = pruneRelevantStack(p.stack || "", cleanRole, 3)
             let desc = p.description || "Production system implementation"
             // For frontend roles, sanitize backend-heavy descriptions so the model doesn't cite Docker for UI skills
             if (targetRoleDomain === "frontend") {
@@ -161,7 +164,7 @@ export async function POST(
 Focus EXCLUSIVELY on generating:
 1. "portalNote": A crisp, high-converting 80-120 word cover note / summary to paste into the ATS "Additional Information" or "Cover Letter" text box.
 2. "screenerAnswers": An array of 3-4 targeted questions with concise, high-converting answers for standard ATS screener prompts:
-   - Question 1: Why are you interested in joining ${app.companyName} as a ${app.jobTitle}?
+   - Question 1: Why are you interested in joining ${app.companyName} as a ${cleanRole}?
    - Question 2: Relevant technical project & engineering challenge solved with the matching stack (${prunedCandidateSkills}).
    - Question 3: Work authorization, availability, or remote/hybrid collaboration style.`
       jsonSchema = `{
@@ -169,7 +172,7 @@ Focus EXCLUSIVELY on generating:
     "portalNote": "Crisp 80-120 word ATS cover note with hook, relevant project proof, and company bridge",
     "screenerAnswers": [
       {
-        "question": "Why are you interested in joining ${app.companyName} as a ${app.jobTitle}?",
+        "question": "Why are you interested in joining ${app.companyName} as a ${cleanRole}?",
         "answer": "Compelling 50-70 word answer"
       },
       {
@@ -194,7 +197,7 @@ Focus EXCLUSIVELY on generating:
       channelInstruction = `Focus EXCLUSIVELY on drafting a conversational LinkedIn InMail / Recruiter Direct Message under 90 words with a soft CTA.`
       jsonSchema = `{
   "linkedin_dm": {
-    "subject": "${app.jobTitle} inquiry - ${candidateName}",
+    "subject": "${cleanRole} inquiry - ${candidateName}",
     "body": "Conversational DM message under 90 words"
   }
 }`
@@ -202,7 +205,7 @@ Focus EXCLUSIVELY on generating:
       channelInstruction = `Focus EXCLUSIVELY on drafting a courteous 5-7 business day follow-up email under 90 words.`
       jsonSchema = `{
   "follow_up": {
-    "subject": "Following up on ${app.jobTitle} application - ${candidateName}",
+    "subject": "Following up on ${cleanRole} application - ${candidateName}",
     "body": "Polite follow-up email after applying"
   }
 }`
@@ -210,7 +213,7 @@ Focus EXCLUSIVELY on generating:
       channelInstruction = `Focus EXCLUSIVELY on drafting a high-converting direct application email (Strict maximum 120 words).`
       jsonSchema = `{
   "email": {
-    "subject": "Application for ${app.jobTitle} - ${candidateName}",
+    "subject": "Application for ${cleanRole} - ${candidateName}",
     "body": "Concise email body with hook, 1 technical hero project with metric, company bridge, and low-friction CTA"
   }
 }`
@@ -230,26 +233,29 @@ CRITICAL ANTI-BUZZWORD & ANTI-ROBOTIC MANDATES:
 1. NEVER START WITH ROBOTIC AI FORMULAS:
    - NEVER start with "As a [role] skilled in [stack], I built..." — this is an immediate rejection.
    - Address the team naturally (e.g. "Hi ${app.companyName} Team," or "Dear ${app.companyName} Hiring Team,").
-   - Start with a direct human opening: "I saw you're hiring a ${app.jobTitle} and wanted to reach out directly."
-2. STRICTLY NO BUZZWORD STUFFING:
+   - Start with a direct human opening: "I saw you're hiring a ${cleanRole} and wanted to reach out directly."
+2. STRICT PROHIBITION ON HASHTAGS OR SOCIAL RESIDUE:
+   - NEVER output hashtags (#hiring, #wearehiring, #developer) anywhere in the subject, body, or questions.
+   - Always use the clean role title: "${cleanRole}".
+3. STRICTLY NO BUZZWORD STUFFING:
    - Mention AT MOST 3-4 highly relevant technologies matching the target role.
    - NEVER dump long lists of tools, libraries, or redundant skills (e.g. NEVER list both JavaScript and TypeScript together, or dump 5+ frameworks).
-3. ZERO BOILERPLATE OPENINGS OR CORPORATE FLUFF:
+4. ZERO BOILERPLATE OPENINGS OR CORPORATE FLUFF:
    - NEVER use "I am writing to express my strong interest...", "I am excited to apply...", "I hope this email finds you well", or "I was thrilled to see...".
    - NEVER use self-aggrandizing AI phrases like "proving I can...", "proves that I...", "a testament to...", or "under tight deadlines".
    - Speak objectively and confidently like a peer software engineer.
-4. 1 HERO PROJECT WITH CONCRETE PROOF & REALISTIC METRIC:
+5. 1 HERO PROJECT WITH CONCRETE PROOF & REALISTIC METRIC:
    - Spotlight EXACTLY ONE hero project from the candidate's profile.
    - Ground the project in the TARGET DOMAIN (${targetRoleDomain.toUpperCase()}).
    - Reference measurable technical outcomes/metrics rather than generic filler words like "clean modular architecture".
-5. COMPANY BRIDGE:
+6. COMPANY BRIDGE:
    - Include 1 concise sentence explaining how the candidate's build experience directly supports ${app.companyName}'s product goals or shipping velocity.
-6. LOW-FRICTION CALL-TO-ACTION (CTA):
+7. LOW-FRICTION CALL-TO-ACTION (CTA):
    - End with a low-friction question (e.g. "Would you be open to a brief 10-minute intro chat this week to discuss how I can help ${app.companyName} ship faster?").
-7. ZERO-PLACEHOLDER GUARANTEE:
+8. ZERO-PLACEHOLDER GUARANTEE:
    - NEVER output bracketed placeholders like "[Hiring Manager/Recruiter]", "[Your Name]", "[Company Name]", or "[Link]".
    - In sign-offs, always use the candidate's verified name: "${candidateName}".
-8. STRICT CHANNEL LENGTH LIMITS:
+9. STRICT CHANNEL LENGTH LIMITS:
    - form_portal: portalNote under 120 words; each screener answer 40-80 words.
    - email: Strict maximum of 120 words.
    - linkedin_dm: Strict maximum of 90 words.
@@ -258,7 +264,7 @@ CRITICAL ANTI-BUZZWORD & ANTI-ROBOTIC MANDATES:
 
 CANDIDATE CONTEXT:
 - Name: ${candidateName}
-- Target Role: ${app.jobTitle}
+- Target Role: ${cleanRole}
 - Target Company: ${app.companyName}
 - Core Relevant Skills: ${prunedCandidateSkills}
 - Best Demonstrated Projects: ${bestProjectList}
@@ -286,7 +292,7 @@ ${jsonSchema}`
 
           const textResult = await generateText({
             model: targetModel,
-            prompt: `Generate tailored ${activeChannel} outreach for ${app.jobTitle} at ${app.companyName}.${critiqueNote}\nOutput JSON only.`,
+            prompt: `Generate tailored ${activeChannel} outreach for ${cleanRole} at ${app.companyName}.${critiqueNote}\nOutput JSON only.`,
             system: systemPrompt,
           })
 
@@ -297,6 +303,7 @@ ${jsonSchema}`
         },
         rubric: {
           disallowPlaceholders: true,
+          disallowHashtags: true,
           maxCharacters: activeChannel === "linkedin_connect" ? 280 : 3000,
           targetRoleDomain,
           disallowRoboticOpenings: true,
@@ -313,6 +320,14 @@ ${jsonSchema}`
             "under tight deadlines",
           ],
           customValidator: (content) => {
+            // Check for raw hashtags
+            if (/#\w{2,}/.test(content)) {
+              return {
+                passed: false,
+                feedback:
+                  "Draft contains raw social media hashtags (e.g. #hiring). Replace all hashtags with clean professional role titles or plain text.",
+              }
+            }
             // Check for tech buzzword dump (e.g. 5+ technologies chained together in a sentence)
             const commaMatches = content.match(/(?:[A-Z][a-zA-Z0-9.+]+,\s*){4,}/g)
             if (commaMatches) {
@@ -327,10 +342,10 @@ ${jsonSchema}`
         },
         semanticJudge: async (content: string) => {
           try {
-            const judgeSystem = `You are a strict VP of Engineering / CTO evaluating cold applicant outreach for ${app.jobTitle} at ${app.companyName}.
+            const judgeSystem = `You are a strict VP of Engineering / CTO evaluating cold applicant outreach for ${cleanRole} at ${app.companyName}.
 Your job is to critically determine if this draft would convert into an intro chat with a top engineering team or get immediately rejected.`
 
-            const judgePrompt = `Target Role: ${app.jobTitle} at ${app.companyName}
+            const judgePrompt = `Target Role: ${cleanRole} at ${app.companyName}
 Target Engineering Domain: ${targetRoleDomain.toUpperCase()}
 JD Requirements: ${truncatedJd}
 Channel: ${activeChannel}
@@ -340,11 +355,12 @@ Candidate Draft to Evaluate:
 ${content}
 """
 
-Evaluate against 4 criteria:
+Evaluate against 5 criteria:
 1. Cringe/AI Formula: REJECT if it starts with "As a [role] skilled in...", says "proving I can", or uses corporate fluff.
 2. Domain Grounding: REJECT if there is a domain contradiction (e.g. citing Docker/backend execution to prove Frontend UI capability, or CSS styling for Backend infra).
 3. Specificity: Is there 1 concrete project with an engineering challenge/metric without buzzword stuffing (<= 4 tools)?
 4. Value to Company: Does it articulate how the candidate helps ${app.companyName} ship?
+5. Hashtag & Noise Prohibition: REJECT if draft contains any social media hashtags (#hiring, #developer), hashtag soup, or robotic buzzword residue.
 
 Respond in JSON ONLY matching:
 {

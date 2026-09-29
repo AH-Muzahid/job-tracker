@@ -6,6 +6,8 @@ import {
   detectApplicationStrategy,
   generateDeterministicScreenerAnswers,
   pruneRelevantStack,
+  cleanJobTitle,
+  synthesizeTitleFromHashtags,
   OutreachContext,
 } from "@/lib/applications/outreach-engine"
 import fs from "fs"
@@ -214,6 +216,83 @@ describe("Multi-Channel Outreach Engine & Zero-Placeholder Enforcement", () => {
       const cardContent = fs.readFileSync(cardPath, "utf-8")
       expect(cardContent).not.toContain('"hr@company.com"')
       expect(cardContent).not.toContain("'hr@company.com'")
+    })
+  })
+
+  describe("cleanJobTitle & Social Hashtag Eradication Engine", () => {
+    it("converts raw social media hashtag soup cleanly into 'Junior Full Stack Developer'", () => {
+      const rawHashtags =
+        "#hiring #wearehiring #juniordeveloper #fullstackdeveloper #mernstack #nextjs #supabase #reactjs #webdevelopment #remotejob #remotedeveloper #softwaredeveloper #codebasesolutions #techjobs…"
+      const cleaned = cleanJobTitle(rawHashtags)
+      expect(cleaned).toBe("Junior Full Stack Developer")
+    })
+
+    it("strips emojis, recruiter prefixes, and parenthetical noise from dirty job titles", () => {
+      const dirty = "🚨 We are hiring: Full Stack Developer (React / Node.js) [Immediate Joiner] 🚀"
+      const cleaned = cleanJobTitle(dirty)
+      expect(cleaned).toBe("Full Stack Developer (React / Node.js)")
+    })
+
+    it("preserves legitimate titles when trailing hashtags exist", () => {
+      const mixed = "Junior React Developer #hiring #remote"
+      const cleaned = cleanJobTitle(mixed)
+      expect(cleaned).toBe("Junior React Developer")
+    })
+
+    it("strips trailing location/work-mode delimiter noise", () => {
+      const trailing = "Frontend Engineer - Remote (US/EU)"
+      const cleaned = cleanJobTitle(trailing)
+      expect(cleaned).toBe("Frontend Engineer")
+    })
+
+    it("converts all-caps title into standardized title casing", () => {
+      const allCaps = "JUNIOR FULL STACK DEVELOPER"
+      const cleaned = cleanJobTitle(allCaps)
+      expect(cleaned).toBe("Junior Full Stack Developer")
+    })
+
+    it("falls back to Software Engineer on empty input", () => {
+      expect(cleanJobTitle("")).toBe("Software Engineer")
+    })
+
+    it("synthesizes clean titles from frontend and intern hashtags", () => {
+      expect(synthesizeTitleFromHashtags("#hiring #internship #pythondeveloper")).toBe("Intern Backend Developer")
+      expect(synthesizeTitleFromHashtags("#hiring #frontenddeveloper #reactjs")).toBe("Frontend Developer")
+    })
+
+    it("guarantees zero hashtags leak into deterministic outreach bundle when jobTitle is hashtag soup", () => {
+      const hashtagContext: OutreachContext = {
+        ...mockContext,
+        companyName: "Recruit 360",
+        jobTitle:
+          "#hiring #wearehiring #juniordeveloper #fullstackdeveloper #mernstack #nextjs #supabase #reactjs #webdevelopment #remotejob #remotedeveloper #softwaredeveloper #codebasesolutions #techjobs…",
+      }
+
+      const bundle = generateDeterministicOutreachBundle(hashtagContext)
+
+      // Email subject must contain clean title, not hashtags
+      expect(bundle.email.subject).toBe("Application for Junior Full Stack Developer - AH Muzahid")
+      expect(bundle.email.body).toContain("looking for a Junior Full Stack Developer")
+      expect(bundle.email.body).not.toMatch(/#\w+/)
+
+      // LinkedIn InMail
+      expect(bundle.linkedin_dm.subject).toBe("Junior Full Stack Developer role inquiry - AH Muzahid")
+      expect(bundle.linkedin_dm.body).not.toMatch(/#\w+/)
+
+      // LinkedIn Connect
+      expect(bundle.linkedin_connect.body).toContain("Junior Full Stack Developer")
+      expect(bundle.linkedin_connect.body).not.toMatch(/#\w+/)
+
+      // Follow-up
+      expect(bundle.follow_up.subject).toBe("Following up: Junior Full Stack Developer application - AH Muzahid")
+      expect(bundle.follow_up.body).not.toMatch(/#\w+/)
+
+      // Form Portal
+      expect(bundle.form_portal?.portalNote).toContain("Junior Full Stack Developer")
+      expect(bundle.form_portal?.portalNote).not.toMatch(/#\w+/)
+      expect(bundle.form_portal?.screenerAnswers[0].question).toBe(
+        "Why are you interested in joining Recruit 360 as a Junior Full Stack Developer?"
+      )
     })
   })
 })

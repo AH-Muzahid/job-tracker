@@ -2,9 +2,37 @@
 
 import React, { useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
+
+export function normalizeInternalHref(rawHref?: string): { isInternal: boolean; path: string } {
+  if (!rawHref) return { isInternal: false, path: "" }
+  const trimmed = rawHref.trim()
+  if (trimmed.startsWith("/")) {
+    return { isInternal: true, path: trimmed }
+  }
+  try {
+    if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+      const url = new URL(trimmed)
+      const host = url.hostname.toLowerCase()
+      const isLocalOrInternal =
+        host === "localhost" ||
+        host === "127.0.0.1" ||
+        host === "0.0.0.0" ||
+        host.includes("careertrack") ||
+        (typeof window !== "undefined" && url.host === window.location.host)
+
+      if (isLocalOrInternal) {
+        return { isInternal: true, path: url.pathname + url.search + url.hash }
+      }
+    }
+  } catch {
+    // fallback
+  }
+  return { isInternal: false, path: trimmed }
+}
 import {
   MessageSquare,
   Copy,
@@ -87,9 +115,12 @@ function extractTargetEntity(content: string, toolInvocations?: ToolInvocation[]
   const compMatch = content.match(/(?:at|for|to|company:?)\s+([A-Z][A-Za-z0-9&.-]{1,20})/i)
   const roleMatch = content.match(/(?:role|position|as\s+a(?:n)?)\s+([A-Z][A-Za-z0-9\s&.-]{2,25})/i)
 
+  const rawComp = compMatch?.[1]?.trim().replace(/[.,;:!?'")\]]+$/, "")
+  const rawRole = roleMatch?.[1]?.trim().replace(/[.,;:!?'")\]]+$/, "")
+
   return {
-    company: compMatch?.[1]?.trim(),
-    role: roleMatch?.[1]?.trim(),
+    company: rawComp,
+    role: rawRole,
   }
 }
 
@@ -130,6 +161,11 @@ function getContextualSuggestions(content: string, toolInvocations?: ToolInvocat
       })
       list.push({
         icon: "",
+        label: "Shorten for LinkedIn DM",
+        prompt: "Shorten this outreach message to under 80 words for a direct LinkedIn message.",
+      })
+      list.push({
+        icon: "",
         label: "Expected Interview Questions",
         prompt: "What technical and behavioral questions are typically asked for this role?",
       })
@@ -142,34 +178,73 @@ function getContextualSuggestions(content: string, toolInvocations?: ToolInvocat
     if (company) {
       list.push({
         icon: "",
-        label: `Draft Cover Letter (${company})`,
-        prompt: `Write a customized, high-impact cover letter for the ${role || "role"} at ${company} focusing on my relevant projects.`,
+        label: `Draft Outreach Email (${company})`,
+        prompt: `Write a customized, high-impact outreach email for the ${role || "role"} at ${company} focusing on my relevant projects.`,
       })
       list.push({
         icon: "",
-        label: `5 Interview Questions (${company})`,
-        prompt: `Give me 5 specific technical and behavioral interview questions tailored for this role at ${company}.`,
+        label: `Tailor Resume (${company})`,
+        prompt: `Tailor my resume specifically for the ${role || "role"} at ${company}.`,
+      })
+      list.push({
+        icon: "",
+        label: `Launch Mock Interview (${company})`,
+        prompt: `Launch the live spoken voice mock interview room for ${company}${role ? ` (${role})` : ""}.`,
       })
     } else {
       list.push({
         icon: "",
-        label: "Draft Tailored Cover Letter",
-        prompt: "Write a customized cover letter for this role focusing on my relevant skills and projects.",
+        label: "Draft Outreach Email",
+        prompt: "Write a customized, high-impact outreach email for this role.",
       })
       list.push({
         icon: "",
-        label: "5 Interview Questions",
-        prompt: "Give me 5 specific technical and behavioral interview questions tailored for this role.",
+        label: "Tailor Resume for JD",
+        prompt: "Tailor my resume specifically for this role focusing on my relevant skills and projects.",
+      })
+      list.push({
+        icon: "",
+        label: "Launch Mock Interview",
+        prompt: "Launch the live spoken voice mock interview room for this role.",
       })
     }
     return list.slice(0, 3)
   }
 
-  // Case 3: Interview Prep / Mock Interview
+  // Case 3: Mock Interview Setup or Preparation
+  const isMockInterviewSetup =
+    lower.includes("launch voice mock room") ||
+    lower.includes("voice mock room") ||
+    lower.includes("conversational voice") ||
+    lower.includes("autostart=true") ||
+    lower.includes("```interview") ||
+    lower.includes('"interviewtype"') ||
+    toolInvocations?.some((t) => t.toolName === "setupMockInterview")
+
+  if (isMockInterviewSetup) {
+    // Room is already configured: Do NOT suggest redundant "Start Mock Interview" or "Launch Voice Mock Room"!
+    list.push({
+      icon: "",
+      label: "Switch to System Design Focus",
+      prompt: `Update this mock interview room to focus on System Design and Distributed Architecture${company ? ` for ${company}` : ""}.`,
+    })
+    list.push({
+      icon: "",
+      label: "Focus on Behavioral & STAR",
+      prompt: "Focus the mock interview questions strictly on Behavioral, Leadership, and Conflict Resolution using the STAR method.",
+    })
+    list.push({
+      icon: "",
+      label: "Senior / Staff Difficulty",
+      prompt: "Increase interview difficulty to Senior/Staff engineer level with rigorous trade-offs and edge cases.",
+    })
+    return list.slice(0, 3)
+  }
+
   if (lower.includes("interview") || lower.includes("mock") || lower.includes("assessment")) {
     list.push({
       icon: "",
-      label: company ? `🎙️ Voice Mock (${company})` : "🎙️ Launch Voice Mock Room",
+      label: company ? `Launch Voice Mock (${company})` : "Launch Voice Mock Room",
       prompt: company
         ? `Launch the live spoken voice mock interview room for ${company}${role ? ` (${role})` : ""}`
         : "Launch the live spoken voice mock interview room for my target role",
@@ -232,7 +307,7 @@ function getContextualSuggestions(content: string, toolInvocations?: ToolInvocat
 }
 
 // Dedicated memoized FollowUps component to eliminate re-renders and animation resets
-const FollowUpsList = React.memo(function FollowUpsList({
+export const FollowUpsList = React.memo(function FollowUpsList({
   items,
   onPick,
 }: {
@@ -276,32 +351,20 @@ const FollowUpsList = React.memo(function FollowUpsList({
   if (flattened.length === 0) return null
 
   return (
-    <div className="mt-3 not-prose space-y-1.5">
-      <p className="text-[11px] font-mono font-medium text-muted-foreground uppercase tracking-wider">
-        Follow-up Questions
-      </p>
-      <div className="flex flex-wrap gap-2">
+    <div className="mt-3.5 pt-2.5 border-t border-border/40 not-prose space-y-2">
+      <div className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
+        <span className="size-1.5 rounded-full bg-primary/70 shrink-0" />
+        <span>Suggested Next Steps</span>
+      </div>
+      <div className="flex flex-wrap gap-1.5">
         {flattened.map((s, i) => (
           <button
             key={`${s.label}-${i}`}
             type="button"
             onClick={() => onPick?.(s.prompt)}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-muted/40 px-3 py-1.5 text-left text-xs font-medium text-foreground transition-colors hover:bg-muted hover:border-border/80 cursor-pointer shadow-2xs active:scale-95"
+            className="group inline-flex items-center gap-1.5 rounded-[4px] border border-border/80 bg-background/80 hover:bg-muted hover:border-border px-2.5 py-1 text-left text-[11.5px] font-medium text-foreground transition-all cursor-pointer shadow-none active:scale-[0.98]"
           >
-            <svg
-              width="11"
-              height="11"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="shrink-0 text-muted-foreground"
-            >
-              <path d="M5 12h14" />
-              <path d="m12 5 7 7-7 7" />
-            </svg>
+            <ArrowRight className="size-3 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-transform shrink-0" />
             <span>{s.label}</span>
           </button>
         ))}
@@ -444,7 +507,27 @@ function getAnalysisContent(rawText: string): string {
 }
 
 
+function useSafeRouter() {
+  try {
+    return useRouter()
+  } catch {
+    return {
+      push: (url: string) => {
+        if (typeof window !== "undefined") {
+          window.location.href = url
+        }
+      },
+      replace: () => {},
+      prefetch: () => {},
+      back: () => {},
+      forward: () => {},
+      refresh: () => {},
+    }
+  }
+}
+
 export default function ChatMessage({ message, isLast, isStreaming, onSuggestionClick, onRetry, onToolConfirm, onEdit }: Props) {
+  const router = useSafeRouter()
   const isUser = message.role === "user"
   const [copied, setCopied] = useState(false)
   const [isSavingNote, setIsSavingNote] = useState(false)
@@ -482,7 +565,7 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
       toast.success("Saved to your Revision Notes!", {
         action: {
           label: "View Notes",
-          onClick: () => window.open("/interview-prep", "_blank"),
+          onClick: () => router.push("/interview-prep"),
         },
       })
     } catch {
@@ -503,330 +586,337 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
   // Custom renderer overrides for ReactMarkdown with stable useMemo
   const mdComponents = React.useMemo(() => ({
     a: ({ href, children, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => {
-      if (href && (href.startsWith("/applications/") || href === "/applications")) {
-        return (
-          <Link
-            href={href}
-            className="inline-flex items-center gap-1.5 px-3 py-1 my-2 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary border border-primary/25 font-medium text-xs no-underline transition-all hover:shadow-xs group/btn cursor-pointer"
-          >
-            <span>{children}</span>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="transition-transform group-hover/btn:translate-x-0.5">
-              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-              <polyline points="15 3 21 3 21 9" />
-              <line x1="10" y1="14" x2="21" y2="3" />
-            </svg>
-          </Link>
-        )
-      }
+      const { isInternal, path } = normalizeInternalHref(href)
 
-      if (href && href.startsWith("/interview-prep")) {
-        return (
-          <Link
-            href={href}
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 my-2 rounded-[4px] bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs no-underline transition-all hover:shadow-xs group/btn cursor-pointer shadow-none"
-          >
-            <Mic className="size-3.5 shrink-0" />
-            <span>{children}</span>
-            <ArrowRight className="size-3 transition-transform group-hover/btn:translate-x-0.5" />
-          </Link>
-        )
-      }
-
-      if (href && href.startsWith("/resumes")) {
-        return (
-          <Link
-            href={href}
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 my-2 rounded-[4px] bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs no-underline transition-all hover:shadow-xs group/btn cursor-pointer shadow-none"
-          >
-            <FileText className="size-3.5 shrink-0" />
-            <span>{children}</span>
-            <ArrowRight className="size-3 transition-transform group-hover/btn:translate-x-0.5" />
-          </Link>
-        )
-      }
-
-      if (href && href.startsWith("/weekly-goals")) {
-        return (
-          <Link
-            href={href}
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 my-2 rounded-[4px] bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs no-underline transition-all hover:shadow-xs group/btn cursor-pointer shadow-none"
-          >
-            <Target className="size-3.5 shrink-0" />
-            <span>{children}</span>
-            <ArrowRight className="size-3 transition-transform group-hover/btn:translate-x-0.5" />
-          </Link>
-        )
-      }
-
-      if (href && href.startsWith("/discovery")) {
-        return (
-          <Link
-            href={href}
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 my-2 rounded-[4px] bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs no-underline transition-all hover:shadow-xs group/btn cursor-pointer shadow-none"
-          >
-            <Compass className="size-3.5 shrink-0" />
-            <span>{children}</span>
-            <ArrowRight className="size-3 transition-transform group-hover/btn:translate-x-0.5" />
-          </Link>
-        )
-      }
-
-      if (href && href.startsWith("/companies")) {
-        return (
-          <Link
-            href={href}
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 my-2 rounded-[4px] bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs no-underline transition-all hover:shadow-xs group/btn cursor-pointer shadow-none"
-          >
-            <Building2 className="size-3.5 shrink-0" />
-            <span>{children}</span>
-            <ArrowRight className="size-3 transition-transform group-hover/btn:translate-x-0.5" />
-          </Link>
-        )
-      }
-
-      if (href && href.startsWith("/integrations")) {
-        return (
-          <Link
-            href={href}
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 my-2 rounded-[4px] bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs no-underline transition-all hover:shadow-xs group/btn cursor-pointer shadow-none"
-          >
-            <Sliders className="size-3.5 shrink-0" />
-            <span>{children}</span>
-            <ArrowRight className="size-3 transition-transform group-hover/btn:translate-x-0.5" />
-          </Link>
-        )
-      }
-
-      if (href && href.startsWith("/actions/")) {
-        const url = new URL(href, "http://localhost")
-        const actionType = url.pathname.replace("/actions/", "")
-        
-        let ActionIcon = MessageSquare
-        if (actionType === "stage") ActionIcon = Layers
-        else if (actionType === "goal") ActionIcon = Target
-        else if (actionType === "sync-sheets") ActionIcon = FileSpreadsheet
-        else if (actionType === "note") ActionIcon = Bookmark
-        else if (actionType === "add") ActionIcon = Briefcase
-
-        const handleActionClick = async () => {
-          const company = url.searchParams.get("company")?.trim()
-          const status = url.searchParams.get("status")?.trim() || "Saved"
-          const title = url.searchParams.get("title")?.trim() || "Software Engineer"
-          
-          if (!company && actionType !== "sync-sheets" && actionType !== "goal" && actionType !== "note") {
-            toast.error("Company name is required to execute this AI action")
-            return
-          }
-
-          const toastId = toast.loading(
-            actionType === "sync-sheets"
-              ? "Syncing to Google Sheets..."
-              : actionType === "goal"
-              ? "Setting weekly goal..."
-              : actionType === "note"
-              ? "Saving to revision notes..."
-              : actionType === "stage"
-              ? `Packaging & staging ${company}...`
-              : `Processing ${company || "action"}...`
+      if (isInternal) {
+        if (path.startsWith("/applications/") || path === "/applications") {
+          return (
+            <Link
+              href={path}
+              className="inline-flex items-center gap-1.5 px-3 py-1 my-2 rounded-sm bg-primary/10 hover:bg-primary/20 text-primary border border-primary/25 font-medium text-xs no-underline transition-all hover:shadow-xs group/btn cursor-pointer"
+            >
+              <span>{children}</span>
+              <ArrowRight className="size-3 transition-transform group-hover/btn:translate-x-0.5" />
+            </Link>
           )
+        }
+
+        if (path.startsWith("/interview-prep")) {
+          return (
+            <Link
+              href={path}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 my-2 rounded-[4px] bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs no-underline transition-all hover:shadow-xs group/btn cursor-pointer shadow-none"
+            >
+              <Mic className="size-3.5 shrink-0" />
+              <span>{children}</span>
+              <ArrowRight className="size-3 transition-transform group-hover/btn:translate-x-0.5" />
+            </Link>
+          )
+        }
+
+        if (path.startsWith("/resumes")) {
+          return (
+            <Link
+              href={path}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 my-2 rounded-[4px] bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs no-underline transition-all hover:shadow-xs group/btn cursor-pointer shadow-none"
+            >
+              <FileText className="size-3.5 shrink-0" />
+              <span>{children}</span>
+              <ArrowRight className="size-3 transition-transform group-hover/btn:translate-x-0.5" />
+            </Link>
+          )
+        }
+
+        if (path.startsWith("/weekly-goals")) {
+          return (
+            <Link
+              href={path}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 my-2 rounded-[4px] bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs no-underline transition-all hover:shadow-xs group/btn cursor-pointer shadow-none"
+            >
+              <Target className="size-3.5 shrink-0" />
+              <span>{children}</span>
+              <ArrowRight className="size-3 transition-transform group-hover/btn:translate-x-0.5" />
+            </Link>
+          )
+        }
+
+        if (path.startsWith("/discovery")) {
+          return (
+            <Link
+              href={path}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 my-2 rounded-[4px] bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs no-underline transition-all hover:shadow-xs group/btn cursor-pointer shadow-none"
+            >
+              <Compass className="size-3.5 shrink-0" />
+              <span>{children}</span>
+              <ArrowRight className="size-3 transition-transform group-hover/btn:translate-x-0.5" />
+            </Link>
+          )
+        }
+
+        if (path.startsWith("/companies")) {
+          return (
+            <Link
+              href={path}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 my-2 rounded-[4px] bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs no-underline transition-all hover:shadow-xs group/btn cursor-pointer shadow-none"
+            >
+              <Building2 className="size-3.5 shrink-0" />
+              <span>{children}</span>
+              <ArrowRight className="size-3 transition-transform group-hover/btn:translate-x-0.5" />
+            </Link>
+          )
+        }
+
+        if (path.startsWith("/integrations")) {
+          return (
+            <Link
+              href={path}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 my-2 rounded-[4px] bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs no-underline transition-all hover:shadow-xs group/btn cursor-pointer shadow-none"
+            >
+              <Sliders className="size-3.5 shrink-0" />
+              <span>{children}</span>
+              <ArrowRight className="size-3 transition-transform group-hover/btn:translate-x-0.5" />
+            </Link>
+          )
+        }
+
+        if (path.startsWith("/actions/")) {
+          const url = new URL(path, "http://localhost")
+          const actionType = url.pathname.replace("/actions/", "")
           
-          try {
-            if (actionType === "status") {
-              const searchRes = await fetch(`/api/applications?search=${encodeURIComponent(company!)}&limit=1`)
-              if (!searchRes.ok) throw new Error("Failed to search applications")
-              const searchData = await searchRes.json()
-              const app = searchData.applications?.[0] || searchData.data?.[0]
-              if (!app) throw new Error(`Application for "${company}" not found`)
-              
-              const updateRes = await fetch(`/api/applications/${app.id}`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ status }),
-              })
-              if (!updateRes.ok) throw new Error("Failed to update status")
-              toast.success(`Updated ${app.companyName} status to ${status}!`, { 
-                id: toastId,
-                action: {
-                  label: "View Board",
-                  onClick: () => window.open(`/applications/${app.id}`, "_blank"),
-                },
-                duration: 5000,
-              })
-            } else if (actionType === "stage") {
-              const currentContent = message.content ? `[AI Staged from Assistant]\n${message.content}` : null
-              const stageRes = await fetch("/api/applications", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  companyName: company,
-                  jobTitle: title,
-                  source: "AI Assistant",
-                  status: "Staged",
-                  notes: currentContent,
-                  applicationDate: new Date().toISOString(),
-                }),
-              })
-              if (!stageRes.ok) {
-                const errJson = await stageRes.json().catch(() => ({}))
-                throw new Error(errJson.error || "Failed to stage application")
-              }
-              const newApp = await stageRes.json()
+          let ActionIcon = MessageSquare
+          if (actionType === "stage") ActionIcon = Layers
+          else if (actionType === "goal") ActionIcon = Target
+          else if (actionType === "sync-sheets") ActionIcon = FileSpreadsheet
+          else if (actionType === "note") ActionIcon = Bookmark
+          else if (actionType === "add") ActionIcon = Briefcase
 
-              toast.success(`Packaged & Staged ${company} (${title})!`, { 
-                id: toastId,
-                description: "Application moved to Staged on your tracking board.",
-                action: {
-                  label: "View in Board",
-                  onClick: () => window.open(`/applications/${newApp.id}`, "_blank"),
-                },
-                duration: 6000,
-              })
-            } else if (actionType === "goal") {
-              const goalText =
-                url.searchParams.get("goal") ||
-                url.searchParams.get("title") ||
-                (company ? `Apply to ${company}` : "Complete weekly job search goals")
-              const target = parseInt(url.searchParams.get("target") || "1", 10)
+          const handleActionClick = async () => {
+            const company = url.searchParams.get("company")?.trim()
+            const status = url.searchParams.get("status")?.trim() || "Saved"
+            const title = url.searchParams.get("title")?.trim() || "Software Engineer"
+            
+            if (!company && actionType !== "sync-sheets" && actionType !== "goal" && actionType !== "note") {
+              toast.error("Company name is required to execute this AI action")
+              return
+            }
 
-              const goalRes = await fetch("/api/weekly-goals", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  goal1: goalText,
-                  goal1Target: target,
-                  goal1Progress: 0,
-                  goal1Status: "InProgress",
-                  notes: company ? `Target company: ${company}` : "Created from Career Copilot",
-                }),
-              })
-
-              if (!goalRes.ok) {
-                const errJson = await goalRes.json().catch(() => ({}))
-                throw new Error(errJson.error || "Failed to set weekly goal")
-              }
-
-              toast.success(`Set as Weekly Goal!`, {
-                id: toastId,
-                description: `Goal: "${goalText}" (${target} target)`,
-                action: {
-                  label: "View Goals",
-                  onClick: () => window.open("/weekly-goals", "_blank"),
-                },
-                duration: 6000,
-              })
-            } else if (actionType === "sync-sheets") {
-              const syncRes = await fetch("/api/integrations/google-sheets/sync", {
-                method: "POST",
-              })
-              const syncData = await syncRes.json().catch(() => ({}))
-              if (!syncRes.ok) {
-                if (syncRes.status === 400 && syncData.error?.toLowerCase().includes("webhook")) {
-                  toast.error("Google Sheets Webhook Not Configured", {
-                    id: toastId,
-                    description: "Connect your Google Sheet in Integrations settings.",
-                    action: {
-                      label: "Configure",
-                      onClick: () => window.open("/integrations", "_blank"),
-                    },
-                    duration: 7000,
-                  })
-                  return
-                }
-                throw new Error(syncData.error || "Failed to sync applications to Google Sheets")
-              }
-
-              toast.success(`Synced ${syncData.count ?? 0} applications to Google Sheets!`, {
-                id: toastId,
-                duration: 5000,
-              })
-            } else if (actionType === "note") {
-              const noteTitle = url.searchParams.get("title") || `${company || "Career Advice"} Notes`
-              const noteRes = await fetch("/api/prep-notes", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  title: noteTitle,
-                  content: message.content,
-                  companyName: company || null,
-                  category: "INTERVIEW_QA",
-                }),
-              })
-
-              if (!noteRes.ok) {
-                const errJson = await noteRes.json().catch(() => ({}))
-                throw new Error(errJson.error || "Failed to save note")
-              }
-
-              toast.success("Saved to Revision Notes!", {
-                id: toastId,
-                description: noteTitle,
-                action: {
-                  label: "View Notes",
-                  onClick: () => window.open("/interview-prep", "_blank"),
-                },
-                duration: 5000,
-              })
-            } else if (actionType === "add") {
-              const currentContent = message.content ? `[AI Generated Notes & Outreach]\n${message.content}` : null
-
-              const addRes = await fetch("/api/applications", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  companyName: company,
-                  jobTitle: title,
-                  source: "AI Assistant",
-                  status: status,
-                  notes: currentContent,
-                  applicationDate: new Date().toISOString(),
-                }),
-              })
-              if (!addRes.ok) {
-                const errJson = await addRes.json().catch(() => ({}))
-                throw new Error(errJson.error || "Failed to save application")
-              }
-              const newApp = await addRes.json()
-
-              // Non-blocking background AI fit assessment trigger if content exists
-              if (currentContent && newApp?.id) {
-                void fetch(`/api/ai/scan-jd`, {
+            const toastId = toast.loading(
+              actionType === "sync-sheets"
+                ? "Syncing to Google Sheets..."
+                : actionType === "goal"
+                ? "Setting weekly goal..."
+                : actionType === "note"
+                ? "Saving to revision notes..."
+                : actionType === "stage"
+                ? `Packaging & staging ${company}...`
+                : `Processing ${company || "action"}...`
+            )
+            
+            try {
+              if (actionType === "status") {
+                const searchRes = await fetch(`/api/applications?search=${encodeURIComponent(company!)}&limit=1`)
+                if (!searchRes.ok) throw new Error("Failed to search applications")
+                const searchData = await searchRes.json()
+                const app = searchData.applications?.[0] || searchData.data?.[0]
+                if (!app) throw new Error(`Application for "${company}" not found`)
+                
+                const updateRes = await fetch(`/api/applications/${app.id}`, {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ status }),
+                })
+                if (!updateRes.ok) throw new Error("Failed to update status")
+                toast.success(`Updated ${app.companyName} status to ${status}!`, { 
+                  id: toastId,
+                  action: {
+                    label: "View Board",
+                    onClick: () => router.push(`/applications/${app.id}`),
+                  },
+                  duration: 5000,
+                })
+              } else if (actionType === "stage") {
+                const currentContent = message.content ? `[AI Staged from Assistant]\n${message.content}` : null
+                const stageRes = await fetch("/api/applications", {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({
-                    jdText: currentContent,
-                    applicationId: newApp.id,
+                    companyName: company,
+                    jobTitle: title,
+                    source: "AI Assistant",
+                    status: "Staged",
+                    notes: currentContent,
+                    applicationDate: new Date().toISOString(),
                   }),
-                }).catch(() => {
-                  // Non-blocking
+                })
+                if (!stageRes.ok) {
+                  const errJson = await stageRes.json().catch(() => ({}))
+                  throw new Error(errJson.error || "Failed to stage application")
+                }
+                const newApp = await stageRes.json()
+
+                toast.success(`Packaged & Staged ${company} (${title})!`, { 
+                  id: toastId,
+                  description: "Application moved to Staged on your tracking board.",
+                  action: {
+                    label: "View in Board",
+                    onClick: () => router.push(`/applications/${newApp.id}`),
+                  },
+                  duration: 6000,
+                })
+              } else if (actionType === "goal") {
+                const goalText =
+                  url.searchParams.get("goal") ||
+                  url.searchParams.get("title") ||
+                  (company ? `Apply to ${company}` : "Complete weekly job search goals")
+                const target = parseInt(url.searchParams.get("target") || "1", 10)
+
+                const goalRes = await fetch("/api/weekly-goals", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    goal1: goalText,
+                    goal1Target: target,
+                    goal1Progress: 0,
+                    goal1Status: "InProgress",
+                    notes: company ? `Target company: ${company}` : "Created from Career Copilot",
+                  }),
+                })
+
+                if (!goalRes.ok) {
+                  const errJson = await goalRes.json().catch(() => ({}))
+                  throw new Error(errJson.error || "Failed to set weekly goal")
+                }
+
+                toast.success(`Set as Weekly Goal!`, {
+                  id: toastId,
+                  description: `Goal: "${goalText}" (${target} target)`,
+                  action: {
+                    label: "View Goals",
+                    onClick: () => router.push("/weekly-goals"),
+                  },
+                  duration: 6000,
+                })
+              } else if (actionType === "sync-sheets") {
+                const syncRes = await fetch("/api/integrations/google-sheets/sync", {
+                  method: "POST",
+                })
+                const syncData = await syncRes.json().catch(() => ({}))
+                if (!syncRes.ok) {
+                  if (syncRes.status === 400 && syncData.error?.toLowerCase().includes("webhook")) {
+                    toast.error("Google Sheets Webhook Not Configured", {
+                      id: toastId,
+                      description: "Connect your Google Sheet in Integrations settings.",
+                      action: {
+                        label: "Configure",
+                        onClick: () => router.push("/integrations"),
+                      },
+                      duration: 7000,
+                    })
+                    return
+                  }
+                  throw new Error(syncData.error || "Failed to sync applications to Google Sheets")
+                }
+
+                toast.success(`Synced ${syncData.count ?? 0} applications to Google Sheets!`, {
+                  id: toastId,
+                  duration: 5000,
+                })
+              } else if (actionType === "note") {
+                const noteTitle = url.searchParams.get("title") || `${company || "Career Advice"} Notes`
+                const noteRes = await fetch("/api/prep-notes", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    title: noteTitle,
+                    content: message.content,
+                    companyName: company || null,
+                    category: "INTERVIEW_QA",
+                  }),
+                })
+
+                if (!noteRes.ok) {
+                  const errJson = await noteRes.json().catch(() => ({}))
+                  throw new Error(errJson.error || "Failed to save note")
+                }
+
+                toast.success("Saved to Revision Notes!", {
+                  id: toastId,
+                  description: noteTitle,
+                  action: {
+                    label: "View Notes",
+                    onClick: () => router.push("/interview-prep"),
+                  },
+                  duration: 5000,
+                })
+              } else if (actionType === "add") {
+                const currentContent = message.content ? `[AI Generated Notes & Outreach]\n${message.content}` : null
+
+                const addRes = await fetch("/api/applications", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    companyName: company,
+                    jobTitle: title,
+                    source: "AI Assistant",
+                    status: status,
+                    notes: currentContent,
+                    applicationDate: new Date().toISOString(),
+                  }),
+                })
+                if (!addRes.ok) {
+                  const errJson = await addRes.json().catch(() => ({}))
+                  throw new Error(errJson.error || "Failed to save application")
+                }
+                const newApp = await addRes.json()
+
+                // Non-blocking background AI fit assessment trigger if content exists
+                if (currentContent && newApp?.id) {
+                  void fetch(`/api/ai/scan-jd`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      jdText: currentContent,
+                      applicationId: newApp.id,
+                    }),
+                  }).catch(() => {
+                    // Non-blocking
+                  })
+                }
+
+                toast.success(`Tracked ${company} (${title})!`, { 
+                  id: toastId,
+                  description: `Status: ${status} • Notes & outreach draft auto-saved.`,
+                  action: {
+                    label: "View in Board",
+                    onClick: () => router.push(`/applications/${newApp.id}`),
+                  },
+                  duration: 6000,
                 })
               }
-
-              toast.success(`Tracked ${company} (${title})!`, { 
-                id: toastId,
-                description: `Status: ${status} • Notes & outreach draft auto-saved.`,
-                action: {
-                  label: "View in Board",
-                  onClick: () => window.open(`/applications/${newApp.id}`, "_blank"),
-                },
-                duration: 6000,
-              })
+            } catch (e: unknown) {
+              const msg = e instanceof Error ? e.message : "Failed to execute action"
+              toast.error(msg, { id: toastId })
             }
-          } catch (e: unknown) {
-            const msg = e instanceof Error ? e.message : "Failed to execute action"
-            toast.error(msg, { id: toastId })
           }
+          
+          return (
+            <button
+              onClick={handleActionClick}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-sm bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs border border-primary/20 my-2 cursor-pointer shadow-none transition-all duration-150 active:scale-95 not-prose"
+            >
+              <ActionIcon className="h-3.5 w-3.5 shrink-0" />
+              <span>{children}</span>
+            </button>
+          )
         }
-        
+
         return (
-          <button
-            onClick={handleActionClick}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-sm bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs border border-primary/20 my-2 cursor-pointer shadow-none transition-all duration-150 active:scale-95 not-prose"
-          >
-            <ActionIcon className="h-3.5 w-3.5 shrink-0" />
+          <Link href={path} className="text-primary hover:underline font-medium inline-flex items-center gap-1">
             <span>{children}</span>
-          </button>
+          </Link>
         )
       }
+
       return (
         <a href={href} target="_blank" rel="noopener noreferrer" {...props}>
           {children}
@@ -847,7 +937,7 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
     pre: ({ children, ...props }: React.HTMLAttributes<HTMLElement>) => {
       // If the child is a custom interactive block (suggestions, analysis, outreach, toolchips, etc.), unwrap it directly
       if (React.isValidElement(children)) {
-        const childProps = children.props as { className?: string } | undefined
+        const childProps = children.props as { className?: string; children?: React.ReactNode } | undefined
         const className = childProps?.className || ""
         if (
           className.includes("language-suggestions") ||
@@ -865,6 +955,37 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
           className.includes("language-mermaid")
         ) {
           return <>{children}</>
+        }
+
+        // Also unwrap if language-json or language-js matches an interactive domain schema
+        if (className.includes("language-json") || className.includes("language-js")) {
+          const rawCode = typeof childProps?.children === "string" ? childProps.children : ""
+          if (rawCode) {
+            try {
+              const parsed = JSON.parse(rawCode)
+              if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+                const isInteractiveSchema =
+                  (Boolean(parsed.companyName || parsed.role || parsed.interviewType || parsed.turns || parsed.topics) &&
+                    Boolean(
+                      parsed.interviewType ||
+                      parsed.turns ||
+                      (Array.isArray(parsed.topics) && parsed.topics.length > 0) ||
+                      parsed.summary?.toLowerCase().includes("interview") ||
+                      parsed.summary?.toLowerCase().includes("spoken") ||
+                      parsed.summary?.toLowerCase().includes("simulation")
+                    )) ||
+                  Boolean(parsed.subject && parsed.body && (parsed.format || parsed.companyName || parsed.isEmailDraft)) ||
+                  Boolean(parsed.matchScore !== undefined && (parsed.verdict || parsed.whyThisScore || parsed.missingGaps || parsed.scoreBreakdown)) ||
+                  Boolean((parsed.matchScore !== undefined || Array.isArray(parsed.highlights)) && (parsed.tailoredResume || parsed.optimizations || parsed.role))
+
+                if (isInteractiveSchema) {
+                  return <>{children}</>
+                }
+              }
+            } catch {
+              // keep default pre
+            }
+          }
         }
       }
 
@@ -945,6 +1066,72 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
           </div>
         )
       }
+
+      // Auto-promotion: When LLM outputs ```json or ```js representing domain schemas
+      if (className === "language-json" || className === "language-js") {
+        const rawText = String(children).trim()
+        try {
+          const parsed = JSON.parse(rawText)
+          if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+            // 1. Mock Interview Schema detection
+            const isInterview =
+              Boolean(parsed.companyName || parsed.role || parsed.interviewType || parsed.turns || parsed.topics) &&
+              Boolean(
+                parsed.interviewType ||
+                parsed.turns ||
+                (Array.isArray(parsed.topics) && parsed.topics.length > 0) ||
+                parsed.summary?.toLowerCase().includes("interview") ||
+                parsed.summary?.toLowerCase().includes("simulation") ||
+                parsed.summary?.toLowerCase().includes("spoken")
+              )
+            if (isInterview) {
+              return (
+                <div className="my-3 not-prose">
+                  <MockInterviewResult data={parsed} />
+                </div>
+              )
+            }
+
+            // 2. Outreach Email Draft Schema detection
+            const isOutreach = Boolean(parsed.subject && parsed.body && (parsed.format || parsed.companyName || parsed.isEmailDraft))
+            if (isOutreach) {
+              const hasToolOutreach = message.toolInvocations?.some(
+                (t) => t.toolName === "draftOutreachEmail" && t.state === "result" && Boolean(t.result)
+              )
+              if (!hasToolOutreach) {
+                return (
+                  <div className="my-3 not-prose">
+                    <OutreachResult data={parsed} />
+                  </div>
+                )
+              }
+            }
+
+            // 3. JD Match Analysis Schema detection
+            const isAnalysis = parsed.matchScore !== undefined && (parsed.verdict || parsed.whyThisScore || parsed.missingGaps || parsed.scoreBreakdown)
+            if (isAnalysis) {
+              return (
+                <div className="my-3 not-prose">
+                  <AnalysisResult data={parsed} />
+                </div>
+              )
+            }
+
+            // 4. Tailored Resume Schema detection
+            const isResume = (parsed.matchScore !== undefined || Array.isArray(parsed.highlights)) && (parsed.tailoredResume || parsed.optimizations || parsed.role)
+            if (isResume) {
+              return (
+                <div className="my-3 not-prose">
+                  <TailoredResumeResult data={parsed} />
+                </div>
+              )
+            }
+          }
+        } catch {
+          // not valid JSON, proceed to standard code block
+        }
+      }
+
       if (className === "language-tailored-resume" || className === "language-resume") {
         const rawText = String(children)
         let rawData: Record<string, unknown> = {}
@@ -1051,42 +1238,38 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
       }
       if (className === "language-suggestions") {
         const rawText = String(children)
-        let suggestions: { label?: string; prompt?: string }[] = []
+        let parsedSuggestions: { label?: string; prompt?: string }[] = []
         try {
           const parsed = JSON.parse(rawText)
           if (Array.isArray(parsed)) {
-            suggestions = parsed
+            parsedSuggestions = parsed
           } else if (parsed.suggestions && Array.isArray(parsed.suggestions)) {
-            suggestions = parsed.suggestions
+            parsedSuggestions = parsed.suggestions
           }
         } catch {
           const regex = /"([^"]+)"/g
           let match
           while ((match = regex.exec(rawText)) !== null) {
             if (match[1] !== "suggestions" && !match[1].startsWith("[")) {
-              suggestions.push({ label: match[1], prompt: match[1] })
+              parsedSuggestions.push({ label: match[1], prompt: match[1] })
             }
           }
         }
-        if (suggestions.length === 0) return null
+        if (parsedSuggestions.length === 0) return null
         return (
-          <div className="my-3 flex flex-wrap gap-2 not-prose">
-            {suggestions.map((s, i) => (
-              <button
-                key={i}
-                type="button"
-                onClick={() => onSuggestionClick?.(s.prompt || s.label || "")}
-                className="px-3 py-1.5 text-xs font-medium border border-border bg-background hover:bg-muted text-foreground transition-colors cursor-pointer rounded-none"
-              >
-                {s.label || s.prompt}
-              </button>
-            ))}
-          </div>
+          <FollowUpsList
+            items={parsedSuggestions.map((s) => ({
+              label: s.label || s.prompt || "",
+              prompt: s.prompt || s.label || "",
+              icon: "",
+            }))}
+            onPick={onSuggestionClick}
+          />
         )
       }
       return <code className={cn(className, isInline ? "text-primary bg-muted px-1.5 py-0.5 rounded text-xs font-mono font-medium" : "text-zinc-800 dark:text-zinc-100 font-mono text-xs")} {...props}>{children}</code>
     }
-  }), [onSuggestionClick, message.content, message.toolInvocations])
+  }), [onSuggestionClick, message.content, message.toolInvocations, router])
 
   if (isUser) {
     if (isEditing) {

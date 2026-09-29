@@ -69,6 +69,163 @@ export function extractContactEmail(text: string = ""): string | null {
 }
 
 /**
+ * Synthesizes a clean, standard human job title from a hashtag-heavy string
+ * (e.g. "#hiring #wearehiring #juniordeveloper #fullstackdeveloper #mernstack ...")
+ */
+export function synthesizeTitleFromHashtags(text: string): string {
+  if (!text) return "Software Engineer"
+  const lower = text.toLowerCase()
+
+  // 1. Detect Seniority
+  let seniority = ""
+  if (/\b(?:intern|internship|co-?op)\b|#intern\b|#internship\b/.test(lower)) {
+    seniority = "Intern"
+  } else if (/\b(?:trainee|apprentice)\b|#trainee\b/.test(lower)) {
+    seniority = "Trainee"
+  } else if (/\b(?:junior|jr\.?|entry-?level|fresher)\b|#junior|#jr\b|#entrylevel\b|#fresher\b/.test(lower)) {
+    seniority = "Junior"
+  } else if (/\b(?:lead|principal|staff)\b|#lead\b|#principal\b|#staff\b/.test(lower)) {
+    seniority = "Lead"
+  } else if (/\b(?:senior|sr\.?)\b|#senior|#sr\b/.test(lower)) {
+    seniority = "Senior"
+  }
+
+  // 2. Detect Domain / Role
+  let role = "Software Engineer"
+  if (/full-?stack|mern|mean|fullstack|mernstack|meanstack/i.test(lower)) {
+    role = "Full Stack Developer"
+  } else if (/front-?end|frontend|react|vue|angular|nextjs|svelte/i.test(lower)) {
+    role = "Frontend Developer"
+  } else if (/back-?end|backend|nodejs|express|django|fastapi|golang|python|spring|ruby|rails/i.test(lower)) {
+    role = "Backend Developer"
+  } else if (/mobile|ios|android|flutter|reactnative|swift|kotlin/i.test(lower)) {
+    role = "Mobile Developer"
+  } else if (/devops|cloud|sre|infrastructure|kubernetes|docker|aws|azure/i.test(lower)) {
+    role = "DevOps Engineer"
+  } else if (/ai|machine\s*learning|machinelearning|deeplearning|llm/i.test(lower)) {
+    role = "AI Engineer"
+  } else if (/qa|quality\s*assurance|tester|testing|automation/i.test(lower)) {
+    role = "QA Engineer"
+  } else if (/ui[/-]?ux|uiux|product\s*design|productdesign/i.test(lower)) {
+    role = "UI/UX Designer"
+  } else if (/web\s*dev|webdevelopment|webdeveloper/i.test(lower)) {
+    role = "Web Developer"
+  } else if (/software\s*dev|softwaredeveloper|softwareengineer|developer|engineer/i.test(lower)) {
+    role = "Software Engineer"
+  }
+
+  if (seniority) {
+    if (role.toLowerCase().startsWith(seniority.toLowerCase())) {
+      return role
+    }
+    return `${seniority} ${role}`
+  }
+
+  return role
+}
+
+/**
+ * Normalizes, strips social media hashtags, recruiter buzzwords, emojis, and noise
+ * from raw job titles.
+ * Guarantees an authentic, human-readable job title suitable for executive outreach
+ * and official applications.
+ */
+export function cleanJobTitle(rawTitle: string = ""): string {
+  if (!rawTitle || typeof rawTitle !== "string") return "Software Engineer"
+
+  // 1. Decode basic HTML entities
+  let title = rawTitle
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&nbsp;/g, " ")
+
+  // 2. Strip URLs and email addresses
+  title = title
+    .replace(/https?:\/\/\S+/gi, "")
+    .replace(/\S+@\S+\.[a-z]{2,}/gi, "")
+
+  // 3. Strip emojis & miscellaneous symbols
+  title = title.replace(
+    /[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F100}-\u{1F1FF}\u{1F200}-\u{1F2FF}\u{1FA00}-\u{1FAFF}\u{FE00}-\u{FE0F}\u{200D}]/gu,
+    ""
+  )
+
+  // 4. Check for hashtag dominance or raw hashtag soup
+  const hashtagMatches = title.match(/#[a-zA-Z0-9_]+/g) || []
+  const textWithoutHashtags = title.replace(/#[a-zA-Z0-9_]+/g, "").replace(/[.…]+$/g, "").trim()
+
+  const isHashtagSoup =
+    hashtagMatches.length >= 2 ||
+    (hashtagMatches.length >= 1 && textWithoutHashtags.length < 5) ||
+    title.trim().startsWith("#") ||
+    /^(?:we\s+are\s+)?hiring\s*$/i.test(textWithoutHashtags)
+
+  if (isHashtagSoup) {
+    const words = textWithoutHashtags.split(/\s+/).filter(Boolean)
+    const hasCoreTechWord = /\b(developer|engineer|fullstack|frontend|backend|devops|designer|architect|intern|programmer)\b/i.test(
+      textWithoutHashtags
+    )
+
+    if (words.length >= 2 && hasCoreTechWord && textWithoutHashtags.length >= 8) {
+      title = textWithoutHashtags
+    } else {
+      return synthesizeTitleFromHashtags(rawTitle)
+    }
+  } else {
+    title = textWithoutHashtags || title
+  }
+
+  // 5. Strip common recruiter announcements and prefixes
+  const prefixRegex =
+    /^(?:we(?:'re|\s+are)\s+(?:urgently\s+)?hiring|hiring\s+alert|urgent\s+(?:opening|hiring|requirement)|immediate\s+(?:opening|requirement)(?:\s+for)?|job\s+(?:alert|opening|opportunity)|open\s+position(?:\s+for)?|looking\s+for(?:\s+an?)?|seeking(?:\s+an?)?|new\s+role|opportunity\s+for|we\s+need|hiring)\s*[:\-–—|•]?\s*/i
+  title = title.replace(prefixRegex, "")
+
+  // 6. Strip trailing recruiter noise & parenthetical clutter
+  title = title.replace(
+    /\s*[\(\[]\s*(?:remote|hybrid|onsite|on-site|immediate\s+joiner|urgent|full\s*time|part\s*time|contract|internship|f\/m\/d|m\/f\/d|m\/w\/d|m\/f\/x|\d+[\s\-\+]*(?:years?|yrs?)(?:\s+exp(?:erience)?)?|us|usa|uk|eu|apac|emea|bangalore|dhaka|india|remote\s*-\s*[a-z]+)\s*[\)\]]/gi,
+    ""
+  )
+
+  // Strip trailing delimiter noise: e.g. " - Remote", " | Immediate Joiner"
+  title = title.replace(
+    /\s*[-–—|•]\s*(?:100%\s*)?(?:remote|hybrid|onsite|on-site|full\s*time|part\s*time|immediate\s+joiner|urgent|apply\s+now).*$/i,
+    ""
+  )
+
+  // Strip trailing ellipses & dots
+  title = title.replace(/[.…]+$/g, "")
+
+  // Clean edge delimiters
+  title = title.replace(/^[\s\-–—:|•/]+|[\s\-–—:|•/]+$/g, "").replace(/\s+/g, " ").trim()
+
+  if (!title || title.length < 3) {
+    return synthesizeTitleFromHashtags(rawTitle) || "Software Engineer"
+  }
+
+  // Capitalize properly if all-caps or all-lowercase
+  if (title === title.toUpperCase() || title === title.toLowerCase()) {
+    title = title
+      .split(" ")
+      .map((w) => {
+        const lower = w.toLowerCase()
+        if (lower === "next.js" || lower === "nextjs") return "Next.js"
+        if (lower === "node.js" || lower === "nodejs") return "Node.js"
+        if (lower === "react.js" || lower === "reactjs") return "React"
+        if (lower === "vue.js" || lower === "vuejs") return "Vue.js"
+        if (lower === "ui/ux" || lower === "uiux") return "UI/UX"
+        if (lower === "ai" || lower === "ml" || lower === "qa" || lower === "sre" || lower === "api") return lower.toUpperCase()
+        return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()
+      })
+      .join(" ")
+  }
+
+  return title
+}
+
+/**
  * Zero-tolerance placeholder sanitizer.
  * Guarantees that NO bracketed tokens like [Hiring Manager/Recruiter] or [Your Name] leak into user view.
  */
@@ -76,7 +233,7 @@ export function sanitizeOutreachPlaceholders(text: string = "", ctx: OutreachCon
   if (!text) return ""
 
   const company = ctx.companyName || "the team"
-  const role = ctx.jobTitle || "the open role"
+  const role = cleanJobTitle(ctx.jobTitle) || "the open role"
   const candidate = ctx.candidateName || "Candidate"
 
   let cleaned = text
@@ -109,6 +266,10 @@ export function sanitizeOutreachPlaceholders(text: string = "", ctx: OutreachCon
     if (lower.includes("link") || lower.includes("url")) return ctx.portfolioUrl || ctx.githubUrl || ""
     return inner.trim()
   })
+
+  // Eradicate any remaining social media hashtag blocks in text
+  cleaned = cleaned.replace(/(?:#[a-zA-Z0-9_]+\s*){2,}/g, role)
+  cleaned = cleaned.replace(/#[a-zA-Z0-9_]{2,}/g, "")
 
   // Strip empty brackets, normalize spacing and multiple linebreaks
   return cleaned
@@ -156,7 +317,8 @@ export function pruneRelevantStack(
   })
 
   // Prioritize tools that match the target role or JD
-  const roleTerms = roleOrJd.toLowerCase().split(/[^a-z0-9.+]+/).filter(Boolean)
+  const cleanedRole = cleanJobTitle(roleOrJd)
+  const roleTerms = `${cleanedRole} ${roleOrJd}`.toLowerCase().split(/[^a-z0-9.+]+/).filter(Boolean)
   const scored = filtered.map((tech) => {
     const techLower = tech.toLowerCase()
     let score = 0
@@ -187,7 +349,7 @@ export function pruneRelevantStack(
  */
 export function generateDeterministicOutreachBundle(ctx: OutreachContext): OutreachChannelBundle {
   const company = ctx.companyName || "the team"
-  const role = ctx.jobTitle || "Software Engineer"
+  const role = cleanJobTitle(ctx.jobTitle) || "Software Engineer"
   const candidate = ctx.candidateName || "Candidate"
   
   const projects = Array.isArray(ctx.topProjects) ? ctx.topProjects : []
@@ -380,7 +542,7 @@ export function generateDeterministicScreenerAnswers(
   roleDomain: string = "fullstack"
 ): ScreenerQA[] {
   const company = ctx.companyName || "the team"
-  const role = ctx.jobTitle || "Software Engineer"
+  const role = cleanJobTitle(ctx.jobTitle) || "Software Engineer"
   const prunedSkills = pruneRelevantStack(ctx.skills || "TypeScript, React, Next.js, Node.js", role, 3)
   const topProj = ctx.topProjects?.[0] || {
     name: "Full-Stack Web Architecture",

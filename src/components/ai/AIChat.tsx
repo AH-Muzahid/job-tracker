@@ -1047,8 +1047,12 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar, onToggl
                     isLast={i === messages.length - 1}
                     isStreaming={isStreaming && i === messages.length - 1}
                     onSuggestionClick={(prompt) => {
-                      setInput(prompt)
-                      textareaRef.current?.focus()
+                      if (!isStreaming) {
+                        void sendMessage(prompt)
+                      } else {
+                        setInput(prompt)
+                        textareaRef.current?.focus()
+                      }
                     }}
                     onRetry={handleRetry}
                     onEdit={handleEditMessage}

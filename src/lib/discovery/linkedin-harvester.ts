@@ -9,6 +9,7 @@ import {
   detectJobWorkMode,
 } from "./matching"
 import { generateBatchJobEmbeddings } from "./embedding"
+import { cleanJobTitle } from "@/lib/applications/outreach-engine"
 
 export interface CandidateSearchProfile {
   skills?: string[]
@@ -111,6 +112,7 @@ export async function harvestLinkedInOpportunities(
 
   for (const job of rawJobs) {
     if (!job || !job.url || !job.title) continue
+    job.title = cleanJobTitle(job.title) || job.title
     if (!isValidJobPostingUrl(job.url)) continue
     if (!isLegitimateTechDevRole(job.title)) continue
 

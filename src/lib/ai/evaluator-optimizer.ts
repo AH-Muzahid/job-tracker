@@ -15,6 +15,8 @@ export interface EvaluationRubric {
   disallowRoboticOpenings?: boolean
   /** Disallow arrogant or corporate fluff phrases like "proving I can", "under tight deadlines" */
   disallowArrogantPhrases?: boolean
+  /** Disallow social media hashtags or hashtag soup (e.g. #hiring, #developer) */
+  disallowHashtags?: boolean
   /** Custom semantic validator callback */
   customValidator?: (content: string) => { passed: boolean; feedback?: string }
 }
@@ -124,6 +126,16 @@ export function evaluateDraft(content: string, rubric: EvaluationRubric): Evalua
         )
         break
       }
+    }
+  }
+
+  // Check for social media hashtags or hashtag soup
+  if (rubric.disallowHashtags) {
+    const hashtagMatches = content.match(/#[a-zA-Z0-9_]{2,}/g)
+    if (hashtagMatches && hashtagMatches.length > 0) {
+      violations.push(
+        `Draft contains raw social media hashtags (${hashtagMatches.slice(0, 5).join(", ")}). Convert them cleanly into real, human job titles or plain text without '#' symbols.`
+      )
     }
   }
 
