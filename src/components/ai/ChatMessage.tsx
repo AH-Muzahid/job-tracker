@@ -539,6 +539,13 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
         )
       }
       if (className === "language-outreach") {
+        const hasToolOutreach = message.toolInvocations?.some(
+          (t) => t.toolName === "draftOutreachEmail" && t.state === "result" && Boolean(t.result)
+        )
+        if (hasToolOutreach) {
+          return null
+        }
+
         const rawText = String(children)
         let rawData: Record<string, unknown> = {}
         try {
@@ -640,7 +647,7 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
       }
       return <code className={cn(className, isInline ? "text-primary bg-muted px-1.5 py-0.5 rounded text-xs font-mono font-medium" : "text-zinc-800 dark:text-zinc-100 font-mono text-xs")} {...props}>{children}</code>
     }
-  }), [onSuggestionClick, message.content])
+  }), [onSuggestionClick, message.content, message.toolInvocations])
 
   if (isUser) {
     if (isEditing) {

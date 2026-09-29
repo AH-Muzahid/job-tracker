@@ -26,7 +26,7 @@ import {
   executeGetUserMemories,
 } from "./profile-tools"
 import { executeCreateWeeklyGoal } from "./goal-tools"
-import { executeSendOutreachEmail } from "./email-tools"
+import { executeSendOutreachEmail, executeDraftOutreachEmail } from "./email-tools"
 import {
   executeSearchExternalJobs,
   executeSaveJobOpportunityToTracker,
@@ -467,27 +467,15 @@ export const TOOL_MANIFEST: Record<string, ToolDefinition<any>> = {
     execute: (userId, input) => executeSavePrepNote(userId, input),
   },
 
-  // Legacy / Safe Stubs for complete backward compatibility
   draftOutreachEmail: {
     name: "draftOutreachEmail",
-    description: "Draft an outreach email without sending it.",
+    description: "Draft a personalized outreach email for a company and role without sending it.",
     schema: z.object({ companyName: z.string().optional(), role: z.string().optional() }).passthrough(),
     risk: ToolRisk.READ_ONLY,
     requiresConfirmation: false,
     allowedInHeadless: true,
     category: "email",
-    execute: async (_userId, input) => {
-      const company = (input as any)?.companyName || "the team"
-      const role = (input as any)?.role || "Software Engineer"
-      return {
-        success: true,
-        subject: `Application for ${role} — ${company}`,
-        body: `Dear Hiring Team,\n\nI am writing to express my strong interest in joining ${company} as a ${role}. With hands-on engineering experience in building scalable, production-grade applications, I am eager to contribute to your technical initiatives.\n\nI look forward to discussing how my experience aligns with your team's goals.\n\nBest regards,\nCandidate`,
-        companyName: company,
-        format: "Outreach Email Draft",
-        isEmailDraft: true,
-      }
-    },
+    execute: (userId, input) => executeDraftOutreachEmail(userId, input),
   },
 
   scrapeJobLink: {

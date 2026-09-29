@@ -1,9 +1,27 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, vi } from "vitest"
 import { createPlannerNode } from "../graph/nodes/planner"
 import { createReflectionNode } from "../graph/nodes/reflection"
 import { createResponderNode } from "../graph/nodes/responder"
+import { executeDraftOutreachEmail } from "../graph/tools/email-tools"
 import { HumanMessage } from "@langchain/core/messages"
+
+vi.mock("@/lib/prisma", () => ({
+  prisma: {
+    user: {
+      findUnique: vi.fn().mockResolvedValue({
+        name: "Alex Rivera",
+      }),
+    },
+    userProfile: {
+      findUnique: vi.fn().mockResolvedValue({
+        targetRoles: ["Senior Full Stack Engineer"],
+        experienceLevel: "Senior",
+        strengths: "Distributed systems, frontend architecture",
+      }),
+    },
+  },
+  withDbRetry: vi.fn((fn: () => any) => fn()),
+}))
 
 describe("LangGraph Agent Core Nodes", () => {
   it("Planner node generates a structured step-by-step plan", async () => {
@@ -118,4 +136,87 @@ I will proceed with this plan.`
     expect(result.responseContent).toContain("Stripe")
     expect(result.messages).toBeDefined()
   })
+
+  it("Planner node decomposes Banglish outreach request into proactive tool steps", async () => {
+    const mockModel: any = {
+      invoke: vi.fn().mockResolvedValue({
+        content: JSON.stringify({
+          goal: "Defdone er apply korar jonne mail lekho",
+          steps: [
+            {
+              id: "step-1",
+              task: "Check if Defdone is already tracked",
+              toolName: "searchApplications",
+              toolInput: { query: "Defdone" },
+            },
+            {
+              id: "step-2",
+              task: "Retrieve candidate skills and proof points",
+              toolName: "getUserMemories",
+              toolInput: { category: "skill" },
+            },
+            {
+              id: "step-3",
+              task: "Draft personalized outreach email for Defdone",
+              toolName: "draftOutreachEmail",
+              toolInput: { companyName: "Defdone", role: "Software Engineer" },
+            },
+          ],
+        }),
+      }),
+    }
+
+    const plannerNode = createPlannerNode(mockModel)
+    const state: any = {
+      messages: [new HumanMessage("Defdone er apply korar jonne mail lekho")],
+      goal: "",
+      plan: [],
+      currentStepIndex: 0,
+    }
+
+    const result = await plannerNode(state)
+    expect(result.plan).toHaveLength(3)
+    expect(result.plan?.[0].toolName).toBe("searchApplications")
+    expect(result.plan?.[1].toolName).toBe("getUserMemories")
+    expect(result.plan?.[2].toolName).toBe("draftOutreachEmail")
+    expect(result.plan?.[2].toolInput?.companyName).toBe("Defdone")
+  })
+
+  it("Reflection node does NOT mark empty application search result as failure", async () => {
+    const reflectionNode = createReflectionNode()
+    const state: any = {
+      plan: [
+        {
+          id: "step-1",
+          status: "completed",
+          toolName: "searchApplications",
+          result: { success: true, count: 0, applications: [] },
+        },
+      ],
+      currentStepIndex: 0,
+      reflection: { passed: true, retryCount: 0 },
+    }
+
+    const result = await reflectionNode(state)
+    expect(result.reflection?.passed).toBe(true)
+    expect(result.currentStepIndex).toBe(1)
+  })
+
+  it("executeDraftOutreachEmail generates grounded outreach draft without placeholders", async () => {
+    const outcome = await executeDraftOutreachEmail("user-123", {
+      companyName: "Defdone",
+    })
+
+    expect(outcome.success).toBe(true)
+    expect(outcome.companyName).toBe("Defdone")
+    expect(outcome.role).toBe("Senior Full Stack Engineer")
+    expect(outcome.candidateName).toBe("Alex Rivera")
+    expect(outcome.subject).toContain("Defdone")
+    expect(outcome.body).toContain("Alex Rivera")
+    expect(outcome.body).not.toContain("[Your Name]")
+    expect(outcome.body).not.toContain("[Job Title]")
+    expect(outcome.format).toBe("Outreach Email Draft")
+    expect(outcome.isEmailDraft).toBe(true)
+  })
 })
+

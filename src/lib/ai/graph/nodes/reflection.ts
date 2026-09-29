@@ -28,9 +28,6 @@ function evaluateStepSemanticOutcome(result: any, hasTool = true): { isSuccess: 
     if (Array.isArray(result.jobs) && result.jobs.length === 0) {
       return { isSuccess: false, reason: "0 matching jobs found." }
     }
-    if (Array.isArray(result.applications) && result.applications.length === 0) {
-      return { isSuccess: false, reason: "0 matching applications found." }
-    }
   }
 
   return { isSuccess: true }
