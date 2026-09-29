@@ -5,10 +5,11 @@ import Link from "next/link"
 import { cn } from "@/lib/utils"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
-import { MessageSquare, Copy, Check, Pencil, RotateCcw } from "lucide-react"
+import { MessageSquare, Copy, Check, Pencil, RotateCcw, Mic, ArrowRight } from "lucide-react"
 import { toast } from "sonner"
 import AnalysisResult from "./AnalysisResult"
 import OutreachResult from "./OutreachResult"
+import MockInterviewResult from "./MockInterviewResult"
 import ToolChips from "./ToolChips"
 import StreamingText from "./StreamingText"
 import LoadingState from "./LoadingState"
@@ -147,13 +148,15 @@ function getContextualSuggestions(content: string, toolInvocations?: ToolInvocat
   if (lower.includes("interview") || lower.includes("mock") || lower.includes("assessment")) {
     list.push({
       icon: "",
-      label: "Model STAR Answers",
-      prompt: "Provide concise, high-scoring STAR method answers for each of these interview questions.",
+      label: company ? `🎙️ Voice Mock (${company})` : "🎙️ Launch Voice Mock Room",
+      prompt: company
+        ? `Launch the live spoken voice mock interview room for ${company}${role ? ` (${role})` : ""}`
+        : "Launch the live spoken voice mock interview room for my target role",
     })
     list.push({
       icon: "",
-      label: "Start Mock Interview",
-      prompt: "Let's conduct a live interactive mock interview based on these questions.",
+      label: "Model STAR Answers",
+      prompt: "Provide concise, high-scoring STAR method answers for each of these interview questions.",
     })
     return list.slice(0, 2)
   }
@@ -424,6 +427,19 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
         )
       }
 
+      if (href && href.startsWith("/interview-prep")) {
+        return (
+          <Link
+            href={href}
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 my-2 rounded-[4px] bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs no-underline transition-all hover:shadow-xs group/btn cursor-pointer shadow-none"
+          >
+            <Mic className="size-3.5 shrink-0" />
+            <span>{children}</span>
+            <ArrowRight className="size-3 transition-transform group-hover/btn:translate-x-0.5" />
+          </Link>
+        )
+      }
+
       if (href && href.startsWith("/actions/")) {
         const url = new URL(href, "http://localhost")
         const actionType = url.pathname.replace("/actions/", "")
@@ -549,6 +565,8 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
           className.includes("language-suggestions") ||
           className.includes("language-analysis") ||
           className.includes("language-outreach") ||
+          className.includes("language-interview") ||
+          className.includes("language-mock-interview") ||
           className.includes("language-toolchips") ||
           className.includes("language-tools") ||
           className.includes("language-streaming") ||
@@ -613,6 +631,25 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
         return (
           <div className="my-3 not-prose">
             <AnalysisResult data={rawData} />
+          </div>
+        )
+      }
+      if (className === "language-interview" || className === "language-mock-interview") {
+        const rawText = String(children)
+        let rawData: Record<string, unknown> = {}
+        try {
+          rawData = JSON.parse(rawText)
+        } catch {
+          const entity = extractTargetEntity(message.content, message.toolInvocations)
+          rawData = {
+            summary: rawText,
+            companyName: entity.company || "Target Company",
+            role: entity.role || "Software Engineer",
+          }
+        }
+        return (
+          <div className="my-3 not-prose">
+            <MockInterviewResult data={rawData} />
           </div>
         )
       }

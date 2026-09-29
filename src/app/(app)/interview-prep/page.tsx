@@ -27,6 +27,10 @@ function InterviewPrepContent() {
   const customAppId = searchParams.get("appId") || undefined
   const customCompany = searchParams.get("company") || undefined
   const customRole = searchParams.get("role") || undefined
+  const customType = searchParams.get("type") || undefined
+  const customTone = searchParams.get("tone") as InterviewerTone | null
+  const customTurns = searchParams.get("turns") ? parseInt(searchParams.get("turns")!, 10) : undefined
+  const autostart = searchParams.get("autostart") === "true"
 
   // Navigation Tab
   const [activeTab, setActiveTab] = useState("mock")
@@ -34,9 +38,9 @@ function InterviewPrepContent() {
   // Modal Configuration States
   const [modalRole, setModalRole] = useState(customRole || "Senior Fullstack Engineer")
   const [modalCompany, setModalCompany] = useState(customCompany || "Google / Tech Company")
-  const [modalType, setModalType] = useState("Technical")
-  const [modalTone, setModalTone] = useState<InterviewerTone>("friendly")
-  const [modalTurns, setModalTurns] = useState<number>(5)
+  const [modalType, setModalType] = useState(customType || "Technical")
+  const [modalTone, setModalTone] = useState<InterviewerTone>(customTone || "friendly")
+  const [modalTurns, setModalTurns] = useState<number>(customTurns || 5)
 
   // Persistent Data States
   const [notes, setNotes] = useState<PrepNote[]>([])
@@ -46,6 +50,18 @@ function InterviewPrepContent() {
 
   // Voice Mock Modal State
   const [conversationalModalOpen, setConversationalModalOpen] = useState(false)
+
+  // Autostart effect for 1-click launch from AI chat or external links
+  useEffect(() => {
+    if (customRole) setModalRole(customRole)
+    if (customCompany) setModalCompany(customCompany)
+    if (customType) setModalType(customType)
+    if (customTone) setModalTone(customTone)
+    if (customTurns) setModalTurns(customTurns)
+    if (autostart) {
+      setConversationalModalOpen(true)
+    }
+  }, [customRole, customCompany, customType, customTone, customTurns, autostart])
 
   function fetchAll() {
     Promise.all([

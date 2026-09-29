@@ -129,5 +129,54 @@ describe("ChatMessage User Pill Bubble & Hover Actions", () => {
     expect(html).toContain("Interview Questions (Stripe)")
     expect(html).toContain("Company Intel &amp; Culture")
   })
+
+  it("renders interactive Voice Mock Room launch card when interview codeblock is present", () => {
+    const interviewBlock = "```interview\n" + JSON.stringify({
+      companyName: "Stripe",
+      role: "Backend Engineer",
+      interviewType: "Technical",
+      topics: ["Distributed Systems", "Idempotency", "Database Locking"],
+      turns: 5,
+      summary: "5-round spoken simulation tailored to Stripe engineering culture."
+    }) + "\n```"
+
+    const html = renderToString(
+      <ChatMessage
+        message={{
+          id: "asst-msg-interview",
+          role: "assistant",
+          content: interviewBlock,
+        }}
+        isLast={true}
+        isStreaming={false}
+      />
+    )
+
+    expect(html).toContain("Conversational Voice Mock Room")
+    expect(html).toContain("Voice Engine Online")
+    expect(html).toContain("Backend Engineer")
+    expect(html).toContain("Stripe")
+    expect(html).toContain("Launch Voice Mock Room")
+    expect(html).toContain("autostart=true")
+    expect(html).toContain("company=Stripe")
+  })
+
+  it("suggests 🎙️ Voice Mock pill when discussing interview topics", () => {
+    const html = renderToString(
+      <ChatMessage
+        message={{
+          id: "asst-msg-int-prep",
+          role: "assistant",
+          content: "Here are common interview questions asked by Defdone for frontend developers.",
+        }}
+        isLast={true}
+        isStreaming={false}
+        onSuggestionClick={vi.fn()}
+      />
+    )
+
+    expect(html).toContain("Voice Mock")
+    expect(html).toContain("Model STAR Answers")
+  })
 })
 
