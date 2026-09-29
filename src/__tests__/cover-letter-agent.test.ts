@@ -81,7 +81,8 @@ describe("Autonomous Cover Letter & Application Materials Agent (REC-16)", () =>
     expect(result.coverLetter).toContain("E-Commerce Microservices")
     expect(result.coverLetter).toContain("Alex Rivera")
     expect(result.highlights.length).toBeGreaterThanOrEqual(1)
-    expect(result.outreachPitch).toContain("Senior Frontend Engineer at Vercel")
+    expect(result.outreachPitch).toContain("Senior Frontend Engineer")
+    expect(result.outreachPitch).toContain("Vercel")
 
     // Verify DB persistence
     expect(prisma.applicationAnalysis.upsert).toHaveBeenCalledWith(
@@ -91,15 +92,24 @@ describe("Autonomous Cover Letter & Application Materials Agent (REC-16)", () =>
           applicationId: "app-100",
           matchScore: 88,
           rawAnalysis: expect.stringContaining("Dear Hiring Team at Vercel"),
-          outreachSubject: "Application for Senior Frontend Engineer - Alex Rivera",
-          outreachBody: expect.stringContaining("Senior Frontend Engineer at Vercel"),
+          outreachSubject: expect.stringContaining("Senior Frontend Engineer"),
+          outreachBody: expect.stringContaining("Senior Frontend Engineer"),
           tailoredResumeJson: expect.objectContaining({
             targetRole: "Senior Frontend Engineer",
             company: "Vercel",
+            outreachChannels: expect.objectContaining({
+              form_portal: expect.any(Object),
+            }),
           }),
         }),
       })
     )
+
+    // Verify token optimization: only detected primary channel (form_portal) is populated at staging
+    expect(result.outreachChannels).toBeDefined()
+    expect(result.outreachChannels?.form_portal).toBeDefined()
+    expect(result.outreachChannels?.email).toBeUndefined()
+    expect(result.outreachChannels?.linkedin_dm).toBeUndefined()
 
     // Verify notification creation
     expect(prisma.notification.create).toHaveBeenCalledWith(

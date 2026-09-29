@@ -14,10 +14,12 @@ import {
   ApplicationMaterialsDraft,
 } from "@/lib/ai/squad/orchestrator"
 import {
-  extractContactEmail,
   sanitizeOutreachPlaceholders,
   generateDeterministicOutreachBundle,
+  detectApplicationStrategy,
   pruneRelevantStack,
+  cleanJobTitle,
+  OutreachChannel,
   OutreachChannelBundle,
 } from "@/lib/applications/outreach-engine"
 
@@ -56,6 +58,7 @@ function generateDeterministicMaterials(
   context: {
     jobTitle: string
     companyName: string
+    jobUrl?: string
     location?: string
     notes?: string
   }
@@ -100,17 +103,31 @@ ${candidateName}`
     `Demonstrated autonomous ownership and rapid delivery of complex product features from conception to deployment.`,
   ]
 
-  const outreachBundle = generateDeterministicOutreachBundle({
-    companyName,
-    jobTitle,
-    candidateName,
-    skills: uniqueSkills,
-    topProjects: bestProjects,
-    location: context.location,
-    notes: context.notes,
-  })
+  // Detect matching single channel to prevent token waste during staging
+  const strategyDetection = detectApplicationStrategy(context.notes || "", "", context.jobUrl)
+  const primaryChannel: OutreachChannel = strategyDetection.strategy
 
-  const outreachPitch = `Hi ${companyName} Team! I saw the opening for ${jobTitle} at ${companyName}. I recently engineered ${topProject.name} using ${prunedTopProjStack}. Would love to share my portfolio and discuss how my hands-on build experience aligns with your roadmap!`
+  const outreachBundle = generateDeterministicOutreachBundle(
+    {
+      companyName,
+      jobTitle,
+      candidateName,
+      skills: uniqueSkills,
+      topProjects: bestProjects,
+      location: context.location,
+      notes: context.notes,
+    },
+    primaryChannel
+  )
+
+  let outreachPitch = `Hi ${companyName} Team! I saw the opening for ${jobTitle} at ${companyName}. I recently engineered ${topProject.name} using ${prunedTopProjStack}. Would love to share my portfolio and discuss how my hands-on build experience aligns with your roadmap!`
+  if (primaryChannel === "form_portal" && outreachBundle.form_portal?.portalNote) {
+    outreachPitch = outreachBundle.form_portal.portalNote
+  } else if (primaryChannel === "linkedin_dm" && outreachBundle.linkedin_dm?.body) {
+    outreachPitch = outreachBundle.linkedin_dm.body
+  } else if (primaryChannel === "email" && outreachBundle.email?.body) {
+    outreachPitch = outreachBundle.email.body
+  }
 
   return {
     coverLetter,
@@ -269,6 +286,9 @@ Respond in valid JSON format:
         }
       }
 
+      const strategyDetection = detectApplicationStrategy(context.notes || "", "", context.jobUrl)
+      const primaryChannel: OutreachChannel = strategyDetection.strategy
+
       const outreachCtx = {
         companyName: context.companyName,
         jobTitle: context.jobTitle,
@@ -282,9 +302,29 @@ Respond in valid JSON format:
       }
       materials.coverLetter = sanitizeOutreachPlaceholders(materials.coverLetter, outreachCtx)
       materials.outreachPitch = sanitizeOutreachPlaceholders(materials.outreachPitch, outreachCtx)
-      materials.outreachChannels = generateDeterministicOutreachBundle(outreachCtx)
-      if (materials.outreachPitch) {
-        materials.outreachChannels.email.body = materials.outreachPitch
+
+      // Strictly populate ONLY the matching primary channel to eliminate token waste on staging
+      if (primaryChannel === "form_portal") {
+        materials.outreachChannels = {
+          form_portal: {
+            portalNote: materials.outreachPitch,
+            screenerAnswers: [], // Generated on-demand when user provides or requests form questions
+          },
+        }
+      } else if (primaryChannel === "linkedin_dm") {
+        materials.outreachChannels = {
+          linkedin_dm: {
+            subject: `${cleanJobTitle(context.jobTitle)} role inquiry - ${candidateName}`,
+            body: materials.outreachPitch,
+          },
+        }
+      } else {
+        materials.outreachChannels = {
+          email: {
+            subject: `Application for ${cleanJobTitle(context.jobTitle)} - ${candidateName}`,
+            body: materials.outreachPitch,
+          },
+        }
       }
 
       void traceAIGeneration({
@@ -348,10 +388,27 @@ Respond in valid JSON format:
       skills: materials.atsKeywords || [],
       topProjects: dossier?.bestProjects,
     }
-    const detectedEmail = extractContactEmail(context.notes || "")
-    const outreachBundle = materials.outreachChannels || generateDeterministicOutreachBundle(outreachCtx)
-    const outreachSubject = `Application for ${context.jobTitle} - ${candidateName}`
-    const outreachBody = sanitizeOutreachPlaceholders(materials.outreachPitch, outreachCtx)
+
+    const strategyDetection = detectApplicationStrategy(context.notes || "", "", context.jobUrl)
+    const primaryChannel: OutreachChannel = strategyDetection.strategy
+    const outreachBundle =
+      materials.outreachChannels ||
+      generateDeterministicOutreachBundle(outreachCtx, primaryChannel)
+
+    let outreachSubject = `Application for ${cleanJobTitle(context.jobTitle)} - ${candidateName}`
+    let outreachBody = sanitizeOutreachPlaceholders(materials.outreachPitch, outreachCtx)
+
+    if (primaryChannel === "form_portal") {
+      outreachSubject = `${cleanJobTitle(context.jobTitle)} - Application Cover Note & Screener Q&A`
+      outreachBody = outreachBundle.form_portal?.portalNote || outreachBody
+    } else if (primaryChannel === "linkedin_dm") {
+      outreachSubject = outreachBundle.linkedin_dm?.subject || `${cleanJobTitle(context.jobTitle)} role inquiry - ${candidateName}`
+      outreachBody = outreachBundle.linkedin_dm?.body || outreachBody
+    } else if (primaryChannel === "email" && outreachBundle.email) {
+      outreachSubject = outreachBundle.email.subject || outreachSubject
+      outreachBody = outreachBundle.email.body || outreachBody
+    }
+
     const outreachChecklist = [
       "Verified GitHub/LinkedIn/portfolio links included",
       `Mentioned core technical strengths: ${(materials.atsKeywords || []).slice(0, 3).join(", ") || "TypeScript, React"}`,
@@ -365,7 +422,10 @@ Respond in valid JSON format:
       atsKeywords: materials.atsKeywords || [],
       strategyTip: materials.strategyTip,
       outreachChannels: outreachBundle,
-      detectedEmail,
+      detectedEmail: strategyDetection.detectedEmail,
+      strategy: primaryChannel,
+      strategyReason: strategyDetection.reason,
+      recommendedChannel: primaryChannel,
     }
 
     // Resolve authentic match score instead of hardcoded fallback
