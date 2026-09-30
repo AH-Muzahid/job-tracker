@@ -18,7 +18,7 @@ export interface BatchSummary {
   totalActive: number
 }
 
-export type DiscoveryTab = "today" | "yesterday" | "week" | "saved"
+export type DiscoveryTab = "all" | "today" | "yesterday" | "week" | "saved"
 export type DiscoveryViewMode = "cards" | "list"
 
 export interface DiscoveryFacetCounts {

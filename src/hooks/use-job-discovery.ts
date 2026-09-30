@@ -28,7 +28,7 @@ export function parseSalary(s?: string): number {
 
 export function useJobDiscovery() {
   const [searchQuery, setSearchQuery] = useState("")
-  const [activeTab, setActiveTab] = useState<DiscoveryTab>("today")
+  const [activeTab, setActiveTab] = useState<DiscoveryTab>("all")
   const [viewMode, setViewMode] = useState<DiscoveryViewMode>("cards")
   const [filters, setFilters] = useState<DiscoveryFilters>({
     source: "",
@@ -66,9 +66,9 @@ export function useJobDiscovery() {
       const json = await res.json()
       return json.data as DiscoveryApiResponse
     },
-    staleTime: 15 * 60 * 1000, // 15 minutes fresh in client memory (no refetching on page switch)
-    gcTime: 30 * 60 * 1000, // 30 minutes cache retention
-    refetchOnWindowFocus: false, // Prevents re-fetching merely because user switched tabs
+    staleTime: 5 * 60 * 1000, // 5 minutes fresh in client memory
+    gcTime: 15 * 60 * 1000, // 15 minutes cache retention
+    refetchOnWindowFocus: true, // Re-fetch when user returns to tab (catches stale/empty feeds)
   })
 
   // Synchronize previously saved & staged jobs from the backend payload
@@ -165,6 +165,9 @@ export function useJobDiscovery() {
     const rawList = data?.opportunities || []
     const nonDismissed = rawList.filter((j) => !dismissedJobIds.has(j.id))
 
+    if (activeTab === "all") {
+      return nonDismissed
+    }
     if (activeTab === "saved") {
       return nonDismissed.filter((j) => savedJobs.has(j.id) || (j.jobId && savedJobs.has(j.jobId)))
     }
@@ -219,8 +222,30 @@ export function useJobDiscovery() {
       }
       if (filters.visaSponsorship && job.visaSponsorship !== filters.visaSponsorship) return false
       if (filters.tags.length > 0) {
-        const jobTags = job.tags?.map((t) => t.toLowerCase()) || []
-        if (!filters.tags.some((t) => jobTags.includes(t.toLowerCase()))) return false
+        // Separate employment type filters from tech skill tags
+        const EMPLOYMENT_TYPE_TAGS = new Set(["full-time", "part-time", "contract", "internship"])
+        const employmentTypeTags = filters.tags.filter((t) => EMPLOYMENT_TYPE_TAGS.has(t.toLowerCase()))
+        const techSkillTags = filters.tags.filter((t) => !EMPLOYMENT_TYPE_TAGS.has(t.toLowerCase()))
+
+        // Match employment type against job.employmentType (not job.tags)
+        if (employmentTypeTags.length > 0) {
+          const jobType = (job.employmentType || "full-time").toLowerCase()
+          const jobTitle = (job.title || "").toLowerCase()
+          const matchesType = employmentTypeTags.some((t) => {
+            const filterType = t.toLowerCase()
+            if (filterType === "internship") {
+              return jobType === "intern" || jobType === "internship" || /\b(intern|internship|trainee|apprentice)\b/i.test(jobTitle)
+            }
+            return jobType === filterType || jobType.includes(filterType.replace("-", ""))
+          })
+          if (!matchesType) return false
+        }
+
+        // Match tech skill tags against job.tags as before
+        if (techSkillTags.length > 0) {
+          const jobTags = job.tags?.map((t) => t.toLowerCase()) || []
+          if (!techSkillTags.some((t) => jobTags.includes(t.toLowerCase()))) return false
+        }
       }
       return true
     })
@@ -321,7 +346,6 @@ export function useJobDiscovery() {
     onSettled: () => {
       // Invalidate queries in background to keep server cache in sync
       queryClient.invalidateQueries({ queryKey: ["applications"] })
-      queryClient.invalidateQueries({ queryKey: ["discovery"] })
       queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] })
       queryClient.invalidateQueries({ queryKey: ["user-stats"] })
     },
@@ -368,7 +392,6 @@ export function useJobDiscovery() {
           ...(job.jobId ? { [job.jobId]: appId } : {}),
         }))
       }
-      queryClient.invalidateQueries({ queryKey: ["discovery"] })
       queryClient.invalidateQueries({ queryKey: ["applications"] })
       queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] })
       toast.success(`Packaged & staged "${job.title}"!`, {
@@ -446,7 +469,6 @@ export function useJobDiscovery() {
                   jobTitle: job.title,
                 }),
               })
-              queryClient.invalidateQueries({ queryKey: ["discovery"] })
               toast.success(`"${job.title}" restored to your feed`)
             } catch {
               toast.error("Failed to restore job")

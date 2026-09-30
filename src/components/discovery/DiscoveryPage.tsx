@@ -43,6 +43,7 @@ export function DiscoveryPage() {
     refetchProfile,
     data,
     isLoading,
+    allOpportunities,
     refetch,
     sortedOpportunities,
     saveMutation,
@@ -57,6 +58,7 @@ export function DiscoveryPage() {
   } = useJobDiscovery()
 
   const tabs: { id: DiscoveryTab; label: string; count?: number }[] = [
+    { id: "all", label: "All", count: data?.count ?? allOpportunities.length },
     { id: "today", label: "Today", count: facetCounts.today },
     { id: "yesterday", label: "Yesterday", count: facetCounts.yesterday },
     { id: "week", label: "This Week", count: facetCounts.week },
@@ -216,7 +218,6 @@ export function DiscoveryPage() {
                         totalCount={sortedOpportunities.length}
                         onApplyFilters={() => {
                           setMobileFilterOpen(false)
-                          refetch()
                         }}
                       />
                     </div>
@@ -270,7 +271,7 @@ export function DiscoveryPage() {
             onFilterChange={setFilters}
             facetCounts={facetCounts}
             totalCount={sortedOpportunities.length}
-            onApplyFilters={() => refetch()}
+            onApplyFilters={() => {}}
           />
         </div>
       </div>
