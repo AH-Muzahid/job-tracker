@@ -137,6 +137,7 @@ export async function executeSearchExternalJobs(
     const userLocation = profile?.location?.trim() || ""
     const userExperienceLevel = (profile?.experienceLevel || "mid").toLowerCase()
     const userStatus = (profile?.currentStatus || "").toLowerCase()
+    const isJuniorCandidate = userExperienceLevel === "junior" || userExperienceLevel === "entry" || userStatus.includes("studying")
     const bestProjects = Array.isArray(profile?.bestProjects) ? profile.bestProjects : []
 
     const primaryTargetRole = profile?.targetRoles?.[0] || ""
@@ -149,7 +150,7 @@ export async function executeSearchExternalJobs(
     let location = input.location || userLocation
 
     if (!input.query) {
-      const isEarlyCareer = userExperienceLevel === "junior" || userExperienceLevel === "entry" || userStatus.includes("studying")
+      const isEarlyCareer = isJuniorCandidate
       const rolePrefix = isEarlyCareer ? "junior " : ""
       if (userWorkPreference === "remote") {
         query = primaryTargetRole ? `${rolePrefix}${primaryTargetRole} remote` : `${rolePrefix}${primarySkill} remote`
@@ -470,7 +471,6 @@ export async function executeSearchExternalJobs(
 
       // Factor 4: Seniority & Experience Level Alignment (up to 15 pts)
       const jobSeniority = detectJobSeniority(position, description)
-      const isJuniorCandidate = userExperienceLevel === "junior" || userExperienceLevel === "entry" || userStatus.includes("studying")
 
       if (isJuniorCandidate) {
         // 1. Strict Disqualification: Drop all Senior, Lead, Staff, Principal, Director, Manager, Architect, or 3+ yrs roles
