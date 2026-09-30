@@ -278,7 +278,7 @@ export const batchJobReleaseScheduler = inngest.createFunction(
         })
       )
 
-      const batchSize = 50
+      const batchSize = 10
       const batches: Array<{ userIds: string[] }> = []
       for (let i = 0; i < users.length; i += batchSize) {
         batches.push({ userIds: users.slice(i, i + batchSize).map((u) => u.id) })
@@ -313,19 +313,73 @@ export const processUserJobBatchWorker = inngest.createFunction(
   },
   async ({ event, step }) => {
     const { userIds, batchId } = event.data as { userIds: string[]; batchId: string }
-    if (!userIds || !Array.isArray(userIds)) {
+    if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
       return { processed: 0, skipped: true }
     }
 
     const results = []
-    for (const userId of userIds) {
-      const res = await step.run(`process-user-${userId}`, async () => {
-        return await processUserJobBatch(userId, { batchId })
-      })
-      results.push(res)
+    const CONCURRENCY = 3
+    for (let i = 0; i < userIds.length; i += CONCURRENCY) {
+      const slice = userIds.slice(i, i + CONCURRENCY)
+      const chunkResults = await Promise.allSettled(
+        slice.map((userId) =>
+          step.run(`process-user-${userId}`, async () => {
+            return await processUserJobBatch(userId, { batchId })
+          })
+        )
+      )
+      for (const cr of chunkResults) {
+        if (cr.status === "fulfilled") {
+          results.push(cr.value)
+        }
+      }
     }
 
     return { processed: results.length, results }
+  }
+)
+
+/**
+ * Asynchronous Background LinkedIn Harvester Function
+ * Decouples LinkedIn HTTP scraping and catalog ingestion from user HTTP requests
+ */
+export const linkedInHarvestScheduler = inngest.createFunction(
+  {
+    id: "linkedin-harvest-scheduler",
+    name: "Asynchronous LinkedIn Job Harvester",
+    retries: 2,
+    triggers: [{ event: "discovery/linkedin-harvest.trigger" }],
+  },
+  async ({ event, step }) => {
+    const data = event.data as {
+      skills?: string[]
+      targetRoles?: string[]
+      experienceLevel?: string
+      location?: string
+      workPreference?: string
+    }
+
+    const harvestResult = await step.run("harvest-linkedin-jobs", async () => {
+      const { harvestLinkedInOpportunities, ingestLinkedInOpportunitiesToCatalog } = await import(
+        "@/lib/discovery/linkedin-harvester"
+      )
+      const jobs = await harvestLinkedInOpportunities(
+        {
+          skills: data.skills || [],
+          targetRoles: data.targetRoles || [],
+          experienceLevel: data.experienceLevel || "mid",
+          location: data.location,
+          workPreference: data.workPreference || "remote",
+        },
+        { maxQueries: 3 }
+      )
+      if (jobs.length > 0) {
+        return await ingestLinkedInOpportunitiesToCatalog(jobs)
+      }
+      return { total: 0, upserted: 0 }
+    })
+
+    return harvestResult
   }
 )
 

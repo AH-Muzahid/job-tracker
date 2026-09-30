@@ -9,6 +9,7 @@ import {
   batchJobReleaseScheduler,
   processUserJobBatchWorker,
   globalJobCrawlScheduler,
+  linkedInHarvestScheduler,
 } from "@/inngest/functions/batch-job-pipeline"
 import { careerOrchestratorPipeline } from "@/inngest/functions/career-orchestrator-pipeline"
 import { interviewReminderPipeline } from "@/inngest/functions/interview-reminder-pipeline"
@@ -27,6 +28,7 @@ export const { GET, POST, PUT } = serve({
     batchJobReleaseScheduler,
     processUserJobBatchWorker,
     globalJobCrawlScheduler,
+    linkedInHarvestScheduler,
     careerOrchestratorPipeline,
     interviewReminderPipeline,
     companyDossierPipeline,
