@@ -17,7 +17,7 @@ export function createDeterministicFallbackVector(text: string): number[] {
   }
   for (let i = 0; i < EMBEDDING_DIMENSION; i++) {
     const pseudo = Math.sin(hash + i) * 10000
-    vector[i] = parseFloat((pseudo - Math.floor(pseudo) - 0.5).toFixed(4))
+    vector[i] = Math.round((pseudo - Math.floor(pseudo) - 0.5) * 10000) / 10000
   }
   return vector
 }

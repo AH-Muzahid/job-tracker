@@ -34,16 +34,17 @@ export async function retrieveCandidateJobsTier1(params: {
 }): Promise<VectorCandidateJob[]> {
   const { userId, targetRoles, userSkills, projects, workPreference, limit = 25 } = params
 
-  // 1. Generate base candidate positive embedding (1536-dim)
-  const candidateVector = await generateCandidateEmbedding({
-    targetRoles,
-    skills: userSkills,
-    projects,
-    preferredWorkMode: workPreference,
-  })
+  // 1 & 2. Generate candidate embedding and load implicit preferences in parallel
+  const [candidateVector, implicitPrefs] = await Promise.all([
+    generateCandidateEmbedding({
+      targetRoles,
+      skills: userSkills,
+      projects,
+      preferredWorkMode: workPreference,
+    }),
+    getUserImplicitPreferences(userId).catch(() => null),
+  ])
 
-  // 2. Load implicit aversions (negative feedback loop)
-  const implicitPrefs = await getUserImplicitPreferences(userId).catch(() => null)
   const rawDisliked = implicitPrefs?.dislikedRoles
   const negativeTokens: string[] = Array.isArray(rawDisliked)
     ? (rawDisliked as unknown as string[])

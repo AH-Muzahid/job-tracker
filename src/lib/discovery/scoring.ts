@@ -28,6 +28,22 @@ import {
 import { computeSemanticSimilarity } from "./semantic-match"
 import { getCompanyEnrichment } from "./company-enrichment"
 
+// Pre-compiled ATS tech vocabulary for word-boundary matching (compiled once at module load)
+const ATS_TECH_VOCAB = [
+  "react", "next.js", "nextjs", "vue", "angular", "typescript", "javascript", "node", "nodejs",
+  "express", "nest", "nestjs", "python", "django", "fastapi", "tailwind", "tailwind css", "css",
+  "html", "redux", "zustand", "postgresql", "postgres", "mongodb", "mysql", "prisma", "docker",
+  "kubernetes", "aws", "gcp", "azure", "git", "github", "graphql", "rest", "api", "redis",
+  "websockets", "websocket", "socket.io", "ci/cd", "jest", "playwright", "cypress", "linux",
+] as const
+
+const ATS_TECH_VOCAB_SET = new Set<string>(ATS_TECH_VOCAB)
+
+const ATS_TECH_VOCAB_REGEXES = ATS_TECH_VOCAB.map((vocab) => ({
+  vocab,
+  regex: new RegExp(`(^|[^a-z0-9+#.-])${vocab.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}([^a-z0-9+#.-]|$)`, "i"),
+}))
+
 /**
  * Accurately detects required seniority level from job title and description
  */
@@ -201,6 +217,14 @@ export async function executeSearchExternalJobs(
 
     const scoredOpportunities: ExternalJobOpportunity[] = []
 
+    // Pre-compile user skill regexes once (avoids 20,000+ compilations inside the loop)
+    const userSkillRegexes = Array.from(userSkills)
+      .filter((skill) => skill && skill.length >= 2)
+      .map((skill) => ({
+        skill,
+        regex: new RegExp(`(^|[^a-z0-9+#.-])${skill.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}([^a-z0-9+#.-]|$)`, "i"),
+      }))
+
     for (const job of rawJobs) {
       const position = String(job.title || "")
       const company = String(job.company || "")
@@ -293,10 +317,7 @@ export async function executeSearchExternalJobs(
       tags.forEach((t: string) => jobTokens.add(toCanonical(t)))
       const matchedSkillNamesSet = new Set<string>()
 
-      userSkills.forEach((skill) => {
-        if (!skill || skill.length < 2) return
-        const escaped = skill.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-        const regex = new RegExp(`(^|[^a-z0-9+#.-])${escaped}([^a-z0-9+#.-]|$)`, "i")
+      userSkillRegexes.forEach(({ skill, regex }) => {
         if (regex.test(jobSearchText) || jobTokens.has(skill)) {
           matchedSkillNamesSet.add(skill)
         }
@@ -560,24 +581,14 @@ export async function executeSearchExternalJobs(
       const finalFitScore = Math.max(1, Math.min(99, Math.round(rawPoints)))
 
       // Realistic ATS Keyword Matching Simulation
-      const ATS_TECH_VOCAB = [
-        "react", "next.js", "nextjs", "vue", "angular", "typescript", "javascript", "node", "nodejs",
-        "express", "nest", "nestjs", "python", "django", "fastapi", "tailwind", "tailwind css", "css",
-        "html", "redux", "zustand", "postgresql", "postgres", "mongodb", "mysql", "prisma", "docker",
-        "kubernetes", "aws", "gcp", "azure", "git", "github", "graphql", "rest", "api", "redis",
-        "websockets", "websocket", "socket.io", "ci/cd", "jest", "playwright", "cypress", "linux"
-      ]
-
       const jdTechSkills = new Set<string>()
       tags.forEach((t: string) => {
         const canonical = toCanonical(t)
-        if (ATS_TECH_VOCAB.includes(canonical) || ATS_TECH_VOCAB.includes(t.toLowerCase())) {
+        if (ATS_TECH_VOCAB_SET.has(canonical) || ATS_TECH_VOCAB_SET.has(t.toLowerCase())) {
           jdTechSkills.add(canonical)
         }
       })
-      ATS_TECH_VOCAB.forEach((vocab) => {
-        const escaped = vocab.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-        const regex = new RegExp(`(^|[^a-z0-9+#.-])${escaped}([^a-z0-9+#.-]|$)`, "i")
+      ATS_TECH_VOCAB_REGEXES.forEach(({ vocab, regex }) => {
         if (regex.test(jobSearchText)) {
           jdTechSkills.add(toCanonical(vocab))
         }
@@ -737,14 +748,18 @@ export async function executeSearchExternalJobs(
       })
     }
 
-    // Graceful Recovery: If strict local filter yielded 0 results, unlock high-fit Remote roles
-    if (scoredOpportunities.length === 0 && (userWorkPreference === "onsite" || userWorkPreference === "hybrid")) {
+    // Graceful Recovery: If strict local filter or junior lockout yielded < 5 results, unlock high-relevance fallback roles
+    if (scoredOpportunities.length < 5) {
+      const existingIds = new Set(scoredOpportunities.map((o) => o.id))
       for (const job of rawJobs) {
+        if (existingIds.has(job.id)) continue
+
         const jobLocation = job.location || "Remote"
         const position = job.title || "Software Engineer"
-        const company = job.company || "Innovative Tech"
+        const company = job.company || "Tech Company"
         const description = job.description || ""
         const tags = job.tags || []
+        const posLower = position.toLowerCase()
         const jobWorkMode = detectJobWorkMode({
           location: jobLocation,
           title: position,
@@ -753,12 +768,38 @@ export async function executeSearchExternalJobs(
           isRemote: job.isRemote,
         })
 
-        if (jobWorkMode === "remote" && !isGeoDisqualified({ location: jobLocation, title: position, description, isRemote: job.isRemote }, userLocation)) {
-          let matchedCount = 0
-          tags.forEach((t: string) => {
-            if (userSkills.has(t)) matchedCount++
-          })
-          const fallbackFitScore = Math.max(15, Math.min(85, Math.round(25 + matchedCount * 12)))
+        // Strict remote candidate check: Remote-only users should never receive onsite-only foreign roles
+        if (userWorkPreference === "remote" && jobWorkMode !== "remote") {
+          continue
+        }
+
+        // Avoid explicit geo disqualifications
+        if (isGeoDisqualified({ location: jobLocation, title: position, description, isRemote: job.isRemote }, userLocation)) {
+          continue
+        }
+
+        // Drop true executive/staff/architect leadership roles for early-career users
+        if (isJuniorCandidate && /\b(staff|principal|director|head of|vp|architect)\b/i.test(position)) {
+          continue
+        }
+
+        let matchedCount = 0
+        tags.forEach((t: string) => {
+          if (userSkills.has(t) || userSkills.has(toCanonical(t))) matchedCount++
+        })
+
+        const hasRoleMatch = targetRolesLower.some((r: string) => posLower.includes(r))
+        const hasSkillMatch = matchedCount > 0
+
+        if (hasRoleMatch || hasSkillMatch || !isJuniorCandidate) {
+          const fallbackFitScore = Math.max(25, Math.min(82, Math.round(35 + matchedCount * 10 + (hasRoleMatch ? 15 : 0))))
+          
+          let fallbackRationale = `Relevant Match: Matched on ${matchedCount > 0 ? "your core skills" : "target role"}.`
+          if (isJuniorCandidate) {
+            fallbackRationale = `Early-Career Accessible: Welcoming developers with demonstrated practical skills in ${tags.slice(0, 3).join(", ") || "modern tech"}.`
+          } else if (userWorkPreference === "onsite" || userWorkPreference === "hybrid") {
+            fallbackRationale = `Remote Alternative: Flexible remote opening matching your ${matchedCount > 0 ? "core skills" : "profile"}.`
+          }
 
           scoredOpportunities.push({
             id: job.id,
@@ -770,10 +811,13 @@ export async function executeSearchExternalJobs(
             tags,
             salary: job.salaryText || undefined,
             fitScore: fallbackFitScore,
-            matchRationale: `Remote Backup: No direct local ${userWorkPreference} roles currently found in ${userLocation || "your area"}. Matched on ${matchedCount > 0 ? "your core skills" : "relevant tech stack"}.`,
+            matchRationale: fallbackRationale,
             descriptionSnippet: description.slice(0, 220) + "...",
             employmentType: job.employmentType || detectEmploymentType({ title: position, description, tags }),
           })
+
+          existingIds.add(job.id)
+          if (scoredOpportunities.length >= 15) break
         }
       }
     }
