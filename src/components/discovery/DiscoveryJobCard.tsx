@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo } from "react"
+import { useMemo, memo, useCallback } from "react"
 import Link from "next/link"
 import {
   Bookmark, BookmarkCheck, Check, MapPin,
@@ -23,6 +23,18 @@ import {
   parseMatchRationale,
 } from "./types"
 import type { ExternalJobOpportunity } from "@/lib/ai/graph/tools/discovery-tools"
+
+const POPULAR_CARD_KEYWORDS = [
+  "Product", "Strategy", "Growth", "Analytics", "AI", "Design",
+  "Backend", "TypeScript", "Node.js", "Distributed Systems", "Cloud",
+  "React", "Next.js", "Python", "Full Stack", "Figma", "Go"
+] as const
+
+const POPULAR_CARD_KEYWORD_REGEXES = POPULAR_CARD_KEYWORDS.map((kw) => ({
+  keyword: kw,
+  lower: kw.toLowerCase(),
+  regex: new RegExp(`\\b${kw.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i"),
+}))
 
 const KNOWN_SKILL_MAP: Record<string, string> = {
   "nextjs": "Next.js",
@@ -154,13 +166,13 @@ interface DiscoveryJobCardProps {
   isPackaging?: boolean
   isStaged?: boolean
   stagedApplicationId?: string | null
-  onSave: () => void
-  onPackage?: () => void
-  onApplyClick?: () => void
-  onDismiss?: () => void
+  onSave: (job?: ExternalJobOpportunity) => void
+  onPackage?: (job?: ExternalJobOpportunity) => void
+  onApplyClick?: (job?: ExternalJobOpportunity) => void
+  onDismiss?: (job?: ExternalJobOpportunity) => void
 }
 
-export function DiscoveryJobCard({
+function DiscoveryJobCardInner({
   job,
   isSaved,
   isSaving,
@@ -174,6 +186,22 @@ export function DiscoveryJobCard({
 }: DiscoveryJobCardProps) {
   const employmentType = getEmploymentType(job)
   const parsed = useMemo(() => parseMatchRationale(job.matchRationale), [job.matchRationale])
+
+  const handleSave = useCallback(() => {
+    onSave(job)
+  }, [onSave, job])
+
+  const handlePackage = useCallback(() => {
+    onPackage?.(job)
+  }, [onPackage, job])
+
+  const handleApplyClick = useCallback(() => {
+    onApplyClick?.(job)
+  }, [onApplyClick, job])
+
+  const handleDismiss = useCallback(() => {
+    onDismiss?.(job)
+  }, [onDismiss, job])
   
   // Clean, high-signal tags
   const displayTags = useMemo(() => {
@@ -203,18 +231,13 @@ export function DiscoveryJobCard({
       }
     }
 
-    // Fallback: extract prominent skills/keywords if empty
+    // Fallback: extract prominent skills/keywords if empty (pre-compiled regexes, 0 runtime compilations)
     if (unique.length < 3) {
       const text = `${job.title} ${job.descriptionSnippet || ""}`
-      const popular = [
-        "Product", "Strategy", "Growth", "Analytics", "AI", "Design",
-        "Backend", "TypeScript", "Node.js", "Distributed Systems", "Cloud",
-        "React", "Next.js", "Python", "Full Stack", "Figma", "Go"
-      ]
-      for (const kw of popular) {
-        if (!seen.has(kw.toLowerCase()) && new RegExp(`\\b${kw.replace(".", "\\.")}\\b`, "i").test(text)) {
-          seen.add(kw.toLowerCase())
-          unique.push(kw)
+      for (const { keyword, lower, regex } of POPULAR_CARD_KEYWORD_REGEXES) {
+        if (!seen.has(lower) && regex.test(text)) {
+          seen.add(lower)
+          unique.push(keyword)
         }
       }
     }
@@ -284,7 +307,7 @@ export function DiscoveryJobCard({
                 disabled={isSaving || isPackaging}
                 onClick={(e) => {
                   e.preventDefault()
-                  onSave()
+                  handleSave()
                 }}
                 className={cn(
                   "size-7.5 rounded-sm hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer transition-colors flex items-center justify-center border border-border/70",
@@ -324,7 +347,7 @@ export function DiscoveryJobCard({
                       href={job.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      onClick={() => onApplyClick?.()}
+                      onClick={handleApplyClick}
                       className="flex items-center gap-2 cursor-pointer text-xs"
                     >
                       <ExternalLink className="size-3.5 text-muted-foreground" />
@@ -335,7 +358,7 @@ export function DiscoveryJobCard({
                     <>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
-                        onClick={() => onDismiss()}
+                        onClick={handleDismiss}
                         className="flex items-center gap-2 cursor-pointer text-xs text-destructive focus:text-destructive focus:bg-destructive/10"
                       >
                         <EyeOff className="size-3.5 text-destructive" />
@@ -402,7 +425,7 @@ export function DiscoveryJobCard({
                   type="button"
                   onClick={(e) => {
                     e.preventDefault()
-                    onPackage?.()
+                    handlePackage()
                   }}
                   disabled={isPackaging}
                   className="inline-flex items-center gap-1 h-7 px-2.5 rounded-[4px] text-[11px] font-medium bg-foreground text-background hover:bg-foreground/90 transition-colors cursor-pointer"
@@ -517,7 +540,7 @@ export function DiscoveryJobCard({
                 disabled={isSaving || isPackaging}
                 onClick={(e) => {
                   e.preventDefault()
-                  onSave()
+                  handleSave()
                 }}
                 className={cn(
                   "size-7.5 rounded-sm hover:bg-muted transition-colors cursor-pointer text-muted-foreground hover:text-foreground flex items-center justify-center border border-border/70 hover:border-border",
@@ -557,7 +580,7 @@ export function DiscoveryJobCard({
                       href={job.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      onClick={() => onApplyClick?.()}
+                      onClick={handleApplyClick}
                       className="flex items-center gap-2 cursor-pointer text-xs"
                     >
                       <ExternalLink className="size-3.5 text-muted-foreground" />
@@ -568,7 +591,7 @@ export function DiscoveryJobCard({
                     <>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
-                        onClick={() => onDismiss()}
+                        onClick={handleDismiss}
                         className="flex items-center gap-2 cursor-pointer text-xs text-destructive focus:text-destructive focus:bg-destructive/10"
                       >
                         <EyeOff className="size-3.5 text-destructive" />
@@ -603,7 +626,7 @@ export function DiscoveryJobCard({
                   onClick={(e) => {
                     e.preventDefault()
                     e.stopPropagation()
-                    onPackage?.()
+                    handlePackage()
                   }}
                   disabled={isPackaging}
                   className="inline-flex items-center justify-center gap-1.5 h-7.5 px-2.5 rounded-[4px] text-[11.5px] font-semibold bg-foreground text-background hover:bg-foreground/90 transition-colors cursor-pointer shadow-none w-full disabled:opacity-70"
@@ -636,3 +659,5 @@ export function DiscoveryJobCard({
     </Card>
   )
 }
+export const DiscoveryJobCard = memo(DiscoveryJobCardInner)
+

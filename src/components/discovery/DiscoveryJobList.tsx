@@ -171,10 +171,10 @@ export function DiscoveryJobList({
             isPackaging={isPackagingItem}
             isStaged={isStagedItem}
             stagedApplicationId={stagedApplicationId}
-            onSave={() => onSave(job)}
-            onPackage={onPackage ? () => onPackage(job) : undefined}
-            onApplyClick={onApplyClick ? () => onApplyClick(job) : undefined}
-            onDismiss={onDismiss ? () => onDismiss(job) : undefined}
+            onSave={onSave}
+            onPackage={onPackage}
+            onApplyClick={onApplyClick}
+            onDismiss={onDismiss}
           />
         )
       })}

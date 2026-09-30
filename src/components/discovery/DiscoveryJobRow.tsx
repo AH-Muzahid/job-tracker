@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, memo } from "react"
 import Link from "next/link"
 import {
   BookmarkPlus, Check, ExternalLink, MapPin,
@@ -34,7 +34,7 @@ interface DiscoveryJobRowProps {
   onApplyClick?: () => void
 }
 
-export function DiscoveryJobRow({
+function DiscoveryJobRowInner({
   job,
   isSaved,
   isSaving,
@@ -386,3 +386,5 @@ export function DiscoveryJobRow({
     </div>
   )
 }
+export const DiscoveryJobRow = memo(DiscoveryJobRowInner)
+
