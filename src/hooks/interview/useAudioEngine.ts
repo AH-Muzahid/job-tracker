@@ -196,50 +196,7 @@ export function useAudioEngine(options: {
 
         const arrayBuf = await res.arrayBuffer()
 
-        if (voiceGender === "male" && typeof window !== "undefined") {
-          const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext
-          if (AudioContextClass) {
-            try {
-              const ctx = new AudioContextClass()
-              audioContextRef.current = ctx
-
-              const audioBuffer = await ctx.decodeAudioData(arrayBuf.slice(0))
-
-              const source = ctx.createBufferSource()
-              audioSourceNodeRef.current = source
-              source.buffer = audioBuffer
-
-              const isBengaliLang = language === "bn" || language === "mixed" || /[\u0980-\u09FF]/.test(textToSpeak)
-
-              if (!isBengaliLang) {
-                source.detune.value = -520
-                source.playbackRate.value = speechRate * 0.95
-
-                const filter = ctx.createBiquadFilter()
-                filter.type = "lowpass"
-                filter.frequency.value = 2600
-
-                source.connect(filter)
-                filter.connect(ctx.destination)
-              } else {
-                source.playbackRate.value = speechRate
-                source.connect(ctx.destination)
-              }
-
-              source.onended = () => {
-                setIsAiSpeaking(false)
-                if (onDone) onDone()
-              }
-
-              setIsAiSpeaking(true)
-              source.start(0)
-              return
-            } catch (err) {
-              console.warn("Web Audio API male pitch shift error, fallback to HTML5 audio:", err)
-            }
-          }
-        }
-
+        // Clean, natural audio playback without mechanical pitch distortion
         const blob = new Blob([arrayBuf], { type: "audio/mpeg" })
         const blobUrl = URL.createObjectURL(blob)
         const audio = new Audio(blobUrl)
@@ -286,91 +243,13 @@ export function useAudioEngine(options: {
       const cleanText = cleanTextForSpeech(text)
       stopAllAudioAndMic()
 
-      const hasBengali = /[\u0980-\u09FF]/.test(cleanText)
-
-      if (hasBengali || language === "bn" || language === "mixed") {
-        const nativeBengaliVoice = availableVoices.find(
-          (v) =>
-            (v.lang.toLowerCase().startsWith("bn") ||
-              v.name.toLowerCase().includes("bengali") ||
-              v.name.toLowerCase().includes("bangla")) &&
-            isVoiceMatchingGender(v, voiceGender)
-        )
-
-        if (nativeBengaliVoice && (selectedVoice === nativeBengaliVoice.name || !selectedVoice)) {
-          if (typeof window !== "undefined" && window.speechSynthesis) {
-            const utterance = new SpeechSynthesisUtterance(cleanText)
-            utterance.voice = nativeBengaliVoice
-            utterance.lang = nativeBengaliVoice.lang
-            utterance.rate = speechRate
-            utterance.pitch = voiceGender === "female" ? 1.05 : 0.88
-
-            utterance.onstart = () => {
-              setIsAiSpeaking(true)
-            }
-            utterance.onend = () => {
-              setIsAiSpeaking(false)
-              if (onDone) onDone()
-            }
-            utterance.onerror = () => {
-              playServerTts(cleanText, onDone)
-            }
-
-            window.speechSynthesis.speak(utterance)
-            return
-          }
-        }
-
-        playServerTts(cleanText, onDone)
-        return
-      }
-
-      if (typeof window !== "undefined" && window.speechSynthesis) {
-        const selectedVoiceObj = availableVoices.find(
-          (v) => v.name === selectedVoice && isVoiceMatchingGender(v, voiceGender)
-        )
-        const fallbackVoiceObj = findBestVoiceForGender(availableVoices, voiceGender, "en")
-        const activeVoice = selectedVoiceObj || fallbackVoiceObj
-
-        if (activeVoice) {
-          const utterance = new SpeechSynthesisUtterance(cleanText)
-          utterance.voice = activeVoice
-          utterance.lang = activeVoice.lang || "en-US"
-          utterance.rate = speechRate
-          utterance.pitch = voiceGender === "female" ? 1.05 : 0.88
-
-          utterance.onstart = () => {
-            setIsAiSpeaking(true)
-          }
-
-          utterance.onend = () => {
-            setIsAiSpeaking(false)
-            if (onDone) onDone()
-          }
-
-          utterance.onerror = (e) => {
-            console.warn("Browser Speech Synthesis error, playing fallback:", e)
-            playServerTts(cleanText, onDone)
-          }
-
-          window.speechSynthesis.speak(utterance)
-          return
-        }
-      }
-
-      playServerTts(cleanText, onDone)
+      // Primary: High-fidelity Server Neural Voice (Microsoft Edge Neural / OpenAI TTS)
+      // This provides lifelike, natural human cadence, breathing, and zero mechanical robotic tones.
+      playServerTts(cleanText, () => {
+        if (onDone) onDone()
+      })
     },
-    [
-      availableVoices,
-      findBestVoiceForGender,
-      isVoiceMatchingGender,
-      language,
-      playServerTts,
-      selectedVoice,
-      speechRate,
-      stopAllAudioAndMic,
-      voiceGender,
-    ]
+    [cleanTextForSpeech, playServerTts, stopAllAudioAndMic]
   )
 
   return {

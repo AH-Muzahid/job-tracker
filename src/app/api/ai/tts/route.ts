@@ -138,7 +138,44 @@ async function processTTS({
     }
   }
 
-  // 2. For Bengali, generate pristine native Bengali audio via Google TTS
+  // 2. High-fidelity Free Neural TTS via Microsoft Edge Neural Voice
+  try {
+    const { EdgeTTS } = await import("node-edge-tts")
+    const os = await import("os")
+    const path = await import("path")
+    const fs = await import("fs/promises")
+    const crypto = await import("crypto")
+
+    let edgeVoice = "en-US-AriaNeural"
+    if (isBengali) {
+      edgeVoice = gender === "male" ? "bn-BD-PradeepNeural" : "bn-BD-NabanitaNeural"
+    } else {
+      edgeVoice = gender === "male" ? "en-US-ChristopherNeural" : "en-US-AriaNeural"
+    }
+
+    const tts = new EdgeTTS({ voice: edgeVoice })
+    const tmpFileName = `edge_tts_${crypto.randomUUID()}.mp3`
+    const tmpFilePath = path.join(os.tmpdir(), tmpFileName)
+
+    await tts.ttsPromise(text, tmpFilePath)
+    const audioBuffer = await fs.readFile(tmpFilePath)
+    await fs.unlink(tmpFilePath).catch(() => {})
+
+    if (audioBuffer && audioBuffer.byteLength > 0) {
+      return new NextResponse(audioBuffer, {
+        status: 200,
+        headers: {
+          "Content-Type": "audio/mpeg",
+          "Content-Length": audioBuffer.byteLength.toString(),
+          "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800",
+        },
+      })
+    }
+  } catch (edgeErr) {
+    console.warn("[TTS] Edge Neural TTS error, falling back to legacy:", edgeErr)
+  }
+
+  // 3. Legacy Bengali Google TTS fallback if Edge fails
   if (isBengali) {
     const googleAudio = await fetchGoogleTTSAudio(text, "bn")
     if (googleAudio) {
@@ -153,7 +190,7 @@ async function processTTS({
     }
   }
 
-  // 3. Graceful fallback: client will use browser SpeechSynthesis
+  // 4. Graceful fallback: client will use browser SpeechSynthesis
   return new NextResponse(null, { status: 204 })
 }
 
