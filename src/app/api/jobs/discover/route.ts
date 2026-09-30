@@ -477,7 +477,7 @@ export async function POST(request: NextRequest) {
 
     const parseResult = DiscoverActionSchema.safeParse(rawBody)
     if (!parseResult.success) {
-      const errorMsg = parseResult.error.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join("; ")
+      const errorMsg = parseResult.error.issues.map((e) => `${e.path.join(".")}: ${e.message}`).join("; ")
       return ResponseUtil.badRequest(`Validation error: ${errorMsg}`)
     }
 

@@ -1,8 +1,17 @@
-
 "use client"
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { useState, useEffect, useRef, useCallback } from "react"
 import { InterviewLanguage, VoiceGender } from "../../components/interview/conversational/types"
+
+function cleanTextForSpeech(raw: string): string {
+  return raw
+    .replace(/\x60\x60\x60[\s\S]*?\x60\x60\x60/g, "")
+    .replace(/\x60([^\x60]+)\x60/g, "$1")
+    .replace(/\[([^\]]+)\]\([^\)]+\)/g, "$1")
+    .replace(/[*_#~>]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+}
 
 export function useAudioEngine(options: {
   language: InterviewLanguage
@@ -18,16 +27,6 @@ export function useAudioEngine(options: {
   const audioPlayerRef = useRef<HTMLAudioElement | null>(null)
   const audioContextRef = useRef<AudioContext | null>(null)
   const audioSourceNodeRef = useRef<AudioBufferSourceNode | null>(null)
-
-  const cleanTextForSpeech = (raw: string): string => {
-    return raw
-      .replace(/\x60\x60\x60[\s\S]*?\x60\x60\x60/g, "")
-      .replace(/\x60([^\x60]+)\x60/g, "$1")
-      .replace(/\[([^\]]+)\]\([^\)]+\)/g, "$1")
-      .replace(/[*_#~>]/g, "")
-      .replace(/\s+/g, " ")
-      .trim()
-  }
 
   const isVoiceMatchingGender = useCallback(
     (voice: SpeechSynthesisVoice, gender: VoiceGender): boolean => {
@@ -249,7 +248,7 @@ export function useAudioEngine(options: {
         if (onDone) onDone()
       })
     },
-    [cleanTextForSpeech, playServerTts, stopAllAudioAndMic]
+    [playServerTts, stopAllAudioAndMic]
   )
 
   return {
