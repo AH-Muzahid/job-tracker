@@ -155,60 +155,72 @@ export async function ingestLinkedInOpportunitiesToCatalog(
     }))
   )
 
-  for (let i = 0; i < jobs.length; i++) {
-    const job = jobs[i]
-    const embedding = embeddings[i]
+  const CHUNK_SIZE = 10
+  for (let i = 0; i < jobs.length; i += CHUNK_SIZE) {
+    const chunkJobs = jobs.slice(i, i + CHUNK_SIZE)
+    const chunkEmbeddings = embeddings.slice(i, i + CHUNK_SIZE)
 
-    try {
-      const workMode = detectJobWorkMode(job)
-      const isRemote = workMode === "remote"
-      const fingerprint = normalizeJobFingerprint(job.company, job.title, job.location, isRemote)
+    const chunkPromises = chunkJobs.map(async (job, idx) => {
+      const embedding = chunkEmbeddings[idx]
+      try {
+        const workMode = detectJobWorkMode(job)
+        const isRemote = workMode === "remote"
+        const fingerprint = normalizeJobFingerprint(job.company, job.title, job.location, isRemote)
 
-      const upsertedJob = await withDbRetry(() =>
-        prisma.canonicalJob.upsert({
-          where: { fingerprint },
-          create: {
-            fingerprint,
-            sourceBoard: "linkedin_post",
-            title: job.title,
-            company: job.company,
-            location: job.location,
-            isRemote,
-            url: job.url,
-            salary: job.salaryText || null,
-            salaryMin: job.salaryMin || null,
-            salaryMax: job.salaryMax || null,
-            tags: job.tags || [],
-            description: job.description || null,
-            postedAt: job.postedAt ? new Date(job.postedAt) : now,
-            expiresAt: thirtyDaysFromNow,
-            isExpired: false,
-            visaSponsorship: job.visaSponsorship || "unknown",
-            employmentType: job.employmentType || "full-time",
-          },
-          update: {
-            title: job.title,
-            company: job.company,
-            location: job.location,
-            url: job.url,
-            tags: job.tags || [],
-            isExpired: false,
-            updatedAt: now,
-          },
-        })
-      )
-
-      if (upsertedJob && embedding && embedding.length === 1536) {
-        await prisma.$executeRawUnsafe(
-          `UPDATE "CanonicalJob" SET embedding = $1::vector WHERE id = $2`,
-          `[${embedding.join(",")}]`,
-          upsertedJob.id
+        const upsertedJob = await withDbRetry(() =>
+          prisma.canonicalJob.upsert({
+            where: { fingerprint },
+            create: {
+              fingerprint,
+              sourceBoard: "linkedin_post",
+              title: job.title,
+              company: job.company,
+              location: job.location,
+              isRemote,
+              url: job.url,
+              salary: job.salaryText || null,
+              salaryMin: job.salaryMin || null,
+              salaryMax: job.salaryMax || null,
+              tags: job.tags || [],
+              description: job.description || null,
+              postedAt: job.postedAt ? new Date(job.postedAt) : now,
+              expiresAt: thirtyDaysFromNow,
+              isExpired: false,
+              visaSponsorship: job.visaSponsorship || "unknown",
+              employmentType: job.employmentType || "full-time",
+            },
+            update: {
+              title: job.title,
+              company: job.company,
+              location: job.location,
+              url: job.url,
+              tags: job.tags || [],
+              isExpired: false,
+              updatedAt: now,
+            },
+          })
         )
-      }
 
-      upserted++
-    } catch (err) {
-      console.warn(`[LinkedInHarvester] Failed to upsert job ${job.title} (${job.company}):`, err)
+        if (upsertedJob && embedding && embedding.length === 1536) {
+          await prisma.$executeRawUnsafe(
+            `UPDATE "CanonicalJob" SET embedding = $1::vector WHERE id = $2`,
+            `[${embedding.join(",")}]`,
+            upsertedJob.id
+          )
+        }
+
+        return true
+      } catch (err) {
+        console.warn(`[LinkedInHarvester] Failed to upsert job ${job.title} (${job.company}):`, err)
+        return false
+      }
+    })
+
+    const settled = await Promise.allSettled(chunkPromises)
+    for (const res of settled) {
+      if (res.status === "fulfilled" && res.value) {
+        upserted++
+      }
     }
   }
 

@@ -395,6 +395,7 @@ model CanonicalJob {
   @@index([isExpired, expiresAt])
   @@index([sourceBoard, isExpired])
   @@index([createdAt])
+  @@index([isExpired, postedAt])
 }
 
 model UserJobMatch {
@@ -421,6 +422,8 @@ model UserJobMatch {
   @@index([jobId])
   @@index([userId, status, fitScore(sort: Desc)])
   @@index([userId, publishedAt(sort: Desc), fitScore(sort: Desc)])
+  @@index([userId, isSaved, status, fitScore(sort: Desc)])
+  @@index([userId, isSaved, fitScore(sort: Desc)])
 }
 
 model DiscoveryEvent {

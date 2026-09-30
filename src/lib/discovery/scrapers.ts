@@ -551,12 +551,15 @@ const COMPANY_DISPLAY_NAMES: Record<string, string> = {
 }
 
 
+const TECH_TAG_REGEXES = COMMON_TECH_TAGS.map(tag => ({
+  tag,
+  regex: new RegExp(`(^|[^a-z0-9+#.-])${tag.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}([^a-z0-9+#.-]|$)`, "i")
+}))
+
 export function extractTechTagsFromText(text: string): string[] {
   const lower = text.toLowerCase()
   const matched = new Set<string>()
-  for (const tag of COMMON_TECH_TAGS) {
-    const escaped = tag.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-    const regex = new RegExp(`(^|[^a-z0-9+#.-])${escaped}([^a-z0-9+#.-]|$)`, "i")
+  for (const { tag, regex } of TECH_TAG_REGEXES) {
     if (regex.test(lower)) {
       matched.add(toCanonical(tag))
     }
@@ -862,8 +865,7 @@ export async function ingestGlobalJobsToCatalog(options: {
       embeddings = await generateBatchJobEmbeddings(newItems.map((n) => n.job))
     }
 
-    for (let cIdx = 0; cIdx < chunkWithFp.length; cIdx++) {
-      const { job, fingerprint, isRemote } = chunkWithFp[cIdx]
+    const chunkWrites = chunkWithFp.map(async ({ job, fingerprint, isRemote }) => {
       try {
         const scamEval = evaluateJobScamRisk(job)
         const visaSponsorship = job.visaSponsorship || detectVisaSponsorship(job.description, job.title)
@@ -952,9 +954,17 @@ export async function ingestGlobalJobsToCatalog(options: {
             )
           }
         }
-        upsertedCount++
+        return true
       } catch (err) {
         console.warn(`[GlobalJobIngest] Error upserting job "${job.title}" at "${job.company}":`, err)
+        return false
+      }
+    })
+
+    const settledWrites = await Promise.allSettled(chunkWrites)
+    for (const res of settledWrites) {
+      if (res.status === "fulfilled" && res.value) {
+        upsertedCount++
       }
     }
   }
