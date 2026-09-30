@@ -166,10 +166,10 @@ interface DiscoveryJobCardProps {
   isPackaging?: boolean
   isStaged?: boolean
   stagedApplicationId?: string | null
-  onSave: (job?: ExternalJobOpportunity) => void
-  onPackage?: (job?: ExternalJobOpportunity) => void
-  onApplyClick?: (job?: ExternalJobOpportunity) => void
-  onDismiss?: (job?: ExternalJobOpportunity) => void
+  onSave: (job: ExternalJobOpportunity) => void
+  onPackage?: (job: ExternalJobOpportunity) => void
+  onApplyClick?: (job: ExternalJobOpportunity) => void
+  onDismiss?: (job: ExternalJobOpportunity) => void
 }
 
 function DiscoveryJobCardInner({

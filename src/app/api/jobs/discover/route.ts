@@ -27,10 +27,6 @@ import { generateApplicationMaterialsAgent } from "@/lib/discovery/cover-letter-
 import { getCompanyEnrichment } from "@/lib/discovery/company-enrichment"
 import { retrieveCandidateJobsTier1 } from "@/lib/discovery/vector-retrieval"
 import { deepReRankCandidateJobs } from "@/lib/discovery/ai-reranker"
-import {
-  harvestLinkedInOpportunities,
-  ingestLinkedInOpportunitiesToCatalog,
-} from "@/lib/discovery/linkedin-harvester"
 
 export async function GET(request: NextRequest) {
   const userId = await getInternalUserId()
