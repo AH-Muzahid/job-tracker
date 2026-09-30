@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic"
 
 import { NextRequest } from "next/server"
+import { z } from "zod"
 import { getInternalUserId } from "@/lib/auth"
 import { ResponseUtil } from "@/lib/api-response"
 import { checkDistributedRateLimit, rateLimitResponse } from "@/lib/rate-limit"
@@ -107,10 +108,19 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const body = (await request.json().catch(() => ({}))) as {
-      targetRole?: string
-      targetCompanies?: string[]
+    const rawBody = await request.json().catch(() => ({}))
+    const parseResult = z
+      .object({
+        targetRole: z.string().max(200).optional(),
+        targetCompanies: z.array(z.string().max(200)).max(50).optional(),
+      })
+      .safeParse(rawBody)
+
+    if (!parseResult.success) {
+      return ResponseUtil.badRequest("Invalid request parameters for orchestrator trigger")
     }
+
+    const body = parseResult.data
 
     const userProfile = await prisma.userProfile.findUnique({
       where: { userId },

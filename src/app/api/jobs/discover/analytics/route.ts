@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic"
 
 import { NextRequest } from "next/server"
+import { z } from "zod"
 import { getInternalUserId } from "@/lib/auth"
 import { getDiscoveryFunnelMetrics } from "@/lib/discovery/telemetry"
 import { ResponseUtil } from "@/lib/api-response"
@@ -20,8 +21,8 @@ export async function GET(request: NextRequest) {
 
   try {
     const { searchParams } = new URL(request.url)
-    const daysParam = parseInt(searchParams.get("days") || "30", 10)
-    const sinceDays = Number.isFinite(daysParam) && daysParam > 0 ? daysParam : 30
+    const daysParsed = z.coerce.number().int().min(1).max(365).default(30).safeParse(searchParams.get("days") || "30")
+    const sinceDays = daysParsed.success ? daysParsed.data : 30
 
     const metrics = await getDiscoveryFunnelMetrics(userId, sinceDays)
 

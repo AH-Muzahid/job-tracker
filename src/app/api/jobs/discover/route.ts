@@ -2,6 +2,7 @@
 export const dynamic = "force-dynamic"
 
 import { NextRequest, after } from "next/server"
+import { z } from "zod"
 import { getInternalUserId } from "@/lib/auth"
 import { prisma, withDbRetry } from "@/lib/prisma"
 import {
@@ -93,72 +94,90 @@ export async function GET(request: NextRequest) {
     // 2. FAST PATH: Read pre-computed UserJobMatch records (batch pipeline already scored these)
     // This is the same strategy Dashboard uses — instant DB read, no vector retrieval or AI re-ranking.
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
-    const precomputedMatches = await withDbRetry(() =>
-      prisma.userJobMatch.findMany({
-        where: {
-          userId,
-          status: "PUBLISHED",
-          isSaved: false,
-          publishedAt: { gte: sevenDaysAgo },
-          job: { isExpired: false },
-        },
-        include: {
-          job: {
-            select: {
-              id: true,
-              title: true,
-              company: true,
-              location: true,
-              isRemote: true,
-              url: true,
-              salary: true,
-              salaryMin: true,
-              salaryMax: true,
-              tags: true,
-              description: true,
-              postedAt: true,
-              visaSponsorship: true,
-              sourceBoard: true,
-            },
-          },
-        },
-        orderBy: [{ fitScore: "desc" }, { publishedAt: "desc" }],
-        take: 60,
-      })
-    ) as any[]
 
-    // Also include saved matches (protected from archival)
-    const savedMatchesList = await withDbRetry(() =>
-      prisma.userJobMatch.findMany({
-        where: {
-          userId,
-          isSaved: true,
-          job: { isExpired: false },
-        },
-        include: {
-          job: {
-            select: {
-              id: true,
-              title: true,
-              company: true,
-              location: true,
-              isRemote: true,
-              url: true,
-              salary: true,
-              salaryMin: true,
-              salaryMax: true,
-              tags: true,
-              description: true,
-              postedAt: true,
-              visaSponsorship: true,
-              sourceBoard: true,
+    // Parallelize ALL remaining reads
+    const [precomputedMatches, savedMatchesList, profile, resume, userApplications] = await Promise.all([
+      withDbRetry(() =>
+        prisma.userJobMatch.findMany({
+          where: {
+            userId,
+            status: { in: ["PUBLISHED", "STAGED"] },
+            isSaved: false,
+            OR: [
+              { publishedAt: { gte: sevenDaysAgo } },
+              { publishedAt: null }, // STAGED matches haven't been published yet
+            ],
+            job: { isExpired: false },
+          },
+          include: {
+            job: {
+              select: {
+                id: true,
+                title: true,
+                company: true,
+                location: true,
+                isRemote: true,
+                url: true,
+                salary: true,
+                salaryMin: true,
+                salaryMax: true,
+                tags: true,
+                description: true,
+                postedAt: true,
+                visaSponsorship: true,
+                sourceBoard: true,
+              },
             },
           },
-        },
-        orderBy: [{ fitScore: "desc" }],
-        take: 30,
-      })
-    ) as any[]
+          orderBy: [{ fitScore: "desc" }, { publishedAt: "desc" }],
+          take: 60,
+        })
+      ) as Promise<any[]>,
+      withDbRetry(() =>
+        prisma.userJobMatch.findMany({
+          where: {
+            userId,
+            isSaved: true,
+            job: { isExpired: false },
+          },
+          include: {
+            job: {
+              select: {
+                id: true,
+                title: true,
+                company: true,
+                location: true,
+                isRemote: true,
+                url: true,
+                salary: true,
+                salaryMin: true,
+                salaryMax: true,
+                tags: true,
+                description: true,
+                postedAt: true,
+                visaSponsorship: true,
+                sourceBoard: true,
+              },
+            },
+          },
+          orderBy: [{ fitScore: "desc" }],
+          take: 30,
+        })
+      ) as Promise<any[]>,
+      withDbRetry(() => prisma.userProfile.findUnique({ where: { userId } })),
+      withDbRetry(() =>
+        prisma.resume.findFirst({
+          where: { userId },
+          orderBy: [{ isDefault: "desc" }, { updatedAt: "desc" }],
+        })
+      ),
+      withDbRetry(() =>
+        prisma.application.findMany({
+          where: { userId },
+          select: { id: true, companyName: true, jobTitle: true, status: true },
+        })
+      ),
+    ])
 
     // Merge & deduplicate (saved may overlap with published)
     const allMatchesMap = new Map<string, typeof precomputedMatches[0]>()
@@ -171,16 +190,6 @@ export async function GET(request: NextRequest) {
     const allMatches = Array.from(allMatchesMap.values())
 
     // 3. Resolve Profile (needed for appMap, and for fallback vector retrieval)
-    const [profile, resume] = await Promise.all([
-      withDbRetry(() => prisma.userProfile.findUnique({ where: { userId } })),
-      withDbRetry(() =>
-        prisma.resume.findFirst({
-          where: { userId },
-          orderBy: [{ isDefault: "desc" }, { updatedAt: "desc" }],
-        })
-      ),
-    ])
-
     const targetRoles =
       profile?.targetRoles && profile.targetRoles.length > 0
         ? profile.targetRoles
@@ -209,12 +218,6 @@ export async function GET(request: NextRequest) {
     const location = profile?.location || "Remote"
 
     // Query user's existing tracker applications to detect already-applied roles
-    const userApplications = await withDbRetry(() =>
-      prisma.application.findMany({
-        where: { userId },
-        select: { id: true, companyName: true, jobTitle: true, status: true },
-      })
-    )
     const appMap = new Map<string, { id: string; status: string }>()
     for (const app of userApplications) {
       const key = `${normalizeCompany(app.companyName)}:${normalizeTitle(app.jobTitle)}`
@@ -258,7 +261,7 @@ export async function GET(request: NextRequest) {
         salary: jobData.salary || (jobData.salaryMin && jobData.salaryMax ? `$${jobData.salaryMin} - $${jobData.salaryMax}` : undefined),
         fitScore: matchData.fitScore,
         matchRationale: matchData.matchRationale,
-        descriptionSnippet: jobData.description || "",
+        descriptionSnippet: (jobData.description || "").slice(0, 300),
         batchId: `recsys-${now.toISOString().slice(0, 10)}`,
         batchSlot,
         batchLabel,
@@ -290,18 +293,13 @@ export async function GET(request: NextRequest) {
       console.log(`[JobDiscovery API] Pre-computed matches: ${opportunities.length}. Running full pipeline (forceRefresh=${forceRefresh})...`)
 
       if (forceRefresh) {
-        try {
-          const freshLinkedInJobs = await harvestLinkedInOpportunities(
-            { skills: userSkills, targetRoles, experienceLevel, location, workPreference },
-            { maxQueries: 2 }
-          )
-          if (freshLinkedInJobs.length > 0) {
-            const res = await ingestLinkedInOpportunitiesToCatalog(freshLinkedInJobs)
-            console.log(`[JobDiscovery API] Force refresh LinkedIn harvest: ${freshLinkedInJobs.length} fetched, ${res.upserted} upserted.`)
-          }
-        } catch (err) {
-          console.warn("[JobDiscovery API] Force refresh LinkedIn harvest failed:", err)
-        }
+        // Dispatch asynchronous LinkedIn harvest to Inngest so the user GET request doesn't stall
+        inngest
+          .send({
+            name: "discovery/linkedin-harvest.trigger",
+            data: { skills: userSkills, targetRoles, experienceLevel, location, workPreference },
+          })
+          .catch((err) => console.warn("[JobDiscovery API] Force refresh LinkedIn trigger failed:", err))
       }
 
       const shortlistedCandidates = await retrieveCandidateJobsTier1({
@@ -373,15 +371,20 @@ export async function GET(request: NextRequest) {
         })
 
         if (!forceRefresh) {
-          const bgLinkedInJobs = await harvestLinkedInOpportunities(
-            { skills: userSkills, targetRoles, experienceLevel, location, workPreference },
-            { maxQueries: 3 }
-          )
-          if (bgLinkedInJobs.length > 0) {
-            const bgRes = await ingestLinkedInOpportunitiesToCatalog(bgLinkedInJobs)
-            console.log(
-              `[JobDiscovery API] Background LinkedIn harvest completed: ${bgLinkedInJobs.length} fetched, ${bgRes.upserted} upserted.`
-            )
+          // Throttle background LinkedIn harvest to max once per 30 minutes per user
+          const harvestThrottleKey = `discovery:linkedin-harvest:${userId}`
+          const lastHarvest = await getCachedJson<number>(harvestThrottleKey).catch(() => null)
+          const HARVEST_COOLDOWN_MS = 30 * 60 * 1000 // 30 minutes
+
+          if (!lastHarvest || Date.now() - lastHarvest > HARVEST_COOLDOWN_MS) {
+            await setCachedJson(harvestThrottleKey, Date.now(), 1800).catch(() => {})
+            // Decoupled Inngest event: completes in milliseconds, freeing the container immediately
+            await inngest
+              .send({
+                name: "discovery/linkedin-harvest.trigger",
+                data: { skills: userSkills, targetRoles, experienceLevel, location, workPreference },
+              })
+              .catch((err) => console.warn("[JobDiscovery API] Inngest LinkedIn trigger failed:", err))
           }
         }
       } catch (bgError) {
@@ -410,6 +413,50 @@ export async function GET(request: NextRequest) {
   }
 }
 
+const DiscoverActionSchema = z.discriminatedUnion("action", [
+  z.object({
+    action: z.literal("save"),
+    jobId: z.string().optional(),
+    companyName: z.string().min(1, "Company name is required").max(200),
+    jobTitle: z.string().min(1, "Job title is required").max(200),
+    jobUrl: z.string().max(2000).optional(),
+    location: z.string().max(200).optional(),
+    salary: z.string().max(100).optional(),
+    status: z.string().max(50).optional(),
+    notes: z.string().max(5000).optional(),
+    fitScore: z.number().min(0).max(100).optional(),
+  }),
+  z.object({
+    action: z.literal("unsave"),
+    jobId: z.string().optional(),
+    companyName: z.string().max(200).optional(),
+    jobTitle: z.string().max(200).optional(),
+  }),
+  z.object({
+    action: z.literal("refresh"),
+  }),
+  z.object({
+    action: z.literal("dismiss"),
+    jobId: z.string().optional(),
+    companyName: z.string().max(200).optional(),
+    jobTitle: z.string().max(200).optional(),
+    dismissReason: z.string().max(500).optional(),
+  }),
+  z.object({
+    action: z.literal("undismiss"),
+    jobId: z.string().optional(),
+    companyName: z.string().max(200).optional(),
+    jobTitle: z.string().max(200).optional(),
+  }),
+  z.object({
+    action: z.literal("track_click"),
+    jobId: z.string().optional(),
+    companyName: z.string().max(200).optional(),
+    jobTitle: z.string().max(200).optional(),
+    clickType: z.enum(["apply", "view", "external"]).optional(),
+  }),
+])
+
 export async function POST(request: NextRequest) {
   const userId = await getInternalUserId()
   if (!userId) {
@@ -423,7 +470,18 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const body = await request.json().catch(() => ({}))
+    const rawBody = await request.json().catch(() => null)
+    if (!rawBody || typeof rawBody !== "object") {
+      return ResponseUtil.badRequest("Invalid request body: expected JSON object")
+    }
+
+    const parseResult = DiscoverActionSchema.safeParse(rawBody)
+    if (!parseResult.success) {
+      const errorMsg = parseResult.error.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join("; ")
+      return ResponseUtil.badRequest(`Validation error: ${errorMsg}`)
+    }
+
+    const body = parseResult.data as any
     const { action } = body
     console.log(`[JobDiscovery API] POST action="${action}" for userId=${userId}`)
 
