@@ -162,13 +162,13 @@ describe("ChatMessage User Pill Bubble & Hover Actions", () => {
     expect(html).toContain("company=Stripe")
   })
 
-  it("suggests 🎙️ Voice Mock pill when discussing interview topics", () => {
+  it("suggests contextual action pills when concrete interview tools or schemas are present", () => {
     const html = renderToString(
       <ChatMessage
         message={{
           id: "asst-msg-int-prep",
           role: "assistant",
-          content: "Here are common interview questions asked by Defdone for frontend developers.",
+          content: "I have configured the mock interview room.\n```interview\n{\"companyName\": \"Defdone\", \"role\": \"Frontend Developer\"}\n```",
         }}
         isLast={true}
         isStreaming={false}
@@ -176,8 +176,26 @@ describe("ChatMessage User Pill Bubble & Hover Actions", () => {
       />
     )
 
-    expect(html).toContain("Voice Mock")
-    expect(html).toContain("Model STAR Answers")
+    expect(html).toContain("Switch to System Design Focus")
+    expect(html).toContain("Focus on Behavioral &amp; STAR")
+  })
+
+  it("never dumps unprompted suggestions on normal greetings or conversational text", () => {
+    const html = renderToString(
+      <ChatMessage
+        message={{
+          id: "asst-msg-greeting",
+          role: "assistant",
+          content: "Hello Muzahid, welcome back! How can I help you with your job search today?",
+        }}
+        isLast={true}
+        isStreaming={false}
+        onSuggestionClick={vi.fn()}
+      />
+    )
+
+    expect(html).not.toContain("Suggested Next Steps")
+    expect(html).not.toContain("Draft Outreach Email (you)")
   })
 
   it("renders interactive Tailored Resume Studio card when tailored-resume codeblock is present", () => {
@@ -286,13 +304,13 @@ describe("ChatMessage User Pill Bubble & Hover Actions", () => {
     expect(html).toContain("Open Integrations")
   })
 
-  it("suggests weekly goals and sheets sync pills when discussing those topics", () => {
+  it("renders suggestions when explicit suggestions block is embedded", () => {
     const htmlGoals = renderToString(
       <ChatMessage
         message={{
           id: "asst-msg-goals",
           role: "assistant",
-          content: "Let's review your weekly target and goal progress.",
+          content: "Here is your progress.\n```suggestions\n[\"View Weekly Goals\", \"Set New Application Goal\"]\n```",
         }}
         isLast={true}
         isStreaming={false}
@@ -301,20 +319,6 @@ describe("ChatMessage User Pill Bubble & Hover Actions", () => {
     )
     expect(htmlGoals).toContain("View Weekly Goals")
     expect(htmlGoals).toContain("Set New Application Goal")
-
-    const htmlSheets = renderToString(
-      <ChatMessage
-        message={{
-          id: "asst-msg-sheets",
-          role: "assistant",
-          content: "You can sync and export your applications to Google Sheets.",
-        }}
-        isLast={true}
-        isStreaming={false}
-        onSuggestionClick={vi.fn()}
-      />
-    )
-    expect(htmlSheets).toContain("Sync to Google Sheets")
   })
 
   it("renders markdown action link buttons with not-prose and visible !text-primary-foreground styling", () => {

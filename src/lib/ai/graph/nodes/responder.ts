@@ -35,6 +35,15 @@ CRITICAL CONVERSATIONAL & EXECUTION RULES:
 `
 }
 
+export function getConversationalPrompt(): string {
+  return `You are CareerTrack AI, the elite career operating system copilot.
+CRITICAL CONVERSATIONAL RULES:
+1. Be natural, concise, and direct.
+2. If greeting or casual chat, reply warmly in 1-2 short sentences. Do NOT output unprompted long lists, feature catalogs, or unsolicited essays.
+3. Match the user's language seamlessly (English, Bangla, or Banglish).
+4. STRICT PROHIBITION: NEVER use the Sparkles icon anywhere.`
+}
+
 export function createResponderNode(
   model: BaseChatModel,
   onToken?: (delta: string) => void
@@ -99,7 +108,7 @@ export function createResponderNode(
       : `${summaryHeader}${routeContextText}User Message: "${goal}"\n\nPlease provide a direct, natural, and helpful response to the user as their CareerTrack AI assistant.`
 
     try {
-      const systemPrompt = getResponderSystemPrompt()
+      const systemPrompt = hasToolOutcomes ? getResponderSystemPrompt() : getConversationalPrompt()
       let responseText = ""
 
       if (onToken) {

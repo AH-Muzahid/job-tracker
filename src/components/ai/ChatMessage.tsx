@@ -92,6 +92,13 @@ interface Suggestion {
   prompt: string
 }
 
+const STOP_WORDS = new Set([
+  "you", "your", "yours", "the", "a", "an", "this", "that", "these", "those",
+  "it", "its", "our", "their", "target", "here", "help", "role", "job", "company",
+  "applicant", "candidate", "developer", "engineer", "resume", "interview", "review",
+  "me", "us", "him", "her", "them"
+])
+
 function extractTargetEntity(content: string, toolInvocations?: ToolInvocation[]): { company?: string; role?: string } {
   // Check tool invocations first for highest precision
   if (toolInvocations && toolInvocations.length > 0) {
@@ -101,43 +108,57 @@ function extractTargetEntity(content: string, toolInvocations?: ToolInvocation[]
         const app = res.application && typeof res.application === "object" ? (res.application as Record<string, unknown>) : null
         const comp = typeof res.companyName === "string" ? res.companyName : typeof app?.companyName === "string" ? app.companyName : undefined
         const role = typeof res.role === "string" ? res.role : typeof res.jobTitle === "string" ? res.jobTitle : typeof app?.jobTitle === "string" ? app.jobTitle : undefined
-        if (comp) return { company: comp, role }
+        if (comp && !STOP_WORDS.has(comp.toLowerCase())) return { company: comp, role }
       }
       if (tool.args && typeof tool.args === "object") {
         const args = tool.args as Record<string, unknown>
         const comp = typeof args.companyName === "string" ? args.companyName : undefined
         const role = typeof args.role === "string" ? args.role : typeof args.jobTitle === "string" ? args.jobTitle : undefined
-        if (comp) return { company: comp, role }
+        if (comp && !STOP_WORDS.has(comp.toLowerCase())) return { company: comp, role }
       }
     }
   }
 
   // Regex lookup from content
-  const compMatch = content.match(/(?:at|for|to|company:?)\s+([A-Z][A-Za-z0-9&.-]{1,20})/i)
+  const compMatch = content.match(/(?:at|for|company:?)\s+([A-Z][A-Za-z0-9&.-]{1,20})/i)
   const roleMatch = content.match(/(?:role|position|as\s+a(?:n)?)\s+([A-Z][A-Za-z0-9\s&.-]{2,25})/i)
 
   const rawComp = compMatch?.[1]?.trim().replace(/[.,;:!?'")\]]+$/, "")
   const rawRole = roleMatch?.[1]?.trim().replace(/[.,;:!?'")\]]+$/, "")
 
+  const validComp = rawComp && !STOP_WORDS.has(rawComp.toLowerCase()) ? rawComp : undefined
+  const validRole = rawRole && !STOP_WORDS.has(rawRole.toLowerCase()) ? rawRole : undefined
+
   return {
-    company: rawComp,
-    role: rawRole,
+    company: validComp,
+    role: validRole,
   }
 }
 
 function getContextualSuggestions(content: string, toolInvocations?: ToolInvocation[]): Suggestion[] {
   const lower = content.toLowerCase()
-  // If it's a short greeting or brief message, never show suggestions
-  if (content.length < 80 && (lower.includes("hi") || lower.includes("hello") || lower.includes("hey") || lower.includes("welcome"))) {
+  
+  // Rule: NEVER show suggestions on greetings, pleasantries, or general intro chat
+  const isGreetingOrWelcome =
+    lower.includes("welcome") ||
+    lower.includes("hello") ||
+    lower.includes("hi ") ||
+    lower.startsWith("hi") ||
+    lower.includes("hey") ||
+    lower.includes("how can i help") ||
+    lower.includes("great to have you") ||
+    lower.includes("what would you like to tackle")
+  if (isGreetingOrWelcome) {
     return []
   }
 
   const { company, role } = extractTargetEntity(content, toolInvocations)
   const list: Suggestion[] = []
 
-  // Case 1: Outreach Email Draft or Email Pitch was produced
-  const hasOutreach = lower.includes("outreach email") || lower.includes("email outreach") || toolInvocations?.some((t) => t.toolName === "draftOutreachEmail")
-  if (hasOutreach) {
+  // Case 1: Outreach Email Draft tool or explicit outreach schema
+  const hasOutreachTool = toolInvocations?.some((t) => t.toolName === "draftOutreachEmail")
+  const hasOutreachSchema = content.includes("```outreach") || (lower.includes("subject:") && lower.includes("dear "))
+  if (hasOutreachTool || hasOutreachSchema) {
     if (company) {
       list.push({
         icon: "",
@@ -165,65 +186,14 @@ function getContextualSuggestions(content: string, toolInvocations?: ToolInvocat
         label: "Shorten for LinkedIn DM",
         prompt: "Shorten this outreach message to under 80 words for a direct LinkedIn message.",
       })
-      list.push({
-        icon: "",
-        label: "Expected Interview Questions",
-        prompt: "What technical and behavioral questions are typically asked for this role?",
-      })
     }
     return list.slice(0, 3)
   }
 
-  // Case 2: JD Scan / Match Analysis
-  if (lower.includes("analysis") || lower.includes("match score") || lower.includes("requirements") || lower.includes("verdict")) {
-    if (company) {
-      list.push({
-        icon: "",
-        label: `Draft Outreach Email (${company})`,
-        prompt: `Write a customized, high-impact outreach email for the ${role || "role"} at ${company} focusing on my relevant projects.`,
-      })
-      list.push({
-        icon: "",
-        label: `Tailor Resume (${company})`,
-        prompt: `Tailor my resume specifically for the ${role || "role"} at ${company}.`,
-      })
-      list.push({
-        icon: "",
-        label: `Launch Mock Interview (${company})`,
-        prompt: `Launch the live spoken voice mock interview room for ${company}${role ? ` (${role})` : ""}.`,
-      })
-    } else {
-      list.push({
-        icon: "",
-        label: "Draft Outreach Email",
-        prompt: "Write a customized, high-impact outreach email for this role.",
-      })
-      list.push({
-        icon: "",
-        label: "Tailor Resume for JD",
-        prompt: "Tailor my resume specifically for this role focusing on my relevant skills and projects.",
-      })
-      list.push({
-        icon: "",
-        label: "Launch Mock Interview",
-        prompt: "Launch the live spoken voice mock interview room for this role.",
-      })
-    }
-    return list.slice(0, 3)
-  }
-
-  // Case 3: Mock Interview Setup or Preparation
-  const isMockInterviewSetup =
-    lower.includes("launch voice mock room") ||
-    lower.includes("voice mock room") ||
-    lower.includes("conversational voice") ||
-    lower.includes("autostart=true") ||
-    lower.includes("```interview") ||
-    lower.includes('"interviewtype"') ||
-    toolInvocations?.some((t) => t.toolName === "setupMockInterview")
-
-  if (isMockInterviewSetup) {
-    // Room is already configured: Do NOT suggest redundant "Start Mock Interview" or "Launch Voice Mock Room"!
+  // Case 2: Concrete Mock Interview was configured
+  const hasMockTool = toolInvocations?.some((t) => t.toolName === "setupMockInterview")
+  const hasMockSchema = content.includes("```interview") || content.includes("conversational voice mock room")
+  if (hasMockTool || hasMockSchema) {
     list.push({
       icon: "",
       label: "Switch to System Design Focus",
@@ -234,76 +204,48 @@ function getContextualSuggestions(content: string, toolInvocations?: ToolInvocat
       label: "Focus on Behavioral & STAR",
       prompt: "Focus the mock interview questions strictly on Behavioral, Leadership, and Conflict Resolution using the STAR method.",
     })
-    list.push({
-      icon: "",
-      label: "Senior / Staff Difficulty",
-      prompt: "Increase interview difficulty to Senior/Staff engineer level with rigorous trade-offs and edge cases.",
-    })
-    return list.slice(0, 3)
+    return list.slice(0, 2)
   }
 
-  if (lower.includes("interview") || lower.includes("mock") || lower.includes("assessment")) {
+  // Case 3: Concrete Tailored Resume was generated
+  const hasResumeTool = toolInvocations?.some((t) => t.toolName === "tailorResumeForJob")
+  const hasResumeSchema = content.includes("```tailored-resume")
+  if (hasResumeTool || hasResumeSchema) {
+    list.push({
+      icon: "",
+      label: "Optimize Quantifiable Metrics",
+      prompt: "Rewrite these project bullet points with stronger quantifiable metrics and impact numbers.",
+    })
     list.push({
       icon: "",
       label: company ? `Launch Voice Mock (${company})` : "Launch Voice Mock Room",
       prompt: company
         ? `Launch the live spoken voice mock interview room for ${company}${role ? ` (${role})` : ""}`
-        : "Launch the live spoken voice mock interview room for my target role",
-    })
-    list.push({
-      icon: "",
-      label: "Model STAR Answers",
-      prompt: "Provide concise, high-scoring STAR method answers for each of these interview questions.",
+        : "Launch the live spoken voice mock interview room for this role",
     })
     return list.slice(0, 2)
   }
 
-  // Case 4: Resume / ATS
-  if (lower.includes("resume") || lower.includes("ats")) {
-    list.push({
-      icon: "",
-      label: "Optimize Resume Points",
-      prompt: "Rewrite my project bullet points with quantifiable impact metrics for better ATS ranking.",
-    })
-    list.push({
-      icon: "",
-      label: "Identify Missing Keywords",
-      prompt: "Analyze this response and identify any key technical skills or keywords I should emphasize.",
-    })
+  // Case 4: Concrete JD Match Analysis was performed
+  const hasAnalysisTool = toolInvocations?.some((t) => t.toolName === "analyzeJobMatch")
+  const hasAnalysisSchema = content.includes("```analysis") || content.includes("```jd-match")
+  if (hasAnalysisTool || hasAnalysisSchema) {
+    if (company) {
+      list.push({
+        icon: "",
+        label: `Draft Outreach (${company})`,
+        prompt: `Write a customized, high-impact outreach email for ${company}.`,
+      })
+      list.push({
+        icon: "",
+        label: `Tailor Resume (${company})`,
+        prompt: `Tailor my resume specifically for ${company}.`,
+      })
+    }
     return list.slice(0, 2)
   }
 
-  // Case 5: Weekly Goals / Target Tracking
-  if (lower.includes("goal") || lower.includes("target")) {
-    list.push({
-      icon: "",
-      label: "View Weekly Goals",
-      prompt: "Show me my active weekly goals and current progress.",
-    })
-    list.push({
-      icon: "",
-      label: "Set New Application Goal",
-      prompt: "Help me set an ambitious, achievable weekly goal for applications and networking.",
-    })
-    return list.slice(0, 2)
-  }
-
-  // Case 6: Integrations / Google Sheets
-  if (lower.includes("sheet") || lower.includes("export") || lower.includes("csv") || lower.includes("sync")) {
-    list.push({
-      icon: "",
-      label: "Sync to Google Sheets",
-      prompt: "Sync all my tracked job applications to Google Sheets.",
-    })
-    list.push({
-      icon: "",
-      label: "Integration Settings",
-      prompt: "What integrations are currently active and how do I configure them?",
-    })
-    return list.slice(0, 2)
-  }
-
-  // Default: Return EMPTY array! NEVER dump generic hardcoded buttons!
+  // Default: Return EMPTY array! NEVER dump unprompted generic buttons on normal text or greetings!
   return []
 }
 
@@ -1251,9 +1193,13 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
         try {
           const parsed = JSON.parse(rawText)
           if (Array.isArray(parsed)) {
-            parsedSuggestions = parsed
+            parsedSuggestions = parsed.map((item) =>
+              typeof item === "string" ? { label: item, prompt: item } : item
+            )
           } else if (parsed.suggestions && Array.isArray(parsed.suggestions)) {
-            parsedSuggestions = parsed.suggestions
+            parsedSuggestions = parsed.suggestions.map((item) =>
+              typeof item === "string" ? { label: item, prompt: item } : item
+            )
           }
         } catch {
           const regex = /"([^"]+)"/g

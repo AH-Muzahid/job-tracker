@@ -19,22 +19,12 @@ export async function POST(request: NextRequest) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 })
   }
 
-  const aiConfig = await getUserAIConfig(userId, undefined, { requireUserKey: true })
-  if (!aiConfig) {
-    return new Response(
-      JSON.stringify({
-        error: "AI key required. Please add your personal AI API key (Google Gemini, Groq, or OpenAI) in Settings > AI Configuration.",
-        code: "AI_KEY_REQUIRED",
-      }),
-      { status: 400 }
-    )
-  }
-
   let body: {
     message?: string
     sessionId?: string
     resumeAction?: string
     resumePayload?: any
+    modelOverride?: string
     routeContext?: {
       currentRoute?: string
       entityId?: string
@@ -48,7 +38,18 @@ export async function POST(request: NextRequest) {
     return new Response(JSON.stringify({ error: "Invalid JSON body" }), { status: 400 })
   }
 
-  const { message, sessionId = crypto.randomUUID(), resumeAction, resumePayload, routeContext } = body
+  const aiConfig = await getUserAIConfig(userId, body.modelOverride, { requireUserKey: true })
+  if (!aiConfig) {
+    return new Response(
+      JSON.stringify({
+        error: "AI key required. Please add your personal AI API key (Google Gemini, Groq, or OpenAI) in Settings > AI Configuration.",
+        code: "AI_KEY_REQUIRED",
+      }),
+      { status: 400 }
+    )
+  }
+
+  const { message, sessionId = crypto.randomUUID(), resumeAction, resumePayload, routeContext, modelOverride } = body
 
   if (!message && !resumeAction) {
     return new Response(JSON.stringify({ error: "Message or resume action is required" }), { status: 400 })
@@ -236,6 +237,7 @@ export async function POST(request: NextRequest) {
         sendEvent("status", { text: "Analyzing request & planning..." })
 
         const app = await buildCareerAgentGraph(aiConfig, {
+          modelName: modelOverride,
           onToken: (delta: string) => {
             accumulatedResponseContent += delta
             sendEvent("token", { delta })
@@ -399,7 +401,26 @@ export async function POST(request: NextRequest) {
         await flushLangfuse()
         controller.close()
       } catch (err: any) {
-        sendEvent("error", { error: err?.message || "Graph execution error" })
+        const errorMsg = err?.message || "Encountered a temporary AI service delay"
+        console.warn("[Agent Run Error]:", err)
+
+        // Persist error fallback in DB so user message is never left orphaned without an assistant reply
+        try {
+          await withDbRetry(() =>
+            prisma.chatMessage.create({
+              data: {
+                sessionId,
+                role: "assistant",
+                content: `⚠️ ${errorMsg}. Please try clicking Retry to re-generate.`,
+              },
+            })
+          )
+          await invalidateCache(`session:data:${sessionId}`, `user:sessions:${userId}`)
+        } catch (dbErr) {
+          console.warn("[Save Assistant Error Message Warning]:", dbErr)
+        }
+
+        sendEvent("error", { error: errorMsg })
         await flushLangfuse()
         controller.close()
       }

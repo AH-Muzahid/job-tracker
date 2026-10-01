@@ -15,10 +15,11 @@ import type { AIProviderConfig } from "@/lib/ai/client"
 export async function buildCareerAgentGraph(
   aiConfig: AIProviderConfig,
   callbacks?: {
+    modelName?: string
     onToken?: (delta: string) => void
   }
 ) {
-  const model = getLangChainChatModel(aiConfig, { streaming: true })
+  const model = getLangChainChatModel(aiConfig, { streaming: true, modelName: callbacks?.modelName })
 
   const plannerNode = createPlannerNode(model)
   const executorNode = createExecutorNode()
@@ -34,7 +35,13 @@ export async function buildCareerAgentGraph(
     .addNode("responder", responderNode)
 
     .addEdge(START, "planner")
-    .addEdge("planner", "executor")
+    .addConditionalEdges("planner", (state: AgentStateType) => {
+      // Fast path: If plan has no tools (e.g. conversational turn, greeting, direct answer), route straight to responder!
+      if (!state.plan || state.plan.length === 0) {
+        return "responder"
+      }
+      return "executor"
+    })
     .addEdge("executor", "reflector")
 
     .addConditionalEdges("reflector", (state: AgentStateType) => {

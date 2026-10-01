@@ -529,6 +529,7 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar, onToggl
         body: JSON.stringify({
           sessionId: currentSessionId,
           message: trimmed,
+          modelOverride,
           routeContext: {
             currentRoute: pathname,
             entityId,
@@ -1175,14 +1176,16 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar, onToggl
             )
           ) : (
             /* Message List */
-            <div className="w-full max-w-3xl mx-auto flex flex-col gap-4 p-3 sm:p-5">
+            <div className="w-full max-w-3xl mx-auto flex flex-col p-3 sm:p-5">
               {loading ? (
                 <MessagesSkeleton />
               ) : (
-                messages.map((msg, i) => (
-                  <ChatMessage
-                    key={msg.id}
-                    message={msg}
+                messages.map((msg, i) => {
+                  const isPrevUser = i > 0 && messages[i - 1].role === "user" && msg.role === "user"
+                  return (
+                    <div key={msg.id} className={isPrevUser ? "mt-1.5" : i > 0 ? "mt-4" : ""}>
+                      <ChatMessage
+                        message={msg}
                     isLast={i === messages.length - 1}
                     isStreaming={isStreaming && i === messages.length - 1}
                     onSuggestionClick={(prompt) => {
@@ -1197,8 +1200,10 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar, onToggl
                     onEdit={handleEditMessage}
                     onToolConfirm={handleToolConfirm}
                   />
-                ))
-              )}
+                </div>
+              )
+            })
+          )}
               {error && (
                 <div className="flex items-center justify-between gap-2 text-xs font-medium text-destructive p-3 rounded-sm bg-destructive/10 border border-destructive/20">
                   <span>{error}</span>
