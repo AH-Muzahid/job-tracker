@@ -316,6 +316,25 @@ describe("ChatMessage User Pill Bubble & Hover Actions", () => {
     )
     expect(htmlSheets).toContain("Sync to Google Sheets")
   })
+
+  it("renders markdown action link buttons with not-prose and visible !text-primary-foreground styling", () => {
+    const html = renderToString(
+      <ChatMessage
+        message={{
+          id: "asst-msg-markdown-btn",
+          role: "assistant",
+          content: "[🎙️ Launch Voice Mock Room](/interview-prep?company=CareerTrack&role=Fullstack&autostart=true)",
+        }}
+        isLast={true}
+        isStreaming={false}
+      />
+    )
+
+    expect(html).toContain("not-prose")
+    expect(html).toContain("!text-primary-foreground")
+    expect(html).toContain("Launch Voice Mock Room")
+    expect(html).toContain("/interview-prep")
+  })
 })
 
 

@@ -367,6 +367,22 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar, onToggl
     }
   }, [pendingPrompt, setPendingPrompt, isSidebar, aiSidebarOpen])
 
+  // Auto-resize textarea: compact initial height (24px), dynamic expansion up to 120px, then smooth scrollbar
+  useEffect(() => {
+    const el = textareaRef.current
+    if (!el) return
+    el.style.height = "auto"
+    const maxHeight = 120
+    const scrollH = el.scrollHeight
+    if (scrollH > maxHeight) {
+      el.style.height = `${maxHeight}px`
+      el.style.overflowY = "auto"
+    } else {
+      el.style.height = `${Math.max(24, scrollH)}px`
+      el.style.overflowY = "hidden"
+    }
+  }, [input])
+
   const scrollToBottom = useCallback((smooth = true) => {
     const el = containerRef.current
     if (!el) return
@@ -1230,8 +1246,7 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar, onToggl
                     : "Ask a question, paste a job description, or type an update..."
                 }
                 aria-label="Ask Career Copilot, paste a job description, or instruct action"
-                className="w-full bg-transparent border-0 outline-none resize-none text-xs placeholder:text-muted-foreground min-h-[44px] max-h-[140px] px-1 py-1 leading-relaxed"
-                rows={Math.min(5, Math.max(1, input.split("\n").length))}
+                className="w-full bg-transparent border-0 outline-none resize-none text-xs placeholder:text-muted-foreground min-h-[24px] max-h-[120px] px-1 py-0.5 leading-5"
                 disabled={isStreaming || loading}
               />
               <div className="flex items-center justify-between pt-1.5 mt-0.5 border-t border-border/50 gap-2">

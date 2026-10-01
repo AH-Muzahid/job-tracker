@@ -589,15 +589,23 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
     a: ({ href, children, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => {
       const { isInternal, path } = normalizeInternalHref(href)
 
+      const cleanLabel = (text: React.ReactNode, fallback: string) => {
+        if (typeof text === "string") {
+          const cleaned = text.replace(/^[\p{Emoji}\u2000-\u3300\ufe0f\s]+/gu, "").trim()
+          return cleaned || fallback
+        }
+        return text || fallback
+      }
+
       if (isInternal) {
         if (path.startsWith("/applications/") || path === "/applications") {
           return (
             <Link
               href={path}
-              className="inline-flex items-center gap-1.5 px-3 py-1 my-2 rounded-sm bg-primary/10 hover:bg-primary/20 text-primary border border-primary/25 font-medium text-xs no-underline transition-all hover:shadow-xs group/btn cursor-pointer"
+              className="not-prose inline-flex items-center gap-1.5 px-3 py-1 my-2 rounded-sm bg-primary/10 hover:bg-primary/20 !text-primary border border-primary/25 font-medium text-xs no-underline transition-all hover:shadow-xs group/btn cursor-pointer"
             >
-              <span>{children}</span>
-              <ArrowRight className="size-3 transition-transform group-hover/btn:translate-x-0.5" />
+              <span className="!text-primary">{cleanLabel(children, "View Application")}</span>
+              <ArrowRight className="size-3 !text-primary transition-transform group-hover/btn:translate-x-0.5" />
             </Link>
           )
         }
@@ -606,11 +614,11 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
           return (
             <Link
               href={path}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 my-2 rounded-[4px] bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs no-underline transition-all hover:shadow-xs group/btn cursor-pointer shadow-none"
+              className="not-prose inline-flex items-center gap-1.5 px-3.5 py-1.5 my-2 rounded-[4px] bg-primary hover:bg-primary/90 !text-primary-foreground font-semibold text-xs no-underline transition-all hover:shadow-xs group/btn cursor-pointer shadow-none"
             >
-              <Mic className="size-3.5 shrink-0" />
-              <span>{children}</span>
-              <ArrowRight className="size-3 transition-transform group-hover/btn:translate-x-0.5" />
+              <Mic className="size-3.5 shrink-0 !text-primary-foreground" />
+              <span className="!text-primary-foreground font-semibold">{cleanLabel(children, "Launch Voice Mock Room")}</span>
+              <ArrowRight className="size-3 shrink-0 !text-primary-foreground transition-transform group-hover/btn:translate-x-0.5" />
             </Link>
           )
         }
@@ -619,11 +627,11 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
           return (
             <Link
               href={path}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 my-2 rounded-[4px] bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs no-underline transition-all hover:shadow-xs group/btn cursor-pointer shadow-none"
+              className="not-prose inline-flex items-center gap-1.5 px-3.5 py-1.5 my-2 rounded-[4px] bg-primary hover:bg-primary/90 !text-primary-foreground font-semibold text-xs no-underline transition-all hover:shadow-xs group/btn cursor-pointer shadow-none"
             >
-              <FileText className="size-3.5 shrink-0" />
-              <span>{children}</span>
-              <ArrowRight className="size-3 transition-transform group-hover/btn:translate-x-0.5" />
+              <FileText className="size-3.5 shrink-0 !text-primary-foreground" />
+              <span className="!text-primary-foreground font-semibold">{cleanLabel(children, "Open in Tailored Resume Studio")}</span>
+              <ArrowRight className="size-3 shrink-0 !text-primary-foreground transition-transform group-hover/btn:translate-x-0.5" />
             </Link>
           )
         }
@@ -632,11 +640,11 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
           return (
             <Link
               href={path}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 my-2 rounded-[4px] bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs no-underline transition-all hover:shadow-xs group/btn cursor-pointer shadow-none"
+              className="not-prose inline-flex items-center gap-1.5 px-3.5 py-1.5 my-2 rounded-[4px] bg-primary hover:bg-primary/90 !text-primary-foreground font-semibold text-xs no-underline transition-all hover:shadow-xs group/btn cursor-pointer shadow-none"
             >
-              <Target className="size-3.5 shrink-0" />
-              <span>{children}</span>
-              <ArrowRight className="size-3 transition-transform group-hover/btn:translate-x-0.5" />
+              <Target className="size-3.5 shrink-0 !text-primary-foreground" />
+              <span className="!text-primary-foreground font-semibold">{cleanLabel(children, "View Weekly Goals")}</span>
+              <ArrowRight className="size-3 shrink-0 !text-primary-foreground transition-transform group-hover/btn:translate-x-0.5" />
             </Link>
           )
         }
@@ -645,11 +653,11 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
           return (
             <Link
               href={path}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 my-2 rounded-[4px] bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs no-underline transition-all hover:shadow-xs group/btn cursor-pointer shadow-none"
+              className="not-prose inline-flex items-center gap-1.5 px-3.5 py-1.5 my-2 rounded-[4px] bg-primary hover:bg-primary/90 !text-primary-foreground font-semibold text-xs no-underline transition-all hover:shadow-xs group/btn cursor-pointer shadow-none"
             >
-              <Compass className="size-3.5 shrink-0" />
-              <span>{children}</span>
-              <ArrowRight className="size-3 transition-transform group-hover/btn:translate-x-0.5" />
+              <Compass className="size-3.5 shrink-0 !text-primary-foreground" />
+              <span className="!text-primary-foreground font-semibold">{cleanLabel(children, "Explore Discovery Hub")}</span>
+              <ArrowRight className="size-3 shrink-0 !text-primary-foreground transition-transform group-hover/btn:translate-x-0.5" />
             </Link>
           )
         }
@@ -658,11 +666,11 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
           return (
             <Link
               href={path}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 my-2 rounded-[4px] bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs no-underline transition-all hover:shadow-xs group/btn cursor-pointer shadow-none"
+              className="not-prose inline-flex items-center gap-1.5 px-3.5 py-1.5 my-2 rounded-[4px] bg-primary hover:bg-primary/90 !text-primary-foreground font-semibold text-xs no-underline transition-all hover:shadow-xs group/btn cursor-pointer shadow-none"
             >
-              <Building2 className="size-3.5 shrink-0" />
-              <span>{children}</span>
-              <ArrowRight className="size-3 transition-transform group-hover/btn:translate-x-0.5" />
+              <Building2 className="size-3.5 shrink-0 !text-primary-foreground" />
+              <span className="!text-primary-foreground font-semibold">{cleanLabel(children, "View Target Company")}</span>
+              <ArrowRight className="size-3 shrink-0 !text-primary-foreground transition-transform group-hover/btn:translate-x-0.5" />
             </Link>
           )
         }
@@ -671,11 +679,11 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
           return (
             <Link
               href={path}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 my-2 rounded-[4px] bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs no-underline transition-all hover:shadow-xs group/btn cursor-pointer shadow-none"
+              className="not-prose inline-flex items-center gap-1.5 px-3.5 py-1.5 my-2 rounded-[4px] bg-primary hover:bg-primary/90 !text-primary-foreground font-semibold text-xs no-underline transition-all hover:shadow-xs group/btn cursor-pointer shadow-none"
             >
-              <Sliders className="size-3.5 shrink-0" />
-              <span>{children}</span>
-              <ArrowRight className="size-3 transition-transform group-hover/btn:translate-x-0.5" />
+              <Sliders className="size-3.5 shrink-0 !text-primary-foreground" />
+              <span className="!text-primary-foreground font-semibold">{cleanLabel(children, "Manage Integrations")}</span>
+              <ArrowRight className="size-3 shrink-0 !text-primary-foreground transition-transform group-hover/btn:translate-x-0.5" />
             </Link>
           )
         }
