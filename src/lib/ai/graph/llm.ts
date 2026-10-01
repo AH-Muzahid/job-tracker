@@ -61,12 +61,19 @@ export function getLangChainChatModel(
       })
     }
     case "google": {
+      const googleBaseUrl = config.baseUrl || "https://generativelanguage.googleapis.com/v1beta/openai/"
+      let rawModel = options?.modelName || config.model || "gemini-2.5-flash"
+      if (rawModel === "gemini-3.6-flash") {
+        rawModel = "gemini-2.5-flash"
+      }
       return new ChatOpenAI({
         apiKey: config.apiKey,
-        modelName: options?.modelName || config.model || "gemini-3.6-flash",
+        modelName: normalizeModelId(rawModel) || "gemini-2.5-flash",
         temperature,
         streaming,
-        ...(config.baseUrl ? { configuration: { baseURL: config.baseUrl } } : {}),
+        configuration: {
+          baseURL: googleBaseUrl,
+        },
       })
     }
     default: {

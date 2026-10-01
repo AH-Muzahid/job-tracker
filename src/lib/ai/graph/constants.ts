@@ -3,7 +3,7 @@
  */
 
 export const GREETING_REGEX =
-  /^(hi|hello|hey|hey there|hi there|hello there|halo|good morning|good afternoon|good evening|sup|yo|assalamu\s*alaikum|salaam|kemon acho)[\s!.?]*$/i
+  /^(hi|hello|hey|hey there|hi there|hello there|halo|good morning|good afternoon|good evening|sup|yo|assalamu\s*alaikum|salaam|kemon acho|thanks|thank you|thx|ty|dhonnobad|ok|okay|got it|bujhlam|alright|cool|great|awesome|bye|goodbye)[\s!.?]*$/i
 
 export const MAX_PLAN_STEPS = 5
 

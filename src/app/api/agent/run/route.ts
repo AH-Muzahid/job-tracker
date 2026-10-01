@@ -214,6 +214,7 @@ export async function POST(request: NextRequest) {
   }
 
   const encoder = new TextEncoder()
+
   const stream = new ReadableStream({
     async start(controller) {
       const sendEvent = (event: string, data: any) => {
@@ -221,13 +222,18 @@ export async function POST(request: NextRequest) {
           const payload = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`
           controller.enqueue(encoder.encode(payload))
         } catch {
-          // Stream might be closed by client
+          // Stream might be closed by client if navigated away; background execution continues safely
         }
       }
+
+      // Instant status event to eliminate silent TTFT delay
+      sendEvent("status", { text: "Thinking..." })
 
       try {
         let accumulatedResponseContent = ""
         let accumulatedPlan: any[] = []
+
+        sendEvent("status", { text: "Analyzing request & planning..." })
 
         const app = await buildCareerAgentGraph(aiConfig, {
           onToken: (delta: string) => {
@@ -279,6 +285,13 @@ export async function POST(request: NextRequest) {
         for await (const update of events) {
           for (const [nodeName, nodeState] of Object.entries(update)) {
             sendEvent(nodeName, nodeState)
+            if (nodeName === "planner") {
+              sendEvent("status", { text: "Executing plan..." })
+            } else if (nodeName === "executor") {
+              sendEvent("status", { text: "Verifying actions..." })
+            } else if (nodeName === "reflector") {
+              sendEvent("status", { text: "Synthesizing response..." })
+            }
             if ((nodeState as any)?.responseContent) {
               accumulatedResponseContent = String((nodeState as any).responseContent)
             }
@@ -391,13 +404,17 @@ export async function POST(request: NextRequest) {
         controller.close()
       }
     },
+    cancel() {
+      // Client closed downstream SSE stream; background execution continues to persist completed message in DB
+    },
   })
 
   return new Response(stream, {
     headers: {
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache",
+      "Content-Type": "text/event-stream; charset=utf-8",
+      "Cache-Control": "no-cache, no-transform",
       "Connection": "keep-alive",
+      "X-Accel-Buffering": "no",
       "X-Session-Id": sessionId,
     },
   })

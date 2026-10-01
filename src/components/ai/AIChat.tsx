@@ -66,6 +66,7 @@ interface Message {
   id: string
   role: "user" | "assistant"
   content: string
+  status?: string
   reasoning?: string
   plan?: AgentPlanStep[]
   metadata?: Record<string, unknown>
@@ -209,7 +210,7 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar, onToggl
 
   const hasMessages = messages.length > 0
 
-  // React Query cached session messages — staleTime 0 ensures fresh messages upon opening any session
+  // React Query cached session messages — 30s staleTime allows instant switching between recent chats
   const { data: sessionData, isLoading: isSessionLoading, error: sessionQueryError } = useQuery({
     queryKey: ["ai", "session", sessionId],
     queryFn: async () => {
@@ -219,15 +220,81 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar, onToggl
       return res.json()
     },
     enabled: Boolean(sessionId),
-    staleTime: 0,
+    staleTime: 30 * 1000,
     gcTime: 60 * 60 * 1000,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
     refetchOnMount: "always",
     retry: 1,
+    refetchInterval: (query) => {
+      // If the last message in DB is from user and assistant hasn't replied yet, background generation is still running
+      const msgs = query.state.data?.messages
+      if (msgs && msgs.length > 0 && msgs[msgs.length - 1]?.role === "user") {
+        return 2000
+      }
+      return false
+    },
   })
 
   const loadedSessionIdRef = useRef<string | null>(null)
+
+  // Cleanup on unmount (e.g. navigating away from chat page) to prevent streams from staying held/hanging
+  useEffect(() => {
+    return () => {
+      if (abortRef.current) {
+        abortRef.current.abort()
+        abortRef.current = null
+      }
+      isStreamingRef.current = false
+      setIsStreaming(false)
+    }
+  }, [])
+
+  // Fast session switch: abort previous stream & immediately show cached messages or clear ghost messages
+  useEffect(() => {
+    if (createdSessionIdRef.current === sessionId) {
+      return
+    }
+
+    // Abort active stream from prior session immediately
+    if (abortRef.current) {
+      abortRef.current.abort()
+      abortRef.current = null
+      isStreamingRef.current = false
+      setIsStreaming(false)
+    }
+
+    if (!sessionId) {
+      setLoading(false)
+      setMessages([])
+      loadedSessionIdRef.current = null
+      return
+    }
+
+    // Try synchronous instant cache read from TanStack Query
+    const cached = queryClient.getQueryData<{
+      messages?: Array<{
+        id: string
+        role: "user" | "assistant"
+        content: string
+        toolInvocations?: ToolInvocation[]
+        metadata?: { toolInvocations?: ToolInvocation[] }
+      }>
+    }>(["ai", "session", sessionId])
+    if (cached?.messages && Array.isArray(cached.messages)) {
+      const cachedMsgs = cached.messages.map((m) => ({
+        ...m,
+        toolInvocations: m.toolInvocations || m.metadata?.toolInvocations || [],
+      }))
+      setMessages(cachedMsgs)
+      setLoading(false)
+      loadedSessionIdRef.current = sessionId
+    } else {
+      // Clear ghost messages immediately so user never sees old chat while waiting
+      setMessages([])
+      setLoading(true)
+    }
+  }, [sessionId, queryClient, setMessages])
 
   useEffect(() => {
     if (!sessionId) {
@@ -476,9 +543,41 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar, onToggl
       if (reader) {
         let buffer = ""
         let accumulatedText = ""
+        let accumulatedStatus = ""
         let accumulatedPlan: AgentPlanStep[] = []
         const accumulatedTools: ToolInvocation[] = []
         let interruptPayload: Record<string, unknown> | null = null
+        let rafId: number | null = null
+
+        const flushStreamUpdate = () => {
+          if (rafId !== null) {
+            cancelAnimationFrame(rafId)
+            rafId = null
+          }
+          setMessages((prev) => {
+            const updated = [...prev]
+            const lastIdx = updated.findIndex((m) => m.id === assistantMsgId)
+            if (lastIdx !== -1) {
+              updated[lastIdx] = {
+                ...updated[lastIdx],
+                content: accumulatedText,
+                status: accumulatedStatus,
+                plan: accumulatedPlan.length > 0 ? accumulatedPlan : updated[lastIdx].plan,
+                toolInvocations: accumulatedTools.length > 0 ? [...accumulatedTools] : updated[lastIdx].toolInvocations,
+                interruptData: interruptPayload,
+              }
+            }
+            return updated
+          })
+        }
+
+        const scheduleStreamUpdate = () => {
+          if (rafId !== null) return
+          rafId = requestAnimationFrame(() => {
+            rafId = null
+            flushStreamUpdate()
+          })
+        }
 
         try {
           while (true) {
@@ -499,8 +598,12 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar, onToggl
                   try {
                     const data = JSON.parse(matchData[1])
 
-                    if (event === "token" && data.delta) {
+                    if (event === "status" && data.text) {
+                      accumulatedStatus = data.text
+                      hasUpdates = true
+                    } else if (event === "token" && data.delta) {
                       accumulatedText += data.delta
+                      accumulatedStatus = ""
                       hasUpdates = true
                     } else if (event === "planner" && data.plan) {
                       accumulatedPlan = data.plan
@@ -550,24 +653,16 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar, onToggl
               }
 
               if (hasUpdates) {
-                setMessages((prev) => {
-                  const updated = [...prev]
-                  const lastIdx = updated.findIndex((m) => m.id === assistantMsgId)
-                  if (lastIdx !== -1) {
-                    updated[lastIdx] = {
-                      ...updated[lastIdx],
-                      content: accumulatedText,
-                      plan: accumulatedPlan.length > 0 ? accumulatedPlan : updated[lastIdx].plan,
-                      toolInvocations: accumulatedTools.length > 0 ? [...accumulatedTools] : updated[lastIdx].toolInvocations,
-                      interruptData: interruptPayload,
-                    }
-                  }
-                  return updated
-                })
+                scheduleStreamUpdate()
               }
             }
           }
         } finally {
+          if (rafId !== null) {
+            cancelAnimationFrame(rafId)
+            rafId = null
+          }
+          flushStreamUpdate()
           reader.releaseLock()
         }
 
@@ -791,9 +886,41 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar, onToggl
         if (reader) {
           let buffer = ""
           let accumulatedText = ""
+          let accumulatedStatus = ""
           let accumulatedPlan: AgentPlanStep[] = []
           const accumulatedTools: ToolInvocation[] = []
           let interruptPayload: Record<string, unknown> | null = null
+          let rafId: number | null = null
+
+          const flushStreamUpdate = () => {
+            if (rafId !== null) {
+              cancelAnimationFrame(rafId)
+              rafId = null
+            }
+            setMessages((prev) => {
+              const updated = [...prev]
+              const lastIdx = updated.findIndex((m) => m.id === assistantMsgId)
+              if (lastIdx !== -1) {
+                updated[lastIdx] = {
+                  ...updated[lastIdx],
+                  content: accumulatedText,
+                  status: accumulatedStatus,
+                  plan: accumulatedPlan.length > 0 ? accumulatedPlan : updated[lastIdx].plan,
+                  toolInvocations: accumulatedTools.length > 0 ? [...accumulatedTools] : updated[lastIdx].toolInvocations,
+                  interruptData: interruptPayload,
+                }
+              }
+              return updated
+            })
+          }
+
+          const scheduleStreamUpdate = () => {
+            if (rafId !== null) return
+            rafId = requestAnimationFrame(() => {
+              rafId = null
+              flushStreamUpdate()
+            })
+          }
 
           try {
             while (true) {
@@ -814,8 +941,12 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar, onToggl
                     try {
                       const data = JSON.parse(matchData[1])
 
-                      if (event === "token" && data.delta) {
+                      if (event === "status" && data.text) {
+                        accumulatedStatus = data.text
+                        hasUpdates = true
+                      } else if (event === "token" && data.delta) {
                         accumulatedText += data.delta
+                        accumulatedStatus = ""
                         hasUpdates = true
                       } else if (event === "planner" && data.plan) {
                         accumulatedPlan = data.plan
@@ -865,24 +996,16 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar, onToggl
                 }
 
                 if (hasUpdates) {
-                  setMessages((prev) => {
-                    const updated = [...prev]
-                    const lastIdx = updated.findIndex((m) => m.id === assistantMsgId)
-                    if (lastIdx !== -1) {
-                      updated[lastIdx] = {
-                        ...updated[lastIdx],
-                        content: accumulatedText,
-                        plan: accumulatedPlan.length > 0 ? accumulatedPlan : updated[lastIdx].plan,
-                        toolInvocations: accumulatedTools.length > 0 ? [...accumulatedTools] : updated[lastIdx].toolInvocations,
-                        interruptData: interruptPayload,
-                      }
-                    }
-                    return updated
-                  })
+                  scheduleStreamUpdate()
                 }
               }
             }
           } finally {
+            if (rafId !== null) {
+              cancelAnimationFrame(rafId)
+              rafId = null
+            }
+            flushStreamUpdate()
             reader.releaseLock()
           }
         }

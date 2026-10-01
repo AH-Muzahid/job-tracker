@@ -271,4 +271,35 @@ describe("Copilot Fresh Chat & Non-Empty Responder Guarantees", () => {
     expect(result.responseContent).toBeTruthy();
     expect(result.responseContent!.length).toBeGreaterThan(10);
   });
+
+  it("fast-paths conversational courtesies and greetings in GREETING_REGEX", async () => {
+    const { GREETING_REGEX } = await import("@/lib/ai/graph/constants");
+    expect(GREETING_REGEX.test("hi")).toBe(true);
+    expect(GREETING_REGEX.test("hello")).toBe(true);
+    expect(GREETING_REGEX.test("thanks")).toBe(true);
+    expect(GREETING_REGEX.test("thank you")).toBe(true);
+    expect(GREETING_REGEX.test("ok")).toBe(true);
+    expect(GREETING_REGEX.test("okay")).toBe(true);
+    expect(GREETING_REGEX.test("got it")).toBe(true);
+    expect(GREETING_REGEX.test("bujhlam")).toBe(true);
+    expect(GREETING_REGEX.test("dhonnobad")).toBe(true);
+    // Actionable requests must NOT be treated as greetings
+    expect(GREETING_REGEX.test("track Google as Applied")).toBe(false);
+    expect(GREETING_REGEX.test("apply to Stripe")).toBe(false);
+  });
+
+  it("configures Google Gemini provider with Google OpenAI baseURL and normalized model", async () => {
+    const { getLangChainChatModel } = await import("@/lib/ai/graph/llm");
+    const model = getLangChainChatModel({
+      providerType: "google",
+      apiKey: "AIzaSyTestKey",
+      model: "gemini-3.6-flash",
+    }) as any;
+
+    expect(model.caller).toBeDefined();
+    // Verify baseURL configuration points to generativelanguage
+    expect(model.clientConfig?.baseURL || (model as any).lc_kwargs?.configuration?.baseURL).toBe(
+      "https://generativelanguage.googleapis.com/v1beta/openai/"
+    );
+  });
 });

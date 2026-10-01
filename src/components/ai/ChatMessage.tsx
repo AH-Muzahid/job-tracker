@@ -72,6 +72,7 @@ interface Props {
     id: string
     role: string
     content: string
+    status?: string
     reasoning?: string
     plan?: AgentPlanStep[]
     toolInvocations?: ToolInvocation[]
@@ -1625,6 +1626,7 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
         ) : isStreaming ? (
           <div className="py-1">
             <LoadingState
+              label={message.status || undefined}
               reasoning={message.reasoning}
               toolInvocations={message.toolInvocations}
               isFinished={false}
