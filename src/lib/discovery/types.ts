@@ -65,4 +65,10 @@ export interface UnifiedRawJob {
   employmentType?: "intern" | "contract" | "part-time" | "full-time"
   scamScore?: number
   fraudFlags?: string[]
+  hostVerification?: {
+    category: "installed_portal" | "official_ats" | "unverified"
+    isTrustedAts: boolean
+    apexDomain?: string
+    warning?: string
+  }
 }

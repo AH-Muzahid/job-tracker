@@ -2,6 +2,7 @@
 import { toCanonical } from "@/lib/ai/knowledge-graph"
 import { prisma, withDbRetry } from "@/lib/prisma"
 import { UnifiedRawJob } from "./types"
+import { verifySourceHost } from "./host-verifier"
 import {
   deduplicateJobs,
   mapToRemoteOkTag,
@@ -17,6 +18,11 @@ import {
 } from "./matching"
 import { generateBatchJobEmbeddings } from "./embedding"
 import { cleanJobTitle } from "@/lib/applications/outreach-engine"
+import {
+  defaultScraperRegistry,
+  ScraperRegistry,
+} from "./plugins/registry"
+import type { JobScraperPlugin, ScraperFetchParams } from "./plugins/types"
 
 /**
  * Resilient Curated Seed Reservoir
@@ -733,49 +739,103 @@ export async function fetchLeverJobs(options: {
   return jobs
 }
 
+// Initialize and register standard built-in scraper plugins
+if (!defaultScraperRegistry.getPlugin("remoteok")) {
+  defaultScraperRegistry.register({
+    id: "remoteok",
+    name: "RemoteOK",
+    enabled: true,
+    fetch: async ({ tagParam }) => fetchRemoteOkJobs(tagParam || ""),
+  })
+}
+if (!defaultScraperRegistry.getPlugin("jobicy")) {
+  defaultScraperRegistry.register({
+    id: "jobicy",
+    name: "Jobicy",
+    enabled: true,
+    fetch: async () => fetchJobicyJobs(),
+  })
+}
+if (!defaultScraperRegistry.getPlugin("arbeitnow")) {
+  defaultScraperRegistry.register({
+    id: "arbeitnow",
+    name: "Arbeitnow",
+    enabled: true,
+    fetch: async ({ query }) => fetchArbeitnowJobs(query || ""),
+  })
+}
+if (!defaultScraperRegistry.getPlugin("adzuna")) {
+  defaultScraperRegistry.register({
+    id: "adzuna",
+    name: "Adzuna",
+    enabled: true,
+    fetch: async ({ query, location }) => fetchAdzunaJobs(query || "", location),
+  })
+}
+if (!defaultScraperRegistry.getPlugin("linkedin_guest")) {
+  defaultScraperRegistry.register({
+    id: "linkedin_guest",
+    name: "LinkedIn Guest",
+    enabled: true,
+    fetch: async ({ query, location }) => fetchLinkedInGuestJobs(query || "", location),
+  })
+}
+if (!defaultScraperRegistry.getPlugin("greenhouse")) {
+  defaultScraperRegistry.register({
+    id: "greenhouse",
+    name: "Greenhouse ATS",
+    enabled: true,
+    fetch: async ({ query }) => fetchGreenhouseJobs({ query: query || "", limitPerBoard: 8 }),
+  })
+}
+if (!defaultScraperRegistry.getPlugin("lever")) {
+  defaultScraperRegistry.register({
+    id: "lever",
+    name: "Lever ATS",
+    enabled: true,
+    fetch: async ({ query }) => fetchLeverJobs({ query: query || "", limitPerCompany: 8 }),
+  })
+}
+
 /**
- * Ingests jobs across all configured external job boards concurrently.
+ * Ingests jobs across all configured external job boards concurrently using Open-Closed Scraper Registry.
  * Combines live scraped boards, direct Greenhouse/Lever ATS, and verified seed reservoir.
  */
-export async function fetchMultiBoardOpportunities(query: string, tagParam: string, location?: string): Promise<UnifiedRawJob[]> {
-  const [remoteOkResults, jobicyResults, arbeitnowResults, adzunaResults, linkedInGuestResults, greenhouseResults, leverResults] = await Promise.allSettled([
-    fetchRemoteOkJobs(tagParam),
-    fetchJobicyJobs(),
-    fetchArbeitnowJobs(query),
-    fetchAdzunaJobs(query, location),
-    fetchLinkedInGuestJobs(query, location),
-    fetchGreenhouseJobs({ query, limitPerBoard: 8 }),
-    fetchLeverJobs({ query, limitPerCompany: 8 }),
-  ])
+export async function fetchMultiBoardOpportunities(
+  query: string,
+  tagParam: string,
+  location?: string
+): Promise<UnifiedRawJob[]> {
+  const { jobs: scrapedJobs } = await defaultScraperRegistry.executeAll({
+    query,
+    tagParam,
+    location,
+  })
 
-  const aggregated: UnifiedRawJob[] = []
+  const aggregated: UnifiedRawJob[] = [...scrapedJobs, ...CURATED_SEED_RESERVOIR]
+  const deduplicated = deduplicateJobs(aggregated)
 
-  if (remoteOkResults.status === "fulfilled" && Array.isArray(remoteOkResults.value)) {
-    aggregated.push(...remoteOkResults.value)
-  }
-  if (jobicyResults.status === "fulfilled" && Array.isArray(jobicyResults.value)) {
-    aggregated.push(...jobicyResults.value)
-  }
-  if (arbeitnowResults.status === "fulfilled" && Array.isArray(arbeitnowResults.value)) {
-    aggregated.push(...arbeitnowResults.value)
-  }
-  if (adzunaResults.status === "fulfilled" && Array.isArray(adzunaResults.value)) {
-    aggregated.push(...adzunaResults.value)
-  }
-  if (linkedInGuestResults.status === "fulfilled" && Array.isArray(linkedInGuestResults.value)) {
-    aggregated.push(...linkedInGuestResults.value)
-  }
-  if (greenhouseResults.status === "fulfilled" && Array.isArray(greenhouseResults.value)) {
-    aggregated.push(...greenhouseResults.value)
-  }
-  if (leverResults.status === "fulfilled" && Array.isArray(leverResults.value)) {
-    aggregated.push(...leverResults.value)
+  // Enrich every job with ATS source host provenance verification
+  for (const job of deduplicated) {
+    if (!job.hostVerification && job.url) {
+      const verification = verifySourceHost(job.url)
+      job.hostVerification = {
+        category: verification.category,
+        isTrustedAts: verification.isTrustedAts,
+        apexDomain: verification.apexDomain,
+        warning: verification.warning,
+      }
+    }
   }
 
-  // Supplement with curated early-career tech seed opportunities
-  aggregated.push(...CURATED_SEED_RESERVOIR)
+  return deduplicated
+}
 
-  return deduplicateJobs(aggregated)
+export {
+  defaultScraperRegistry,
+  ScraperRegistry,
+  type JobScraperPlugin,
+  type ScraperFetchParams,
 }
 
 /**
@@ -827,6 +887,20 @@ export async function ingestGlobalJobsToCatalog(options: {
   }
 
   const dedupedJobs = deduplicateJobs(rawJobs)
+
+  // Enrich with host verification before filtering
+  for (const job of dedupedJobs) {
+    if (!job.hostVerification && job.url) {
+      const verification = verifySourceHost(job.url)
+      job.hostVerification = {
+        category: verification.category,
+        isTrustedAts: verification.isTrustedAts,
+        apexDomain: verification.apexDomain,
+        warning: verification.warning,
+      }
+    }
+  }
+
   const validJobs = dedupedJobs.filter((job) => isValidJobPostingUrl(job.url) && isLegitimateTechDevRole(job.title))
   console.log(`[GlobalJobIngest] Fetched ${rawJobs.length} raw jobs -> ${dedupedJobs.length} deduplicated -> ${validJobs.length} valid posting URLs.`)
 

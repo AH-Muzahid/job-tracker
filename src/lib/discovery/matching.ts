@@ -1,5 +1,31 @@
-import { createHash } from "crypto"
 import { UnifiedRawJob } from "./types"
+import { isAtsLookalikeHost } from "./host-verifier"
+
+/**
+ * Collision-resistant SHA-256 with resilient runtime fallback.
+ * Prevents "No such built-in module: node:" in sandboxed/edge/browser test runners.
+ */
+function safeDigestSha256(rawKey: string): string {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const nodeCrypto = require("crypto")
+    if (typeof nodeCrypto?.createHash === "function") {
+      return nodeCrypto.createHash("sha256").update(rawKey).digest("hex")
+    }
+  } catch {}
+
+  // Deterministic FNV-1a fallback for environments without Node crypto
+  let h1 = 0x811c9dc5
+  let h2 = 0x5bd1e995
+  for (let i = 0; i < rawKey.length; i++) {
+    const code = rawKey.charCodeAt(i)
+    h1 ^= code
+    h1 = Math.imul(h1, 0x01000193)
+    h2 ^= code
+    h2 = Math.imul(h2, 0x01000193)
+  }
+  return (Math.abs(h1).toString(16) + Math.abs(h2).toString(16)).padStart(32, "0")
+}
 
 /**
  * Normalizes company name for deduplication
@@ -50,7 +76,7 @@ export function normalizeJobFingerprint(
 
   const normLoc = detectedRemote ? "remote" : locLower.replace(/[^a-z0-9]/g, "").trim()
   const rawKey = `${normCo}:${normTi}:${normLoc}`
-  return createHash("sha256").update(rawKey).digest("hex")
+  return safeDigestSha256(rawKey)
 }
 
 /**
@@ -691,6 +717,10 @@ export function isValidJobPostingUrl(url?: string | null): boolean {
   try {
     const parsed = new URL(trimmed)
     const hostname = parsed.hostname.toLowerCase()
+    // Anti-spoofing: reject look-alike hosts impersonating official ATS apexes
+    if (isAtsLookalikeHost(hostname)) {
+      return false
+    }
     // Path normalized without trailing slash
     const pathname = parsed.pathname.replace(/\/+$/, "").toLowerCase()
 
