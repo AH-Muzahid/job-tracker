@@ -10,6 +10,7 @@ import {
   Clock,
   DollarSign,
   CheckCircle2,
+  AlertCircle,
 } from "lucide-react"
 import { PageContainer } from "@/components/primitives/PageContainer"
 import { PageHeader } from "@/components/primitives/PageHeader"
@@ -17,11 +18,12 @@ import { KPIStrip, type KPIItem } from "@/components/primitives/KPIStrip"
 import { InngestJobMonitor } from "@/components/ops/InngestJobMonitor"
 import { LLMUsageMonitor } from "@/components/ops/LLMUsageMonitor"
 import { AgentTraceMonitor } from "@/components/ops/AgentTraceMonitor"
-import type { OpsMetricsSummary, LLMCallRingItem, AgentStepRingItem, JobRunRingItem } from "@/lib/ops/telemetry-ring"
+import { AppLogMonitor } from "@/components/ops/AppLogMonitor"
+import type { OpsMetricsSummary, LLMCallRingItem, AgentStepRingItem, JobRunRingItem, AppLogRingItem } from "@/lib/ops/telemetry-ring"
 import type { InngestPipelineMetadata } from "@/lib/ops/inngest-catalog"
 
 export default function AdminOpsPage() {
-  const [activeTab, setActiveTab] = React.useState<"jobs" | "llm" | "agents">("jobs")
+  const [activeTab, setActiveTab] = React.useState<"jobs" | "llm" | "agents" | "logs">("jobs")
   const [isLoading, setIsLoading] = React.useState(true)
   const [isRefreshing, setIsRefreshing] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
@@ -44,6 +46,7 @@ export default function AdminOpsPage() {
   const [recentRuns, setRecentRuns] = React.useState<JobRunRingItem[]>([])
   const [llmCalls, setLlmCalls] = React.useState<LLMCallRingItem[]>([])
   const [agentSteps, setAgentSteps] = React.useState<AgentStepRingItem[]>([])
+  const [appLogs, setAppLogs] = React.useState<AppLogRingItem[]>([])
 
   const [autoRefresh, setAutoRefresh] = React.useState(true)
 
@@ -53,11 +56,12 @@ export default function AdminOpsPage() {
     setError(null)
 
     try {
-      const [resMetrics, resJobs, resLLM, resAgents] = await Promise.all([
+      const [resMetrics, resJobs, resLLM, resAgents, resLogs] = await Promise.all([
         fetch("/api/admin/ops/metrics"),
         fetch("/api/admin/ops/jobs"),
         fetch("/api/admin/ops/llm"),
         fetch("/api/admin/ops/agents"),
+        fetch("/api/admin/ops/logs"),
       ])
 
       if (resMetrics.status === 403 || resJobs.status === 403) {
@@ -86,6 +90,11 @@ export default function AdminOpsPage() {
       if (resAgents.ok) {
         const d = await resAgents.json()
         if (d.steps) setAgentSteps(d.steps)
+      }
+
+      if (resLogs.ok) {
+        const d = await resLogs.json()
+        if (d.logs) setAppLogs(d.logs)
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load ops telemetry")
@@ -233,6 +242,18 @@ export default function AdminOpsPage() {
           <Terminal className="size-3.5" />
           <span>Agent Execution Traces ({agentSteps.length})</span>
         </button>
+
+        <button
+          onClick={() => setActiveTab("logs")}
+          className={`flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold border-b-2 transition-colors cursor-pointer ${
+            activeTab === "logs"
+              ? "border-[#533AFD] text-foreground"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <AlertCircle className="size-3.5" />
+          <span>App Logs & Errors ({appLogs.length})</span>
+        </button>
       </div>
 
       {/* Active Tab Content */}
@@ -255,6 +276,13 @@ export default function AdminOpsPage() {
         {activeTab === "agents" && (
           <AgentTraceMonitor
             steps={agentSteps}
+            onRefresh={() => fetchAllData(true)}
+          />
+        )}
+
+        {activeTab === "logs" && (
+          <AppLogMonitor
+            logs={appLogs}
             onRefresh={() => fetchAllData(true)}
           />
         )}
