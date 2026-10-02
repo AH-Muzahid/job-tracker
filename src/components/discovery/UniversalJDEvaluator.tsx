@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import {
   Zap,
@@ -14,6 +14,7 @@ import {
   ArrowRight,
   ExternalLink,
   CheckCircle2,
+  RotateCcw,
 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -23,6 +24,72 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "sonner"
+
+export const EVALUATOR_STORAGE_KEY = "careertrack_jd_evaluator_cache_v1"
+
+export interface EvaluatorPersistedState {
+  jdInput: string
+  companyName: string
+  jobTitle: string
+  jobUrl: string
+  source: string
+  dossier: OpportunityDossier | null
+  updatedAt: number
+}
+
+export function loadEvaluatorCache(): EvaluatorPersistedState | null {
+  if (typeof window === "undefined") return null
+  try {
+    const raw = localStorage.getItem(EVALUATOR_STORAGE_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as EvaluatorPersistedState
+    // Expire cache if older than 48 hours
+    if (Date.now() - parsed.updatedAt > 48 * 60 * 60 * 1000) {
+      localStorage.removeItem(EVALUATOR_STORAGE_KEY)
+      return null
+    }
+    return parsed
+  } catch {
+    return null
+  }
+}
+
+export function saveEvaluatorCache(state: {
+  jdInput: string
+  companyName: string
+  jobTitle: string
+  jobUrl: string
+  source: string
+  dossier: OpportunityDossier | null
+}) {
+  if (typeof window === "undefined") return
+  try {
+    if (
+      !state.dossier &&
+      !state.jdInput.trim() &&
+      !state.jobUrl.trim() &&
+      !state.companyName.trim() &&
+      !state.jobTitle.trim()
+    ) {
+      localStorage.removeItem(EVALUATOR_STORAGE_KEY)
+      return
+    }
+    const payload: EvaluatorPersistedState = {
+      ...state,
+      updatedAt: Date.now(),
+    }
+    localStorage.setItem(EVALUATOR_STORAGE_KEY, JSON.stringify(payload))
+  } catch (e) {
+    console.warn("Failed to persist evaluator cache:", e)
+  }
+}
+
+export function clearEvaluatorCache() {
+  if (typeof window === "undefined") return
+  try {
+    localStorage.removeItem(EVALUATOR_STORAGE_KEY)
+  } catch {}
+}
 
 export interface OpportunityDossier {
   success: boolean
@@ -83,6 +150,7 @@ interface UniversalJDEvaluatorProps {
   initialUrl?: string
   onFinished?: () => void
   embedded?: boolean
+  onEvaluatingChange?: (evaluating: boolean) => void
 }
 
 export function UniversalJDEvaluator({
@@ -90,6 +158,7 @@ export function UniversalJDEvaluator({
   initialUrl = "",
   onFinished,
   embedded = false,
+  onEvaluatingChange,
 }: UniversalJDEvaluatorProps) {
   const router = useRouter()
   const [jdInput, setJdInput] = useState(initialText || initialUrl || "")
@@ -102,11 +171,52 @@ export function UniversalJDEvaluator({
   const [loadingStep, setLoadingStep] = useState(0)
   const [dossier, setDossier] = useState<OpportunityDossier | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
+  const [isRestored, setIsRestored] = useState(false)
+  const abortControllerRef = useRef<AbortController | null>(null)
 
+  // Notify parent modal of active evaluation status
   useEffect(() => {
-    if (initialText) setJdInput(initialText)
-    if (initialUrl) setJobUrl(initialUrl)
+    onEvaluatingChange?.(loading)
+  }, [loading, onEvaluatingChange])
+
+  // Hydrate or restore state on mount / prop change
+  useEffect(() => {
+    if (initialText || initialUrl) {
+      setJdInput(initialText || initialUrl || "")
+      setJobUrl(initialUrl || "")
+      setDossier(null)
+      setIsRestored(false)
+      return
+    }
+
+    const cached = loadEvaluatorCache()
+    if (cached) {
+      if (cached.jdInput) setJdInput(cached.jdInput)
+      if (cached.companyName) setCompanyName(cached.companyName)
+      if (cached.jobTitle) setJobTitle(cached.jobTitle)
+      if (cached.jobUrl) setJobUrl(cached.jobUrl)
+      if (cached.source) setSource(cached.source)
+      if (cached.dossier) {
+        setDossier(cached.dossier)
+        setIsRestored(true)
+      } else if (cached.jdInput || cached.jobUrl) {
+        setIsRestored(true)
+      }
+    }
   }, [initialText, initialUrl])
+
+  // Automatically persist draft changes and generated dossiers
+  useEffect(() => {
+    if (loading) return
+    saveEvaluatorCache({
+      jdInput,
+      companyName,
+      jobTitle,
+      jobUrl,
+      source,
+      dossier,
+    })
+  }, [jdInput, companyName, jobTitle, jobUrl, source, dossier, loading])
 
   const handlePasteClipboard = async () => {
     try {
@@ -130,9 +240,12 @@ export function UniversalJDEvaluator({
       return
     }
 
+    const controller = new AbortController()
+    abortControllerRef.current = controller
     setLoading(true)
     setLoadingStep(0)
     setDossier(null)
+    setIsRestored(false)
 
     const steps = [
       "Extracting role snapshot & tech requirements...",
@@ -166,6 +279,7 @@ export function UniversalJDEvaluator({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
+        signal: controller.signal,
       })
 
       clearInterval(stepInterval)
@@ -177,6 +291,7 @@ export function UniversalJDEvaluator({
 
       const data: OpportunityDossier = await res.json()
       setDossier(data)
+      setIsRestored(false)
       if (data.sourceUrl && !jobUrl) setJobUrl(data.sourceUrl)
       if (data.roleSnapshot.company && !companyName) setCompanyName(data.roleSnapshot.company)
       if (data.roleSnapshot.role && !jobTitle) setJobTitle(data.roleSnapshot.role)
@@ -188,11 +303,16 @@ export function UniversalJDEvaluator({
       }
     } catch (err: unknown) {
       clearInterval(stepInterval)
+      if (err instanceof DOMException && err.name === "AbortError") {
+        toast.info("Evaluation cancelled")
+        return
+      }
       console.error(err)
       const errMsg = err instanceof Error ? err.message : "Something went wrong during evaluation"
       toast.error(errMsg)
     } finally {
       setLoading(false)
+      abortControllerRef.current = null
     }
   }
 
@@ -272,11 +392,18 @@ export function UniversalJDEvaluator({
   }
 
   const handleDiscard = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+      abortControllerRef.current = null
+    }
     setDossier(null)
     setJdInput("")
     setCompanyName("")
     setJobTitle("")
     setJobUrl("")
+    setIsRestored(false)
+    setLoading(false)
+    clearEvaluatorCache()
   }
 
   // 1. Loading Animation State
@@ -289,7 +416,7 @@ export function UniversalJDEvaluator({
     ]
 
     return (
-      <div className="flex flex-col items-center justify-center p-8 min-h-[360px] text-center border border-border/80 bg-card rounded-xl shadow-xs">
+      <div className="flex flex-col items-center justify-center p-8 min-h-[360px] text-center border border-border bg-card rounded-md shadow-xs">
         <div className="relative flex items-center justify-center mb-6">
           <div className="h-16 w-16 rounded-full border-4 border-primary/20 border-t-primary animate-spin" />
           <Zap className="absolute h-6 w-6 text-primary animate-pulse" />
@@ -309,9 +436,19 @@ export function UniversalJDEvaluator({
           />
         </div>
 
-        <p className="text-[11px] font-mono font-medium text-primary">
+        <p className="text-[11px] font-mono font-medium text-primary mb-4">
           {steps[loadingStep]}
         </p>
+
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={handleDiscard}
+          className="text-xs h-7 px-3 border-border text-muted-foreground hover:text-foreground cursor-pointer rounded-sm"
+        >
+          Cancel Evaluation
+        </Button>
       </div>
     )
   }
@@ -340,6 +477,23 @@ export function UniversalJDEvaluator({
 
     return (
       <Card className="border border-border bg-card shadow-lg overflow-hidden flex flex-col animate-in fade-in zoom-in-98 duration-200">
+        {isRestored && (
+          <div className="flex items-center justify-between px-4 py-2 bg-muted/40 border-b border-border text-xs text-muted-foreground animate-in fade-in duration-150">
+            <div className="flex items-center gap-1.5 font-medium">
+              <RotateCcw className="h-3.5 w-3.5 text-primary shrink-0" />
+              <span>Restored previously evaluated draft</span>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={handleDiscard}
+              className="h-6 px-2 text-[11px] text-muted-foreground hover:text-foreground cursor-pointer font-medium"
+            >
+              Start New Scan
+            </Button>
+          </div>
+        )}
         <CardHeader className="pb-3 border-b border-border/70 bg-muted/20">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0 space-y-1">
@@ -557,6 +711,23 @@ export function UniversalJDEvaluator({
 
       <CardContent className="pt-0 flex flex-col flex-1">
         <form onSubmit={handleSubmit} className="space-y-3.5 flex flex-col flex-1">
+          {isRestored && (jdInput.trim() || jobUrl.trim()) && (
+            <div className="flex items-center justify-between px-3 py-1.5 bg-muted/40 rounded-md border border-border text-xs text-muted-foreground animate-in fade-in duration-150">
+              <div className="flex items-center gap-1.5 font-medium">
+                <RotateCcw className="h-3.5 w-3.5 text-primary shrink-0" />
+                <span>Restored draft inputs from your previous session</span>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={handleDiscard}
+                className="h-5 px-1.5 text-[10px] text-muted-foreground hover:text-foreground cursor-pointer font-medium"
+              >
+                Clear Draft
+              </Button>
+            </div>
+          )}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <Label htmlFor="jd-input" className="text-xs font-semibold text-foreground">
