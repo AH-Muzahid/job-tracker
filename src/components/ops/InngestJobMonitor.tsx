@@ -83,6 +83,21 @@ export function InngestJobMonitor({
     return recentRuns.find((r) => r.functionId === inspectPipeline.id) || null
   }, [inspectPipeline, recentRuns])
 
+  // ESC key listener and body overflow lock for side drawer
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setInspectPipeline(null)
+    }
+    if (inspectPipeline) {
+      window.addEventListener("keydown", handleKeyDown)
+      document.body.style.overflow = "hidden"
+    }
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown)
+      document.body.style.overflow = ""
+    }
+  }, [inspectPipeline])
+
   return (
     <div className="space-y-4">
       {/* Category Filter Tabs */}
@@ -222,33 +237,42 @@ export function InngestJobMonitor({
         })}
       </div>
 
-      {/* Execution Logs & Details Modal */}
+      {/* Execution Logs & Details Side Drawer */}
       {inspectPipeline && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-4">
-          <div className="w-full max-w-2xl bg-card border border-border rounded-[6px] shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between p-4 border-b border-border bg-muted/30">
+        <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-xs transition-opacity animate-in fade-in duration-200">
+          {/* Backdrop Click */}
+          <div
+            className="absolute inset-0 cursor-pointer"
+            onClick={() => setInspectPipeline(null)}
+            aria-label="Close drawer"
+          />
+
+          {/* Side Drawer Panel */}
+          <div className="relative w-full max-w-xl md:max-w-2xl h-full bg-card border-l border-border shadow-2xl flex flex-col z-10 animate-in slide-in-from-right duration-300 ease-out">
+            {/* Drawer Header */}
+            <div className="flex items-center justify-between p-4 border-b border-border bg-muted/20 shrink-0">
               <div className="flex items-center gap-2 min-w-0">
                 <Terminal className="size-4 text-emerald-500 shrink-0" />
                 <h3 className="font-semibold text-sm text-foreground truncate">
                   Execution Inspector: {inspectPipeline.name}
                 </h3>
-                <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-[2px] bg-muted text-muted-foreground">
+                <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-[2px] bg-muted text-muted-foreground shrink-0">
                   {inspectPipeline.category}
                 </span>
               </div>
               <button
                 onClick={() => setInspectPipeline(null)}
-                className="p-1 rounded-[4px] hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer"
+                className="p-1.5 rounded-[4px] hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
+                title="Close Drawer (Esc)"
               >
                 <X className="size-4" />
               </button>
             </div>
 
-            {/* Modal Body */}
-            <div className="p-4 overflow-y-auto space-y-4 text-xs">
+            {/* Drawer Scrollable Body */}
+            <div className="flex-1 p-5 overflow-y-auto space-y-5 text-xs">
               {/* Plain Human Readable Explanation */}
-              <div className="p-3 rounded-[4px] bg-muted/20 border border-border/60 flex items-start gap-2.5">
+              <div className="p-3.5 rounded-[4px] bg-muted/20 border border-border/60 flex items-start gap-2.5">
                 <Info className="size-4 text-sky-500 shrink-0 mt-0.5" />
                 <div className="space-y-1">
                   <div className="font-semibold text-foreground">Why this pipeline exists:</div>
@@ -291,12 +315,12 @@ export function InngestJobMonitor({
               </div>
 
               {/* Terminal Logs Window */}
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <div className="flex items-center justify-between text-[11px] font-mono text-muted-foreground">
                   <span>LOG OUTPUT & EVENT TRACE</span>
                   <span>RING BUFFER (LAST RUN)</span>
                 </div>
-                <div className="p-3 rounded-[4px] bg-black text-emerald-400 font-mono text-[11px] leading-relaxed border border-border/80 overflow-x-auto min-h-[140px] max-h-[220px]">
+                <div className="p-3.5 rounded-[4px] bg-black text-emerald-400 font-mono text-[11px] leading-relaxed border border-border/80 overflow-x-auto min-h-[160px] max-h-[320px]">
                   {activeInspectRun?.logs && activeInspectRun.logs.length > 0 ? (
                     activeInspectRun.logs.map((logLine, idx) => (
                       <div key={idx} className="whitespace-pre-wrap py-0.5">
@@ -324,8 +348,8 @@ export function InngestJobMonitor({
               </div>
             </div>
 
-            {/* Modal Footer */}
-            <div className="flex items-center justify-between p-4 border-t border-border bg-muted/30">
+            {/* Drawer Sticky Footer */}
+            <div className="flex items-center justify-between p-4 border-t border-border bg-muted/20 shrink-0">
               <a
                 href="https://app.inngest.com/env/production"
                 target="_blank"
