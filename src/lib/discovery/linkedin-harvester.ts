@@ -138,7 +138,16 @@ export async function harvestLinkedInOpportunities(
         if (detail && detail.isActive && detail.description && detail.description.length > 80) {
           job.description = detail.description
           if (detail.salary) job.salary = detail.salary
-          if (detail.employmentType) job.employmentType = detail.employmentType as any
+          if (detail.employmentType) {
+            const rawType = detail.employmentType.toLowerCase()
+            job.employmentType = rawType.includes("contract")
+              ? "contract"
+              : rawType.includes("part")
+                ? "part-time"
+                : rawType.includes("intern")
+                  ? "intern"
+                  : "full-time"
+          }
         }
       } catch {
         // Safe fallback to snippet
