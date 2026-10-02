@@ -516,6 +516,30 @@ export function useJobDiscovery() {
     toast.success("Opportunity restored to feed")
   }, [])
 
+  const refreshFeedMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/jobs/discover", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "refresh" }),
+      })
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => null)
+        throw new Error(errJson?.error || "Failed to refresh opportunities")
+      }
+      return res.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["discovery", "feed"] })
+      toast.success("Feed refreshed with live opportunities!", {
+        description: "Harvested fresh LinkedIn and multi-board jobs for your profile.",
+      })
+    },
+    onError: (err: Error) => {
+      toast.error(err?.message || "Failed to refresh opportunities")
+    },
+  })
+
   const saveSearch = useCallback(() => {
     toast.success("Search parameters saved successfully")
   }, [])
@@ -523,6 +547,8 @@ export function useJobDiscovery() {
   return {
     searchQuery,
     setSearchQuery,
+    refreshFeed: () => refreshFeedMutation.mutate(),
+    isRefreshingFeed: refreshFeedMutation.isPending,
     activeTab,
     setActiveTab,
     viewMode,

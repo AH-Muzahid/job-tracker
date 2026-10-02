@@ -27,6 +27,10 @@ import { generateApplicationMaterialsAgent } from "@/lib/discovery/cover-letter-
 import { getCompanyEnrichment } from "@/lib/discovery/company-enrichment"
 import { retrieveCandidateJobsTier1 } from "@/lib/discovery/vector-retrieval"
 import { deepReRankCandidateJobs } from "@/lib/discovery/ai-reranker"
+import {
+  harvestLinkedInOpportunities,
+  ingestLinkedInOpportunitiesToCatalog,
+} from "@/lib/discovery/linkedin-harvester"
 
 export async function GET(request: NextRequest) {
   const userId = await getInternalUserId()
@@ -283,10 +287,13 @@ export async function GET(request: NextRequest) {
       .filter((m) => m.job)
       .map((m) => transformToOpportunity(m.job!, m))
 
-    // 5. FALLBACK: If pre-computed matches are insufficient, run full vector retrieval + re-ranking pipeline
+    // 5. FALLBACK: If pre-computed matches are insufficient or if Today's feed has 0 jobs, run vector retrieval + re-ranking pipeline
     const FAST_PATH_MIN_THRESHOLD = 10
-    if (forceRefresh || opportunities.length < FAST_PATH_MIN_THRESHOLD) {
-      console.log(`[JobDiscovery API] Pre-computed matches: ${opportunities.length}. Running full pipeline (forceRefresh=${forceRefresh})...`)
+    const todayMatchesCount = opportunities.filter((j) => j.batchSlot === "today").length
+    const needsFallbackOrRefresh = forceRefresh || opportunities.length < FAST_PATH_MIN_THRESHOLD || todayMatchesCount === 0
+
+    if (needsFallbackOrRefresh) {
+      console.log(`[JobDiscovery API] Pre-computed matches: ${opportunities.length} (Today: ${todayMatchesCount}). Running full pipeline (forceRefresh=${forceRefresh})...`)
 
       if (forceRefresh) {
         // Dispatch asynchronous LinkedIn harvest to Inngest so the user GET request doesn't stall
@@ -691,7 +698,52 @@ export async function POST(request: NextRequest) {
           console.error("[JobDiscovery API] Error logging refresh event:", afterErr)
         }
       })
+
+      // Fetch user profile and resume to execute targeted live harvest
+      const [refreshedProfile, defaultResume] = await Promise.all([
+        withDbRetry<any>(() => prisma.userProfile.findUnique({ where: { userId } })),
+        withDbRetry<any>(() => prisma.resume.findFirst({ where: { userId, isDefault: true } })),
+      ])
+
+      if (refreshedProfile) {
+        try {
+          const harvestSkills: string[] = []
+          if (Array.isArray(refreshedProfile.skills)) harvestSkills.push(...refreshedProfile.skills)
+          if (refreshedProfile.strengths) {
+            refreshedProfile.strengths.split(/[,|\n]+/).forEach((s: string) => {
+              const t = s.trim()
+              if (t && !harvestSkills.includes(t)) harvestSkills.push(t)
+            })
+          }
+          if (defaultResume?.textContent) {
+            const tokens = defaultResume.textContent.toLowerCase().match(/[a-z0-9+#.-]+/g) || []
+            tokens.slice(0, 15).forEach((tok: string) => {
+              if (tok.length > 2 && !harvestSkills.includes(tok)) harvestSkills.push(tok)
+            })
+          }
+
+          const harvestedJobs = await harvestLinkedInOpportunities(
+            {
+              skills: harvestSkills,
+              targetRoles: refreshedProfile.targetRoles || [],
+              experienceLevel: refreshedProfile.experienceLevel || "Junior",
+              location: refreshedProfile.location || "Bangladesh",
+              workPreference: refreshedProfile.workPreference || "remote",
+            },
+            { maxQueries: 3 }
+          )
+
+          if (harvestedJobs.length > 0) {
+            console.log(`[JobDiscovery API] Direct harvest fetched ${harvestedJobs.length} live LinkedIn jobs. Ingesting to catalog...`)
+            await ingestLinkedInOpportunitiesToCatalog(harvestedJobs)
+          }
+        } catch (harvestErr) {
+          console.warn("[JobDiscovery API] Direct LinkedIn harvest during refresh encountered an error:", harvestErr)
+        }
+      }
+
       const result = await processUserJobBatch(userId, { forceImmediatePublish: true, notify: false })
+      await invalidateCache(`discovery:feed:v1:${userId}`)
       return ResponseUtil.success(result)
     }
 
