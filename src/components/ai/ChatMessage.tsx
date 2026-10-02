@@ -77,6 +77,7 @@ interface Props {
     plan?: AgentPlanStep[]
     toolInvocations?: ToolInvocation[]
     interruptData?: Record<string, unknown> | null
+    createdAt?: Date | string | number
   }
   isLast: boolean
   isStreaming: boolean
@@ -1584,6 +1585,13 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
               reasoning={message.reasoning}
               toolInvocations={message.toolInvocations}
               isFinished={false}
+              startTimestamp={
+                message.createdAt
+                  ? typeof message.createdAt === "number"
+                    ? message.createdAt
+                    : new Date(message.createdAt).getTime()
+                  : undefined
+              }
             />
           </div>
         ) : (

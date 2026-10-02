@@ -72,6 +72,7 @@ interface Message {
   metadata?: Record<string, unknown>
   toolInvocations?: ToolInvocation[]
   interruptData?: Record<string, unknown> | null
+  createdAt?: Date | string | number
 }
 
 const STARTER_PROMPTS = [
@@ -488,13 +489,13 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar, onToggl
           const sliced = prev.slice(0, targetUserIdx + 1)
           return [
             ...sliced,
-            { id: assistantMsgId, role: "assistant", content: "", toolInvocations: [] },
+            { id: assistantMsgId, role: "assistant", content: "", toolInvocations: [], createdAt: new Date() },
           ]
         }
         return [
           ...prev,
-          { id: userMsgId, role: "user", content: trimmed },
-          { id: assistantMsgId, role: "assistant", content: "", toolInvocations: [] },
+          { id: userMsgId, role: "user", content: trimmed, createdAt: new Date() },
+          { id: assistantMsgId, role: "assistant", content: "", toolInvocations: [], createdAt: new Date() },
         ]
       })
     } else {
@@ -502,12 +503,14 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar, onToggl
         id: userMsgId,
         role: "user",
         content: trimmed,
+        createdAt: new Date(),
       }
       const assistantMsg: Message = {
         id: assistantMsgId,
         role: "assistant",
         content: "",
         toolInvocations: [],
+        createdAt: new Date(),
       }
       setMessages((prev) => [...prev, userMsg, assistantMsg])
     }

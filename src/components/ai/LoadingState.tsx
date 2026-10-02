@@ -12,17 +12,50 @@ interface LoadingStateProps {
   reasoning?: string;
   toolInvocations?: ToolInvocation[];
   isFinished?: boolean;
+  startTimestamp?: number;
   className?: string;
 }
 
-function useElapsed(isFinished?: boolean) {
-  const [ds, setDs] = useState(0);
-  useEffect(() => {
+function useElapsed(isFinished?: boolean, startTimestamp?: number) {
+  const [elapsedMs, setElapsedMs] = useState(0);
+  const startTimeRef = React.useRef(startTimestamp || Date.now());
+
+  React.useEffect(() => {
+    if (startTimestamp) {
+      startTimeRef.current = startTimestamp;
+    }
+  }, [startTimestamp]);
+
+  React.useEffect(() => {
     if (isFinished) return;
-    const t = setInterval(() => setDs((d) => d + 1), 100);
-    return () => clearInterval(t);
+
+    // Immediately calculate initial wall-clock diff
+    setElapsedMs(Math.max(0, Date.now() - startTimeRef.current));
+
+    const update = () => {
+      setElapsedMs(Math.max(0, Date.now() - startTimeRef.current));
+    };
+
+    const t = setInterval(update, 100);
+
+    // When returning from background tab or restoring window focus, snap instantly to actual wall-clock elapsed time
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        update();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("focus", update);
+
+    return () => {
+      clearInterval(t);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", update);
+    };
   }, [isFinished]);
-  const total = ds / 10;
+
+  const total = Math.floor(elapsedMs / 100) / 10;
   const timeStr = total < 60 ? `${total.toFixed(1)}s` : `${Math.floor(total / 60)}m ${(total % 60).toFixed(1)}s`;
   return { elapsed: timeStr, seconds: total };
 }
@@ -84,9 +117,10 @@ export default function LoadingState({
   reasoning,
   toolInvocations = [],
   isFinished = false,
+  startTimestamp,
   className = "",
 }: LoadingStateProps) {
-  const { elapsed } = useElapsed(isFinished);
+  const { elapsed } = useElapsed(isFinished, startTimestamp);
   const [isThoughtOpen, setIsThoughtOpen] = useState(false);
 
   const hasToolCalls = toolInvocations.length > 0;
