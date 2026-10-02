@@ -71,27 +71,9 @@ export function useInterviewSession(options: {
 
       const activeHistory = overrideHistory || dialogue
       const updatedDialogue: DialogueMessage[] = [...activeHistory]
-      let processedAnswer = answerText ? answerText.trim() : ""
+      const processedAnswer = answerText ? answerText.trim() : ""
 
       if (processedAnswer) {
-        if (language === "bn" || language === "mixed" || /[\u0980-\u09FF]/.test(processedAnswer)) {
-          try {
-            const refineRes = await fetch("/api/ai/transcribe", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ rawText: processedAnswer, language }),
-            })
-            if (refineRes.ok) {
-              const refineData = await refineRes.json()
-              if (refineData.transcript && refineData.transcript.trim()) {
-                processedAnswer = refineData.transcript.trim()
-              }
-            }
-          } catch {
-            // Keep original
-          }
-        }
-
         updatedDialogue.push({
           role: "candidate",
           text: processedAnswer,
@@ -125,7 +107,7 @@ export function useInterviewSession(options: {
 
         const data = await res.json()
         const rawReply = data.reply || ""
-        const aiReply = rawReply.replace(/\x60\x60\x60(?:suggestions|json)?[\s\S]*?\x60\x60\x60/gi, "").trim()
+        const aiReply = rawReply.replace(/```(?:suggestions|json)?[\s\S]*?```/gi, "").trim()
 
         if (data.currentQuestionNumber) setCurrentQuestionNumber(data.currentQuestionNumber)
         if (data.currentPhase) setCurrentPhase(data.currentPhase)
@@ -141,6 +123,9 @@ export function useInterviewSession(options: {
         ]
         setDialogue(nextDialogue)
 
+        // Turn off AI thinking state right as AI reply is ready and speaking begins
+        setIsAiThinking(false)
+
         speakText(
           aiReply,
           () => {
@@ -153,10 +138,9 @@ export function useInterviewSession(options: {
           }
         )
       } catch (err: unknown) {
+        setIsAiThinking(false)
         const msg = err instanceof Error ? err.message : "Error in conversation loop"
         toast.error(msg)
-      } finally {
-        setIsAiThinking(false)
       }
     },
     [

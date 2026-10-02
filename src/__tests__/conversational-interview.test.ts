@@ -47,4 +47,34 @@ describe("Conversational AI Voice Mock Interview Loop", () => {
     expect(mockReport.overallScore).toBeGreaterThanOrEqual(90)
     expect(mockReport.starBreakdown.result).toContain("latency")
   })
+
+  it("sanitizes repeated Bengali punctuation and cleans speech recognition text", () => {
+    const rawTranscript = "  । আমি রিয়্যাক্ট এবং নেক্সট জেএস এ কাজ করেছি ।।।।  "
+    const cleaned = rawTranscript
+      .replace(/[।|]{2,}/g, "। ")
+      .replace(/([.?!,])\1+/g, "$1")
+      .replace(/\s+([।?!,.])/g, "$1")
+      .replace(/^[।?!,.\s|]+/, "")
+      .replace(/\s+/g, " ")
+      .trim()
+
+    expect(cleaned).toBe("আমি রিয়্যাক্ট এবং নেক্সট জেএস এ কাজ করেছি।")
+    expect(cleaned).not.toContain("।।।।")
+  })
+
+  it("correctly identifies meaningful speech vs mere punctuation noise", () => {
+    const noise = "।।।। ..."
+    const shortAnswer = "হাঁ"
+    const englishAnswer = "Yes"
+
+    const noiseCount = noise.replace(/[\s\p{P}\p{S}]/gu, "").length
+    const shortAnswerCount = shortAnswer.replace(/[\s\p{P}\p{S}]/gu, "").length
+    const englishAnswerCount = englishAnswer.replace(/[\s\p{P}\p{S}]/gu, "").length
+
+    expect(noiseCount).toBe(0)
+    expect(shortAnswerCount).toBe(3)
+    expect(englishAnswerCount).toBe(3)
+    expect(shortAnswerCount >= 2).toBe(true)
+    expect(englishAnswerCount >= 2).toBe(true)
+  })
 })

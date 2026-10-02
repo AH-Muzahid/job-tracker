@@ -4,6 +4,21 @@
 import { useState, useRef, useEffect, useCallback } from "react"
 import { toast } from "sonner"
 
+function sanitizeTranscript(raw: string): string {
+  return raw
+    // Collapse repeated Bengali dāri (।) or pipes (|)
+    .replace(/[।|]{2,}/g, "। ")
+    // Collapse repeated punctuation (. ? ! ,)
+    .replace(/([.?!,])\1+/g, "$1")
+    // Clean spaces before punctuation
+    .replace(/\s+([।?!,.])/g, "$1")
+    // Remove leading punctuation/symbols
+    .replace(/^[।?!,.\s|]+/, "")
+    // Collapse whitespace
+    .replace(/\s+/g, " ")
+    .trim()
+}
+
 export function useVoiceRecognition(options: {
   speechInputLang: "bn-BD" | "en-US"
   autoTurnActive: boolean
@@ -71,14 +86,15 @@ export function useVoiceRecognition(options: {
     setIsListening(false)
   }, [])
 
-  // Patch stopAllAudioAndMic to include our cleanup logic when it's passed around, 
-  // since stopAllAudioAndMic doesn't know about recognitionRef internally in the current design.
-  // Actually, wait, stopAllAudioAndMic in useAudioEngine accepts a callback, but the user requested:
-  // "Make sure the stopAllAudioAndMic in useAudioEngine also handles recognition cleanup by accepting a cleanupRecognition callback"
-  // Let's hook into that where we use it in the UI.
-
   const startListening = useCallback(() => {
-    if (typeof window === "undefined" || isPausedRef.current) return
+    if (
+      typeof window === "undefined" ||
+      isPausedRef.current ||
+      isAiThinkingRef.current ||
+      isAiSpeakingRef.current
+    ) {
+      return
+    }
 
     const SpeechRecognition =
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
@@ -89,10 +105,14 @@ export function useVoiceRecognition(options: {
 
     if (recognitionRef.current) {
       try {
+        recognitionRef.current.onend = null
+        recognitionRef.current.onerror = null
+        recognitionRef.current.onresult = null
         recognitionRef.current.abort()
       } catch {
         // Ignore
       }
+      recognitionRef.current = null
     }
 
     const recognition = new SpeechRecognition()
@@ -111,24 +131,54 @@ export function useVoiceRecognition(options: {
       for (let i = 0; i < event.results.length; i++) {
         liveText += event.results[i][0].transcript + " "
       }
-      const trimmed = liveText.trim()
-      setCurrentTranscript(trimmed)
+      const cleaned = sanitizeTranscript(liveText)
+      if (!cleaned) return
+
+      setCurrentTranscript(cleaned)
       lastSpeechTimeRef.current = Date.now()
 
-      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current)
-      if (autoTurnActive && trimmed.length > 5) {
+      if (silenceTimerRef.current) {
+        clearTimeout(silenceTimerRef.current)
+        silenceTimerRef.current = null
+      }
+
+      // Detect meaningful spoken words (exclude punctuation, symbols, whitespace)
+      const meaningfulLength = cleaned.replace(/[\s\p{P}\p{S}]/gu, "").length
+      if (autoTurnActive && meaningfulLength >= 2) {
         silenceTimerRef.current = setTimeout(() => {
-          if (Date.now() - lastSpeechTimeRef.current >= 2100) {
-            onSilenceDetected(trimmed)
+          if (
+            Date.now() - lastSpeechTimeRef.current >= 1900 &&
+            !isAiThinkingRef.current &&
+            !isAiSpeakingRef.current &&
+            !isPausedRef.current
+          ) {
+            shouldKeepListeningRef.current = false
+            try {
+              recognition.stop()
+            } catch {
+              // Ignore
+            }
+            setIsListening(false)
+            onSilenceDetected(cleaned)
           }
-        }, 2200)
+        }, 2000)
       }
     }
 
     recognition.onerror = (err: any) => {
-      if (err.error !== "no-speech") {
-        console.warn("Speech Rec Error:", err)
+      if (err.error === "no-speech") {
+        return
       }
+      if (err.error === "not-allowed" || err.error === "service-not-allowed") {
+        toast.error("Microphone access blocked. Please allow microphone permission in your browser.")
+        shouldKeepListeningRef.current = false
+        setIsListening(false)
+        return
+      }
+      if (err.error === "aborted") {
+        return
+      }
+      console.warn("[VoiceRec] Speech Recognition error:", err.error)
     }
 
     recognition.onend = () => {
@@ -140,18 +190,18 @@ export function useVoiceRecognition(options: {
         !isPausedRef.current
       ) {
         setTimeout(() => {
-          try {
-            if (
-              shouldKeepListeningRef.current &&
-              !isAiThinkingRef.current &&
-              !isAiSpeakingRef.current &&
-              !isPausedRef.current
-            ) {
-              recognition.start()
-            }
-          } catch {
-            if (startListeningRef.current) {
-              startListeningRef.current()
+          if (
+            shouldKeepListeningRef.current &&
+            !isAiThinkingRef.current &&
+            !isAiSpeakingRef.current &&
+            !isPausedRef.current
+          ) {
+            try {
+              if (startListeningRef.current) {
+                startListeningRef.current()
+              }
+            } catch (e) {
+              console.warn("[VoiceRec] Auto-restart failed:", e)
             }
           }
         }, 250)
@@ -167,12 +217,7 @@ export function useVoiceRecognition(options: {
   }, [autoTurnActive, onSilenceDetected, speechInputLang])
 
   startListeningRef.current = startListening
-  
-  // Expose refs on function itself for use by stopAllAudioAndMic wrapper or useInterviewSession
-  // Wait, I'll just expose it by extending the return type slightly if needed, but the prompt said to return exactly those 4.
-  // Actually, I can use a global effect or patch stopAllAudioAndMic in the component.
 
-  // Let's add a global cleanup to a custom event just in case, or just return cleanupRecognition.
   return {
     isListening,
     currentTranscript,

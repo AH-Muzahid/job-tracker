@@ -71,39 +71,25 @@ export function ConversationalVoiceInterviewModal({
     selectedVoice,
     setSelectedVoice,
     isAiSpeaking,
+    isAutoplayBlocked,
+    resumeBlockedAudio,
+    unlockAudio,
     speakText: audioEngineSpeakText,
     stopAllAudioAndMic: audioEngineStop,
     isVoiceMatchingGender,
   } = useAudioEngine({ language, voiceGender, speechRate })
 
   const handleSendTurnRef = useRef<(text?: string, overrideHistory?: any) => Promise<void>>(async () => {})
+  const startListeningRef = useRef<() => void>(() => {})
+  const cleanupRecognitionRef = useRef<() => void>(() => {})
 
   const handleSilenceDetected = useCallback((transcript: string) => {
     handleSendTurnRef.current(transcript)
   }, [])
 
-  const {
-    isListening,
-    currentTranscript,
-    setCurrentTranscript,
-    startListening,
-    cleanupRecognition,
-    shouldKeepListeningRef,
-    recognitionRef,
-  } = useVoiceRecognition({
-    speechInputLang,
-    autoTurnActive,
-    isAiSpeaking,
-    // this is a bit of a hack since isAiThinking comes from useInterviewSession
-    isAiThinking: false, 
-    isPaused: false,
-    onSilenceDetected: handleSilenceDetected,
-    stopAllAudioAndMic: () => stopAll(),
-  })
-
   const stopAll = useCallback(() => {
-    audioEngineStop(cleanupRecognition)
-  }, [audioEngineStop, cleanupRecognition])
+    audioEngineStop(cleanupRecognitionRef.current)
+  }, [audioEngineStop])
 
   const {
     dialogue,
@@ -134,15 +120,31 @@ export function ConversationalVoiceInterviewModal({
     applicationId,
     speakText: (text, onDone) => audioEngineSpeakText(text, onDone),
     stopAllAudioAndMic: stopAll,
-    startListening,
+    startListening: () => startListeningRef.current(),
     autoTurnActive,
     onSessionSaved,
   })
 
-  // update the AI thinking state in recognition hook
-  useEffect(() => {
-    // We would pass it to useVoiceRecognition but it's okay, we can just use the one we created
-  }, [isAiThinking, isPaused])
+  const {
+    isListening,
+    currentTranscript,
+    setCurrentTranscript,
+    startListening,
+    cleanupRecognition,
+    shouldKeepListeningRef,
+    recognitionRef,
+  } = useVoiceRecognition({
+    speechInputLang,
+    autoTurnActive,
+    isAiSpeaking,
+    isAiThinking,
+    isPaused,
+    onSilenceDetected: handleSilenceDetected,
+    stopAllAudioAndMic: () => stopAll(),
+  })
+
+  startListeningRef.current = startListening
+  cleanupRecognitionRef.current = cleanupRecognition
 
   const handleSendTurn = useCallback(async (text?: string, overrideHistory?: any) => {
     setCurrentTranscript("")
@@ -152,6 +154,19 @@ export function ConversationalVoiceInterviewModal({
   handleSendTurnRef.current = handleSendTurn
 
   const handleStartInterview = async () => {
+    // 1. Prime AudioContext and HTMLAudioElement inside this user click
+    await unlockAudio()
+
+    // 2. Proactively request mic permission in this user gesture
+    if (typeof navigator !== "undefined" && navigator.mediaDevices?.getUserMedia) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+        stream.getTracks().forEach((track) => track.stop())
+      } catch (e) {
+        console.warn("[InterviewModal] Microphone pre-permission dismissed or not granted:", e)
+      }
+    }
+
     setStep("interview")
     setCurrentTranscript("")
     await sessionStartInterview()
@@ -233,13 +248,14 @@ export function ConversationalVoiceInterviewModal({
             selectedVoice={selectedVoice}
             setSelectedVoice={setSelectedVoice}
             isVoiceMatchingGender={isVoiceMatchingGender}
-            onTestVoice={() =>
+            onTestVoice={async () => {
+              await unlockAudio()
               audioEngineSpeakText(
                 language === "bn" || language === "mixed"
                   ? "হ্যালো! আমি আপনার আজকের ইন্টারভিউয়ার। আপনি কি শুরু করতে প্রস্তুত?"
                   : "Hello! I will be your interviewer today. Are you ready to begin?"
               )
-            }
+            }}
             onStartInterview={handleStartInterview}
             onClose={onClose}
           />
@@ -261,8 +277,14 @@ export function ConversationalVoiceInterviewModal({
             isAiSpeaking={isAiSpeaking}
             isListening={isListening}
             isAiThinking={isAiThinking}
+            isAutoplayBlocked={isAutoplayBlocked}
+            resumeBlockedAudio={resumeBlockedAudio}
             autoTurnActive={autoTurnActive}
             onMicClick={() => {
+              if (isAutoplayBlocked) {
+                resumeBlockedAudio()
+                return
+              }
               if (!isAiSpeaking && !isAiThinking && !isPaused && !isInterviewComplete) {
                 startListening()
               }
