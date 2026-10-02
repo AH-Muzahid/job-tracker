@@ -1,9 +1,9 @@
 "use client"
 
 import * as React from "react"
-import { Play, Clock, CheckCircle2, AlertCircle, RefreshCw, Layers, ShieldCheck } from "lucide-react"
+import { Play, RefreshCw } from "lucide-react"
 import { BlueprintCard, BlueprintCardHeader, BlueprintCardTitle, BlueprintCardContent } from "@/components/primitives/BlueprintCard"
-import type { InngestPipelineMetadata, PipelineCategory } from "@/lib/ops/inngest-catalog"
+import type { InngestPipelineMetadata } from "@/lib/ops/inngest-catalog"
 import type { JobRunRingItem } from "@/lib/ops/telemetry-ring"
 
 interface InngestJobMonitorProps {

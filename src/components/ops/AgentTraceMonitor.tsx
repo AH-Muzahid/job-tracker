@@ -1,8 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Bot, CheckCircle2, AlertTriangle, Clock, Terminal, Search } from "lucide-react"
-import { BlueprintCard, BlueprintCardHeader, BlueprintCardTitle, BlueprintCardContent } from "@/components/primitives/BlueprintCard"
+import { CheckCircle2, AlertTriangle, Terminal, Search, RefreshCw } from "lucide-react"
 import type { AgentStepRingItem } from "@/lib/ops/telemetry-ring"
 
 interface AgentTraceMonitorProps {
@@ -61,6 +60,14 @@ export function AgentTraceMonitor({ steps, onRefresh }: AgentTraceMonitorProps) 
               {node === "all" ? "All Nodes" : node}
             </button>
           ))}
+
+          <button
+            onClick={onRefresh}
+            title="Refresh agent steps"
+            className="p-1.5 rounded-[4px] bg-muted/30 hover:bg-muted text-muted-foreground hover:text-foreground border border-border transition-colors cursor-pointer ml-1"
+          >
+            <RefreshCw className="size-3.5" />
+          </button>
         </div>
       </div>
 

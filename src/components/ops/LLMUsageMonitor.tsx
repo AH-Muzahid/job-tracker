@@ -1,8 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Cpu, DollarSign, Clock, AlertTriangle, CheckCircle2, Search } from "lucide-react"
-import { BlueprintCard, BlueprintCardHeader, BlueprintCardTitle, BlueprintCardContent } from "@/components/primitives/BlueprintCard"
+import { AlertTriangle, CheckCircle2, Search, RefreshCw } from "lucide-react"
 import type { LLMCallRingItem } from "@/lib/ops/telemetry-ring"
 
 interface LLMUsageMonitorProps {
@@ -51,36 +50,52 @@ export function LLMUsageMonitor({ calls, onRefresh }: LLMUsageMonitorProps) {
           />
         </div>
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="hidden md:flex items-center gap-1.5 text-[11px] font-mono text-muted-foreground px-2 py-1 rounded-[4px] bg-muted/20 border border-border/50">
+            <span>Tokens: <strong className="text-foreground">{totalTokens.toLocaleString()}</strong></span>
+            <span>•</span>
+            <span>Cost: <strong className="text-emerald-500">${totalCost.toFixed(4)}</strong></span>
+          </div>
+
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setStatusFilter("all")}
+              className={`px-2.5 py-1 text-xs rounded-[4px] font-medium transition-colors ${
+                statusFilter === "all"
+                  ? "bg-foreground text-background"
+                  : "bg-muted/30 text-muted-foreground hover:bg-muted"
+              }`}
+            >
+              All ({calls.length})
+            </button>
+            <button
+              onClick={() => setStatusFilter("success")}
+              className={`px-2.5 py-1 text-xs rounded-[4px] font-medium transition-colors ${
+                statusFilter === "success"
+                  ? "bg-emerald-600 text-white"
+                  : "bg-muted/30 text-muted-foreground hover:bg-muted"
+              }`}
+            >
+              Success ({calls.filter((c) => c.status === "success").length})
+            </button>
+            <button
+              onClick={() => setStatusFilter("error")}
+              className={`px-2.5 py-1 text-xs rounded-[4px] font-medium transition-colors ${
+                statusFilter === "error"
+                  ? "bg-rose-600 text-white"
+                  : "bg-muted/30 text-muted-foreground hover:bg-muted"
+              }`}
+            >
+              Errors ({calls.filter((c) => c.status === "error").length})
+            </button>
+          </div>
+
           <button
-            onClick={() => setStatusFilter("all")}
-            className={`px-2.5 py-1 text-xs rounded-[4px] font-medium transition-colors ${
-              statusFilter === "all"
-                ? "bg-foreground text-background"
-                : "bg-muted/30 text-muted-foreground hover:bg-muted"
-            }`}
+            onClick={onRefresh}
+            title="Refresh LLM calls"
+            className="p-1.5 rounded-[4px] bg-muted/30 hover:bg-muted text-muted-foreground hover:text-foreground border border-border transition-colors cursor-pointer"
           >
-            All ({calls.length})
-          </button>
-          <button
-            onClick={() => setStatusFilter("success")}
-            className={`px-2.5 py-1 text-xs rounded-[4px] font-medium transition-colors ${
-              statusFilter === "success"
-                ? "bg-emerald-600 text-white"
-                : "bg-muted/30 text-muted-foreground hover:bg-muted"
-            }`}
-          >
-            Success ({calls.filter((c) => c.status === "success").length})
-          </button>
-          <button
-            onClick={() => setStatusFilter("error")}
-            className={`px-2.5 py-1 text-xs rounded-[4px] font-medium transition-colors ${
-              statusFilter === "error"
-                ? "bg-rose-600 text-white"
-                : "bg-muted/30 text-muted-foreground hover:bg-muted"
-            }`}
-          >
-            Errors ({calls.filter((c) => c.status === "error").length})
+            <RefreshCw className="size-3.5" />
           </button>
         </div>
       </div>

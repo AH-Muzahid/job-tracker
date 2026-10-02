@@ -2,9 +2,7 @@
 
 import * as React from "react"
 import {
-  Activity,
   Cpu,
-  Zap,
   RefreshCw,
   Layers,
   Terminal,
