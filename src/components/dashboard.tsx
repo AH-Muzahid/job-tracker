@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useStats } from "@/lib/api";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
+import { ProfileSetupBanner } from "@/components/dashboard/ProfileSetupBanner";
 import { DailyBriefingCard } from "@/components/dashboard/DailyBriefingCard";
 import { DashboardKpis } from "@/components/dashboard/DashboardKpis";
 import { RecommendedOpportunities } from "@/components/dashboard/RecommendedOpportunities";
@@ -39,6 +40,9 @@ export function Dashboard() {
         <div className="xl:col-span-9 flex flex-col space-y-5 sm:space-y-6 min-w-0">
           {/* 1. Personalized Header */}
           <DashboardHeader onAnalyzeJD={() => setIsQuickIntakeOpen(true)} />
+
+          {/* Profile Setup Completeness Indicator (Auto-hides when 100% complete) */}
+          <ProfileSetupBanner completeness={stats?.profileCompleteness} isLoading={isLoading} />
 
           {/* 2. Top 4 Core Career KPIs */}
           <DashboardKpis data={stats?.kpi} isLoading={isLoading} />

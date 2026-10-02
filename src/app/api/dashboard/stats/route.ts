@@ -21,6 +21,13 @@ export async function GET() {
   const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000)
   const eightWeeksAgo = new Date(Date.now() - 8 * 7 * 24 * 60 * 60 * 1000)
 
+  // Start of current week (Monday 00:00:00)
+  const now = new Date()
+  const currentDayIndex = (now.getDay() + 6) % 7 // 0 = Mon, ..., 6 = Sun
+  const mondayStart = new Date(now)
+  mondayStart.setDate(now.getDate() - currentDayIndex)
+  mondayStart.setHours(0, 0, 0, 0)
+
   // Single retry wrapper around Promise.all to fetch comprehensive career stats
   const [
     grouped,
@@ -31,7 +38,7 @@ export async function GET() {
     followUpApps,
     userMatchCount,
     userMatchNewThisWeek,
-    canonicalCount,
+    _canonicalCount,
     userMatches,
     upcomingInterviewsRaw,
     velocityApps,
@@ -40,6 +47,10 @@ export async function GET() {
     appsPriorWeek,
     interviewsPriorWeek,
     userExistingApps,
+    discoveryEventsThisWeek,
+    interviewsThisWeek,
+    userProfile,
+    userResumeCount,
   ] = await withDbRetry(() =>
     Promise.all([
       prisma.application.groupBy({
@@ -145,7 +156,7 @@ export async function GET() {
       }),
       prisma.application.findMany({
         where: { userId, createdAt: { gte: eightWeeksAgo } },
-        select: { createdAt: true, applicationDate: true },
+        select: { createdAt: true, applicationDate: true, updatedAt: true },
       }),
       prisma.userJobMatch.count({
         where: {
@@ -176,6 +187,34 @@ export async function GET() {
         },
         orderBy: { updatedAt: "desc" },
       }),
+      prisma.discoveryEvent?.findMany
+        ? prisma.discoveryEvent.findMany({
+            where: { userId, createdAt: { gte: mondayStart } },
+            select: { createdAt: true },
+          })
+        : Promise.resolve([]),
+      prisma.interviewSession?.findMany
+        ? prisma.interviewSession.findMany({
+            where: { userId, createdAt: { gte: mondayStart } },
+            select: { createdAt: true },
+          })
+        : Promise.resolve([]),
+      prisma.userProfile?.findUnique
+        ? prisma.userProfile.findUnique({
+            where: { userId },
+            select: {
+              targetRoles: true,
+              strengths: true,
+              location: true,
+              workPreference: true,
+            },
+          })
+        : Promise.resolve(null),
+      prisma.resume?.count
+        ? prisma.resume.count({
+            where: { userId },
+          })
+        : Promise.resolve(0),
     ])
   )
 
@@ -248,7 +287,7 @@ export async function GET() {
     if (candidateOpps.length >= 3) break
   }
 
-  let recommendedOpportunities = candidateOpps.map((m) => {
+  const recommendedOpportunities = candidateOpps.map((m) => {
     const key = `${normalize(m.job.company)}:${normalize(m.job.title)}`
     const existingApp = appMap.get(key)
     const effectiveStatus =
@@ -301,59 +340,6 @@ export async function GET() {
     })
   }
 
-  if (recommendedOpportunities.length === 0) {
-    recommendedOpportunities = [
-      {
-        id: "rec-1",
-        jobId: "canonical-google-pm",
-        title: "Product Manager",
-        company: "Google",
-        location: "New York, NY • Remote",
-        isRemote: true,
-        url: "https://careers.google.com",
-        salary: "$180,000 - $240,000",
-        tags: ["Product", "Strategy", "Growth"],
-        fitScore: 92,
-        postedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-        isSaved: Boolean(appMap.get("google:productmanager")),
-        status: appMap.get("google:productmanager")?.status,
-        applicationId: appMap.get("google:productmanager")?.id,
-      },
-      {
-        id: "rec-2",
-        jobId: "canonical-stripe-swe",
-        title: "Software Engineer",
-        company: "Stripe",
-        location: "San Francisco, CA • Hybrid",
-        isRemote: false,
-        url: "https://stripe.com/jobs",
-        salary: "$190,000 - $260,000",
-        tags: ["Backend", "TypeScript", "AI"],
-        fitScore: 88,
-        postedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
-        isSaved: Boolean(appMap.get("stripe:softwareengineer")),
-        status: appMap.get("stripe:softwareengineer")?.status,
-        applicationId: appMap.get("stripe:softwareengineer")?.id,
-      },
-      {
-        id: "rec-3",
-        jobId: "canonical-notion-des",
-        title: "Product Designer",
-        company: "Notion",
-        location: "San Francisco, CA • Remote",
-        isRemote: true,
-        url: "https://notion.so/careers",
-        salary: "$165,000 - $220,000",
-        tags: ["Design", "UX Research", "Product"],
-        fitScore: 85,
-        postedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
-        isSaved: Boolean(appMap.get("notion:productdesigner")),
-        status: appMap.get("notion:productdesigner")?.status,
-        applicationId: appMap.get("notion:productdesigner")?.id,
-      },
-    ]
-  }
-
   // Staged and Active applications (Staged is pre-pipeline review, strictly excluded from active velocity)
   const stagedCount = (countMap["Staged"] ?? 0) + (countMap["STAGED"] ?? 0)
   const appliedCount = (countMap["Applied"] ?? 0) + (countMap["APPLIED"] ?? 0)
@@ -366,9 +352,9 @@ export async function GET() {
     ? Math.round(((interviewsCount + assessmentCount + offersCount) / total) * 100)
     : 0
 
-  // Opportunities stats
-  const totalOppCount = userMatchCount > 0 ? userMatchCount : Math.min(canonicalCount, 28)
-  const oppNewThisWeek = userMatchNewThisWeek > 0 ? userMatchNewThisWeek : Math.min(canonicalCount, 8)
+  // Opportunities stats (Authentic metrics only - zero fabrication)
+  const totalOppCount = userMatchCount
+  const oppNewThisWeek = userMatchNewThisWeek
 
   // Trailing weekly velocity (8 weeks)
   const weeklyMap = new Map<string, number>()
@@ -395,13 +381,21 @@ export async function GET() {
 
   // Dynamic Today's Tasks
   const todayTasks = [
-    {
-      id: "task-1",
-      title: `Review ${recommendedOpportunities.length} new opportunities`,
-      subtitle: "Fresh matches available",
-      completed: false,
-      href: "/discovery",
-    },
+    recommendedOpportunities.length > 0
+      ? {
+          id: "task-1",
+          title: `Review ${recommendedOpportunities.length} new opportunities`,
+          subtitle: "Fresh matches available",
+          completed: false,
+          href: "/discovery",
+        }
+      : {
+          id: "task-1",
+          title: "Discover new opportunities",
+          subtitle: "Explore high-conviction roles",
+          completed: false,
+          href: "/discovery",
+        },
     followUpApps.length > 0
       ? {
           id: "task-2",
@@ -410,10 +404,18 @@ export async function GET() {
           completed: false,
           href: `/applications/${followUpApps[0].id}`,
         }
+      : stagedCount > 0
+      ? {
+          id: "task-2",
+          title: `Review ${stagedCount} staged application${stagedCount > 1 ? "s" : ""}`,
+          subtitle: "Ready for final check & submission",
+          completed: false,
+          href: "/applications?status=Staged",
+        }
       : {
           id: "task-2",
-          title: "Complete application review",
-          subtitle: "Keep your pipeline fresh",
+          title: "Pipeline review completed",
+          subtitle: "0 dormant follow-ups overdue",
           completed: true,
           href: "/applications",
         },
@@ -425,7 +427,7 @@ export async function GET() {
             ? new Date(upcomingInterviewsRaw[0].interviewDate).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })
             : "Scheduled soon",
           completed: false,
-          href: "/interview-prep",
+          href: `/interview-prep?company=${encodeURIComponent(upcomingInterviewsRaw[0].companyName)}&role=${encodeURIComponent(upcomingInterviewsRaw[0].jobTitle)}`,
         }
       : {
           id: "task-3",
@@ -436,12 +438,43 @@ export async function GET() {
         },
   ]
 
-  // Weekly consistency streak (Mon-Sun active days)
-  const currentDayIndex = (new Date().getDay() + 6) % 7 // 0 = Mon, 6 = Sun
+  // Weekly consistency streak based on actual user activity timestamps
+  const activeDaysSet = new Set<number>()
+  // User is active today by accessing their dashboard
+  activeDaysSet.add(currentDayIndex)
+
+  velocityApps.forEach((app) => {
+    const actDate = (app as { updatedAt?: Date }).updatedAt || app.applicationDate || app.createdAt
+    if (actDate) {
+      const d = new Date(actDate)
+      if (d >= mondayStart) {
+        activeDaysSet.add((d.getDay() + 6) % 7)
+      }
+    }
+  })
+
+  ;(recent || []).forEach((app) => {
+    if (app.updatedAt && new Date(app.updatedAt) >= mondayStart) {
+      activeDaysSet.add((new Date(app.updatedAt).getDay() + 6) % 7)
+    }
+  })
+
+  ;(discoveryEventsThisWeek || []).forEach((ev) => {
+    if (ev?.createdAt && new Date(ev.createdAt) >= mondayStart) {
+      activeDaysSet.add((new Date(ev.createdAt).getDay() + 6) % 7)
+    }
+  })
+
+  ;(interviewsThisWeek || []).forEach((sess) => {
+    if (sess?.createdAt && new Date(sess.createdAt) >= mondayStart) {
+      activeDaysSet.add((new Date(sess.createdAt).getDay() + 6) % 7)
+    }
+  })
+
   const weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
   const weeklyActivity = weekDays.map((day, idx) => ({
     day,
-    active: idx <= currentDayIndex,
+    active: activeDaysSet.has(idx),
   }))
 
   const calcDelta = (current: number, prior: number): number | null => {
@@ -453,7 +486,51 @@ export async function GET() {
   const appDelta = calcDelta(appsThisWeek, appsPriorWeek)
   const intDelta = calcDelta(upcomingInterviewsRaw.length, interviewsPriorWeek)
 
+  // Profile Completeness Scoring (4 Key Pillars: Resume, Roles, Skills, Preferences)
+  const hasResume = (userResumeCount || 0) > 0
+  const hasRoles = Array.isArray(userProfile?.targetRoles) && userProfile.targetRoles.length > 0
+  const hasSkills = Boolean(userProfile?.strengths && userProfile.strengths.trim().length > 0)
+  const hasPreferences = Boolean(
+    (userProfile?.location && userProfile.location.trim().length > 0) ||
+    (userProfile?.workPreference && userProfile.workPreference.trim().length > 0)
+  )
+
+  let completedPillars = 0
+  if (hasResume) completedPillars++
+  if (hasRoles) completedPillars++
+  if (hasSkills) completedPillars++
+  if (hasPreferences) completedPillars++
+
+  const profileScore = Math.round((completedPillars / 4) * 100)
+  const isProfileComplete = profileScore === 100
+
+  let nextStepText = "Complete your career profile"
+  if (!hasResume) {
+    nextStepText = "Upload your master resume"
+  } else if (!hasRoles) {
+    nextStepText = "Add your target job roles"
+  } else if (!hasSkills) {
+    nextStepText = "Add your core technical skills"
+  } else if (!hasPreferences) {
+    nextStepText = "Set your location & work mode preferences"
+  }
+
+  const profileCompleteness = {
+    score: profileScore,
+    isComplete: isProfileComplete,
+    nextStepText,
+    completedPillars,
+    totalPillars: 4,
+    hasResume,
+    hasRoles,
+    hasSkills,
+    hasPreferences,
+  }
+
   const stats = {
+    // Profile Onboarding State
+    profileCompleteness,
+
     // 4 Primary Mockup KPIs
     kpi: {
       opportunities: {
