@@ -2,8 +2,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest"
 import { GET as getMetrics } from "@/app/api/admin/ops/metrics/route"
 import { GET as getJobs } from "@/app/api/admin/ops/jobs/route"
 import { POST as triggerJob } from "@/app/api/admin/ops/jobs/trigger/route"
-import { GET as getLLM } from "@/app/api/admin/ops/llm/route"
-import { GET as getAgents } from "@/app/api/admin/ops/agents/route"
+import { GET as getLLM, POST as postLLM } from "@/app/api/admin/ops/llm/route"
+import { GET as getAgents, POST as postAgents } from "@/app/api/admin/ops/agents/route"
 import { NextRequest } from "next/server"
 
 // Mock assertAdmin
@@ -56,6 +56,8 @@ vi.mock("@/lib/ops/telemetry-ring", () => ({
       status: "completed",
     },
   ]),
+  recordLLMCallToRing: vi.fn(async () => {}),
+  recordAgentStepToRing: vi.fn(async () => {}),
 }))
 
 vi.mock("@/lib/ops/inngest-catalog", () => ({
@@ -126,6 +128,30 @@ describe("Admin Ops REST Endpoints", () => {
     const data = await res.json()
     expect(data.steps.length).toBe(1)
     expect(data.steps[0].nodeName).toBe("planner")
+  })
+
+  it("POST /api/admin/ops/llm records a probe and returns updated calls", async () => {
+    const req = new NextRequest("http://localhost/api/admin/ops/llm", {
+      method: "POST",
+      body: JSON.stringify({ name: "test-probe", model: "gpt-4o-mini" }),
+    })
+    const res = await postLLM(req)
+    expect(res.status).toBe(200)
+    const data = await res.json()
+    expect(data.success).toBe(true)
+    expect(data.calls).toBeDefined()
+  })
+
+  it("POST /api/admin/ops/agents records a step probe and returns updated steps", async () => {
+    const req = new NextRequest("http://localhost/api/admin/ops/agents", {
+      method: "POST",
+      body: JSON.stringify({ nodeName: "planner" }),
+    })
+    const res = await postAgents(req)
+    expect(res.status).toBe(200)
+    const data = await res.json()
+    expect(data.success).toBe(true)
+    expect(data.steps).toBeDefined()
   })
 
   it("blocks non-admin users with 403 Forbidden", async () => {
