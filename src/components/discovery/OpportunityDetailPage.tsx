@@ -14,6 +14,7 @@ import { OpportunityJobDetailsCard } from "./detail/OpportunityJobDetailsCard"
 import { OpportunityMatchScoreCard } from "./detail/OpportunityMatchScoreCard"
 import { OpportunitySimilarStrip } from "./detail/OpportunitySimilarStrip"
 import type { OpportunityDetailData, SimilarOpportunityItem, DetailTab } from "./detail/types"
+import { SalaryIndexIndicator } from "@/components/salary/SalaryIndexIndicator"
 
 interface OpportunityDetailPageProps {
   id: string
@@ -364,9 +365,16 @@ export function OpportunityDetailPage({ id }: OpportunityDetailPageProps) {
 
               {/* 4. Salary */}
               {salaryDisplay && (
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 flex-wrap">
                   <Banknote className="size-4 text-muted-foreground shrink-0" />
                   <span className="tabular-nums font-medium">{salaryDisplay}</span>
+                  <SalaryIndexIndicator
+                    salary={salaryDisplay}
+                    company={opportunity.company}
+                    role={opportunity.title}
+                    location={opportunity.location}
+                    showDetails
+                  />
                 </div>
               )}
 

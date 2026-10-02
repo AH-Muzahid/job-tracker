@@ -13,6 +13,7 @@ import {
 	Database,
 	Layers,
 	SlidersHorizontal,
+	TrendingUp,
 } from "lucide-react";
 
 export type SidebarNavItem = {
@@ -83,6 +84,11 @@ export const navGroups: SidebarNavGroup[] = [
 				title: "Career Brain",
 				path: "/brain",
 				icon: <Layers className="size-4" />,
+			},
+			{
+				title: "Upskill & Roadmap",
+				path: "/upskill",
+				icon: <TrendingUp className="size-4" />,
 			},
 			{
 				title: "Integrations",

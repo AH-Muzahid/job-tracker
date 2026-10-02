@@ -441,4 +441,29 @@ model DiscoveryEvent {
   @@index([jobId])
 }
 
+model SalaryBenchmark {
+  id           String   @id @default(cuid())
+  company      String
+  role         String?
+  location     String?
+  salaryMin    Float?
+  salaryMax    Float?
+  salaryMedian Float?
+  salaryIndex  Float?   // Baseline index where 100.0 is the market median
+  currency     String   @default("USD")
+  sampleSize   Int?     @default(1)
+  source       String   // "Levels.fyi" | "Glassdoor" | "Union Stats" | "H1B" | "Market Aggregator"
+  confidence   Float    @default(1.0)
+  category     String?  // e.g. "Software Engineering", "Platform", "Data"
+  metadata     Json?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([company])
+  @@index([role])
+  @@index([location])
+  @@index([company, role])
+}
+
+
 

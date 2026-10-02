@@ -23,6 +23,7 @@ import {
   parseMatchRationale,
 } from "./types"
 import type { ExternalJobOpportunity } from "@/lib/ai/graph/tools/discovery-tools"
+import { SalaryIndexIndicator } from "@/components/salary/SalaryIndexIndicator"
 
 const POPULAR_CARD_KEYWORDS = [
   "Product", "Strategy", "Growth", "Analytics", "AI", "Design",
@@ -499,9 +500,15 @@ function DiscoveryJobCardInner({
               </span>
               
               {job.salary && (
-                <span className="flex items-center gap-1.5">
+                <span className="flex items-center gap-1.5 flex-wrap">
                   <Banknote className="size-3.5 text-muted-foreground shrink-0" />
                   <span>{formatSalaryClean(job.salary)}</span>
+                  <SalaryIndexIndicator
+                    salary={job.salary}
+                    company={job.company}
+                    role={job.title}
+                    location={job.location}
+                  />
                 </span>
               )}
               

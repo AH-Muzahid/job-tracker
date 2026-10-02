@@ -17,6 +17,7 @@ import {
 import { getCompanyColor, getInitials } from "./utils"
 import { STATUS_OPTIONS } from "./types"
 import type { Application } from "./types"
+import { SalaryIndexIndicator } from "@/components/salary/SalaryIndexIndicator"
 
 interface Props {
   application: Application
@@ -131,6 +132,18 @@ const BoardCard = memo(function BoardCard({
         <h3 className="text-xs font-semibold text-foreground line-clamp-2 leading-snug group-hover:text-primary transition-colors">
           {application.jobTitle}
         </h3>
+
+        {/* Salary Benchmark Indicator (if salary exists) */}
+        {application.salary && (
+          <div className="pt-0.5">
+            <SalaryIndexIndicator
+              salary={application.salary}
+              company={application.companyName}
+              role={application.jobTitle}
+              location={application.location}
+            />
+          </div>
+        )}
 
         {/* Row 3: Meta & Micro Badges (Follow-up Alert & Source) */}
         {(followUpDue || application.source === "Career Orchestrator" || nextStage) && (

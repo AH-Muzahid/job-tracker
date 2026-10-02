@@ -26,6 +26,9 @@ export type Application = {
   applicationDate: string
   createdAt: string
   tags: Array<{ tag: Tag }>
+  salary?: string | null
+  location?: string | null
+  offerDetails?: Record<string, unknown> | null
 }
 
 export interface Stats {
