@@ -18,6 +18,14 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { toast } from "sonner"
 
 export interface ChatSession {
@@ -52,6 +60,7 @@ export default function ChatHistorySidebar({
   const [searchQuery, setSearchQuery] = useState("")
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editTitle, setEditTitle] = useState("")
+  const [sessionToDelete, setSessionToDelete] = useState<ChatSession | null>(null)
 
   // Fetch user's chat sessions
   const { data: sessions = [], isLoading } = useQuery<ChatSession[]>({
@@ -124,11 +133,9 @@ export default function ChatHistorySidebar({
     renameMutation.mutate({ id, title: editTitle.trim() })
   }
 
-  const handleDelete = (id: string, e: React.MouseEvent) => {
+  const handleDeleteClick = (s: ChatSession, e: React.MouseEvent) => {
     e.stopPropagation()
-    if (confirm("Delete this conversation?")) {
-      deleteMutation.mutate(id)
-    }
+    setSessionToDelete(s)
   }
 
   // Filter and group sessions by time
@@ -379,7 +386,7 @@ export default function ChatHistorySidebar({
                           </button>
                           <button
                             type="button"
-                            onClick={(e) => handleDelete(s.id, e)}
+                            onClick={(e) => handleDeleteClick(s, e)}
                             className="p-1 rounded-xs hover:bg-background text-muted-foreground hover:text-destructive"
                             title="Delete"
                             aria-label="Delete conversation"
@@ -402,6 +409,66 @@ export default function ChatHistorySidebar({
         <span className="font-mono text-[10px]">CareerTrack AI</span>
         <span className="tabular-nums font-mono text-[10px]">{sessions.length} chats</span>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={Boolean(sessionToDelete)}
+        onOpenChange={(open) => {
+          if (!open && !deleteMutation.isPending) {
+            setSessionToDelete(null)
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle className="text-sm font-semibold tracking-tight">
+              Delete Conversation
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground pt-1 leading-relaxed">
+              Are you sure you want to delete{" "}
+              <span className="font-medium text-foreground">
+                &ldquo;{sessionToDelete?.title || "New Chat"}&rdquo;
+              </span>
+              ? This action cannot be undone and all conversation history will be permanently removed.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-2 pt-3">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs font-medium"
+              disabled={deleteMutation.isPending}
+              onClick={() => setSessionToDelete(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              className="h-8 text-xs font-medium"
+              disabled={deleteMutation.isPending}
+              onClick={() => {
+                if (sessionToDelete) {
+                  deleteMutation.mutate(sessionToDelete.id, {
+                    onSettled: () => setSessionToDelete(null),
+                  })
+                }
+              }}
+            >
+              {deleteMutation.isPending ? (
+                <>
+                  <Loader2 className="size-3.5 animate-spin" />
+                  <span>Deleting...</span>
+                </>
+              ) : (
+                <span>Delete</span>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </aside>
   )
 

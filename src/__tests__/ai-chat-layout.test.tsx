@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import React from "react";
 import { renderToString } from "react-dom/server";
+import { render, screen, fireEvent } from "@testing-library/react";
 
 vi.mock("@tanstack/react-query", () => ({
   useQueryClient: vi.fn(() => ({
@@ -155,5 +156,32 @@ describe("AIChat Layout & Architecture Verification", () => {
     const html = renderToString(<AIAssistantPage />);
     expect(html).toContain("h-dvh");
     expect(html).toContain("aria-label=\"Chat History\"");
+  });
+
+  it("opens Delete Conversation confirmation modal instead of calling browser confirm alert", () => {
+    const confirmSpy = vi.spyOn(window, "confirm");
+    render(
+      <ChatHistorySidebar
+        activeChatId="session-1"
+        onSelectChat={vi.fn()}
+        onNewChat={vi.fn()}
+        isOpen={true}
+        onToggleOpen={vi.fn()}
+      />
+    );
+    const deleteButtons = screen.getAllByLabelText("Delete conversation");
+    expect(deleteButtons.length).toBeGreaterThan(0);
+    fireEvent.click(deleteButtons[0]);
+
+    // Ensure native confirm() was not called
+    expect(confirmSpy).not.toHaveBeenCalled();
+
+    // Ensure dialog modal is presented
+    expect(screen.getByText("Delete Conversation")).toBeTruthy();
+    expect(screen.getByText(/Are you sure you want to delete/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Delete" })).toBeTruthy();
+
+    confirmSpy.mockRestore();
   });
 });
