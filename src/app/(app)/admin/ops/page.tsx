@@ -132,7 +132,7 @@ export default function AdminOpsPage() {
 
   if (error) {
     return (
-      <PageContainer maxWidth="7xl" className="py-8">
+      <PageContainer maxWidth="default" className="py-8">
         <PageHeader
           overline="Admin Security"
           title="Ops & Observability Access Denied"
@@ -153,7 +153,7 @@ export default function AdminOpsPage() {
   }
 
   return (
-    <PageContainer maxWidth="7xl" className="py-6 space-y-6">
+    <PageContainer maxWidth="default" className="py-6 space-y-6">
       <PageHeader
         overline="CareerTrack Platform Engineering"
         title="Ops & Observability Console"
