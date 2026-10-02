@@ -4,6 +4,7 @@ import {
   generateApplicationMaterialsAgent,
   detectPersonaArchetype,
 } from "@/lib/discovery/cover-letter-agent"
+import { getRecentLLMCalls, getRecentAgentSteps } from "@/lib/ops/telemetry-ring"
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
@@ -168,6 +169,25 @@ describe("Autonomous Cover Letter & Application Materials Agent (REC-16)", () =>
         }),
       })
     )
+
+    // Assert that LLM call was recorded in ops ring buffer
+    const recentLLMCalls = await getRecentLLMCalls(20)
+    const scribeCall = recentLLMCalls.find((c) => c.sessionId === "pkg-app-200" && c.name.includes("package:scribe"))
+    expect(scribeCall).toBeDefined()
+    expect(scribeCall?.model).toBe("gpt-4o-mini")
+    expect(scribeCall?.promptTokens).toBeGreaterThan(0)
+    expect(scribeCall?.completionTokens).toBeGreaterThan(0)
+    expect(scribeCall?.status).toBe("success")
+
+    // Assert that all squad agent steps were recorded in ops ring buffer
+    const recentAgentSteps = await getRecentAgentSteps(30)
+    const appSteps = recentAgentSteps.filter((s) => s.sessionId === "pkg-app-200")
+    const stepNodes = appSteps.map((s) => s.nodeName)
+    expect(stepNodes).toContain("package:scout")
+    expect(stepNodes).toContain("package:strategist")
+    expect(stepNodes).toContain("package:scribe")
+    expect(stepNodes).toContain("package:critic")
+    expect(stepNodes).toContain("package:grounding")
   })
 
   it("resiliently falls back to deterministic materials if LLM call fails or times out", async () => {

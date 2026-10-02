@@ -11,6 +11,7 @@ import { generateApplicationMaterialsAgent } from "@/lib/discovery/cover-letter-
 import { logDiscoveryEvent } from "@/lib/discovery/telemetry"
 import { invalidateUserImplicitPreferences } from "@/lib/discovery/preferences"
 import { invalidateCache, getCachedJson } from "@/lib/redis"
+import { recordAgentStepToRing } from "@/lib/ops/telemetry-ring"
 
 const PackageInputSchema = z.object({
   companyName: z.string().trim().min(1).optional(),
@@ -53,6 +54,7 @@ export async function POST(
     // Body is optional if job is fully indexed
   }
 
+  const packageStartTime = Date.now()
   try {
     // 1. Resolve Opportunity via UserJobMatch or CanonicalJob
     const match = await withDbRetry(() =>
@@ -183,6 +185,16 @@ export async function POST(
       )
     }
 
+    const packageSessionId = `pkg-${application.id}`
+    void recordAgentStepToRing({
+      nodeName: "package:orchestrator:start",
+      sessionId: packageSessionId,
+      userId,
+      tokens: 0,
+      durationMs: 0,
+      status: "success",
+    })
+
     // 3. Run Application Materials Agent to pre-populate custom cover letter, highlights, and outreach draft
     const materials = await generateApplicationMaterialsAgent(userId, application.id, {
       companyName,
@@ -192,6 +204,15 @@ export async function POST(
       notes: combinedNotes,
       salary,
       fitScore: authenticFitScore ?? undefined,
+    })
+
+    void recordAgentStepToRing({
+      nodeName: "package:orchestrator:complete",
+      sessionId: packageSessionId,
+      userId,
+      tokens: 0,
+      durationMs: Date.now() - packageStartTime,
+      status: "success",
     })
 
     // 4. Update or Upsert UserJobMatch to isSaved: true and status: "STAGED" with authentic fitScore
@@ -276,6 +297,15 @@ export async function POST(
       application,
     })
   } catch (error: any) {
+    void recordAgentStepToRing({
+      nodeName: "package:orchestrator:error",
+      sessionId: `pkg-${id}`,
+      userId,
+      tokens: 0,
+      durationMs: Date.now() - packageStartTime,
+      status: "error",
+      error: error?.message || String(error),
+    })
     console.error("[PackageAPI] Error packaging opportunity:", error)
     return ResponseUtil.error(
       error?.message || "Failed to package opportunity into staged application",

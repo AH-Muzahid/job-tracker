@@ -13,6 +13,8 @@ import {
   StrategistBrief,
   ApplicationMaterialsDraft,
 } from "@/lib/ai/squad/orchestrator"
+import { recordLLMCallToRing, recordAgentStepToRing } from "@/lib/ops/telemetry-ring"
+import { countTokens } from "@/lib/ai/token-counter"
 import {
   sanitizeOutreachPlaceholders,
   generateDeterministicOutreachBundle,
@@ -262,6 +264,11 @@ export async function generateApplicationMaterialsAgent(
     matchScore?: number
   }
 ): Promise<GeneratedApplicationMaterials> {
+  const sessionId = applicationId
+    ? (applicationId.startsWith("pkg-") ? applicationId : `pkg-${applicationId}`)
+    : `pkg-${Date.now()}`
+
+  const scoutStartTime = Date.now()
   // Autonomously assemble rich, grounded candidate dossier from Knowledge Graph, Vector Memory & Weaknesses
   const dossier = await assembleAgenticCandidateContext(userId, {
     jobTitle: context.jobTitle,
@@ -270,6 +277,16 @@ export async function generateApplicationMaterialsAgent(
     jdText: context.notes,
   }).catch(() => null)
 
+  const scoutDuration = Date.now() - scoutStartTime
+  void recordAgentStepToRing({
+    nodeName: "package:scout",
+    sessionId,
+    userId,
+    tokens: countTokens(dossier?.summaryContextText || ""),
+    durationMs: scoutDuration,
+    status: "success",
+  })
+
   const candidateName = dossier?.candidateName || "Applicant"
 
   let materials: GeneratedApplicationMaterials
@@ -277,6 +294,8 @@ export async function generateApplicationMaterialsAgent(
   let modelToUse = "deterministic"
   let providerType = "deterministic"
   const startTime = Date.now()
+  let totalPromptTokens = 0
+  let totalCompletionTokens = 0
 
   try {
     const aiConfig = await getUserAIConfig(userId)
@@ -302,6 +321,8 @@ export async function generateApplicationMaterialsAgent(
         targetRole: context.jobTitle,
       }
 
+      let scribeRound = 0
+
       // Coordinate Level 4 Multi-Agent Squad (Scout -> Strategist -> Scribe -> Critic)
       const squadResult = await coordinateApplicationPackageSquad({
         jobTitle: context.jobTitle,
@@ -311,6 +332,7 @@ export async function generateApplicationMaterialsAgent(
         dossierContext: dossier?.summaryContextText,
         groundingContext: groundingCtx,
         strategistFn: async ({ jobTitle, companyName }) => {
+          const stratStart = Date.now()
           const matchedSkills = (dossier?.matchedSkills || []).map((s) => ({
             skill: s.skill,
             proofProject: s.proofProjects?.[0]?.projectName,
@@ -318,6 +340,17 @@ export async function generateApplicationMaterialsAgent(
           }))
           const cautionSkills = dossier?.missingSkills || []
           const positioningPitch = `Positioning ${candidateName} for ${jobTitle} at ${companyName} emphasizing verified strengths in ${(dossier?.adaptiveBoosts || []).slice(0, 3).join(", ") || "full-stack engineering"}.`
+          const stratDuration = Date.now() - stratStart
+
+          void recordAgentStepToRing({
+            nodeName: "package:strategist",
+            sessionId,
+            userId,
+            tokens: countTokens(positioningPitch),
+            durationMs: stratDuration,
+            status: "success",
+          })
+
           return {
             targetRole: jobTitle,
             matchedSkills,
@@ -326,6 +359,8 @@ export async function generateApplicationMaterialsAgent(
           }
         },
         scribeFn: async (brief, critiqueFeedback) => {
+          scribeRound++
+          const currentRound = scribeRound
           const critiqueNote =
             critiqueFeedback && critiqueFeedback.length > 0
               ? `\nCRITICAL FIXES REQUIRED FROM PREVIOUS DRAFT EVALUATION:\n${critiqueFeedback.map((f) => `- ${f}`).join("\n")}\nPlease rewrite fixing these exact violations while maintaining factual accuracy.`
@@ -368,32 +403,111 @@ Respond in valid JSON format:
   "atsKeywords": ["skill1", "skill2", "skill3"]
 }`
 
-          const result = await generateText({
-            model: resolved.model(modelToUse),
-            prompt,
-          })
+          const scribeStartTime = Date.now()
+          try {
+            const result = await generateText({
+              model: resolved.model(modelToUse),
+              prompt,
+            })
+            const scribeLatency = Date.now() - scribeStartTime
 
-          const parsed = extractJsonObject<ApplicationMaterialsDraft>(result.text)
-          if (!parsed || !parsed.coverLetter) {
-            throw new Error("Invalid materials JSON returned by model")
-          }
-          return {
-            coverLetter: parsed.coverLetter,
-            highlights: parsed.highlights || [],
-            outreachPitch: parsed.outreachPitch || "",
-            strategyTip: parsed.strategyTip,
-            atsKeywords: parsed.atsKeywords || [],
+            const promptTokens = (result as any).usage?.promptTokens ?? countTokens(prompt)
+            const completionTokens = (result as any).usage?.completionTokens ?? countTokens(result.text || "")
+            totalPromptTokens += promptTokens
+            totalCompletionTokens += completionTokens
+
+            void recordLLMCallToRing({
+              name: `package:scribe (round ${currentRound})`,
+              model: modelToUse,
+              provider: providerType,
+              promptTokens,
+              completionTokens,
+              latencyMs: scribeLatency,
+              status: "success",
+              userId,
+              sessionId,
+            })
+
+            void recordAgentStepToRing({
+              nodeName: "package:scribe",
+              sessionId,
+              userId,
+              tokens: promptTokens + completionTokens,
+              durationMs: scribeLatency,
+              status: "success",
+            })
+
+            const parsed = extractJsonObject<ApplicationMaterialsDraft>(result.text)
+            if (!parsed || !parsed.coverLetter) {
+              throw new Error("Invalid materials JSON returned by model")
+            }
+            return {
+              coverLetter: parsed.coverLetter,
+              highlights: parsed.highlights || [],
+              outreachPitch: parsed.outreachPitch || "",
+              strategyTip: parsed.strategyTip,
+              atsKeywords: parsed.atsKeywords || [],
+            }
+          } catch (scribeErr: any) {
+            const scribeLatency = Date.now() - scribeStartTime
+            const promptTokens = countTokens(prompt)
+            totalPromptTokens += promptTokens
+
+            void recordLLMCallToRing({
+              name: `package:scribe (round ${currentRound})`,
+              model: modelToUse,
+              provider: providerType,
+              promptTokens,
+              completionTokens: 0,
+              latencyMs: scribeLatency,
+              status: "error",
+              error: scribeErr?.message || String(scribeErr),
+              userId,
+              sessionId,
+            })
+
+            void recordAgentStepToRing({
+              nodeName: "package:scribe",
+              sessionId,
+              userId,
+              tokens: promptTokens,
+              durationMs: scribeLatency,
+              status: "error",
+              error: scribeErr?.message || String(scribeErr),
+            })
+
+            throw scribeErr
           }
         },
         maxCriticRounds: 2,
+      })
+
+      void recordAgentStepToRing({
+        nodeName: "package:critic",
+        sessionId,
+        userId,
+        tokens: countTokens(JSON.stringify(squadResult.criticFeedback || [])),
+        durationMs: 15,
+        status: "success",
       })
 
       if (squadResult.isDeterministicFallback) {
         materials = generateDeterministicMaterials(candidateName, dossier, context)
       } else {
         // Enforce Factual Grounding Zero-Hallucination Guard on squad output
+        const groundingStart = Date.now()
         const groundedRes = auditApplicationMaterialsGrounding(squadResult.materials, groundingCtx)
         const finalSquadMaterials = groundedRes.materials
+        const groundingDuration = Math.max(1, Date.now() - groundingStart)
+
+        void recordAgentStepToRing({
+          nodeName: "package:grounding",
+          sessionId,
+          userId,
+          tokens: countTokens((groundingCtx.profile?.fullName || candidateName) + " " + (groundingCtx.profile?.strengths || "")),
+          durationMs: groundingDuration,
+          status: "success",
+        })
 
         materials = {
           coverLetter: finalSquadMaterials.coverLetter,
@@ -461,8 +575,11 @@ Respond in valid JSON format:
       void traceAIGeneration({
         name: "cover-letter-agent",
         userId,
+        sessionId,
         model: modelToUse,
         provider: providerType,
+        promptTokens: totalPromptTokens,
+        completionTokens: totalCompletionTokens,
         input: {
           targetRole: context.jobTitle,
           company: context.companyName,
@@ -483,15 +600,35 @@ Respond in valid JSON format:
         flush: true,
       })
     } else {
+      void recordAgentStepToRing({
+        nodeName: "package:deterministic",
+        sessionId,
+        userId,
+        tokens: 0,
+        durationMs: Date.now() - startTime,
+        status: "success",
+      })
       materials = generateDeterministicMaterials(candidateName, dossier, context)
     }
   } catch (error) {
     console.warn("[CoverLetterAgent] AI generation failed, using deterministic materials:", error)
+    void recordAgentStepToRing({
+      nodeName: "package:fallback:deterministic",
+      sessionId,
+      userId,
+      tokens: 0,
+      durationMs: Date.now() - startTime,
+      status: "error",
+      error: (error as any)?.message || String(error),
+    })
     void traceAIGeneration({
       name: "cover-letter-agent",
       userId,
+      sessionId,
       model: modelToUse,
       provider: providerType,
+      promptTokens: totalPromptTokens,
+      completionTokens: totalCompletionTokens,
       input: {
         targetRole: context.jobTitle,
         company: context.companyName,
@@ -557,6 +694,7 @@ Respond in valid JSON format:
       strategy: primaryChannel,
       strategyReason: strategyDetection.reason,
       recommendedChannel: primaryChannel,
+      squadTrace: materials.squadTrace,
     }
 
     // Resolve authentic match score instead of hardcoded fallback

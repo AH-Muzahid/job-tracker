@@ -39,6 +39,7 @@ vi.mock("@/lib/discovery/cover-letter-agent", () => ({
 vi.mock("@/lib/redis", () => ({
   invalidateCache: vi.fn(),
   getCachedJson: vi.fn().mockResolvedValue(null),
+  getRedisClient: vi.fn(() => null),
 }))
 
 vi.mock("@/lib/discovery/telemetry", () => ({
