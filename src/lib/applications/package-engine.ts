@@ -289,67 +289,93 @@ export async function compileApplicationPackage(
     }
   }
 
-  // 6. Build Final Package Dossier
-  return {
-    application: {
-      id: application.id,
-      userId: application.userId,
-      companyName: application.companyName,
-      jobTitle: application.jobTitle,
-      jobUrl: application.jobUrl,
-      status: application.status,
-      source: application.source,
-      applicationDate: application.applicationDate.toISOString(),
-      createdAt: application.createdAt.toISOString(),
-      updatedAt: application.updatedAt.toISOString(),
-      notes: application.notes,
-      tags: application.tags.map((t) => t.tag.name),
-    },
-    techStack,
-    resume: {
-      hasTailoredResume: Boolean(analysis?.tailoredResumeJson),
-      tailoredResume: analysis?.tailoredResumeJson || null,
-      defaultResumeTitle: defaultResume?.title || defaultResume?.fileName || null,
-      defaultResumeUrl: defaultResume?.fileUrl || null,
-      atsScore: resolvedAtsScore,
-      resumeAdvice: analysis?.resumeAdvice || null,
-    },
-    coverLetter: {
-      hasCoverLetter: Boolean(coverLetterText),
-      text: coverLetterText,
-      generatedAt: (analysis?.analyzedAt || analysis?.outreachGeneratedAt)?.toISOString() || null,
-    },
-    outreach: {
-      hasOutreachDraft: Boolean(analysis?.outreachSubject || analysis?.outreachBody),
-      subject: analysis?.outreachSubject || null,
-      body: analysis?.outreachBody || null,
-      checklist: Array.isArray(analysis?.outreachChecklist)
-        ? (analysis?.outreachChecklist as string[])
-        : null,
-      generatedAt: analysis?.outreachGeneratedAt?.toISOString() || null,
-    },
-    companyIntel,
-    interviewPrep: {
-      hasScheduledInterview: Boolean(application.interviewDate),
-      interviewDate: application.interviewDate?.toISOString() || null,
-      interviewRound: application.interviewRound || null,
-      interviewMeetingUrl: application.interviewMeetingUrl || null,
-      interviewNotes: application.interviewNotes || null,
-      gapAnalysis: analysis?.gapAnalysis || null,
-    },
-    negotiation: {
-      hasOfferData: Boolean(application.offerDetails),
-      offerDetails: application.offerDetails || null,
-    },
-    squadTrace: (analysis?.resumeAdvice && typeof analysis.resumeAdvice === "object" && "squadTrace" in analysis.resumeAdvice)
-      ? ((analysis.resumeAdvice as { squadTrace?: SquadTraceDeliberation }).squadTrace || null)
-      : null,
-    nextBestAction,
-    timeline: application.statusChanges.map((sc) => ({
-      fromStatus: sc.fromStatus,
-      toStatus: sc.toStatus,
-      changedAt: sc.changedAt.toISOString(),
-      metadata: sc.metadata,
-    })),
-  }
+    // Resilient Squad Deliberation Trace Resolution
+    let resolvedSquadTrace: SquadTraceDeliberation | null = null
+    if (analysis?.resumeAdvice) {
+      let adviceObj: unknown = analysis.resumeAdvice
+      if (typeof adviceObj === "string") {
+        try {
+          adviceObj = JSON.parse(adviceObj)
+        } catch {
+          // ignore
+        }
+      }
+      if (adviceObj && typeof adviceObj === "object" && "squadTrace" in adviceObj) {
+        resolvedSquadTrace = (adviceObj as { squadTrace?: SquadTraceDeliberation }).squadTrace || null
+      }
+    }
+    if (!resolvedSquadTrace && analysis?.tailoredResumeJson) {
+      let trObj: unknown = analysis.tailoredResumeJson
+      if (typeof trObj === "string") {
+        try {
+          trObj = JSON.parse(trObj)
+        } catch {
+          // ignore
+        }
+      }
+      if (trObj && typeof trObj === "object" && "squadTrace" in trObj) {
+        resolvedSquadTrace = (trObj as { squadTrace?: SquadTraceDeliberation }).squadTrace || null
+      }
+    }
+
+    return {
+      application: {
+        id: application.id,
+        userId: application.userId,
+        companyName: application.companyName,
+        jobTitle: application.jobTitle,
+        jobUrl: application.jobUrl,
+        status: application.status,
+        source: application.source,
+        applicationDate: application.applicationDate.toISOString(),
+        createdAt: application.createdAt.toISOString(),
+        updatedAt: application.updatedAt.toISOString(),
+        notes: application.notes,
+        tags: application.tags.map((t) => t.tag.name),
+      },
+      techStack,
+      resume: {
+        hasTailoredResume: Boolean(analysis?.tailoredResumeJson),
+        tailoredResume: analysis?.tailoredResumeJson || null,
+        defaultResumeTitle: defaultResume?.title || defaultResume?.fileName || null,
+        defaultResumeUrl: defaultResume?.fileUrl || null,
+        atsScore: resolvedAtsScore,
+        resumeAdvice: analysis?.resumeAdvice || null,
+      },
+      coverLetter: {
+        hasCoverLetter: Boolean(coverLetterText),
+        text: coverLetterText,
+        generatedAt: (analysis?.analyzedAt || analysis?.outreachGeneratedAt)?.toISOString() || null,
+      },
+      outreach: {
+        hasOutreachDraft: Boolean(analysis?.outreachSubject || analysis?.outreachBody),
+        subject: analysis?.outreachSubject || null,
+        body: analysis?.outreachBody || null,
+        checklist: Array.isArray(analysis?.outreachChecklist)
+          ? (analysis?.outreachChecklist as string[])
+          : null,
+        generatedAt: analysis?.outreachGeneratedAt?.toISOString() || null,
+      },
+      companyIntel,
+      interviewPrep: {
+        hasScheduledInterview: Boolean(application.interviewDate),
+        interviewDate: application.interviewDate?.toISOString() || null,
+        interviewRound: application.interviewRound || null,
+        interviewMeetingUrl: application.interviewMeetingUrl || null,
+        interviewNotes: application.interviewNotes || null,
+        gapAnalysis: analysis?.gapAnalysis || null,
+      },
+      negotiation: {
+        hasOfferData: Boolean(application.offerDetails),
+        offerDetails: application.offerDetails || null,
+      },
+      squadTrace: resolvedSquadTrace,
+      nextBestAction,
+      timeline: application.statusChanges.map((sc) => ({
+        fromStatus: sc.fromStatus,
+        toStatus: sc.toStatus,
+        changedAt: sc.changedAt.toISOString(),
+        metadata: sc.metadata,
+      })),
+    }
 }

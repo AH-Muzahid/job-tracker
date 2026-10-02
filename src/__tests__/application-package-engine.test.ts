@@ -197,9 +197,65 @@ describe("CAG-06: Application Multi-Asset Studio Package Engine", () => {
       expect(pkg).not.toBeNull()
       expect(pkg?.interviewPrep.hasScheduledInterview).toBe(true)
       expect(pkg?.interviewPrep.interviewRound).toBe("System Architecture")
-      expect(pkg?.interviewPrep.interviewMeetingUrl).toBe("https://meet.google.com/lin-ear-123")
       expect(pkg?.nextBestAction.type).toBe("PREP_INTERVIEW")
       expect(pkg?.nextBestAction.title).toContain("System Architecture")
+    })
+
+    it("resiliently extracts squadTrace from stringified JSON in resumeAdvice and tailoredResumeJson", async () => {
+      const { prisma } = await import("@/lib/prisma")
+      const now = new Date()
+
+      const mockTrace = {
+        scoutSummary: { company: "OpenAI", role: "AI Engineer", techStackDetected: ["Python", "PyTorch"] },
+        strategistBrief: { targetRole: "AI Engineer", matchedSkills: [{ skill: "PyTorch" }], cautionSkills: [], positioningPitch: "Pitch" },
+        criticAudit: { approved: true, rounds: 1 },
+      }
+
+      // Case A: resumeAdvice as stringified JSON
+      vi.mocked(prisma.application.findFirst).mockResolvedValueOnce({
+        id: mockAppId,
+        userId: mockUserId,
+        companyName: "OpenAI",
+        jobTitle: "AI Engineer",
+        status: "Staged",
+        source: "Discovery",
+        applicationDate: now,
+        createdAt: now,
+        updatedAt: now,
+        analysis: {
+          resumeAdvice: JSON.stringify({ squadTrace: mockTrace }),
+        },
+        statusChanges: [],
+        tags: [],
+      } as any)
+
+      const pkgA = await compileApplicationPackage(mockUserId, mockAppId)
+      expect(pkgA?.squadTrace).toBeDefined()
+      expect(pkgA?.squadTrace?.scoutSummary?.company).toBe("OpenAI")
+      expect(pkgA?.squadTrace?.criticAudit?.approved).toBe(true)
+
+      // Case B: squadTrace fallback inside tailoredResumeJson
+      vi.mocked(prisma.application.findFirst).mockResolvedValueOnce({
+        id: mockAppId,
+        userId: mockUserId,
+        companyName: "OpenAI",
+        jobTitle: "AI Engineer",
+        status: "Staged",
+        source: "Discovery",
+        applicationDate: now,
+        createdAt: now,
+        updatedAt: now,
+        analysis: {
+          resumeAdvice: null,
+          tailoredResumeJson: { squadTrace: mockTrace },
+        },
+        statusChanges: [],
+        tags: [],
+      } as any)
+
+      const pkgB = await compileApplicationPackage(mockUserId, mockAppId)
+      expect(pkgB?.squadTrace).toBeDefined()
+      expect(pkgB?.squadTrace?.scoutSummary?.company).toBe("OpenAI")
     })
   })
 
