@@ -268,8 +268,8 @@ export async function executeSearchExternalJobs(
       const isViableLocalMatch = isStrictCityMatch || isNationalHub
 
       if (!isExplicitSearch) {
-        // Gate 1A: Remote-only candidate will NEVER see on-site or hybrid jobs
-        if (userWorkPreference === "remote" && jobWorkMode !== "remote") {
+        // Gate 1A: Remote-first candidate will NEVER see distant foreign on-site or hybrid jobs
+        if (userWorkPreference === "remote" && jobWorkMode !== "remote" && !isViableLocalMatch) {
           continue
         }
 
@@ -364,6 +364,12 @@ export async function executeSearchExternalJobs(
         if (jobWorkMode === "remote") {
           locationScore = 20
           locationRationale = "100% Global Remote Compatible"
+        } else if (isStrictCityMatch) {
+          locationScore = 18
+          locationRationale = `Direct Local match in ${userLocation}`
+        } else if (isNationalHub) {
+          locationScore = 16
+          locationRationale = "Dhaka Tech Hub opportunity in Bangladesh"
         } else if (isLocationMatch) {
           locationScore = 15
           locationRationale = `Local Hybrid in ${userLocation}`
