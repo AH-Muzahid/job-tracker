@@ -14,6 +14,7 @@ import {
 	Layers,
 	SlidersHorizontal,
 	TrendingUp,
+	Activity,
 } from "lucide-react";
 
 export type SidebarNavItem = {
@@ -117,6 +118,16 @@ export const navGroups: SidebarNavGroup[] = [
 						icon: <SlidersHorizontal className="size-3.5" />,
 					},
 				],
+			},
+		],
+	},
+	{
+		label: "OPERATIONS",
+		items: [
+			{
+				title: "Ops & Observability",
+				path: "/admin/ops",
+				icon: <Activity className="size-4" />,
 			},
 		],
 	},
