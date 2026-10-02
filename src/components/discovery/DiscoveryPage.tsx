@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useSearchParams } from "next/navigation"
 import {
   Search, X, SlidersHorizontal, RefreshCw, Plus, Layers
 } from "lucide-react"
@@ -8,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { cn } from "@/lib/utils"
 import { useUI } from "@/lib/store"
+import { toast } from "sonner"
 import { DiscoveryFilterSidebar } from "./DiscoveryFilterSidebar"
 import { DiscoverySortDropdown } from "./DiscoverySortDropdown"
 import { DiscoveryJobList } from "./DiscoveryJobList"
@@ -62,6 +64,25 @@ export function DiscoveryPage() {
   } = useJobDiscovery()
 
   const setEvaluatorModal = useUI((s) => s.setEvaluatorModal)
+  const searchParams = useSearchParams()
+
+  // Detect incoming Web Share Target payloads (e.g. shared from LinkedIn mobile app)
+  useEffect(() => {
+    if (!searchParams) return
+    const sharedText = searchParams.get("share_text") || searchParams.get("text") || ""
+    const sharedUrl = searchParams.get("share_url") || searchParams.get("url") || ""
+    const sharedTitle = searchParams.get("share_title") || searchParams.get("title") || ""
+
+    if (sharedText || sharedUrl || sharedTitle) {
+      const combinedText = [sharedTitle, sharedText].filter(Boolean).join("\n\n").trim()
+      setEvaluatorModal(true, combinedText, sharedUrl)
+      toast.info("Shared opportunity received from LinkedIn!")
+      if (typeof window !== "undefined") {
+        const cleanUrl = window.location.pathname
+        window.history.replaceState({}, "", cleanUrl)
+      }
+    }
+  }, [searchParams, setEvaluatorModal])
 
   const tabs: { id: DiscoveryTab; label: string; count?: number }[] = [
     { id: "all", label: "All", count: data?.count ?? allOpportunities.length },

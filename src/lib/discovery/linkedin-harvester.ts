@@ -80,8 +80,11 @@ export function synthesizeLinkedInSearchQueries(profile: CandidateSearchProfile)
   })
 }
 
+import { harvestLinkedInFeedPosts } from "./linkedin-feed-harvester"
+
 /**
  * Harvests authentic LinkedIn developer opportunities using system-generated queries
+ * and organic hiring feed posts
  */
 export async function harvestLinkedInOpportunities(
   profile: CandidateSearchProfile,
@@ -90,12 +93,15 @@ export async function harvestLinkedInOpportunities(
   const queryTargets = synthesizeLinkedInSearchQueries(profile)
   const targetsToExecute = queryTargets.slice(0, options.maxQueries || 5)
 
-  // Query LinkedIn with 7-day recency window (f_TPR)
-  const fetchResults = await Promise.allSettled(
-    targetsToExecute.map((t) => fetchLinkedInGuestJobs(t.query, t.location, { jobageDays: 7 }))
-  )
+  // Harvest both formal LinkedIn Jobs AND organic feed posts
+  const [fetchResults, organicFeedJobs] = await Promise.all([
+    Promise.allSettled(
+      targetsToExecute.map((t) => fetchLinkedInGuestJobs(t.query, t.location, { jobageDays: 7 }))
+    ),
+    harvestLinkedInFeedPosts(profile).catch(() => []),
+  ])
 
-  const rawJobs: UnifiedRawJob[] = []
+  const rawJobs: UnifiedRawJob[] = [...organicFeedJobs]
   for (const res of fetchResults) {
     if (res.status === "fulfilled" && Array.isArray(res.value)) {
       rawJobs.push(...res.value)

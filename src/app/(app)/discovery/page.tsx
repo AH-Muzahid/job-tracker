@@ -2,7 +2,7 @@
 
 import { useUser } from "@clerk/nextjs"
 import { useRouter } from "next/navigation"
-import { useEffect } from "react"
+import { Suspense, useEffect } from "react"
 import { PageContainer } from "@/components/primitives"
 import { DiscoveryPage } from "@/components/discovery/DiscoveryPage"
 
@@ -34,7 +34,9 @@ export default function DiscoveryPageWrapper() {
 
   return (
     <PageContainer>
-      <DiscoveryPage />
+      <Suspense fallback={<div className="w-full min-h-[300px] animate-pulse bg-muted/20 rounded-[6px]" />}>
+        <DiscoveryPage />
+      </Suspense>
     </PageContainer>
   )
 }
