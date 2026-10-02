@@ -49,10 +49,10 @@ function StatCard({
       <div
         className={`
           absolute inset-0
-          bg-gradient-to-br from-white/5 to-transparent
+          bg-white/5
           opacity-0 group-hover:opacity-100
           transition-opacity duration-300
-          ${hasImage ? "" : "dark:from-white/5 light:from-black/5"}
+          ${hasImage ? "" : "dark:bg-white/5 light:bg-black/5"}
         `}
       />
 

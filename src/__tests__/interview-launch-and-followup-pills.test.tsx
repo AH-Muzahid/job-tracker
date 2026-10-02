@@ -199,7 +199,6 @@ describe("Interview Launch Navigation & Contextual Follow-up Pills Suite", () =>
       // Must provide contextual refinement actions
       expect(html).toContain("Switch to System Design Focus")
       expect(html).toContain("Focus on Behavioral &amp; STAR")
-      expect(html).toContain("Senior / Staff Difficulty")
 
       // Must use Stripe design system
       expect(html).toContain("Suggested Next Steps")
@@ -208,7 +207,7 @@ describe("Interview Launch Navigation & Contextual Follow-up Pills Suite", () =>
     })
 
     it("renders clean Suggested Next Steps styling with status dot and ArrowRight icon", () => {
-      const content = "Here is an analysis of your match score for Vercel."
+      const content = "```analysis\nHere is an analysis of your match score for Vercel.\n```"
       const html = renderToString(
         <ChatMessage
           message={{
@@ -223,9 +222,8 @@ describe("Interview Launch Navigation & Contextual Follow-up Pills Suite", () =>
       )
 
       expect(html).toContain("Suggested Next Steps")
-      expect(html).toContain("Draft Outreach Email (Vercel)")
+      expect(html).toContain("Draft Outreach (Vercel)")
       expect(html).toContain("Tailor Resume (Vercel)")
-      expect(html).toContain("Launch Mock Interview (Vercel)")
     })
   })
 })

@@ -61,11 +61,13 @@ describe("TTS API Route (INT-09)", () => {
     expect(res.headers.get("content-type")).toBe("audio/mpeg")
   })
 
-  it("returns 204 No Content when no OpenAI API key is configured", async () => {
+  it("returns 200 audio via Edge Neural TTS fallback when no OpenAI API key is configured", async () => {
     mockGetUserAIConfig.mockResolvedValueOnce(null)
     const req = new NextRequest("http://localhost/api/ai/tts?text=Welcome+to+the+interview")
     const res = await GET(req)
-    expect(res.status).toBe(204)
+    // EdgeTTS (node-edge-tts) provides free neural TTS as primary fallback;
+    // 204 only occurs if ALL synthesis engines fail.
+    expect(res.status).toBe(200)
   })
 
   it("calls OpenAI TTS when API key is present and returns audio stream", async () => {

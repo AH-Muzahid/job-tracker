@@ -54,7 +54,7 @@ export function HeroDashboardMockup() {
             <span className="absolute top-1.5 right-1.5 size-1.5 rounded-full bg-emerald-500 ring-2 ring-card" />
           </div>
 
-          <div className="flex size-8 items-center justify-center rounded-full bg-gradient-to-tr from-primary to-violet-500 text-primary-foreground text-xs font-bold shadow-2xs">
+          <div className="flex size-8 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-bold shadow-2xs">
             JD
           </div>
         </div>
@@ -214,7 +214,7 @@ export function HeroDashboardMockup() {
                   <div key={item.day} className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end group">
                     <div
                       style={{ height: item.h }}
-                      className="w-full max-w-[28px] rounded-t-sm bg-gradient-to-t from-primary/40 to-primary group-hover:from-primary/60 group-hover:to-primary transition-all"
+                      className="w-full max-w-[28px] rounded-t-sm bg-primary/40 group-hover:bg-primary/60 transition-all"
                     />
                     <span className="text-[10px] font-mono text-muted-foreground">{item.day}</span>
                   </div>

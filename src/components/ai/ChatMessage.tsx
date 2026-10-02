@@ -1197,8 +1197,8 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
               typeof item === "string" ? { label: item, prompt: item } : item
             )
           } else if (parsed.suggestions && Array.isArray(parsed.suggestions)) {
-            parsedSuggestions = parsed.suggestions.map((item) =>
-              typeof item === "string" ? { label: item, prompt: item } : item
+            parsedSuggestions = parsed.suggestions.map((item: unknown) =>
+              typeof item === "string" ? { label: item, prompt: item } : (item as { label: string; prompt: string })
             )
           }
         } catch {

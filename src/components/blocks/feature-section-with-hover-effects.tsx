@@ -84,7 +84,7 @@ function Feature({
   icon: React.ComponentType<{ className?: string; stroke?: number }>;
   index: number;
 }) {
-  const isTopRow = index < 4;
+  const _isTopRow = index < 4;
   const isLastInRow = index % 4 === 3;
 
   return (
@@ -102,7 +102,7 @@ function Feature({
         className={`
           absolute inset-0 opacity-0 group-hover/link:opacity-100
           transition-opacity duration-200
-          bg-gradient-to-${isTopRow ? "t" : "b"} from-blue-500/10 to-transparent
+          bg-blue-500/10
           pointer-events-none
         `}
       />

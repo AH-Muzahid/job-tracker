@@ -138,7 +138,7 @@ export function HeroSection() {
 				<FullWidthDivider position="top" />
 
 				{/* Glowing Stage & Floating Rounded Mockup Frame */}
-				<div className="relative overflow-hidden bg-gradient-to-b from-blue-500/10 via-background to-background p-4 sm:p-8 md:p-12 lg:p-14">
+				<div className="relative overflow-hidden bg-background p-4 sm:p-8 md:p-12 lg:p-14">
 					{/* Dot Matrix Pattern Overlay */}
 					<div
 						aria-hidden="true"
