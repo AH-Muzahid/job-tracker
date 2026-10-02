@@ -41,6 +41,18 @@ export interface JobRunRingItem {
   logs?: string[]
 }
 
+export interface AppLogRingItem {
+  id: string
+  level: "error" | "warn" | "info"
+  source: string
+  message: string
+  error?: string
+  stack?: string
+  metadata?: Record<string, unknown>
+  userId?: string
+  timestamp: string
+}
+
 export interface OpsMetricsSummary {
   totalLLMCalls: number
   totalTokens: number
@@ -53,12 +65,14 @@ export interface OpsMetricsSummary {
   activePipelinesCount: number
   recentJobsCount: number
   jobSuccessRate: number
+  errorLogCount?: number
 }
 
 const REDIS_KEYS = {
   LLM_RECENT: "ops:llm:recent",
   AGENT_RECENT: "ops:agent:recent",
   JOB_RECENT: "ops:job:recent",
+  APP_LOGS_RECENT: "ops:app:logs:recent",
   DAILY_STATS: (date: string) => `ops:stats:daily:${date}`,
 }
 
@@ -68,6 +82,7 @@ const MAX_RING_BUFFER_SIZE = 50
 const inMemoryLLMRing: LLMCallRingItem[] = []
 const inMemoryAgentRing: AgentStepRingItem[] = []
 const inMemoryJobRing: JobRunRingItem[] = []
+const inMemoryAppLogRing: AppLogRingItem[] = []
 
 /**
  * Calculates estimated USD cost based on published frontier and small model rates.
@@ -352,6 +367,126 @@ export async function getRecentJobRuns(limit = 30): Promise<JobRunRingItem[]> {
 }
 
 /**
+ * Non-blocking recording of an Application Error or System Log into Redis ring buffer.
+ */
+export async function recordAppLogToRing(params: {
+  level: "error" | "warn" | "info"
+  source: string
+  message: string
+  error?: unknown
+  stack?: string
+  metadata?: Record<string, unknown>
+  userId?: string
+}): Promise<AppLogRingItem> {
+  let errorStr: string | undefined
+  let stackStr: string | undefined = params.stack
+
+  if (params.error) {
+    if (params.error instanceof Error) {
+      errorStr = params.error.message
+      if (!stackStr) stackStr = params.error.stack
+    } else if (typeof params.error === "string") {
+      errorStr = params.error
+    } else {
+      try {
+        errorStr = JSON.stringify(params.error)
+      } catch {
+        errorStr = String(params.error)
+      }
+    }
+  }
+
+  const item: AppLogRingItem = {
+    id: `log_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+    level: params.level,
+    source: params.source,
+    message: params.message,
+    error: errorStr,
+    stack: stackStr,
+    metadata: params.metadata,
+    userId: params.userId,
+    timestamp: new Date().toISOString(),
+  }
+
+  // Always record into process-level in-memory ring buffer
+  inMemoryAppLogRing.unshift(item)
+  if (inMemoryAppLogRing.length > MAX_RING_BUFFER_SIZE * 2) {
+    inMemoryAppLogRing.length = MAX_RING_BUFFER_SIZE * 2
+  }
+
+  const redis = getRedisClient()
+  if (redis) {
+    try {
+      await redis.lpush(REDIS_KEYS.APP_LOGS_RECENT, JSON.stringify(item))
+      await redis.ltrim(REDIS_KEYS.APP_LOGS_RECENT, 0, MAX_RING_BUFFER_SIZE * 2 - 1)
+      await redis.expire(REDIS_KEYS.APP_LOGS_RECENT, 86400 * 7) // 7 days retention
+    } catch (err) {
+      console.warn("[Ops Telemetry Ring] Failed to record app log to Redis:", err)
+    }
+  }
+
+  return item
+}
+
+/**
+ * Returns recent Application logs from ring buffer with optional level filter.
+ */
+export async function getRecentAppLogs(
+  limit = 50,
+  level?: "error" | "warn" | "info"
+): Promise<AppLogRingItem[]> {
+  const redis = getRedisClient()
+  let logs: AppLogRingItem[] = []
+
+  if (redis) {
+    try {
+      const rawItems = await redis.lrange(REDIS_KEYS.APP_LOGS_RECENT, 0, limit * 2 - 1)
+      const parsed = (rawItems || [])
+        .map((str) => {
+          try {
+            return typeof str === "string" ? JSON.parse(str) : str
+          } catch {
+            return null
+          }
+        })
+        .filter(Boolean) as AppLogRingItem[]
+
+      if (parsed.length > 0) {
+        logs = parsed
+      } else {
+        logs = inMemoryAppLogRing
+      }
+    } catch (err) {
+      console.warn("[Ops Telemetry Ring] Failed to get app logs from Redis, falling back to memory:", err)
+      logs = inMemoryAppLogRing
+    }
+  } else {
+    logs = inMemoryAppLogRing
+  }
+
+  if (level) {
+    logs = logs.filter((l) => l.level === level)
+  }
+
+  return logs.slice(0, limit)
+}
+
+/**
+ * Clears the application log ring buffer.
+ */
+export async function clearAppLogsRing(): Promise<void> {
+  inMemoryAppLogRing.length = 0
+  const redis = getRedisClient()
+  if (redis) {
+    try {
+      await redis.del(REDIS_KEYS.APP_LOGS_RECENT)
+    } catch (err) {
+      console.warn("[Ops Telemetry Ring] Failed to clear app logs in Redis:", err)
+    }
+  }
+}
+
+/**
  * Aggregates all live metrics for the Admin KPI strip and high-level charts.
  */
 export async function getOpsMetricsSummary(): Promise<OpsMetricsSummary> {
@@ -360,6 +495,7 @@ export async function getOpsMetricsSummary(): Promise<OpsMetricsSummary> {
   const computeFromLocal = async (): Promise<OpsMetricsSummary> => {
     const recentLLMs = await getRecentLLMCalls(50)
     const recentJobs = await getRecentJobRuns(50)
+    const recentLogs = await getRecentAppLogs(50)
 
     const totalCalls = recentLLMs.length
     const promptTokens = recentLLMs.reduce((acc, c) => acc + c.promptTokens, 0)
@@ -377,6 +513,8 @@ export async function getOpsMetricsSummary(): Promise<OpsMetricsSummary> {
       ? Math.round((jobSuccessCount / recentJobs.length) * 1000) / 10
       : 100
 
+    const errorLogCount = recentLogs.filter((l) => l.level === "error").length
+
     return {
       totalLLMCalls: totalCalls,
       totalTokens,
@@ -389,6 +527,7 @@ export async function getOpsMetricsSummary(): Promise<OpsMetricsSummary> {
       activePipelinesCount: 14,
       recentJobsCount: recentJobs.length,
       jobSuccessRate,
+      errorLogCount,
     }
   }
 
@@ -400,10 +539,11 @@ export async function getOpsMetricsSummary(): Promise<OpsMetricsSummary> {
     const today = getTodayKey()
     const statsKey = REDIS_KEYS.DAILY_STATS(today)
 
-    const [statsRaw, recentLLMs, recentJobs] = await Promise.all([
+    const [statsRaw, recentLLMs, recentJobs, recentLogs] = await Promise.all([
       redis.hgetall(statsKey).catch(() => ({})),
       getRecentLLMCalls(50),
       getRecentJobRuns(50),
+      getRecentAppLogs(50),
     ])
 
     const stats = (statsRaw || {}) as Record<string, string | number>
@@ -424,6 +564,8 @@ export async function getOpsMetricsSummary(): Promise<OpsMetricsSummary> {
       ? Math.round((jobSuccessCount / recentJobs.length) * 1000) / 10
       : 100
 
+    const errorLogCount = recentLogs.filter((l) => l.level === "error").length
+
     return {
       totalLLMCalls: totalCalls,
       totalTokens,
@@ -436,6 +578,7 @@ export async function getOpsMetricsSummary(): Promise<OpsMetricsSummary> {
       activePipelinesCount: 14,
       recentJobsCount: recentJobs.length,
       jobSuccessRate,
+      errorLogCount,
     }
   } catch (err) {
     console.warn("[Ops Telemetry Ring] Failed to get metrics summary from Redis:", err)
