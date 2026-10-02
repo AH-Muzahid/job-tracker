@@ -153,3 +153,24 @@ For any feature declaring completion, the following report must be produced:
    - **Metrics**: Always use `.tabular-nums` on numbers, salaries, and metrics to prevent layout shifts.
 5. **AGENT SCAFFOLDING HANDBOOK**:
    - Before building or editing any page, agents MUST read and follow the standardized templates in [`docs/DESIGN-PATTERNS.md`](./docs/DESIGN-PATTERNS.md).
+
+## 13. Git Commit Discipline: Atomic & Granular Commits (MANDATORY)
+
+### Strict Directives
+1. **NO MONOLITHIC COMMITS**: NEVER group multiple unrelated features, refactors, bug fixes, UI adjustments, or documentation updates into a single giant commit (`git add . && git commit`).
+2. **ATOMIC COMMIT PER LOGICAL CONCERN**:
+   - Each commit must encapsulate exactly ONE logical unit of change (e.g., one pipeline enhancement, one bug fix, one UI feature component, or one governance update).
+   - If a multi-step task touches both backend APIs and UI components, or both discovery pipelines and dashboard features, break them down into separate, atomic commits.
+3. **CONVENTIONAL COMMIT FORMATTING**:
+   - Strictly follow Conventional Commits formatting: `<type>(<scope>): <concise description in imperative mood>`.
+   - Permitted types: `feat`, `fix`, `refactor`, `test`, `docs`, `perf`, `chore`, `style`.
+   - Examples:
+     - `feat(discovery): add linkedin recency filters, language gate, and junior fit refinements`
+     - `fix(dashboard): eliminate mock data and make kpis, activity streak, and briefing purely functional`
+     - `feat(dashboard): add 4-pillar profile setup completeness banner with auto-dismissal`
+     - `docs(rules): mandate atomic granular git commits in engineering operating system`
+4. **VERIFICATION BEFORE EACH COMMIT**:
+   - Every commit that alters application code must pass static analysis (`tsc --noEmit`) and relevant unit tests (`vitest`) before being created.
+5. **CO-LOCATED TEST COMMITMENT**:
+   - When introducing new features or behavioral fixes, commit the corresponding unit/integration tests alongside the implementation code or in an immediately coupled test commit.
+
