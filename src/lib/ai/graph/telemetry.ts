@@ -2,6 +2,7 @@
 import { Langfuse } from "langfuse"
 import { CallbackHandler } from "@langfuse/langchain"
 import { countTokens } from "@/lib/ai/token-counter"
+import { recordAgentStepToRing } from "@/lib/ops/telemetry-ring"
 
 export type TraceTaskCategory =
   | "chat_interactive"
@@ -111,6 +112,21 @@ export async function trackGraphExecution(params: {
   startTime: number
   category?: TraceTaskCategory
 }) {
+  const durationMs = Date.now() - params.startTime
+  const inputTokenCount = params.input ? countTokens(typeof params.input === "string" ? params.input : JSON.stringify(params.input)) : 0
+  const outputTokenCount = params.output ? countTokens(typeof params.output === "string" ? params.output : JSON.stringify(params.output)) : 0
+
+  // Always record to Redis Ops Ring Buffer (works even without Langfuse credentials)
+  void recordAgentStepToRing({
+    nodeName: params.nodeName,
+    sessionId: params.sessionId,
+    userId: params.userId,
+    tokens: inputTokenCount + outputTokenCount,
+    durationMs,
+    status: params.error ? "error" : "success",
+    error: params.error ? (params.error instanceof Error ? params.error.message : String(params.error)) : undefined,
+  })
+
   const langfuse = getLangfuseInstance()
   if (!langfuse) return
 

@@ -1,5 +1,6 @@
 import { getLangfuseInstance, flushLangfuse } from "./graph/telemetry"
 import { sanitizePII } from "./pii-sanitizer"
+import { recordLLMCallToRing } from "@/lib/ops/telemetry-ring"
 
 export interface AITelemetryPayload {
   traceId: string
@@ -64,6 +65,20 @@ function sanitizeForTelemetry(data: unknown): unknown {
  * - Optional serverless timeout-safe flush
  */
 export async function traceAIGeneration(params: TraceAIGenerationParams): Promise<void> {
+  // Always record to Redis Ops Ring Buffer (works even without Langfuse credentials)
+  void recordLLMCallToRing({
+    name: params.name,
+    model: params.model,
+    provider: params.provider,
+    promptTokens: params.promptTokens,
+    completionTokens: params.completionTokens,
+    latencyMs: params.latencyMs,
+    status: params.status,
+    error: params.error ? (params.error instanceof Error ? params.error.message : String(params.error)) : undefined,
+    userId: params.userId,
+    sessionId: params.sessionId,
+  })
+
   const langfuse = getLangfuseInstance()
   if (!langfuse) return
 
