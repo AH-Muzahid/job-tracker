@@ -45,6 +45,8 @@ export default function AdminOpsPage() {
   const [llmCalls, setLlmCalls] = React.useState<LLMCallRingItem[]>([])
   const [agentSteps, setAgentSteps] = React.useState<AgentStepRingItem[]>([])
 
+  const [autoRefresh, setAutoRefresh] = React.useState(true)
+
   const fetchAllData = React.useCallback(async (isSilent = false) => {
     if (!isSilent) setIsLoading(true)
     setIsRefreshing(true)
@@ -96,6 +98,14 @@ export default function AdminOpsPage() {
   React.useEffect(() => {
     fetchAllData()
   }, [fetchAllData])
+
+  React.useEffect(() => {
+    if (!autoRefresh) return
+    const interval = setInterval(() => {
+      void fetchAllData(true)
+    }, 4000)
+    return () => clearInterval(interval)
+  }, [autoRefresh, fetchAllData])
 
   const kpiItems: KPIItem[] = [
     {
@@ -157,14 +167,29 @@ export default function AdminOpsPage() {
         title="Ops & Observability Console"
         description="Real-time telemetry for autonomous agent loops, Inngest background workers, and model accounting."
         primaryAction={
-          <button
-            onClick={() => fetchAllData(true)}
-            disabled={isRefreshing}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[4px] bg-[#533AFD] hover:bg-[#4732d8] text-white text-xs font-medium transition-colors disabled:opacity-50 cursor-pointer"
-          >
-            <RefreshCw className={`size-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
-            <span>{isRefreshing ? "Syncing..." : "Refresh Metrics"}</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setAutoRefresh((prev) => !prev)}
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-[4px] border text-xs font-mono transition-colors cursor-pointer ${
+                autoRefresh
+                  ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/20"
+                  : "bg-muted/40 border-border text-muted-foreground hover:bg-muted"
+              }`}
+              title={autoRefresh ? "Live polling every 4s is active. Click to pause." : "Live polling is paused. Click to resume."}
+            >
+              <span className={`size-2 rounded-full ${autoRefresh ? "bg-emerald-500 animate-pulse" : "bg-muted-foreground"}`} />
+              <span>{autoRefresh ? "Live (4s)" : "Paused"}</span>
+            </button>
+
+            <button
+              onClick={() => fetchAllData(true)}
+              disabled={isRefreshing}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[4px] bg-[#533AFD] hover:bg-[#4732d8] text-white text-xs font-medium transition-colors disabled:opacity-50 cursor-pointer"
+            >
+              <RefreshCw className={`size-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
+              <span>{isRefreshing ? "Syncing..." : "Refresh"}</span>
+            </button>
+          </div>
         }
       />
 
