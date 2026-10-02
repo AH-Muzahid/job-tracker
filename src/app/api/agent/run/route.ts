@@ -12,6 +12,8 @@ import { prisma, withDbRetry } from "@/lib/prisma"
 import { triggerBackgroundSummarize } from "@/lib/ai/conversation-summarizer"
 import { generateAndSaveSessionTitle } from "@/lib/ai/title-generator"
 import { invalidateCache } from "@/lib/redis"
+import { countTokens } from "@/lib/ai/token-counter"
+import { recordLLMCallToRing, recordAgentStepToRing } from "@/lib/ops/telemetry-ring"
 
 export async function POST(request: NextRequest) {
   const userId = await getInternalUserId()
@@ -230,6 +232,7 @@ export async function POST(request: NextRequest) {
       // Instant status event to eliminate silent TTFT delay
       sendEvent("status", { text: "Thinking..." })
 
+      const startTime = Date.now()
       try {
         let accumulatedResponseContent = ""
         let accumulatedPlan: any[] = []
@@ -284,8 +287,14 @@ export async function POST(request: NextRequest) {
           ...(langfuseHandler ? { callbacks: [langfuseHandler] } : {}),
         })
 
+        let lastNodeTimestamp = Date.now()
+
         for await (const update of events) {
           for (const [nodeName, nodeState] of Object.entries(update)) {
+            const now = Date.now()
+            const nodeDuration = Math.max(1, now - lastNodeTimestamp)
+            lastNodeTimestamp = now
+
             sendEvent(nodeName, nodeState)
             if (nodeName === "planner") {
               sendEvent("status", { text: "Executing plan..." })
@@ -300,14 +309,31 @@ export async function POST(request: NextRequest) {
             if (Array.isArray((nodeState as any)?.plan) && (nodeState as any).plan.length > 0) {
               accumulatedPlan = (nodeState as any).plan
             }
-            if (!langfuseHandler) {
-              void trackGraphExecution({
+
+            // Always record node step into Ops ring buffer
+            void trackGraphExecution({
+              userId,
+              sessionId,
+              nodeName,
+              input: inputArg,
+              output: nodeState,
+              startTime: now - nodeDuration,
+            })
+
+            // Record node-level LLM calls for graph reasoning steps
+            if (nodeName === "planner" || nodeName === "responder" || nodeName === "replanner") {
+              const nodeInputTokens = countTokens(JSON.stringify(inputArg))
+              const nodeOutputTokens = countTokens(JSON.stringify(nodeState))
+              void recordLLMCallToRing({
+                name: `agent:${nodeName}`,
+                model: modelOverride || aiConfig.model || "gpt-4o-mini",
+                provider: aiConfig.providerType || "openai",
+                promptTokens: nodeInputTokens,
+                completionTokens: nodeOutputTokens,
+                latencyMs: nodeDuration,
+                status: "success",
                 userId,
                 sessionId,
-                nodeName,
-                input: inputArg,
-                output: nodeState,
-                startTime: Date.now(),
               })
             }
           }
@@ -396,6 +422,23 @@ export async function POST(request: NextRequest) {
           sendEvent("done", {
             state: finalValues,
           })
+
+          // Record overall agent invocation to LLM Telemetry Ring Buffer
+          const totalDurationMs = Date.now() - startTime
+          const promptTokens = countTokens(message || "") + (candidateContext ? countTokens(candidateContext) : 0) + 120
+          const completionTokens = countTokens(responseText)
+
+          void recordLLMCallToRing({
+            name: "copilot-agent-run",
+            model: modelOverride || aiConfig.model || "gpt-4o-mini",
+            provider: aiConfig.providerType || "openai",
+            promptTokens,
+            completionTokens,
+            latencyMs: totalDurationMs,
+            status: "success",
+            userId,
+            sessionId,
+          })
         }
 
         await flushLangfuse()
@@ -403,6 +446,30 @@ export async function POST(request: NextRequest) {
       } catch (err: any) {
         const errorMsg = err?.message || "Encountered a temporary AI service delay"
         console.warn("[Agent Run Error]:", err)
+
+        const totalDurationMs = Date.now() - startTime
+        void recordLLMCallToRing({
+          name: "copilot-agent-run",
+          model: modelOverride || aiConfig.model || "gpt-4o-mini",
+          provider: aiConfig.providerType || "openai",
+          promptTokens: countTokens(message || ""),
+          completionTokens: 0,
+          latencyMs: totalDurationMs,
+          status: "error",
+          error: errorMsg,
+          userId,
+          sessionId,
+        })
+
+        void recordAgentStepToRing({
+          nodeName: "execution-error",
+          sessionId,
+          userId,
+          tokens: 0,
+          durationMs: totalDurationMs,
+          status: "error",
+          error: errorMsg,
+        })
 
         // Persist error fallback in DB so user message is never left orphaned without an assistant reply
         try {

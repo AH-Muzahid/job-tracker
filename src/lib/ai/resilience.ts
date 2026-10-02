@@ -615,6 +615,51 @@ export async function resilientStreamText(options: {
   for (const candidate of candidates) {
     try {
       console.log(`[Stream] Trying provider: ${candidate.name} (${candidate.id})`)
+      const streamStartTime = Date.now()
+
+      const handleFinish = async (event: any) => {
+        const latencyMs = Math.max(1, Date.now() - streamStartTime)
+        const promptTokens = event?.usage?.promptTokens ?? countMessageTokens(options.messages)
+        const completionTokens = event?.usage?.completionTokens ?? (event?.text ? countTokens(event.text) : 0)
+
+        void traceAIGeneration({
+          name: "resilient-stream-text",
+          userId: options.userId,
+          model: candidate.id,
+          provider: candidate.name,
+          input: { system: options.system, messages: options.messages },
+          output: event?.text || "",
+          promptTokens,
+          completionTokens,
+          latencyMs,
+          status: "success",
+          tags: ["streaming", candidate.name],
+          flush: true,
+        })
+
+        if (options.onFinish) {
+          await options.onFinish(event)
+        }
+      }
+
+      const handleError = (error: unknown) => {
+        const latencyMs = Math.max(1, Date.now() - streamStartTime)
+        void traceAIGeneration({
+          name: "resilient-stream-text",
+          userId: options.userId,
+          model: candidate.id,
+          provider: candidate.name,
+          input: { system: options.system, messages: options.messages },
+          latencyMs,
+          status: "error",
+          error,
+          tags: ["streaming", "error", candidate.name],
+          flush: true,
+        })
+
+        options.onError?.(error)
+      }
+
       const result = (streamText as any)({
         model: candidate.model,
         system: options.system,
@@ -622,8 +667,8 @@ export async function resilientStreamText(options: {
         temperature: options.temperature ?? 0.35,
         tools: options.tools,
         maxSteps: options.maxSteps ?? 5,
-        onError: options.onError,
-        onFinish: options.onFinish,
+        onError: handleError,
+        onFinish: handleFinish,
         onStepFinish: (event: any) => {
           const { toolCalls, toolResults, text } = event
 

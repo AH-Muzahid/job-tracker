@@ -15,6 +15,7 @@ import {
   getCachedKnowledgeGraph,
   saveKnowledgeGraph,
 } from "@/lib/ai/knowledge-graph"
+import { traceAIGeneration } from "@/lib/ai/telemetry"
 
 export async function POST(request: NextRequest) {
   const userId = await getInternalUserId()
@@ -109,6 +110,7 @@ interface ProjectDetail {
   const truncatedJd = jdText.length > 8000 ? jdText.slice(0, 8000) + "..." : jdText
 
   let analysis: z.infer<typeof JDAnalysisSchema>
+  const scanStartTime = Date.now()
 
   try {
     const textResult = await generateText({
@@ -119,8 +121,35 @@ interface ProjectDetail {
 
     const rawText = textResult.text || ""
     analysis = parseAndNormalizeJdAnalysis(rawText)
+
+    void traceAIGeneration({
+      name: "scan-jd",
+      userId,
+      model: aiConfig.model || resolvedProvider.defaultModel,
+      provider: aiConfig.providerType,
+      input: { jdLength: truncatedJd.length, applicationId },
+      output: { matchScore: analysis.matchScore, verdict: analysis.verdict },
+      promptTokens: (textResult as { usage?: { promptTokens?: number; completionTokens?: number } }).usage?.promptTokens,
+      completionTokens: (textResult as { usage?: { promptTokens?: number; completionTokens?: number } }).usage?.completionTokens,
+      latencyMs: Date.now() - scanStartTime,
+      status: "success",
+      tags: ["scan-jd", "evaluation"],
+      flush: true,
+    })
   } catch (err: unknown) {
     console.error("scan-jd AI execution error:", err)
+    void traceAIGeneration({
+      name: "scan-jd",
+      userId,
+      model: aiConfig.model || resolvedProvider.defaultModel,
+      provider: aiConfig.providerType,
+      input: { jdLength: truncatedJd.length, applicationId },
+      latencyMs: Date.now() - scanStartTime,
+      status: "error",
+      error: err,
+      tags: ["scan-jd", "error"],
+      flush: true,
+    })
     const errMsg = err instanceof Error ? err.message : "AI scan failed"
     return NextResponse.json({ error: errMsg }, { status: 500 })
   }
