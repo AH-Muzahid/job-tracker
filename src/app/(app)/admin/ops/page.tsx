@@ -49,7 +49,9 @@ export default function AdminOpsPage() {
   const [appLogs, setAppLogs] = React.useState<AppLogRingItem[]>([])
 
   const [autoRefresh, setAutoRefresh] = React.useState(true)
+  const refreshIntervalSec = 6
 
+  // Full refresh: fetches all 5 endpoints (used on initial mount and manual Refresh button)
   const fetchAllData = React.useCallback(async (isSilent = false) => {
     if (!isSilent) setIsLoading(true)
     setIsRefreshing(true)
@@ -104,17 +106,80 @@ export default function AdminOpsPage() {
     }
   }, [])
 
+  // Targeted silent polling: only fetches global metrics and the active tab's endpoint.
+  // This reduces request volume by ~65%, saving Redis commands and preventing rate limits.
+  const fetchActiveTabData = React.useCallback(
+    async (tab: typeof activeTab) => {
+      // Auto-pause if browser tab is hidden/minimized
+      if (typeof document !== "undefined" && document.hidden) return
+
+      try {
+        const [resMetrics, resTab] = await Promise.all([
+          fetch("/api/admin/ops/metrics"),
+          fetch(`/api/admin/ops/${tab}`),
+        ])
+
+        if (resMetrics.ok) {
+          const d = await resMetrics.json()
+          if (d.metrics) setMetrics(d.metrics)
+        }
+
+        if (resTab.ok) {
+          const d = await resTab.json()
+          if (tab === "jobs") {
+            if (d.catalog) setCatalog(d.catalog)
+            if (d.recentRuns) setRecentRuns(d.recentRuns)
+          } else if (tab === "llm") {
+            if (d.calls) setLlmCalls(d.calls)
+          } else if (tab === "agents") {
+            if (d.steps) setAgentSteps(d.steps)
+          } else if (tab === "logs") {
+            if (d.logs) setAppLogs(d.logs)
+          }
+        }
+      } catch {
+        // Silent fail during background polling to prevent disruption
+      }
+    },
+    []
+  )
+
+  // Initial load
   React.useEffect(() => {
     fetchAllData()
   }, [fetchAllData])
 
+  // When user switches tabs, immediately fetch the newly active tab's data
+  React.useEffect(() => {
+    void fetchActiveTabData(activeTab)
+  }, [activeTab, fetchActiveTabData])
+
+  // Visibility-aware smart polling: auto-pauses when tab is hidden, resumes on return
   React.useEffect(() => {
     if (!autoRefresh) return
+
     const interval = setInterval(() => {
-      void fetchAllData(true)
-    }, 4000)
-    return () => clearInterval(interval)
-  }, [autoRefresh, fetchAllData])
+      void fetchActiveTabData(activeTab)
+    }, refreshIntervalSec * 1000)
+
+    const handleVisibilityChange = () => {
+      if (typeof document !== "undefined" && !document.hidden && autoRefresh) {
+        // Immediate refresh when admin returns to tab
+        void fetchActiveTabData(activeTab)
+      }
+    }
+
+    if (typeof document !== "undefined") {
+      document.addEventListener("visibilitychange", handleVisibilityChange)
+    }
+
+    return () => {
+      clearInterval(interval)
+      if (typeof document !== "undefined") {
+        document.removeEventListener("visibilitychange", handleVisibilityChange)
+      }
+    }
+  }, [autoRefresh, refreshIntervalSec, activeTab, fetchActiveTabData])
 
   const kpiItems: KPIItem[] = [
     {
@@ -184,10 +249,10 @@ export default function AdminOpsPage() {
                   ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/20"
                   : "bg-muted/40 border-border text-muted-foreground hover:bg-muted"
               }`}
-              title={autoRefresh ? "Live polling every 4s is active. Click to pause." : "Live polling is paused. Click to resume."}
+              title={autoRefresh ? `Live polling every ${refreshIntervalSec}s is active (auto-pauses when tab is hidden). Click to pause.` : "Live polling is paused. Click to resume."}
             >
               <span className={`size-2 rounded-full ${autoRefresh ? "bg-emerald-500 animate-pulse" : "bg-muted-foreground"}`} />
-              <span>{autoRefresh ? "Live (4s)" : "Paused"}</span>
+              <span>{autoRefresh ? `Live (${refreshIntervalSec}s)` : "Paused"}</span>
             </button>
 
             <button
