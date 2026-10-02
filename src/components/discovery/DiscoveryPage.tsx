@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import {
-  Search, X, SlidersHorizontal
+  Search, X, SlidersHorizontal, RefreshCw
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
@@ -25,6 +25,8 @@ export function DiscoveryPage() {
   const {
     searchQuery,
     setSearchQuery,
+    refreshFeed,
+    isRefreshingFeed,
     activeTab,
     setActiveTab,
     facetCounts,
@@ -43,6 +45,7 @@ export function DiscoveryPage() {
     refetchProfile,
     data,
     isLoading,
+    isRefetching,
     allOpportunities,
     refetch,
     sortedOpportunities,
@@ -88,8 +91,18 @@ export function DiscoveryPage() {
               <BatchCountdown nextBatchAt={data?.nextBatchAt} className="mt-1.5" />
             </div>
             
-            {/* Header Action: Job Preferences Modal Trigger */}
+            {/* Header Actions: Sync Live Jobs & Job Preferences */}
             <div className="flex items-center gap-2 shrink-0">
+              <Button
+                variant="outline"
+                disabled={isRefreshingFeed || isRefetching}
+                onClick={() => refreshFeed()}
+                className="h-8.5 px-3 text-xs gap-1.5 rounded-sm cursor-pointer border-border font-medium hover:bg-muted transition-colors shadow-none"
+                title="Fetch latest LinkedIn and multi-board jobs for your profile"
+              >
+                <RefreshCw className={cn("size-3.5 text-muted-foreground", (isRefreshingFeed || isRefetching) && "animate-spin text-primary")} />
+                <span>{isRefreshingFeed ? "Syncing..." : "Sync Live Jobs"}</span>
+              </Button>
               <Button
                 variant="outline"
                 onClick={() => setPreferencesModalOpen(true)}
@@ -110,6 +123,15 @@ export function DiscoveryPage() {
                 Opportunities
               </h1>
               <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  disabled={isRefreshingFeed || isRefetching}
+                  onClick={() => refreshFeed()}
+                  className="size-8.5 rounded-sm border border-border flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+                  title="Sync live jobs from LinkedIn & sources"
+                >
+                  <RefreshCw className={cn("size-4", (isRefreshingFeed || isRefetching) && "animate-spin text-primary")} />
+                </button>
                 <button
                   type="button"
                   onClick={() => setPreferencesModalOpen(true)}
