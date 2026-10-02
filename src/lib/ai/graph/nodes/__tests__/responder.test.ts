@@ -65,4 +65,40 @@ describe("Responder Node Unit Suite", () => {
     expect(prompt).toContain("why something was missing or not identified")
     expect(prompt).toContain("Previous session discussion on Google applications")
   })
+
+  it("never replays previous turn responseContent on follow-up questions", async () => {
+    const mockStream = vi.fn().mockImplementation(async function* () {
+      yield { content: "Here is the new answer." }
+    })
+
+    const mockModel = {
+      stream: mockStream,
+      invoke: vi.fn().mockResolvedValue({ content: "Here is the new answer." }),
+    } as any
+
+    const onToken = vi.fn()
+    const responderNode = createResponderNode(mockModel, onToken)
+
+    // State simulates checkpoint carrying over responseContent from Turn 1
+    const state = {
+      goal: "why you response twice the same thing",
+      messages: [new HumanMessage("why you response twice the same thing")],
+      plan: [],
+      currentStepIndex: 0,
+      reflection: { passed: true, retryCount: 0 },
+      userId: "user-1",
+      sessionId: "session-1",
+      routeContext: null,
+      isHeadlessMode: false,
+      responseContent: "Old 3000-word response from previous turn that must not be echoed",
+      interruptData: null,
+    }
+
+    const result = await responderNode(state)
+
+    expect(mockStream).toHaveBeenCalledTimes(1)
+    expect(onToken).toHaveBeenCalledWith("Here is the new answer.")
+    expect(result.responseContent).toBe("Here is the new answer.")
+    expect(result.responseContent).not.toContain("Old 3000-word response")
+  })
 })

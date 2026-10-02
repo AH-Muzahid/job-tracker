@@ -276,6 +276,7 @@ export async function POST(request: NextRequest) {
             currentStepIndex: 0,
             reflection: { passed: true, retryCount: 0 },
             routeContext: enrichedRouteContext,
+            responseContent: "",
           }
         }
 

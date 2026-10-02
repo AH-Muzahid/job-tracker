@@ -21,7 +21,7 @@ AUTONOMOUS PLANNING DIRECTIVES:
      Do NOT return empty steps! Formulate a proactive multi-step pipeline:
      - Step 1: "searchApplications" with { "query": "<Company>" } (check existing tracking history)
      - Step 2: "getUserMemories" with { "category": "skill" } (retrieve verified background)
-     - Step 3: "draftOutreachEmail" with { "companyName": "<Company>", "role": "<Role>" } (generate structured email package)
+     - Step 3: "draftOutreachEmail" with { "companyName": "<Company>", "role": "<Role>", "recipientEmail": "<Email if found in job post text, e.g. hr@company.com>" } (generate structured email package)
    - When the user asks to search, find, or discover jobs (e.g. "find react jobs in Berlin", "remote rust role khojo"):
      - Step: "searchExternalJobs" with { "query": "...", "location": "..." }
    - When the user asks about their applications, pipeline stats, or application counts (e.g. "how many applied", "dekhao kothai apply korsi", "pipeline status"):
@@ -130,6 +130,7 @@ export function createPlannerNode(model: BaseChatModel) {
         goal: userText,
         plan: [],
         currentStepIndex: 0,
+        responseContent: "",
       }
     }
 
@@ -140,6 +141,7 @@ export function createPlannerNode(model: BaseChatModel) {
         goal: userText,
         plan: [],
         currentStepIndex: 0,
+        responseContent: "",
       }
     }
 
@@ -192,6 +194,7 @@ export function createPlannerNode(model: BaseChatModel) {
           goal: parsed.goal || userText,
           plan: validSteps,
           currentStepIndex: 0,
+          responseContent: "",
         }
       }
 

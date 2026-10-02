@@ -9,6 +9,7 @@ export async function executeDraftOutreachEmail(
   input: {
     companyName?: string
     role?: string
+    recipientEmail?: string
     tone?: string
     contextNotes?: string
   }
@@ -103,6 +104,14 @@ Given ${company}'s focus on high-velocity execution, I can make an immediate con
 Best regards,
 ${signoffName}${linksLine}`
 
+  // Detect recipient email from input or context notes
+  const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/
+  let detectedEmail = input.recipientEmail?.trim()
+  if (!detectedEmail && input.contextNotes) {
+    const match = input.contextNotes.match(emailRegex)
+    if (match) detectedEmail = match[0]
+  }
+
   return {
     success: true,
     subject,
@@ -110,6 +119,7 @@ ${signoffName}${linksLine}`
     companyName: company,
     role: finalRole,
     candidateName: signoffName,
+    recipientEmail: detectedEmail || undefined,
     format: "Outreach Email Draft",
     isEmailDraft: true,
   }

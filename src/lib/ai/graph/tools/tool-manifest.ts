@@ -469,8 +469,13 @@ export const TOOL_MANIFEST: Record<string, ToolDefinition<any>> = {
 
   draftOutreachEmail: {
     name: "draftOutreachEmail",
-    description: "Draft a personalized outreach email for a company and role without sending it.",
-    schema: z.object({ companyName: z.string().optional(), role: z.string().optional() }).passthrough(),
+    description: "Draft a personalized outreach email for a company and role without sending it. Optionally pass recipientEmail if provided in job text.",
+    schema: z.object({
+      companyName: z.string().optional(),
+      role: z.string().optional(),
+      recipientEmail: z.string().optional(),
+      contextNotes: z.string().optional(),
+    }).passthrough(),
     risk: ToolRisk.READ_ONLY,
     requiresConfirmation: false,
     allowedInHeadless: true,

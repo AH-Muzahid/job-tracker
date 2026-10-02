@@ -9,6 +9,7 @@ import {
   GREETING_REGEX,
   MAX_TOOL_RESULT_BYTES,
   FALLBACK_GREETING_MESSAGE,
+  PLANNING_ERROR_FALLBACK,
 } from "../constants"
 
 export function getResponderSystemPrompt(): string {
@@ -59,14 +60,14 @@ export function createResponderNode(
   return async (state: AgentStateType): Promise<Partial<AgentStateType>> => {
     const { goal, plan, sessionId } = state
 
-    // If planner already returned a high-priority user error message (e.g. parse failure)
-    if (state.responseContent && (!plan || plan.length === 0)) {
-      if (onToken && state.responseContent) {
-        onToken(state.responseContent)
+    // Only short-circuit if planner explicitly emitted the planning error fallback
+    if (state.responseContent === PLANNING_ERROR_FALLBACK && (!plan || plan.length === 0)) {
+      if (onToken) {
+        onToken(PLANNING_ERROR_FALLBACK)
       }
       return {
-        responseContent: state.responseContent,
-        messages: [new AIMessage(state.responseContent)],
+        responseContent: PLANNING_ERROR_FALLBACK,
+        messages: [new AIMessage(PLANNING_ERROR_FALLBACK)],
       }
     }
 
@@ -177,7 +178,7 @@ export function createResponderNode(
 
       if (!responseText.trim() && typeof model.invoke === "function") {
         const response = await model.invoke(messagesToSend)
-        responseText = String(response.content || "")
+        responseText = String(response?.content || "")
         if (onToken && responseText) {
           onToken(responseText)
         }
