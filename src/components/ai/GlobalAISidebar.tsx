@@ -7,6 +7,21 @@ import * as StoreModule from "@/lib/store"
 import AIChat from "./AIChat"
 import { cn } from "@/lib/utils"
 
+interface SafeAIStore {
+  useAI?: {
+    getState: () => {
+      setActiveChatId: (id: string | null) => void
+    }
+  }
+}
+
+function syncActiveChatId(id: string | null) {
+  const store = StoreModule as unknown as SafeAIStore
+  if (typeof store.useAI?.getState === "function") {
+    store.useAI.getState().setActiveChatId(id)
+  }
+}
+
 export default function GlobalAISidebar() {
   const router = useRouter()
   const { aiSidebarOpen, setAiSidebarOpen } = StoreModule.useUI()
@@ -23,8 +38,8 @@ export default function GlobalAISidebar() {
     e.preventDefault()
     e.stopPropagation()
     const targetSessionId = sessionId
-    if (targetSessionId && typeof (StoreModule as any).useAI?.getState === "function") {
-      (StoreModule as any).useAI.getState().setActiveChatId(targetSessionId)
+    if (targetSessionId) {
+      syncActiveChatId(targetSessionId)
     }
     setAiSidebarOpen(false)
     const targetUrl = targetSessionId ? `/ai-assistant?id=${targetSessionId}` : "/ai-assistant"
@@ -33,9 +48,7 @@ export default function GlobalAISidebar() {
 
   const handleNewChat = () => {
     setSessionId(null)
-    if (typeof (StoreModule as any).useAI?.getState === "function") {
-      (StoreModule as any).useAI.getState().setActiveChatId(null)
-    }
+    syncActiveChatId(null)
   }
 
   return (
@@ -104,9 +117,7 @@ export default function GlobalAISidebar() {
             sessionId={sessionId} 
             onSessionCreated={(id) => {
               setSessionId(id)
-              if (typeof (StoreModule as any).useAI?.getState === "function") {
-                (StoreModule as any).useAI.getState().setActiveChatId(id)
-              }
+              syncActiveChatId(id)
             }} 
             isSidebar={true} 
           />

@@ -61,7 +61,7 @@ function AIAssistantContent() {
     } else if (storedId) {
       setActiveChatId(storedId)
     }
-  }, [searchParams, setActiveChatId])
+  }, [searchParams, setActiveChatId, activeChatId])
 
   // Keep URL and localStorage updated when activeChatId changes
   useEffect(() => {
