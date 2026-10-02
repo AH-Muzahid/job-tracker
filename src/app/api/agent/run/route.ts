@@ -15,6 +15,7 @@ import { invalidateCache } from "@/lib/redis"
 import { countTokens } from "@/lib/ai/token-counter"
 import { recordLLMCallToRing, recordAgentStepToRing } from "@/lib/ops/telemetry-ring"
 import { appLogger } from "@/lib/ops/app-logger"
+import { isActionableOperationalIntent } from "@/lib/ai/graph/nodes/planner"
 
 export async function POST(request: NextRequest) {
   const userId = await getInternalUserId()
@@ -238,7 +239,10 @@ export async function POST(request: NextRequest) {
         let accumulatedResponseContent = ""
         let accumulatedPlan: any[] = []
 
-        sendEvent("status", { text: "Analyzing request & planning..." })
+        const isOperational = message ? isActionableOperationalIntent(message) : false
+        if (isOperational) {
+          sendEvent("status", { text: "Analyzing request & planning..." })
+        }
 
         const app = await buildCareerAgentGraph(aiConfig, {
           modelName: modelOverride,
@@ -298,7 +302,9 @@ export async function POST(request: NextRequest) {
 
             sendEvent(nodeName, nodeState)
             if (nodeName === "planner") {
-              sendEvent("status", { text: "Executing plan..." })
+              if (Array.isArray((nodeState as any)?.plan) && (nodeState as any).plan.length > 0) {
+                sendEvent("status", { text: "Executing plan..." })
+              }
             } else if (nodeName === "executor") {
               sendEvent("status", { text: "Verifying actions..." })
             } else if (nodeName === "reflector") {

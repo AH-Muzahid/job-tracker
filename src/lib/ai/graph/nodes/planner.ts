@@ -67,6 +67,51 @@ Output strictly valid JSON with the format:
 `
 }
 
+/**
+ * Detects whether the user's prompt is requesting an actionable system operation
+ * (e.g. tool execution: database mutations, external job scraping, email generation, resume tailoring).
+ * If false, the request is purely conversational (greetings, explanations, questions, rewrites)
+ * and can fast-path directly to the streaming responder, eliminating 20+ seconds of blocking LLM latency.
+ */
+export function isActionableOperationalIntent(rawText: string): boolean {
+  const text = rawText.trim().toLowerCase()
+  if (!text) return false
+
+  // If the query is an explanatory inquiry or critique asking "why" something was done or not done
+  const isWhyInquiry = /\b(why\s+(did|didnt|didn't|could|couldnt|couldn't|was|were|are|is)|kno|keno|ki\s*karon|karon\s*ki)\b/i.test(text)
+  if (isWhyInquiry && !/\b(search\s+for|find\s+me|apply\s+to|track\s+this)\b/i.test(text)) {
+    return false
+  }
+
+  // Direct tool triggers
+  const operationalPatterns = [
+    // 1. Application tracking / status mutations
+    /\b(track|log|save|create|add|record)\b.*\b(application|applied|job|interview|offer)\b/i,
+    /\b(apply\s*(korsi|korlam|korbo|korechi))\b/i,
+    /\b(update|change|mark)\b.*\b(status|round|stage|interview|offer|rejected|applied)\b/i,
+    /\b(delete|archive|remove)\b.*\b(application)\b/i,
+
+    // 2. Job search & external discovery
+    /\b(search|find|discover|look\s*for|khojo|khuje)\b.*\b(jobs?|roles?|positions?|openings?|vacanc(y|ies))\b/i,
+    /\b(jobs?\s+(in|at|for)|roles?\s+(in|at|for)|remote\s+jobs?)\b/i,
+    /\b(scrape|fetch)\b.*\b(job|link|url|posting)\b/i,
+
+    // 3. Email outreach, cover letter, resume tailoring, JD scan
+    /\b(draft|write|generate|compose|likhe|lekho)\b.*\b(mail|email|outreach|letter|application)\b/i,
+    /\b(cold\s*email|cover\s*letter|outreach\s*draft)\b/i,
+    /\b(tailor|optimize|align|match)\b.*\b(resume|cv)\b/i,
+    /\b(scan|evaluate|analyze)\b.*\b(jd|job\s*description)\b/i,
+
+    // 4. Data listing & memory management
+    /\b(list|show|view|dekhao|kothai)\b.*\b(applications?|applied|pipeline|stats?)\b/i,
+    /\b(save|remember|store)\b.*\b(to\s*memory|memory\s*te|amar\s*profile|amar\s*skill)\b/i,
+    /\b(sync|query)\b.*\b(knowledge\s*graph|skills?)\b/i,
+    /\b(research|intel|company\s*profile)\b/i,
+  ]
+
+  return operationalPatterns.some((pattern) => pattern.test(text))
+}
+
 export function createPlannerNode(model: BaseChatModel) {
   return async (state: AgentStateType): Promise<Partial<AgentStateType>> => {
     const lastUserMessage = state.messages
@@ -77,10 +122,20 @@ export function createPlannerNode(model: BaseChatModel) {
     const rawUserText = lastUserMessage ? String(lastUserMessage.content) : state.goal || ""
     const userText = sanitizeUntrustedContext(rawUserText)
 
-    // Fast-path: Greetings or brief conversational queries don't need tool execution
+    // Fast-path 1: Greetings or pleasantries don't need tool execution
     const cleanUserText = userText.trim().toLowerCase()
     const isGreeting = GREETING_REGEX.test(cleanUserText)
     if (isGreeting) {
+      return {
+        goal: userText,
+        plan: [],
+        currentStepIndex: 0,
+      }
+    }
+
+    // Fast-path 2: Conversational follow-ups, clarifying questions, conceptual queries, or rewrites
+    // If user prompt doesn't request actionable tool execution, skip the 20+ second blocking planner LLM call
+    if (!isActionableOperationalIntent(cleanUserText)) {
       return {
         goal: userText,
         plan: [],

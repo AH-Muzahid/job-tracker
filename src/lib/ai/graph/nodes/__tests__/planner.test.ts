@@ -35,6 +35,67 @@ describe("Planner Node Unit & Safety Tests", () => {
     expect(result.currentStepIndex).toBe(0)
   })
 
+  it("fast-paths conversational follow-up questions without invoking planner model", async () => {
+    const mockModel = {
+      invoke: vi.fn(),
+    } as any
+
+    const plannerNode = createPlannerNode(mockModel)
+    const state = {
+      goal: "Recipient Email (To) eta kno identify korte parlena?",
+      messages: [new HumanMessage("Recipient Email (To) eta kno identify korte parlena?")],
+      plan: [],
+      currentStepIndex: 0,
+      reflection: { passed: true, retryCount: 0 },
+      userId: "user-1",
+      sessionId: "session-1",
+      routeContext: null,
+      isHeadlessMode: false,
+      responseContent: "",
+      interruptData: null,
+    }
+
+    const result = await plannerNode(state)
+
+    expect(mockModel.invoke).not.toHaveBeenCalled()
+    expect(result.plan).toEqual([])
+    expect(result.currentStepIndex).toBe(0)
+  })
+
+  it("fast-paths conceptual career questions and rewrite requests without invoking planner model", async () => {
+    const mockModel = {
+      invoke: vi.fn(),
+    } as any
+
+    const plannerNode = createPlannerNode(mockModel)
+    const questions = [
+      "What is the STAR method for interviews?",
+      "Can you make this email more professional?",
+      "Why did you choose that phrasing?",
+      "kivabe salary negotiation korbo?",
+    ]
+
+    for (const q of questions) {
+      const state = {
+        goal: q,
+        messages: [new HumanMessage(q)],
+        plan: [],
+        currentStepIndex: 0,
+        reflection: { passed: true, retryCount: 0 },
+        userId: "user-1",
+        sessionId: "session-1",
+        routeContext: null,
+        isHeadlessMode: false,
+        responseContent: "",
+        interruptData: null,
+      }
+
+      const result = await plannerNode(state)
+      expect(mockModel.invoke).not.toHaveBeenCalled()
+      expect(result.plan).toEqual([])
+    }
+  })
+
   it("parses valid LLM JSON response and caps plan steps at 5", async () => {
     const mockModel = {
       invoke: vi.fn().mockResolvedValue({
