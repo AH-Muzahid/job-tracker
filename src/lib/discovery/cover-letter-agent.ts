@@ -21,6 +21,7 @@ import {
   cleanJobTitle,
   OutreachChannel,
   OutreachChannelBundle,
+  generateDeterministicScreenerAnswers,
 } from "@/lib/applications/outreach-engine"
 import {
   auditApplicationMaterialsGrounding,
@@ -438,7 +439,7 @@ Respond in valid JSON format:
         materials.outreachChannels = {
           form_portal: {
             portalNote: materials.outreachPitch,
-            screenerAnswers: [], // Generated on-demand when user provides or requests form questions
+            screenerAnswers: generateDeterministicScreenerAnswers(outreachCtx),
           },
         }
       } else if (primaryChannel === "linkedin_dm") {

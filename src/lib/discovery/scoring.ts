@@ -268,8 +268,8 @@ export async function executeSearchExternalJobs(
       const isViableLocalMatch = isStrictCityMatch || isNationalHub
 
       if (!isExplicitSearch) {
-        // Gate 1A: Remote-first candidate will NEVER see distant foreign on-site or hybrid jobs
-        if (userWorkPreference === "remote" && jobWorkMode !== "remote" && !isViableLocalMatch) {
+        // Gate 1A: Remote-first candidate will NEVER see on-site or hybrid jobs
+        if (userWorkPreference === "remote" && jobWorkMode !== "remote") {
           continue
         }
 

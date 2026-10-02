@@ -176,10 +176,10 @@ function DiscoveryJobRowInner({
             <Link
               href={stagedApplicationId || job.applicationId ? `/applications/${stagedApplicationId || job.applicationId}` : "/applications"}
               className="inline-flex items-center justify-center gap-1.5 h-8 px-3 rounded-none text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25 hover:bg-emerald-500/20 hover:border-emerald-500/40 transition-colors flex-1 sm:flex-initial"
-              title="Packaged into Staged status. Click to view application in Workbench"
+              title="Packaged into Staged status. Click to view tailored materials in Workbench"
             >
               <Check className="size-3 text-emerald-500 stroke-[2.5]" />
-              <span>Staged</span>
+              <span>View Package</span>
               <ArrowUpRight className="size-3 text-emerald-500/70" />
             </Link>
           ) : job.appliedStatus ? (
@@ -248,10 +248,10 @@ function DiscoveryJobRowInner({
             target="_blank"
             rel="noopener noreferrer"
             onClick={() => onApplyClick?.()}
-            className="inline-flex items-center justify-center gap-1 h-8 px-3 rounded-none border border-border text-xs font-medium text-foreground hover:bg-muted/50 transition-colors cursor-pointer flex-1 sm:flex-initial"
-            title={`Open full job posting on ${sourceBadge.label}`}
+            className="inline-flex items-center justify-center gap-1.5 h-8 px-3 rounded-none border border-border text-xs font-medium text-foreground hover:bg-muted/50 transition-colors cursor-pointer flex-1 sm:flex-initial"
+            title={`Open original job application on ${sourceBadge.label}`}
           >
-            <span>View Job</span>
+            <span>{job.sourceBoard === "linkedin_post" ? "Apply on LinkedIn" : "Apply on Source"}</span>
             <ExternalLink className="size-3 text-muted-foreground" />
           </a>
         </div>

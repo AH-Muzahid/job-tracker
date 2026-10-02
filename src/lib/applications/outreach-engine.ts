@@ -463,7 +463,7 @@ Portfolio & Code: ${linksLine || "Available on profile"}`.trim()
 
     const screenerAnswers = customQuestions && customQuestions.length > 0
       ? generateDeterministicScreenerAnswers(ctx, customQuestions)
-      : (!targetChannel ? generateDeterministicScreenerAnswers(ctx) : [])
+      : generateDeterministicScreenerAnswers(ctx)
 
     bundle.form_portal = {
       portalNote: sanitizeOutreachPlaceholders(portalNote, ctx),
