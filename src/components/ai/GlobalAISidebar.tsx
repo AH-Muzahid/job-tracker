@@ -1,14 +1,15 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import { X, ExternalLink, MessageSquare, Plus } from "lucide-react"
-import { useUI } from "@/lib/store"
+import * as StoreModule from "@/lib/store"
 import AIChat from "./AIChat"
 import { cn } from "@/lib/utils"
-import Link from "next/link"
 
 export default function GlobalAISidebar() {
-  const { aiSidebarOpen, setAiSidebarOpen } = useUI()
+  const router = useRouter()
+  const { aiSidebarOpen, setAiSidebarOpen } = StoreModule.useUI()
   const [sessionId, setSessionId] = useState<string | null>(null)
 
   // Every time the Copilot sidebar is opened, always start a fresh chat session
@@ -17,6 +18,25 @@ export default function GlobalAISidebar() {
       setSessionId(null)
     }
   }, [aiSidebarOpen])
+
+  const handleOpenFullWorkspace = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const targetSessionId = sessionId
+    if (targetSessionId && typeof (StoreModule as any).useAI?.getState === "function") {
+      (StoreModule as any).useAI.getState().setActiveChatId(targetSessionId)
+    }
+    setAiSidebarOpen(false)
+    const targetUrl = targetSessionId ? `/ai-assistant?id=${targetSessionId}` : "/ai-assistant"
+    router.push(targetUrl)
+  }
+
+  const handleNewChat = () => {
+    setSessionId(null)
+    if (typeof (StoreModule as any).useAI?.getState === "function") {
+      (StoreModule as any).useAI.getState().setActiveChatId(null)
+    }
+  }
 
   return (
     <>
@@ -48,20 +68,20 @@ export default function GlobalAISidebar() {
             <h2 className="text-xs sm:text-sm font-semibold tracking-tight text-foreground truncate">
               Career Copilot
             </h2>
-            <Link 
-              href="/ai-assistant" 
-              onClick={() => setAiSidebarOpen(false)}
-              className="text-muted-foreground hover:text-foreground transition-colors p-1 shrink-0 rounded-sm hover:bg-muted"
+            <button 
+              type="button"
+              onClick={handleOpenFullWorkspace}
+              className="text-muted-foreground hover:text-foreground transition-colors p-1 shrink-0 rounded-sm hover:bg-muted cursor-pointer"
               title="Open full workspace"
               aria-label="Open full workspace"
             >
               <ExternalLink className="size-3.5" />
-            </Link>
+            </button>
           </div>
 
           <div className="flex items-center gap-1 shrink-0">
             <button
-              onClick={() => setSessionId(null)}
+              onClick={handleNewChat}
               className="flex size-7 items-center justify-center rounded-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
               title="New Chat"
               aria-label="New Chat"
@@ -80,7 +100,16 @@ export default function GlobalAISidebar() {
         </div>
 
         <div className="flex-1 min-h-0 overflow-hidden relative">
-          <AIChat sessionId={sessionId} onSessionCreated={setSessionId} isSidebar={true} />
+          <AIChat 
+            sessionId={sessionId} 
+            onSessionCreated={(id) => {
+              setSessionId(id)
+              if (typeof (StoreModule as any).useAI?.getState === "function") {
+                (StoreModule as any).useAI.getState().setActiveChatId(id)
+              }
+            }} 
+            isSidebar={true} 
+          />
         </div>
       </aside>
     </>

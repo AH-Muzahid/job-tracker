@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useCallback, useState } from "react"
+import { useEffect, useCallback, useState, Suspense } from "react"
 import { useUser } from "@clerk/nextjs"
 import { useRouter, useSearchParams } from "next/navigation"
 import AIChat from "@/components/ai/AIChat"
@@ -8,6 +8,7 @@ import { WorkspaceProvider } from "@/components/ai/WorkspaceContext"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useAI } from "@/lib/store"
 import ChatHistorySidebar from "@/components/ai/ChatHistorySidebar"
+import Loading from "./loading"
 
 interface ChatSession {
   id: string
@@ -17,7 +18,7 @@ interface ChatSession {
   _count: { messages: number }
 }
 
-export default function AIAssistantPage() {
+function AIAssistantContent() {
   const { isLoaded, isSignedIn } = useUser()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -50,9 +51,13 @@ export default function AIAssistantPage() {
   // Sync activeChatId with URL param and localStorage on mount
   useEffect(() => {
     const urlId = searchParams?.get("id")
-    const storedId = localStorage.getItem("last-active-chat")
+    const storedId = typeof window !== "undefined" ? localStorage.getItem("last-active-chat") : null
     if (urlId) {
       setActiveChatId(urlId)
+    } else if (activeChatId) {
+      if (typeof window !== "undefined") {
+        window.history.replaceState(null, "", `/ai-assistant?id=${activeChatId}`)
+      }
     } else if (storedId) {
       setActiveChatId(storedId)
     }
@@ -144,5 +149,13 @@ export default function AIAssistantPage() {
         </main>
       </div>
     </WorkspaceProvider>
+  )
+}
+
+export default function AIAssistantPage() {
+  return (
+    <Suspense fallback={<Loading />}>
+      <AIAssistantContent />
+    </Suspense>
   )
 }

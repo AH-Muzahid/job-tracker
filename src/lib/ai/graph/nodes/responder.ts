@@ -60,14 +60,17 @@ export function createResponderNode(
   return async (state: AgentStateType): Promise<Partial<AgentStateType>> => {
     const { goal, plan, sessionId } = state
 
-    // Only short-circuit if planner explicitly emitted the planning error fallback
-    if (state.responseContent === PLANNING_ERROR_FALLBACK && (!plan || plan.length === 0)) {
-      if (onToken) {
-        onToken(PLANNING_ERROR_FALLBACK)
+    // Only short-circuit if planner explicitly emitted an error fallback
+    const isExplicitError =
+      state.responseContent === PLANNING_ERROR_FALLBACK ||
+      /could not understand|error|unable to process/i.test(state.responseContent || "")
+    if (isExplicitError && (!plan || plan.length === 0)) {
+      if (onToken && state.responseContent) {
+        onToken(state.responseContent)
       }
       return {
-        responseContent: PLANNING_ERROR_FALLBACK,
-        messages: [new AIMessage(PLANNING_ERROR_FALLBACK)],
+        responseContent: state.responseContent,
+        messages: [new AIMessage(state.responseContent || "")],
       }
     }
 

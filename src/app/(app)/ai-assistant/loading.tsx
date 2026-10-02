@@ -2,55 +2,46 @@ import { Skeleton } from "@/components/ui/skeleton"
 
 export default function Loading() {
   return (
-    <div className="flex flex-col h-[calc(100vh-3.5rem)] w-full max-w-4xl mx-auto p-4 sm:p-6 justify-between gap-6">
-      {/* Header Skeleton */}
-      <div className="flex items-center justify-between pb-4 border-b border-border">
-        <div className="flex items-center gap-3">
-          <Skeleton className="size-8 rounded-lg" />
-          <div className="space-y-1">
+    <div className="flex h-dvh w-full overflow-hidden bg-background">
+      {/* Desktop History Sidebar Placeholder */}
+      <aside 
+        aria-label="Loading chat workspace"
+        className="hidden md:flex h-full w-64 shrink-0 flex-col border-r border-border bg-card/60 p-3 space-y-3"
+      >
+        <div className="flex items-center justify-between pb-2 border-b border-border/50">
+          <Skeleton className="h-4 w-24 rounded-sm" />
+          <Skeleton className="h-3 w-16 rounded-sm" />
+        </div>
+        <Skeleton className="h-9 w-full rounded-sm" />
+        <Skeleton className="h-8 w-full rounded-sm" />
+        <div className="space-y-2 pt-2">
+          <Skeleton className="h-3 w-16 rounded-sm" />
+          <Skeleton className="h-7 w-full rounded-sm" />
+          <Skeleton className="h-7 w-full rounded-sm" />
+          <Skeleton className="h-7 w-full rounded-sm" />
+        </div>
+      </aside>
+
+      {/* Main Workspace Placeholder */}
+      <main className="flex-1 flex flex-col min-w-0 relative overflow-hidden bg-background">
+        <div className="flex h-14 items-center justify-between border-b border-border px-4 shrink-0">
+          <div className="flex items-center gap-2">
+            <Skeleton className="size-6 rounded-sm" />
             <Skeleton className="h-4 w-32 rounded-sm" />
-            <Skeleton className="h-3 w-48 rounded-sm" />
+          </div>
+          <Skeleton className="h-7 w-28 rounded-sm" />
+        </div>
+        <div className="flex-1 p-6 space-y-4 max-w-3xl mx-auto w-full">
+          <Skeleton className="h-5 w-48 rounded-sm" />
+          <Skeleton className="h-20 w-full rounded-md" />
+          <Skeleton className="h-20 w-full rounded-md" />
+        </div>
+        <div className="shrink-0 border-t border-border bg-background p-3">
+          <div className="max-w-3xl mx-auto">
+            <Skeleton className="h-12 w-full rounded-md" />
           </div>
         </div>
-        <Skeleton className="h-7 w-20 rounded-md" />
-      </div>
-
-      {/* Chat Messages Stream Skeleton */}
-      <div className="flex-1 flex flex-col justify-end space-y-4 py-4">
-        {/* Assistant Message Bubble */}
-        <div className="flex items-start gap-3 max-w-xl">
-          <Skeleton className="size-7 rounded-md shrink-0" />
-          <div className="space-y-2 flex-1 p-4 rounded-xl border border-border bg-card/60">
-            <Skeleton className="h-4 w-full rounded-sm" />
-            <Skeleton className="h-4 w-5/6 rounded-sm" />
-            <Skeleton className="h-4 w-3/4 rounded-sm" />
-          </div>
-        </div>
-
-        {/* User Message Bubble */}
-        <div className="flex justify-end">
-          <div className="p-3.5 rounded-xl bg-muted/60 max-w-sm space-y-1.5">
-            <Skeleton className="h-3.5 w-44 rounded-sm" />
-            <Skeleton className="h-3.5 w-32 rounded-sm" />
-          </div>
-        </div>
-
-        {/* Suggestion Chips */}
-        <div className="flex flex-wrap gap-2 pt-2">
-          <Skeleton className="h-7 w-32 rounded-full" />
-          <Skeleton className="h-7 w-40 rounded-full" />
-          <Skeleton className="h-7 w-28 rounded-full" />
-        </div>
-      </div>
-
-      {/* Bottom Chat Input Box Skeleton */}
-      <div className="p-2 rounded-xl border border-border bg-card/80 space-y-2">
-        <Skeleton className="h-16 w-full rounded-lg" />
-        <div className="flex justify-between items-center px-1">
-          <Skeleton className="h-6 w-24 rounded-md" />
-          <Skeleton className="h-7 w-16 rounded-md" />
-        </div>
-      </div>
+      </main>
     </div>
   )
 }
