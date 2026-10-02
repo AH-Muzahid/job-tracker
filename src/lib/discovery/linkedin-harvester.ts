@@ -29,10 +29,8 @@ export interface LinkedInQueryTarget {
  * Operates autonomously without requiring the user to type manual search strings.
  */
 export function synthesizeLinkedInSearchQueries(profile: CandidateSearchProfile): LinkedInQueryTarget[] {
-  const isJunior =
-    profile.experienceLevel === "junior" ||
-    profile.experienceLevel === "entry" ||
-    profile.experienceLevel === "fresher"
+  const exp = (profile.experienceLevel || "mid").toLowerCase()
+  const isJunior = exp === "junior" || exp === "entry" || exp === "fresher"
 
   const userLocation = profile.location || "Bangladesh"
   const isCandidateInBD =
@@ -92,8 +90,9 @@ export async function harvestLinkedInOpportunities(
   const queryTargets = synthesizeLinkedInSearchQueries(profile)
   const targetsToExecute = queryTargets.slice(0, options.maxQueries || 5)
 
+  // Query LinkedIn with 7-day recency window (f_TPR)
   const fetchResults = await Promise.allSettled(
-    targetsToExecute.map((t) => fetchLinkedInGuestJobs(t.query, t.location))
+    targetsToExecute.map((t) => fetchLinkedInGuestJobs(t.query, t.location, { jobageDays: 7 }))
   )
 
   const rawJobs: UnifiedRawJob[] = []
@@ -103,10 +102,8 @@ export async function harvestLinkedInOpportunities(
     }
   }
 
-  const isJunior =
-    profile.experienceLevel === "junior" ||
-    profile.experienceLevel === "entry" ||
-    profile.experienceLevel === "fresher"
+  const exp = (profile.experienceLevel || "mid").toLowerCase()
+  const isJunior = exp === "junior" || exp === "entry" || exp === "fresher"
 
   const uniqueJobsMap = new Map<string, UnifiedRawJob>()
 
@@ -116,7 +113,7 @@ export async function harvestLinkedInOpportunities(
     if (!isValidJobPostingUrl(job.url)) continue
     if (!isLegitimateTechDevRole(job.title)) continue
 
-    // Strict junior disqualifier
+    // Strict junior disqualifier: never show senior or lead positions to junior candidate
     if (isJunior && isSeniorOrLeadRole(job.title, job.description)) {
       continue
     }

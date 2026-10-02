@@ -328,6 +328,40 @@ export function isGeoDisqualified(
     userLocLower.includes("pakistan")
 
   if (isCandidateInSouthAsia) {
+    // Foreign Language Gate (from ai-job-search 04-job-evaluation Language Gate):
+    // Disqualify postings whose title/description is in non-English foreign languages
+    if (
+      /\b(desarrollador|programador|ingénieur|entwickler|programista|desenvolvedor|informatiker)\b/i.test(text)
+    ) {
+      return true
+    }
+
+    // List of distant foreign countries/regions that require local residency/work permits
+    const distantRegions = [
+      "latam", "latin america", "south america", "brazil", "mexico", "argentina", "colombia", "chile",
+      "emea", "europe", "germany", "uk", "united kingdom", "london", "france", "spain", "poland", "netherlands",
+      "canada", "usa", "us", "united states", "north america", "hong kong", "south korea", "korea", "japan",
+      "australia", "new zealand", "ireland", "sweden", "switzerland", "norway", "denmark", "finland", "singapore",
+    ]
+
+    const specifiesDistantRegion = distantRegions.some((reg) => {
+      const regex = new RegExp(`(^|[^a-z])${reg}([^a-z]|$)`, "i")
+      return regex.test(loc)
+    })
+
+    const isExplicitWorldwide =
+      loc.includes("worldwide") ||
+      loc.includes("anywhere in the world") ||
+      text.includes("worldwide") ||
+      text.includes("anywhere in the world") ||
+      loc.includes("global")
+
+    // If the location names a distant foreign country and is NOT explicitly worldwide,
+    // disqualify it even if it says "remote" (e.g. Remote within Spain, Remote in Mexico)
+    if (specifiesDistantRegion && !isExplicitWorldwide) {
+      return true
+    }
+
     const isGlobalOrRemote =
       job.isRemote ||
       loc.includes("remote") ||
@@ -337,7 +371,7 @@ export function isGeoDisqualified(
       loc === ""
 
     if (isGlobalOrRemote) {
-      // Disqualify ONLY if there is an explicit geographic restriction/residency lockout
+      // Disqualify if there is an explicit geographic restriction/residency lockout
       if (
         text.includes("us only") ||
         text.includes("u.s. only") ||
@@ -362,19 +396,7 @@ export function isGeoDisqualified(
       return false
     }
 
-    // Disqualify regional/onsite jobs explicitly restricted to distant continents/regions
-    const distantRegions = [
-      "latam", "latin america", "south america", "brazil", "mexico", "argentina", "colombia", "chile",
-      "emea", "europe", "germany", "uk", "united kingdom", "london", "france", "spain", "poland", "netherlands",
-      "canada", "usa", "us", "united states", "north america",
-    ]
-
-    const isRestricted = distantRegions.some((reg) => {
-      const regex = new RegExp(`(^|[^a-z])${reg}([^a-z]|$)`, "i")
-      return regex.test(loc)
-    })
-
-    if (isRestricted) {
+    if (specifiesDistantRegion) {
       return true
     }
   }

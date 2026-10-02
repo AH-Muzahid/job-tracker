@@ -137,7 +137,13 @@ export async function executeSearchExternalJobs(
     const userLocation = profile?.location?.trim() || ""
     const userExperienceLevel = (profile?.experienceLevel || "mid").toLowerCase()
     const userStatus = (profile?.currentStatus || "").toLowerCase()
-    const isJuniorCandidate = userExperienceLevel === "junior" || userExperienceLevel === "entry" || userStatus.includes("studying")
+    const isJuniorCandidate =
+      userExperienceLevel === "junior" ||
+      userExperienceLevel === "entry" ||
+      userExperienceLevel === "fresher" ||
+      userStatus.includes("studying") ||
+      userStatus.includes("fresher") ||
+      userStatus.includes("student")
     const bestProjects = Array.isArray(profile?.bestProjects) ? profile.bestProjects : []
 
     const primaryTargetRole = profile?.targetRoles?.[0] || ""
@@ -492,10 +498,10 @@ export async function executeSearchExternalJobs(
 
       if (isJuniorCandidate) {
         if (jobSeniority === "junior" || jobSeniority === "entry") {
-          experienceScore = 15
-          experienceRationale = "Junior / Early-career: Ideal seniority match for your current academic & portfolio stage"
+          experienceScore = 18
+          experienceRationale = "Junior / Early-career: Ideal seniority match for your current portfolio & experience stage"
         } else if (jobSeniority === "mid") {
-          experienceScore = 11
+          experienceScore = 10
           experienceRationale = "Early-career accessible role: Welcomes developers with verified practical projects"
         } else {
           continue

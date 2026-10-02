@@ -405,14 +405,128 @@ export async function fetchAdzunaJobs(query: string, location?: string): Promise
  * Fetches live LinkedIn jobs using LinkedIn's public guest search endpoint
  * Operates without paid API keys, fetching local and remote engineering roles.
  */
-export async function fetchLinkedInGuestJobs(query: string, location?: string): Promise<UnifiedRawJob[]> {
+/**
+ * Maps days to LinkedIn f_TPR recency parameter (from ai-job-search proven CLI engine)
+ */
+export function jobageToTPR(days?: number): string | undefined {
+  if (!days || days <= 0) return undefined
+  if (days <= 1) return "r86400" // past 24 hours
+  if (days <= 7) return "r604800" // past week
+  if (days <= 14) return "r1209600" // past 2 weeks
+  if (days <= 30) return "r2592000" // past month
+  return undefined
+}
+
+/**
+ * Maps workplace type to LinkedIn f_WT filter
+ */
+export function workTypeToWT(mode?: "remote" | "hybrid" | "onsite"): string | undefined {
+  if (mode === "onsite") return "1"
+  if (mode === "remote") return "2"
+  if (mode === "hybrid") return "3"
+  return undefined
+}
+
+/**
+ * Fetches single job detail from LinkedIn's guest jobPosting endpoint.
+ * Accurately extracts real seniority, employment type, and verifies active status.
+ */
+export async function fetchLinkedInJobDetail(jobId: string): Promise<{
+  description?: string
+  seniority?: string
+  employmentType?: string
+  isActive: boolean
+} | null> {
   try {
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), 4000)
 
+    const url = `https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/${jobId}`
+    const res = await fetch(url, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+      },
+      signal: controller.signal,
+    })
+    clearTimeout(timeout)
+
+    if (!res.ok) return null
+    const html = await res.text()
+
+    // Closed-posting detection (active banner check)
+    const topcard = html.slice(0, 5000)
+    const isClosed = /closed-job__flavor|no longer accepting applications/i.test(topcard)
+    if (isClosed) {
+      return { isActive: false }
+    }
+
+    // Extract seniority and employment criteria from LinkedIn metadata
+    const criteriaRe = /class="description__job-criteria-subheader"[^>]*>([\s\S]*?)<\/h3>[\s\S]*?class="description__job-criteria-text[^"]*"[^>]*>([\s\S]*?)<\/span>/gi
+    const criteria: Record<string, string> = {}
+    let m: RegExpExecArray | null
+    while ((m = criteriaRe.exec(html)) !== null) {
+      const label = m[1].replace(/<[^>]+>/g, "").trim().toLowerCase()
+      const val = m[2].replace(/<[^>]+>/g, "").trim()
+      criteria[label] = val
+    }
+
+    // Extract rich description text
+    let description: string | undefined
+    const descMatch = html.match(/class="(?:show-more-less-html__markup|description__text)[^"]*"[^>]*>([\s\S]*?)<\/div>/i)
+    if (descMatch) {
+      description = descMatch[1]
+        .replace(/<br\s*\/?>/gi, "\n")
+        .replace(/<\/p>/gi, "\n\n")
+        .replace(/<[^>]+>/g, " ")
+        .replace(/&amp;/g, "&")
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/\s+/g, " ")
+        .trim()
+    }
+
+    return {
+      description,
+      seniority: criteria["seniority level"],
+      employmentType: criteria["employment type"],
+      isActive: true,
+    }
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Fetches live LinkedIn jobs using LinkedIn's public guest search endpoint
+ * Incorporates battle-tested recency filters (f_TPR) and workplace mode (f_WT) from ai-job-search CLI
+ */
+export async function fetchLinkedInGuestJobs(
+  query: string,
+  location?: string,
+  options: { jobageDays?: number; workplaceType?: "remote" | "hybrid" | "onsite"; limit?: number } = {}
+): Promise<UnifiedRawJob[]> {
+  try {
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 5000)
+
     const searchKeyword = query || "software engineer"
     const searchLocation = location || "Bangladesh"
-    const url = `https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?keywords=${encodeURIComponent(searchKeyword)}&location=${encodeURIComponent(searchLocation)}&start=0`
+
+    const params = new URLSearchParams()
+    params.set("keywords", searchKeyword)
+    params.set("location", searchLocation)
+    params.set("start", "0")
+
+    // Default to last 7 days for strict freshness (prevents stale / dead postings)
+    const tpr = jobageToTPR(options.jobageDays || 7)
+    if (tpr) params.set("f_TPR", tpr)
+
+    const wt = workTypeToWT(options.workplaceType)
+    if (wt) params.set("f_WT", wt)
+
+    const url = `https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?${params.toString()}`
 
     const res = await fetch(url, {
       headers: {
@@ -431,9 +545,12 @@ export async function fetchLinkedInGuestJobs(query: string, location?: string): 
     const companyMatches = [...html.matchAll(/<h4[^>]*class="[^"]*base-search-card__subtitle[^"]*"[^>]*>([\s\S]*?)<\/h4>/gi)]
     const locationMatches = [...html.matchAll(/<span[^>]*class="[^"]*job-search-card__location[^"]*"[^>]*>([\s\S]*?)<\/span>/gi)]
     const linkMatches = [...html.matchAll(/<a[^>]*class="[^"]*base-card__full-link[^"]*"[^>]*href="([^"]+)"/gi)]
+    const dateMatches = [...html.matchAll(/class="job-search-card__listdate[^"]*"[^>]*datetime="([^"]+)"/gi)]
 
     const jobs: UnifiedRawJob[] = []
-    for (let i = 0; i < titleMatches.length; i++) {
+    const maxItems = options.limit || 15
+
+    for (let i = 0; i < Math.min(titleMatches.length, maxItems); i++) {
       const rawTitle = titleMatches[i]?.[1]?.trim() || ""
       const unescapedTitle = rawTitle
         .replace(/&amp;/g, "&")
@@ -450,6 +567,7 @@ export async function fetchLinkedInGuestJobs(query: string, location?: string): 
 
       const jobIdMatch = rawLink.match(/-(\d+)(?:$|\/)/)
       const jobId = jobIdMatch ? jobIdMatch[1] : `li-${i}-${Date.now()}`
+      const postedDateStr = dateMatches[i]?.[1] || new Date().toISOString()
 
       const extractedTags = extractTechTagsFromText(`${title} ${searchKeyword}`)
       const titleLower = title.toLowerCase()
@@ -479,7 +597,7 @@ export async function fetchLinkedInGuestJobs(query: string, location?: string): 
         sourceBoard: "linkedin_post" as const,
         tags: postTags,
         description,
-        postedAt: new Date().toISOString(),
+        postedAt: postedDateStr,
         visaSponsorship: detectVisaSponsorship(description, title),
         employmentType: detectEmploymentType({ title, description, tags: postTags }),
       })
