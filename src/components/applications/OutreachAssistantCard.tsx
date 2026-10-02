@@ -16,8 +16,10 @@ import {
   FileText,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { toast } from "sonner"
 import { OutreachDrafts, OutreachChannel, ScreenerQA } from "./types"
 import { extractContactEmail, sanitizeOutreachPlaceholders } from "@/lib/applications/outreach-engine"
+import { reportClientError } from "@/lib/ops/client-logger"
 
 interface OutreachAssistantCardProps {
   analysisExists: boolean
@@ -107,14 +109,20 @@ export function OutreachAssistantCard({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ rawText: customQuestionsInput }),
       })
-      if (!res.ok) throw new Error("Failed to answer form questions")
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}))
+        throw new Error(errData.error || `Failed to answer questions (HTTP ${res.status})`)
+      }
       const data = await res.json()
       if (data.screenerAnswers && Array.isArray(data.screenerAnswers)) {
         onFormQuestionsUpdated?.(data.screenerAnswers)
         setCustomQuestionsInput("")
+        toast.success("Questions answered and saved!")
       }
-    } catch {
-      // ignore error
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : "Failed to answer form questions"
+      reportClientError("card:custom-form-questions", err, { applicationId })
+      toast.error(errMsg)
     } finally {
       setIsAnsweringQuestions(false)
     }
@@ -129,13 +137,19 @@ export function OutreachAssistantCard({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ suggestDefaults: true }),
       })
-      if (!res.ok) throw new Error("Failed to suggest questions")
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}))
+        throw new Error(errData.error || `Failed to suggest questions (HTTP ${res.status})`)
+      }
       const data = await res.json()
       if (data.screenerAnswers && Array.isArray(data.screenerAnswers)) {
         onFormQuestionsUpdated?.(data.screenerAnswers)
+        toast.success("Default screening questions answered!")
       }
-    } catch {
-      // ignore error
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : "Failed to suggest questions"
+      reportClientError("card:suggest-form-questions", err, { applicationId })
+      toast.error(errMsg)
     } finally {
       setIsAnsweringQuestions(false)
     }

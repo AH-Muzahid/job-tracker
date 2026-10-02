@@ -18,6 +18,7 @@ import { NegotiationStudioTab } from "./NegotiationStudioTab"
 
 import { useTags, useCreateTag, useUpdateApplicationAnalysis } from "@/lib/api"
 import { extractContactEmail } from "@/lib/applications/outreach-engine"
+import { reportClientError } from "@/lib/ops/client-logger"
 import { DecorIcon } from "@/components/decor-icon"
 import { DashboardCard } from "@/components/dashboard-card"
 
@@ -236,8 +237,9 @@ export function ApplicationWorkbench({
       })
       setSaveStatus("saved")
       toast.success("Outreach draft saved to cloud")
-    } catch {
+    } catch (saveErr: unknown) {
       setSaveStatus("error")
+      reportClientError("workbench:save-draft", saveErr, { applicationId: application.id })
       toast.error("Failed to save draft to cloud")
     }
   }
@@ -267,6 +269,7 @@ export function ApplicationWorkbench({
       router.refresh()
     } catch (e: unknown) {
       const errMsg = e instanceof Error ? e.message : "Failed to update details"
+      reportClientError("workbench:update-details", e, { applicationId: application.id })
       toast.error(errMsg)
     } finally {
       setIsSaving(false)
@@ -350,8 +353,14 @@ export function ApplicationWorkbench({
       })
 
       if (!res.ok) {
-        const errData = await res.json().catch(() => ({}))
-        throw new Error(errData.error || "Failed to generate outreach materials")
+        let errDetail = ""
+        try {
+          const errData = await res.json()
+          errDetail = errData.error || errData.message
+        } catch {
+          errDetail = await res.text().catch(() => "")
+        }
+        throw new Error(errDetail || `Outreach generation failed (HTTP ${res.status})`)
       }
 
       const data = await res.json()
@@ -394,6 +403,12 @@ export function ApplicationWorkbench({
     } catch (err: unknown) {
       setSaveStatus("error")
       const errMsg = err instanceof Error ? err.message : "Outreach generation failed"
+      reportClientError("workbench:outreach", err, {
+        applicationId: application.id,
+        companyName: application.companyName,
+        jobTitle: application.jobTitle,
+        channel: targetChannel,
+      })
       toast.error(errMsg)
     } finally {
       setOutreachLoading(false)
