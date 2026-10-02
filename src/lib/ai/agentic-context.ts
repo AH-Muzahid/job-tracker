@@ -29,6 +29,7 @@ export interface GroundedCandidateDossier {
   adaptiveBoosts: string[]
   penalizedSkills: string[]
   summaryContextText: string
+  knowledgeGraph?: CareerGraphData
 }
 
 export interface AssembleContextOptions {
@@ -99,6 +100,7 @@ export async function assembleAgenticCandidateContext(
     weaknessesToCounteract,
     adaptiveBoosts,
     penalizedSkills,
+    knowledgeGraph: graph,
     summaryContextText: "",
   }
 

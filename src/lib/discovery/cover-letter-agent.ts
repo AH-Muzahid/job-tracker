@@ -22,6 +22,39 @@ import {
   OutreachChannel,
   OutreachChannelBundle,
 } from "@/lib/applications/outreach-engine"
+import {
+  auditApplicationMaterialsGrounding,
+  type GroundingContext,
+} from "@/lib/ai/factual-grounding"
+
+export type PersonaArchetype = "staff" | "senior" | "founding" | "growth" | "early_career"
+
+/**
+ * Detects the candidate persona archetype from target job title, experience level, and notes.
+ */
+export function detectPersonaArchetype(
+  jobTitle: string,
+  experienceLevel?: string,
+  contextNotes?: string
+): PersonaArchetype {
+  const title = (jobTitle || "").toLowerCase()
+  const exp = (experienceLevel || "").toLowerCase()
+  const notes = (contextNotes || "").toLowerCase()
+
+  if (/\b(staff|principal|lead|architect|head|director)\b/i.test(title) || exp.includes("staff")) {
+    return "staff"
+  }
+  if (/\b(founding|0-to-1|first engineer|startup|generalist)\b/i.test(title) || notes.includes("founding")) {
+    return "founding"
+  }
+  if (/\b(junior|associate|entry|intern|graduate)\b/i.test(title) || exp.includes("junior") || exp.includes("entry")) {
+    return "early_career"
+  }
+  if (/\b(growth|conversion|experimentation|product engineer)\b/i.test(title)) {
+    return "growth"
+  }
+  return "senior"
+}
 
 export interface SquadTraceDeliberation {
   scoutSummary?: {
@@ -84,24 +117,94 @@ function generateDeterministicMaterials(
   const prunedSkills = pruneRelevantStack(uniqueSkills, jobTitle, 3)
   const prunedTopProjStack = pruneRelevantStack(topProject.stack || prunedSkills, jobTitle, 3)
 
-  const coverLetter = `Dear Hiring Team at ${companyName},
+  const archetype = detectPersonaArchetype(jobTitle, profile?.experienceLevel, context.notes)
 
-I noticed ${companyName} is expanding its engineering team for the ${jobTitle} position. With hands-on experience building production web systems using ${prunedSkills}, I am writing to share how my background aligns with your engineering goals.
+  let coverLetter = ""
+  let highlights: string[] = []
+  let strategyTip = ""
 
-In my recent work on "${topProject.name}", I engineered core architecture using ${prunedTopProjStack}, focusing on high performance, clean modular component design, and reliable data synchronization.${
-    secondProject ? ` Additionally, through my "${secondProject.name}" project, I implemented production features using ${pruneRelevantStack(secondProject.stack || "modern web stack", jobTitle, 3)} with an emphasis on developer ergonomics and system stability.` : ""
-  } My focus is always on delivering measurable product impact while maintaining maintainable, type-safe codebases.
+  if (archetype === "staff") {
+    coverLetter = `Dear Hiring Team at ${companyName},
+
+I noticed ${companyName} is expanding its technical leadership for the ${jobTitle} position. With hands-on experience architecting high-scale production systems using ${prunedSkills}, I am writing to share how my background aligns with your engineering goals.
+
+In my recent work on "${topProject.name}", I engineered core technical architecture using ${prunedTopProjStack}, focusing on distributed scale, high performance, and clean modular component design.${
+      secondProject ? ` Additionally, through my "${secondProject.name}" project, I implemented production systems using ${pruneRelevantStack(secondProject.stack || "modern web stack", jobTitle, 3)} with an emphasis on developer ergonomics and system stability.` : ""
+    } My focus is always on delivering measurable product impact while maintaining maintainable, type-safe codebases.
+
+I would welcome the opportunity to discuss technical trade-offs, system boundaries, and how my architectural foundation directly supports ${companyName}'s upcoming roadmap. Thank you for your time and consideration.
+
+Sincerely,
+${candidateName}`
+
+    highlights = [
+      `Architected "${topProject.name}" using ${prunedTopProjStack}, delivering end-to-end features with high test coverage and robust type safety.`,
+      `Established architectural patterns with ${prunedSkills}, optimizing response latencies and database queries for seamless user experiences.`,
+      `Demonstrated autonomous ownership and rapid delivery of complex product features from conception to deployment.`,
+    ]
+    strategyTip = `Focus on highlighting your hands-on experience with ${topProject.name} and your architectural trade-offs in ${prunedSkills}.`
+  } else if (archetype === "founding") {
+    coverLetter = `Dear Hiring Team at ${companyName},
+
+I noticed ${companyName} is expanding its engineering team for the ${jobTitle} position. With hands-on experience shipping 0-to-1 production systems using ${prunedSkills}, I am writing to share how my background aligns with your engineering goals.
+
+In my recent work on "${topProject.name}", I took full-stack build ownership using ${prunedTopProjStack}, focusing on rapid delivery, clean modular component design, and reliable data synchronization.${
+      secondProject ? ` Additionally, through my "${secondProject.name}" project, I implemented production features using ${pruneRelevantStack(secondProject.stack || "modern web stack", jobTitle, 3)} with an emphasis on developer ergonomics and system stability.` : ""
+    } My focus is always on delivering measurable product impact while maintaining maintainable, type-safe codebases.
 
 I would welcome the opportunity to discuss how my technical foundation, autonomous execution, and problem-solving skills align with ${companyName}'s upcoming roadmap. Thank you for your time and consideration.
 
 Sincerely,
 ${candidateName}`
 
-  const highlights = [
-    `Engineered "${topProject.name}" using ${prunedTopProjStack}, delivering end-to-end features with high test coverage and robust type safety.`,
-    `Architected full-stack workflows with ${prunedSkills}, optimizing response latencies and database queries for seamless user experiences.`,
-    `Demonstrated autonomous ownership and rapid delivery of complex product features from conception to deployment.`,
-  ]
+    highlights = [
+      `Engineered "${topProject.name}" from 0-to-1 using ${prunedTopProjStack}, delivering end-to-end features with high test coverage and robust type safety.`,
+      `Architected full-stack workflows with ${prunedSkills}, optimizing response latencies and database queries for seamless user experiences.`,
+      `Demonstrated autonomous ownership and rapid delivery of complex product features from conception to deployment.`,
+    ]
+    strategyTip = `Highlight your autonomous shipping speed, 0-to-1 ownership of ${topProject.name}, and proficiency in ${prunedSkills}.`
+  } else if (archetype === "early_career") {
+    coverLetter = `Dear Hiring Team at ${companyName},
+
+I noticed ${companyName} is expanding its engineering team for the ${jobTitle} position. With hands-on experience building production web systems using ${prunedSkills}, I am writing to share how my background aligns with your engineering goals.
+
+In my recent work on "${topProject.name}", I engineered core architecture using ${prunedTopProjStack}, focusing on high performance, clean modular component design, and reliable data synchronization.${
+      secondProject ? ` Additionally, through my "${secondProject.name}" project, I implemented production features using ${pruneRelevantStack(secondProject.stack || "modern web stack", jobTitle, 3)} with an emphasis on developer ergonomics and system stability.` : ""
+    } My focus is always on delivering measurable product impact while maintaining maintainable, type-safe codebases.
+
+I would welcome the opportunity to discuss how my technical foundation, autonomous execution, and problem-solving skills align with ${companyName}'s upcoming roadmap. Thank you for your time and consideration.
+
+Sincerely,
+${candidateName}`
+
+    highlights = [
+      `Engineered "${topProject.name}" using ${prunedTopProjStack}, delivering end-to-end features with high test coverage and robust type safety.`,
+      `Demonstrated solid computer science fundamentals with ${prunedSkills}, optimizing response latencies and database queries.`,
+      `Demonstrated autonomous ownership and rapid delivery of complex product features from conception to deployment.`,
+    ]
+    strategyTip = `Walk through concrete engineering challenges in ${topProject.name} to demonstrate rapid onboarding velocity.`
+  } else {
+    // Senior & Default Archetype
+    coverLetter = `Dear Hiring Team at ${companyName},
+
+I noticed ${companyName} is expanding its engineering team for the ${jobTitle} position. With hands-on experience building production web systems using ${prunedSkills}, I am writing to share how my background aligns with your engineering goals.
+
+In my recent work on "${topProject.name}", I engineered core architecture using ${prunedTopProjStack}, focusing on high performance, clean modular component design, and reliable data synchronization.${
+      secondProject ? ` Additionally, through my "${secondProject.name}" project, I implemented production features using ${pruneRelevantStack(secondProject.stack || "modern web stack", jobTitle, 3)} with an emphasis on developer ergonomics and system stability.` : ""
+    } My focus is always on delivering measurable product impact while maintaining maintainable, type-safe codebases.
+
+I would welcome the opportunity to discuss how my technical foundation, autonomous execution, and problem-solving skills align with ${companyName}'s upcoming roadmap. Thank you for your time and consideration.
+
+Sincerely,
+${candidateName}`
+
+    highlights = [
+      `Engineered "${topProject.name}" using ${prunedTopProjStack}, delivering end-to-end features with high test coverage and robust type safety.`,
+      `Architected full-stack workflows with ${prunedSkills}, optimizing response latencies and database queries for seamless user experiences.`,
+      `Demonstrated autonomous ownership and rapid delivery of complex product features from conception to deployment.`,
+    ]
+    strategyTip = `Focus on highlighting your hands-on experience with ${topProject.name} and your proficiency in ${prunedSkills}.`
+  }
 
   // Detect matching single channel to prevent token waste during staging
   const strategyDetection = detectApplicationStrategy(context.notes || "", "", context.jobUrl)
@@ -133,7 +236,7 @@ ${candidateName}`
     coverLetter,
     highlights,
     outreachPitch,
-    strategyTip: `Focus on highlighting your hands-on experience with ${topProject.name} and your proficiency in ${prunedSkills}.`,
+    strategyTip,
     atsKeywords: uniqueSkills.map((s) => toCanonical(s)),
     outreachChannels: outreachBundle,
   }
@@ -182,6 +285,21 @@ export async function generateApplicationMaterialsAgent(
       providerType = aiConfig.providerType
 
       const systemPromptContext = dossier?.summaryContextText || `Candidate Name: ${candidateName}`
+      const archetype = detectPersonaArchetype(context.jobTitle, dossier?.experienceLevel, context.notes)
+
+      const groundingCtx: GroundingContext = {
+        knowledgeGraph: dossier?.knowledgeGraph || null,
+        profile: {
+          fullName: candidateName,
+          strengths: (dossier?.matchedSkills || []).map((s) => s.skill).join(", "),
+          targetRoles: dossier?.targetRoles,
+          bestProjects: dossier?.bestProjects,
+          experienceLevel: dossier?.experienceLevel,
+        },
+        candidateName,
+        targetCompany: context.companyName,
+        targetRole: context.jobTitle,
+      }
 
       // Coordinate Level 4 Multi-Agent Squad (Scout -> Strategist -> Scribe -> Critic)
       const squadResult = await coordinateApplicationPackageSquad({
@@ -190,6 +308,7 @@ export async function generateApplicationMaterialsAgent(
         candidateName,
         candidateEmail: dossier?.candidateEmail,
         dossierContext: dossier?.summaryContextText,
+        groundingContext: groundingCtx,
         strategistFn: async ({ jobTitle, companyName }) => {
           const matchedSkills = (dossier?.matchedSkills || []).map((s) => ({
             skill: s.skill,
@@ -219,6 +338,12 @@ Job Title: ${context.jobTitle}
 Company: ${context.companyName}
 Location: ${context.location || "Remote"}
 
+TARGET PERSONA ARCHETYPE: ${archetype.toUpperCase()}
+- If STAFF: Lead with architectural scope, distributed scalability, system design trade-offs, and technical strategy.
+- If FOUNDING: Emphasize 0-to-1 build ownership, shipping velocity, customer obsession, and full-stack autonomy.
+- If SENIOR: Emphasize production reliability, deep technical craft, latency reduction, and type-safe architecture.
+- If EARLY_CAREER: Emphasize solid engineering mechanics, demonstrable project proof, fast learning velocity, and disciplined testing.
+
 ${systemPromptContext}
 
 ${strategySection}
@@ -228,9 +353,10 @@ CRITICAL ANTI-BUZZWORD & HIGH-CONVERSION RULES (STRIPE / LINEAR STANDARD):
 1. NEVER output placeholders like "[Hiring Manager/Recruiter]", "[Your Name]", or "[Company Name]".
 2. Always address the team naturally as "${context.companyName} Hiring Team" or "${context.companyName} Team".
 3. Sign off directly with the candidate's actual name: "${candidateName}".
-4. STRICT ANTI-BUZZWORD MANDATE: Mention AT MOST 3-4 technologies. NEVER list redundant tools together (e.g. no JS + TS) and never dump 5+ libraries in a sentence.
-5. In outreachPitch, write a ready-to-send, high-converting outreach message (strictly under 110 words) highlighting 1 hero project with a concrete engineering challenge/metric, 1-sentence company bridge, and a low-friction 10-minute intro chat CTA.
-6. In coverLetter, avoid generic boilerplate like "I am writing to express my strong interest in...". Jump straight to relevant technical alignment.
+4. STRICT ANTI-BUZZWORD MANDATE: Mention AT MOST 3-4 technologies. NEVER list redundant tools together (e.g. no JS + TS) and never dump 5+ libraries in a sentence. Cut clichés ("passionate about", "great fit", "synergies").
+5. ENFORCE STAR FORMAT METRICS: Pair technical actions with quantifiable outcomes (latency ms, users, percentages, throughput).
+6. In outreachPitch, write a ready-to-send, high-converting outreach message (strictly under 110 words) highlighting 1 hero project with a concrete engineering challenge/metric, 1-sentence company bridge, and a low-friction 10-minute intro chat CTA.
+7. In coverLetter, avoid generic boilerplate like "I am writing to express my strong interest in...". Jump straight to relevant technical alignment.
 
 Respond in valid JSON format:
 {
@@ -264,17 +390,21 @@ Respond in valid JSON format:
       if (squadResult.isDeterministicFallback) {
         materials = generateDeterministicMaterials(candidateName, dossier, context)
       } else {
+        // Enforce Factual Grounding Zero-Hallucination Guard on squad output
+        const groundedRes = auditApplicationMaterialsGrounding(squadResult.materials, groundingCtx)
+        const finalSquadMaterials = groundedRes.materials
+
         materials = {
-          coverLetter: squadResult.materials.coverLetter,
-          highlights: squadResult.materials.highlights || [],
-          outreachPitch: squadResult.materials.outreachPitch,
-          strategyTip: squadResult.materials.strategyTip,
-          atsKeywords: squadResult.materials.atsKeywords || [],
+          coverLetter: finalSquadMaterials.coverLetter,
+          highlights: finalSquadMaterials.highlights || [],
+          outreachPitch: finalSquadMaterials.outreachPitch,
+          strategyTip: finalSquadMaterials.strategyTip,
+          atsKeywords: finalSquadMaterials.atsKeywords || [],
           squadTrace: {
             scoutSummary: {
               company: context.companyName,
               role: context.jobTitle,
-              techStackDetected: squadResult.materials.atsKeywords || [],
+              techStackDetected: finalSquadMaterials.atsKeywords || [],
             },
             strategistBrief: squadResult.strategistBrief,
             criticAudit: {

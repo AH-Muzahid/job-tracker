@@ -1,6 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, vi, beforeEach } from "vitest"
-import { generateApplicationMaterialsAgent } from "@/lib/discovery/cover-letter-agent"
+import {
+  generateApplicationMaterialsAgent,
+  detectPersonaArchetype,
+} from "@/lib/discovery/cover-letter-agent"
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
@@ -220,5 +223,70 @@ describe("Autonomous Cover Letter & Application Materials Agent (REC-16)", () =>
         }),
       })
     )
+  })
+
+  describe("Dynamic Multi-Persona Archetype Engine", () => {
+    it("detects persona archetypes correctly based on job title and context", () => {
+      expect(detectPersonaArchetype("Staff Software Engineer")).toBe("staff")
+      expect(detectPersonaArchetype("Principal Distributed Systems Architect")).toBe("staff")
+      expect(detectPersonaArchetype("Founding Full Stack Engineer")).toBe("founding")
+      expect(detectPersonaArchetype("Junior Backend Developer")).toBe("early_career")
+      expect(detectPersonaArchetype("Associate Frontend Engineer")).toBe("early_career")
+      expect(detectPersonaArchetype("Senior Full Stack Engineer")).toBe("senior")
+    })
+
+    it("generates architectural narrative for Staff archetype in deterministic mode", async () => {
+      ;(getUserAIConfig as any).mockResolvedValue(null)
+      ;(prisma.userProfile.findUnique as any).mockResolvedValue({
+        fullName: "Alex Rivera",
+        strengths: "Go, Kubernetes, Distributed Systems",
+        bestProjects: [
+          {
+            name: "Event Broker",
+            stack: "Go, Kafka, Kubernetes",
+            description: "High-throughput messaging system",
+          },
+        ],
+      })
+      ;(prisma.user.findUnique as any).mockResolvedValue({ name: "Alex Rivera" })
+      ;(prisma.applicationAnalysis.upsert as any).mockResolvedValue({ id: "analysis-staff" })
+
+      const result = await generateApplicationMaterialsAgent("user-staff", "app-staff-1", {
+        companyName: "Stripe",
+        jobTitle: "Staff Infrastructure Engineer",
+      })
+
+      expect(result.coverLetter).toContain("technical leadership")
+      expect(result.coverLetter).toContain("technical trade-offs")
+      expect(result.highlights[0]).toContain("Architected")
+      expect(result.strategyTip).toContain("architectural trade-offs")
+    })
+
+    it("generates 0-to-1 velocity narrative for Founding Engineer archetype", async () => {
+      ;(getUserAIConfig as any).mockResolvedValue(null)
+      ;(prisma.userProfile.findUnique as any).mockResolvedValue({
+        fullName: "Alex Rivera",
+        strengths: "TypeScript, React, Next.js",
+        bestProjects: [
+          {
+            name: "SaaS App",
+            stack: "TypeScript, Next.js, PostgreSQL",
+            description: "Built 0 to 1 product",
+          },
+        ],
+      })
+      ;(prisma.user.findUnique as any).mockResolvedValue({ name: "Alex Rivera" })
+      ;(prisma.applicationAnalysis.upsert as any).mockResolvedValue({ id: "analysis-founding" })
+
+      const result = await generateApplicationMaterialsAgent("user-founding", "app-founding-1", {
+        companyName: "Stealth Startup",
+        jobTitle: "Founding Engineer",
+      })
+
+      expect(result.coverLetter).toContain("0-to-1")
+      expect(result.coverLetter).toContain("build ownership")
+      expect(result.highlights[0]).toContain("0-to-1")
+      expect(result.strategyTip).toContain("autonomous shipping speed")
+    })
   })
 })
