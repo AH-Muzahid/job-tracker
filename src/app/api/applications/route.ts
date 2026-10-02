@@ -3,6 +3,7 @@ import { getInternalUserId } from "@/lib/auth"
 import { ApplicationService } from "@/features/applications/server"
 import { MAX_PAGE_SIZE } from "@/features/applications/application.constants"
 import { checkIdempotency, storeResult, generateIdempotencyKey } from "@/lib/ai/idempotency"
+import { appLogger } from "@/lib/ops/app-logger"
 
 export async function GET(req: NextRequest) {
   const userId = await getInternalUserId()
@@ -53,8 +54,21 @@ export async function POST(req: Request) {
     const result = await ApplicationService.createApplication(userId, body)
 
     if ("error" in result) {
+      void appLogger.warn(
+        "api:applications",
+        `Failed to create application: ${result.error}`,
+        { status: result.status },
+        userId
+      )
       return NextResponse.json({ error: result.error }, { status: result.status })
     }
+
+    void appLogger.info(
+      "api:applications",
+      `Application created: ${result.data.jobTitle} at ${result.data.companyName} (${result.data.status})`,
+      { id: result.data.id, company: result.data.companyName, role: result.data.jobTitle, status: result.data.status },
+      userId
+    )
 
     if (idempotencyKey) {
       await storeResult(
@@ -64,7 +78,8 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json(result.data, { status: result.status })
-  } catch {
+  } catch (err: unknown) {
+    void appLogger.error("api:applications", "Invalid request body or creation error", err, undefined, userId)
     return NextResponse.json(
       { error: "Invalid request body" },
       { status: 400 }

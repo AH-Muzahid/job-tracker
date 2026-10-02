@@ -19,6 +19,7 @@ import {
   getCachedKnowledgeGraph,
   saveKnowledgeGraph,
 } from "@/lib/ai/knowledge-graph"
+import { appLogger } from "@/lib/ops/app-logger"
 
 export const runtime = "nodejs"
 export const maxDuration = 30
@@ -37,8 +38,10 @@ const EvaluateInputSchema = z.object({
 )
 
 export async function POST(request: NextRequest) {
+  let currentUserId: string | null = null
   try {
     const userId = await getInternalUserId()
+    currentUserId = userId
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
@@ -421,7 +424,7 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    return NextResponse.json({
+    const responsePayload = {
       success: true,
       sourceUrl: targetUrl || null,
       scrapedTitle: scrapedTitle || null,
@@ -459,10 +462,26 @@ export async function POST(request: NextRequest) {
       resumeAdvice: analysisResult.resumeAdvice || {},
       applyStrategy: analysisResult.applyStrategy || {},
       applicationId: applicationId || null,
-    })
+    }
+
+    void appLogger.info(
+      "discovery:evaluate",
+      `Opportunity evaluated: ${overrideTitle || analysisResult.roleSnapshot.role} at ${overrideCompany || analysisResult.roleSnapshot.company} (${analysisResult.matchScore}% match, verdict: ${analysisResult.verdict})`,
+      {
+        matchScore: analysisResult.matchScore,
+        verdict: analysisResult.verdict,
+        company: overrideCompany || analysisResult.roleSnapshot.company,
+        role: overrideTitle || analysisResult.roleSnapshot.role,
+        targetUrl,
+      },
+      userId
+    )
+
+    return NextResponse.json(responsePayload)
   } catch (error: unknown) {
     console.error("Discovery Evaluate API error:", error)
     const errMsg = error instanceof Error ? error.message : "Failed to evaluate job description"
+    void appLogger.error("discovery:evaluate", errMsg, error, undefined, currentUserId || undefined)
     return NextResponse.json({ error: errMsg }, { status: 500 })
   }
 }

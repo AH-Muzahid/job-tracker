@@ -12,6 +12,7 @@ import { logDiscoveryEvent } from "@/lib/discovery/telemetry"
 import { invalidateUserImplicitPreferences } from "@/lib/discovery/preferences"
 import { invalidateCache, getCachedJson } from "@/lib/redis"
 import { recordAgentStepToRing } from "@/lib/ops/telemetry-ring"
+import { appLogger } from "@/lib/ops/app-logger"
 
 const PackageInputSchema = z.object({
   companyName: z.string().trim().min(1).optional(),
@@ -288,6 +289,13 @@ export async function POST(
       void runBackgroundTasks()
     }
 
+    void appLogger.info(
+      "discovery:package",
+      `Application packaged: ${jobTitle} at ${companyName} (${application.status})`,
+      { applicationId: application.id, jobTitle, companyName, status: application.status },
+      userId
+    )
+
     return ResponseUtil.success({
       success: true,
       applicationId: application.id,
@@ -296,7 +304,9 @@ export async function POST(
       materials,
       application,
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMsg = error instanceof Error ? error.message : String(error)
+    void appLogger.error("discovery:package", errorMsg, error, { jobId: id }, userId)
     void recordAgentStepToRing({
       nodeName: "package:orchestrator:error",
       sessionId: `pkg-${id}`,
@@ -304,11 +314,11 @@ export async function POST(
       tokens: 0,
       durationMs: Date.now() - packageStartTime,
       status: "error",
-      error: error?.message || String(error),
+      error: errorMsg,
     })
     console.error("[PackageAPI] Error packaging opportunity:", error)
     return ResponseUtil.error(
-      error?.message || "Failed to package opportunity into staged application",
+      errorMsg || "Failed to package opportunity into staged application",
       500
     )
   }

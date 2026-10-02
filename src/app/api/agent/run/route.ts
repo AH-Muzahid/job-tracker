@@ -14,6 +14,7 @@ import { generateAndSaveSessionTitle } from "@/lib/ai/title-generator"
 import { invalidateCache } from "@/lib/redis"
 import { countTokens } from "@/lib/ai/token-counter"
 import { recordLLMCallToRing, recordAgentStepToRing } from "@/lib/ops/telemetry-ring"
+import { appLogger } from "@/lib/ops/app-logger"
 
 export async function POST(request: NextRequest) {
   const userId = await getInternalUserId()
@@ -460,6 +461,8 @@ export async function POST(request: NextRequest) {
           userId,
           sessionId,
         })
+
+        void appLogger.error("agent:run", errorMsg, err, { sessionId }, userId)
 
         void recordAgentStepToRing({
           nodeName: "execution-error",
