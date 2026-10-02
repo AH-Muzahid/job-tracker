@@ -142,7 +142,10 @@ export function generateDeterministicExecutiveSummary(params: {
 /**
  * Core engine for aggregating candidate state and generating the Daily Executive Briefing.
  */
-export async function generateExecutiveBriefing(userId: string): Promise<ExecutiveBriefing> {
+export async function generateExecutiveBriefing(
+  userId: string,
+  options?: { forceAi?: boolean }
+): Promise<ExecutiveBriefing> {
   const now = new Date()
   const threeDaysAhead = new Date(now.getTime() + 72 * 60 * 60 * 1000)
 
@@ -384,12 +387,15 @@ export async function generateExecutiveBriefing(userId: string): Promise<Executi
     followUpsDue,
   })
 
-  try {
-    const aiConfig = await getUserAIConfig(userId)
-    if (aiConfig) {
-      const resolved = getProvider(aiConfig)
-      const modelToUse = aiConfig.model || resolved.defaultModel
-      const prompt = `You are the Autonomous Career Agent executive copilot for ${user?.name || "the candidate"}.
+  // Only invoke LLM when explicitly requested via options?.forceAi (e.g. manual refresh)
+  // On regular initial load, deterministic summary is served instantly (<1ms vs 3-8.5s)
+  if (options?.forceAi) {
+    try {
+      const aiConfig = await getUserAIConfig(userId)
+      if (aiConfig) {
+        const resolved = getProvider(aiConfig)
+        const modelToUse = aiConfig.model || resolved.defaultModel
+        const prompt = `You are the Autonomous Career Agent executive copilot for ${user?.name || "the candidate"}.
 Current campaign status:
 - Active applications in flight: ${metrics.activeApplicationsCount}
 - Staged applications ready to submit: ${metrics.stagedCount}
@@ -407,26 +413,27 @@ Rules:
 - Bullet 3 must give follow-up advice or strategic career guidance.
 Return strictly a JSON array of 3 strings: ["...", "...", "..."]`
 
-      const res = await generateText({
-        model: resolved.model(modelToUse),
-        prompt,
-        temperature: 0.3,
-        maxRetries: 0,
-        abortSignal: AbortSignal.timeout(8500),
-      })
+        const res = await generateText({
+          model: resolved.model(modelToUse),
+          prompt,
+          temperature: 0.3,
+          maxRetries: 0,
+          abortSignal: AbortSignal.timeout(3500),
+        })
 
-      const raw = res.text.trim()
-      const jsonMatch = raw.match(/\[[\s\S]*\]/)
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0])
-        if (Array.isArray(parsed) && parsed.length >= 2) {
-          executiveSummary = parsed.map((p) => String(p).trim()).slice(0, 3)
+        const raw = res.text.trim()
+        const jsonMatch = raw.match(/\[[\s\S]*\]/)
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0])
+          if (Array.isArray(parsed) && parsed.length >= 2) {
+            executiveSummary = parsed.map((p) => String(p).trim()).slice(0, 3)
+          }
         }
       }
+    } catch (aiErr) {
+      const errMessage = aiErr instanceof Error ? aiErr.message : String(aiErr)
+      console.warn(`[BriefingEngine] AI briefing generation fallback to deterministic (${errMessage})`)
     }
-  } catch (aiErr) {
-    const errMessage = aiErr instanceof Error ? aiErr.message : String(aiErr)
-    console.warn(`[BriefingEngine] AI briefing generation fallback to deterministic (${errMessage})`)
   }
 
   // 6. Compute dynamic projection tip based on candidate's real campaign metrics

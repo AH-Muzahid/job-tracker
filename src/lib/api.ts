@@ -23,7 +23,8 @@ export function useStats() {
       if (!res.ok) throw new Error("Failed to load stats")
       return res.json()
     },
-    staleTime: 30_000,
+    staleTime: 120_000,
+    refetchOnWindowFocus: false,
     retry: 1,
     retryDelay: 500,
   })

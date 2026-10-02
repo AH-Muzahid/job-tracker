@@ -13,7 +13,6 @@ import { AICareerCopilotCard } from "@/components/dashboard/AICareerCopilotCard"
 import { TodayTasksCard } from "@/components/dashboard/TodayTasksCard";
 import { StayConsistentCard } from "@/components/dashboard/StayConsistentCard";
 import { DashboardQuickIntake } from "@/components/dashboard/DashboardQuickIntake";
-import { DashboardSkeleton } from "@/components/dashboard-skeleton";
 import { PageContainer } from "@/components/primitives/PageContainer";
 import {
   Dialog,
@@ -26,11 +25,6 @@ import {
 export function Dashboard() {
   const { data: stats, isLoading } = useStats();
   const [isQuickIntakeOpen, setIsQuickIntakeOpen] = useState(false);
-
-  // During initial load, keep the unified DashboardSkeleton until data is ready
-  if (isLoading && !stats) {
-    return <DashboardSkeleton />;
-  }
 
   return (
     <PageContainer maxWidth="full">

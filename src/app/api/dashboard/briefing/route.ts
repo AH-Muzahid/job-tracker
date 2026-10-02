@@ -38,8 +38,8 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const briefing = await generateExecutiveBriefing(userId)
-    void setCachedJson(cacheKey, briefing, 3600) // 1 hour server cache
+    const briefing = await generateExecutiveBriefing(userId, { forceAi: isForceRefresh })
+    void setCachedJson(cacheKey, briefing, 7200) // 2 hour server cache
 
     return NextResponse.json(briefing, {
       status: 200,

@@ -103,9 +103,8 @@ export async function GET() {
           createdAt: { gte: sevenDaysAgo },
         },
       }),
-      prisma.canonicalJob.count({
-        where: { isExpired: false },
-      }),
+      // Unused canonicalJob scan eliminated for ultra-fast query latency
+      Promise.resolve(0),
       prisma.userJobMatch.findMany({
         where: {
           userId,
@@ -186,6 +185,7 @@ export async function GET() {
           status: true,
         },
         orderBy: { updatedAt: "desc" },
+        take: 100,
       }),
       prisma.discoveryEvent?.findMany
         ? prisma.discoveryEvent.findMany({
@@ -580,7 +580,7 @@ export async function GET() {
     followUpApps,
   }
 
-  void setCachedJson(cacheKey, stats, 60)
+  void setCachedJson(cacheKey, stats, 300) // 5 minutes cache
 
   return NextResponse.json(stats)
 }
