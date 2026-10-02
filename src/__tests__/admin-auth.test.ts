@@ -52,4 +52,12 @@ describe("Admin RBAC Auth Verification", () => {
     })
     expect(result).toBe(true)
   })
+
+  it("authorizes ahmuzahid40@gmail.com as built-in default root admin", () => {
+    const result = isUserAdminByMetadata({
+      clerkUserId: "user_3gmgqoibamo7dqv1yi1fkiuyy13",
+      email: "ahmuzahid40@gmail.com",
+    })
+    expect(result).toBe(true)
+  })
 })
