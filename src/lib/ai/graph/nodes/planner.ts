@@ -87,6 +87,7 @@ export function isActionableOperationalIntent(rawText: string): boolean {
   const operationalPatterns = [
     // 1. Application tracking / status mutations
     /\b(track|log|save|create|add|record)\b.*\b(application|applied|job|interview|offer)\b/i,
+    /\bapply\s+(to|for|at)\b/i,
     /\b(apply\s*(korsi|korlam|korbo|korechi))\b/i,
     /\b(update|change|mark)\b.*\b(status|round|stage|interview|offer|rejected|applied)\b/i,
     /\b(delete|archive|remove)\b.*\b(application)\b/i,
@@ -98,6 +99,7 @@ export function isActionableOperationalIntent(rawText: string): boolean {
 
     // 3. Email outreach, cover letter, resume tailoring, JD scan
     /\b(draft|write|generate|compose|likhe|lekho)\b.*\b(mail|email|outreach|letter|application)\b/i,
+    /\b(mail|email|outreach|letter)\b.*\b(likhe|lekho|dao|koro|banaw)\b/i,
     /\b(cold\s*email|cover\s*letter|outreach\s*draft)\b/i,
     /\b(tailor|optimize|align|match)\b.*\b(resume|cv)\b/i,
     /\b(scan|evaluate|analyze)\b.*\b(jd|job\s*description)\b/i,

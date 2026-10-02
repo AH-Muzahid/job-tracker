@@ -79,16 +79,10 @@ async function getRawMultiConfig(userId: string): Promise<StoredMultiAIConfig | 
         }
       } catch (decErr) {
         console.warn(
-          "[AI Config Decrypt Warning]: Stored AI key config could not be authenticated with environment secrets. Resetting outdated config.",
+          "[AI Config Decrypt Warning]: Stored AI key config could not be authenticated with environment secrets. Please check encryption environment variables.",
           decErr instanceof Error ? decErr.message : decErr
         )
-        // Auto-cleanup corrupted or rotated keys from user record so it stops erroring
-        prisma.user
-          .update({
-            where: { id: userId },
-            data: { aiConfig: null },
-          })
-          .catch(() => {})
+        // DO NOT delete user record on decryption error to prevent accidental data loss during secret rotation or missing env vars
       }
     }
   } catch (dbErr) {
