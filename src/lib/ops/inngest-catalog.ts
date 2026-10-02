@@ -185,13 +185,28 @@ export async function triggerInngestPipeline(
     })
 
     const eventId = response?.ids?.[0] || `evt_${Date.now()}`
+    const durationMs = Date.now() - startTime
 
-    // Record job trigger to ring buffer
+    // Record job trigger to ring buffer with rich logs
     void recordJobRunToRing({
       functionId: pipeline.id,
-      status: "running",
-      durationMs: Date.now() - startTime,
+      eventId,
+      status: "completed",
+      durationMs,
       startedAt: new Date().toISOString(),
+      details: {
+        eventName: pipeline.triggerEvent,
+        category: pipeline.category,
+        cronSchedule: pipeline.cronSchedule || "On-Demand Only",
+        retries: pipeline.retries,
+        triggeredBy: payload.triggeredBy || "admin-ops-console",
+      },
+      logs: [
+        `[${new Date().toLocaleTimeString()}] Event dispatched: ${pipeline.triggerEvent}`,
+        `[${new Date().toLocaleTimeString()}] Event ID: ${eventId}`,
+        `[${new Date().toLocaleTimeString()}] Duration: ${durationMs}ms`,
+        `[${new Date().toLocaleTimeString()}] Handed off to Inngest Background Worker successfully.`,
+      ],
     })
 
     return {
@@ -200,12 +215,17 @@ export async function triggerInngestPipeline(
     }
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : String(err)
+    const durationMs = Date.now() - startTime
     void recordJobRunToRing({
       functionId: pipeline.id,
       status: "failed",
-      durationMs: Date.now() - startTime,
+      durationMs,
       error: errorMsg,
       startedAt: new Date().toISOString(),
+      logs: [
+        `[${new Date().toLocaleTimeString()}] Trigger Attempt Failed: ${pipeline.triggerEvent}`,
+        `[${new Date().toLocaleTimeString()}] Error: ${errorMsg}`,
+      ],
     })
 
     return {

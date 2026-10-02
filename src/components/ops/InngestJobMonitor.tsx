@@ -1,7 +1,14 @@
 "use client"
 
 import * as React from "react"
-import { Play, RefreshCw } from "lucide-react"
+import {
+  Play,
+  RefreshCw,
+  Terminal,
+  ExternalLink,
+  X,
+  Info,
+} from "lucide-react"
 import { BlueprintCard, BlueprintCardHeader, BlueprintCardTitle, BlueprintCardContent } from "@/components/primitives/BlueprintCard"
 import type { InngestPipelineMetadata } from "@/lib/ops/inngest-catalog"
 import type { JobRunRingItem } from "@/lib/ops/telemetry-ring"
@@ -19,6 +26,7 @@ export function InngestJobMonitor({
 }: InngestJobMonitorProps) {
   const [selectedCategory, setSelectedCategory] = React.useState<string>("All")
   const [triggeringId, setTriggeringId] = React.useState<string | null>(null)
+  const [inspectPipeline, setInspectPipeline] = React.useState<InngestPipelineMetadata | null>(null)
   const [triggerStatus, setTriggerStatus] = React.useState<{ id: string; success: boolean; message: string } | null>(null)
 
   const categories = React.useMemo(() => {
@@ -69,23 +77,43 @@ export function InngestJobMonitor({
     }
   }
 
+  // Active run for inspected pipeline
+  const activeInspectRun = React.useMemo(() => {
+    if (!inspectPipeline) return null
+    return recentRuns.find((r) => r.functionId === inspectPipeline.id) || null
+  }, [inspectPipeline, recentRuns])
+
   return (
     <div className="space-y-4">
-      {/* Category Filter Filter Tabs */}
-      <div className="flex flex-wrap items-center gap-1.5 pb-2 border-b border-border">
-        {categories.map((cat) => (
-          <button
-            key={cat}
-            onClick={() => setSelectedCategory(cat)}
-            className={`px-3 py-1.5 text-xs font-medium rounded-[4px] transition-colors ${
-              selectedCategory === cat
-                ? "bg-foreground text-background"
-                : "bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground"
-            }`}
+      {/* Category Filter Tabs */}
+      <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-border">
+        <div className="flex flex-wrap items-center gap-1.5">
+          {categories.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setSelectedCategory(cat)}
+              className={`px-3 py-1.5 text-xs font-medium rounded-[4px] transition-colors cursor-pointer ${
+                selectedCategory === cat
+                  ? "bg-foreground text-background"
+                  : "bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground"
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex items-center gap-2">
+          <a
+            href="https://app.inngest.com/env/production"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-[4px] bg-muted/40 hover:bg-muted text-foreground border border-border transition-colors"
           >
-            {cat}
-          </button>
-        ))}
+            <ExternalLink className="size-3.5 text-muted-foreground" />
+            <span>Open Inngest Cloud Console</span>
+          </a>
+        </div>
       </div>
 
       {/* Grid of Pipelines */}
@@ -162,21 +190,29 @@ export function InngestJobMonitor({
                 </BlueprintCardContent>
               </div>
 
-              <div className="p-4 pt-0">
+              <div className="p-4 pt-0 grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => setInspectPipeline(pipeline)}
+                  className="flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-[4px] bg-muted/40 hover:bg-muted text-xs font-medium border border-border text-foreground transition-colors cursor-pointer"
+                >
+                  <Terminal className="size-3.5 text-muted-foreground" />
+                  <span>View Execution Logs</span>
+                </button>
+
                 <button
                   onClick={() => handleTrigger(pipeline)}
                   disabled={isTriggering}
-                  className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-[4px] bg-background hover:bg-muted text-xs font-medium border border-border text-foreground transition-colors disabled:opacity-50 cursor-pointer"
+                  className="flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-[4px] bg-background hover:bg-muted text-xs font-medium border border-border text-foreground transition-colors disabled:opacity-50 cursor-pointer"
                 >
                   {isTriggering ? (
                     <>
                       <RefreshCw className="size-3.5 animate-spin" />
-                      <span>Dispatching Event...</span>
+                      <span>Dispatching...</span>
                     </>
                   ) : (
                     <>
                       <Play className="size-3.5 text-foreground fill-foreground" />
-                      <span>Trigger Pipeline On-Demand</span>
+                      <span>Trigger On-Demand</span>
                     </>
                   )}
                 </button>
@@ -185,6 +221,150 @@ export function InngestJobMonitor({
           )
         })}
       </div>
+
+      {/* Execution Logs & Details Modal */}
+      {inspectPipeline && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-4">
+          <div className="w-full max-w-2xl bg-card border border-border rounded-[6px] shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-4 border-b border-border bg-muted/30">
+              <div className="flex items-center gap-2 min-w-0">
+                <Terminal className="size-4 text-emerald-500 shrink-0" />
+                <h3 className="font-semibold text-sm text-foreground truncate">
+                  Execution Inspector: {inspectPipeline.name}
+                </h3>
+                <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-[2px] bg-muted text-muted-foreground">
+                  {inspectPipeline.category}
+                </span>
+              </div>
+              <button
+                onClick={() => setInspectPipeline(null)}
+                className="p-1 rounded-[4px] hover:bg-muted text-muted-foreground hover:text-foreground cursor-pointer"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-4 overflow-y-auto space-y-4 text-xs">
+              {/* Plain Human Readable Explanation */}
+              <div className="p-3 rounded-[4px] bg-muted/20 border border-border/60 flex items-start gap-2.5">
+                <Info className="size-4 text-sky-500 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <div className="font-semibold text-foreground">Why this pipeline exists:</div>
+                  <div className="text-muted-foreground leading-relaxed">
+                    {inspectPipeline.description}
+                  </div>
+                </div>
+              </div>
+
+              {/* Execution Status Metadata Strip */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 font-mono text-[11px]">
+                <div className="p-2.5 rounded-[4px] bg-muted/30 border border-border/50">
+                  <div className="text-muted-foreground text-[10px]">TRIGGER TYPE</div>
+                  <div className="font-semibold text-foreground uppercase mt-0.5">{inspectPipeline.triggerType}</div>
+                </div>
+                <div className="p-2.5 rounded-[4px] bg-muted/30 border border-border/50">
+                  <div className="text-muted-foreground text-[10px]">LAST STATUS</div>
+                  <div className="font-semibold mt-0.5">
+                    {activeInspectRun ? (
+                      <span className={activeInspectRun.status === "completed" ? "text-emerald-500" : activeInspectRun.status === "failed" ? "text-rose-500" : "text-amber-500"}>
+                        {activeInspectRun.status.toUpperCase()}
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground">IDLE (Awaiting Cron)</span>
+                    )}
+                  </div>
+                </div>
+                <div className="p-2.5 rounded-[4px] bg-muted/30 border border-border/50">
+                  <div className="text-muted-foreground text-[10px]">DURATION</div>
+                  <div className="font-semibold text-foreground mt-0.5">
+                    {activeInspectRun ? `${activeInspectRun.durationMs}ms` : "N/A"}
+                  </div>
+                </div>
+                <div className="p-2.5 rounded-[4px] bg-muted/30 border border-border/50">
+                  <div className="text-muted-foreground text-[10px]">EVENT ID</div>
+                  <div className="font-semibold text-foreground truncate mt-0.5" title={activeInspectRun?.eventId || "None"}>
+                    {activeInspectRun?.eventId || "Scheduled"}
+                  </div>
+                </div>
+              </div>
+
+              {/* Terminal Logs Window */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-[11px] font-mono text-muted-foreground">
+                  <span>LOG OUTPUT & EVENT TRACE</span>
+                  <span>RING BUFFER (LAST RUN)</span>
+                </div>
+                <div className="p-3 rounded-[4px] bg-black text-emerald-400 font-mono text-[11px] leading-relaxed border border-border/80 overflow-x-auto min-h-[140px] max-h-[220px]">
+                  {activeInspectRun?.logs && activeInspectRun.logs.length > 0 ? (
+                    activeInspectRun.logs.map((logLine, idx) => (
+                      <div key={idx} className="whitespace-pre-wrap py-0.5">
+                        {logLine}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-slate-400 space-y-1">
+                      <div>[INFO] Pipeline configured: {inspectPipeline.name}</div>
+                      <div>[INFO] Trigger event name: {inspectPipeline.triggerEvent}</div>
+                      {inspectPipeline.cronSchedule && (
+                        <div>[INFO] Cron schedule: {inspectPipeline.cronSchedule}</div>
+                      )}
+                      <div>[INFO] Retries policy: {inspectPipeline.retries} attempts on network/model fault</div>
+                      <div>[STATUS] Ready. Click &apos;Trigger Pipeline On-Demand&apos; below to dispatch an immediate test execution.</div>
+                    </div>
+                  )}
+
+                  {activeInspectRun?.error && (
+                    <div className="text-rose-400 font-bold pt-2 border-t border-rose-900/50 mt-2">
+                      [ERROR] {activeInspectRun.error}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex items-center justify-between p-4 border-t border-border bg-muted/30">
+              <a
+                href="https://app.inngest.com/env/production"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <ExternalLink className="size-3.5" />
+                <span>Open in Inngest Cloud</span>
+              </a>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setInspectPipeline(null)}
+                  className="px-3 py-1.5 rounded-[4px] border border-border text-xs font-medium hover:bg-muted text-foreground cursor-pointer transition-colors"
+                >
+                  Close
+                </button>
+                <button
+                  onClick={() => handleTrigger(inspectPipeline)}
+                  disabled={triggeringId === inspectPipeline.id}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[4px] bg-[#533AFD] hover:bg-[#4732d8] text-white text-xs font-medium cursor-pointer transition-colors disabled:opacity-50"
+                >
+                  {triggeringId === inspectPipeline.id ? (
+                    <>
+                      <RefreshCw className="size-3.5 animate-spin" />
+                      <span>Dispatching...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Play className="size-3.5 fill-white" />
+                      <span>Trigger Now</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

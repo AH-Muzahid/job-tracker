@@ -32,10 +32,13 @@ export interface AgentStepRingItem {
 export interface JobRunRingItem {
   id: string
   functionId: string
+  eventId?: string
   status: "completed" | "failed" | "running"
   durationMs: number
   error?: string
   startedAt: string
+  details?: Record<string, unknown>
+  logs?: string[]
 }
 
 export interface OpsMetricsSummary {
@@ -249,10 +252,13 @@ export async function getRecentAgentSteps(limit = 30): Promise<AgentStepRingItem
  */
 export async function recordJobRunToRing(params: {
   functionId: string
+  eventId?: string
   status: "completed" | "failed" | "running"
   durationMs?: number
   error?: string
   startedAt?: string
+  details?: Record<string, unknown>
+  logs?: string[]
 }): Promise<void> {
   const redis = getRedisClient()
   if (!redis) return
@@ -261,10 +267,13 @@ export async function recordJobRunToRing(params: {
     const item: JobRunRingItem = {
       id: `job_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
       functionId: params.functionId,
+      eventId: params.eventId,
       status: params.status,
       durationMs: Math.round(params.durationMs || 0),
       error: params.error,
       startedAt: params.startedAt || new Date().toISOString(),
+      details: params.details,
+      logs: params.logs || [],
     }
 
     await redis.lpush(REDIS_KEYS.JOB_RECENT, JSON.stringify(item))
