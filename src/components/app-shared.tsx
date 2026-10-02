@@ -61,44 +61,62 @@ export const navGroups: SidebarNavGroup[] = [
 		label: "TOOLS",
 		items: [
 			{
-				title: "Career Profile",
-				path: "/profile-setup",
-				icon: <User className="size-4" />,
-			},
-			{
-				title: "Resume Studio",
-				path: "/resumes",
-				icon: <FileText className="size-4" />,
-			},
-			{
-				title: "Weekly Goals",
-				path: "/weekly-goals",
-				icon: <Target className="size-4" />,
-			},
-			{
-				title: "AI Memory",
-				path: "/ai-memory",
-				icon: <Database className="size-4" />,
-			},
-			{
-				title: "Career Brain",
-				path: "/brain",
+				title: "Career Assets",
 				icon: <Layers className="size-4" />,
+				subItems: [
+					{
+						title: "Career Profile",
+						path: "/profile-setup",
+						icon: <User className="size-3.5" />,
+					},
+					{
+						title: "Resume Studio",
+						path: "/resumes",
+						icon: <FileText className="size-3.5" />,
+					},
+					{
+						title: "Career Brain",
+						path: "/brain",
+						icon: <Layers className="size-3.5" />,
+					},
+					{
+						title: "AI Memory",
+						path: "/ai-memory",
+						icon: <Database className="size-3.5" />,
+					},
+				],
 			},
 			{
-				title: "Upskill & Roadmap",
-				path: "/upskill",
+				title: "Growth & Goals",
 				icon: <TrendingUp className="size-4" />,
+				subItems: [
+					{
+						title: "Weekly Goals",
+						path: "/weekly-goals",
+						icon: <Target className="size-3.5" />,
+					},
+					{
+						title: "Upskill & Roadmap",
+						path: "/upskill",
+						icon: <TrendingUp className="size-3.5" />,
+					},
+				],
 			},
 			{
-				title: "Integrations",
-				path: "/integrations",
-				icon: <SlidersHorizontal className="size-4" />,
-			},
-			{
-				title: "Settings",
-				path: "/settings",
+				title: "Settings & Config",
 				icon: <Settings className="size-4" />,
+				subItems: [
+					{
+						title: "System Settings",
+						path: "/settings",
+						icon: <Settings className="size-3.5" />,
+					},
+					{
+						title: "Integrations & Keys",
+						path: "/integrations",
+						icon: <SlidersHorizontal className="size-3.5" />,
+					},
+				],
 			},
 		],
 	},

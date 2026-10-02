@@ -188,7 +188,9 @@ describe("Desktop Accessibility of Mobile Profile Tools Suite", () => {
     const toolsGroup = navGroups.find((g) => g.label === "TOOLS");
     expect(toolsGroup).toBeDefined();
 
-    const paths = (toolsGroup?.items || []).map((item) => item.path);
+    const paths = (toolsGroup?.items || []).flatMap((item) =>
+      item.subItems?.length ? item.subItems.map((s) => s.path) : [item.path]
+    );
     expect(paths).toContain("/resumes");
     expect(paths).toContain("/weekly-goals");
     expect(paths).toContain("/profile-setup");

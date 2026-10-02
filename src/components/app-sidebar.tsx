@@ -5,7 +5,6 @@ import { cn } from "@/lib/utils";
 import {
 	Sidebar,
 	SidebarContent,
-	SidebarFooter,
 	SidebarHeader,
 	SidebarMenuButton,
 } from "@/components/ui/sidebar";
@@ -52,24 +51,6 @@ export function AppSidebar() {
 					<NavGroup key={`sidebar-group-${index}`} {...group} />
 				))}
 			</SidebarContent>
-
-			{/* Footer: Your Progress Momentum Card */}
-			<SidebarFooter className="p-3 pt-0 pb-3 border-none bg-transparent">
-				<div className="rounded-xl bg-[#131c2d] ring-1 ring-[#182338] p-4 group-data-[collapsible=icon]:hidden transition-all">
-					<div className="flex items-center justify-between">
-						<span className="text-xs font-semibold text-white tracking-tight">Your Progress</span>
-					</div>
-					<p className="text-[11px] text-[#94a3b8] mt-1 leading-snug">
-						Keep going! You&apos;re building momentum.
-					</p>
-					<div className="mt-3 flex items-center gap-2.5">
-						<div className="h-1.5 flex-1 rounded-full bg-[#1b2537] overflow-hidden">
-							<div className="h-full rounded-full bg-[#10b981] w-[70%]" />
-						</div>
-						<span className="text-[11px] font-semibold text-white">70%</span>
-					</div>
-				</div>
-			</SidebarFooter>
 		</Sidebar>
 	);
 }
