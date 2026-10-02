@@ -126,7 +126,9 @@ export function useAudioEngine(options: {
     if (typeof window === "undefined") return
     try {
       // 1. Initialize and resume Web Audio AudioContext during user gesture
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext
+      const AudioCtx =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
       if (AudioCtx) {
         if (!audioContextRef.current || audioContextRef.current.state === "closed") {
           audioContextRef.current = new AudioCtx()
@@ -256,8 +258,9 @@ export function useAudioEngine(options: {
 
         await audio.play()
         return true
-      } catch (audioErr: any) {
-        if (audioErr?.name === "NotAllowedError" || audioErr?.message?.includes("interact")) {
+      } catch (audioErr: unknown) {
+        const err = audioErr as { name?: string; message?: string } | null
+        if (err?.name === "NotAllowedError" || err?.message?.includes("interact")) {
           setIsAutoplayBlocked(true)
           pendingAudioRef.current = { arrayBuf, onDone }
           return false
