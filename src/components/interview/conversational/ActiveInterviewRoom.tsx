@@ -40,6 +40,8 @@ interface ActiveInterviewRoomProps {
   isAiSpeaking: boolean
   isListening: boolean
   isAiThinking: boolean
+  isAutoplayBlocked?: boolean
+  resumeBlockedAudio?: () => void
   autoTurnActive: boolean
   onMicClick: () => void
   speechInputLang: "bn-BD" | "en-US"
@@ -72,6 +74,8 @@ export function ActiveInterviewRoom({
   isAiSpeaking,
   isListening,
   isAiThinking,
+  isAutoplayBlocked,
+  resumeBlockedAudio,
   autoTurnActive,
   onMicClick,
   speechInputLang,
@@ -208,6 +212,29 @@ export function ActiveInterviewRoom({
             className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs h-8 px-4 font-medium shadow-xs cursor-pointer w-full sm:w-auto rounded-[4px]"
           >
             <span>View STAR Report</span>
+          </Button>
+        </div>
+      )}
+
+      {/* Autoplay Blocked Recovery Notice */}
+      {isAutoplayBlocked && (
+        <div className="flex items-center justify-between p-2 sm:p-2.5 bg-amber-500/10 border border-amber-500/30 rounded-[6px] text-xs text-amber-600 dark:text-amber-400 shrink-0 animate-in fade-in duration-200">
+          <div className="flex items-center gap-2 font-medium">
+            <VolumeX className="h-4 w-4 shrink-0 text-amber-500 animate-bounce" />
+            <span>
+              {language === "en"
+                ? "Browser audio paused by autoplay policy. Click to hear:"
+                : "ব্রাউজারে অডিও চালু করতে এখানে ক্লিক করুন:"}
+            </span>
+          </div>
+          <Button
+            size="sm"
+            variant="default"
+            onClick={resumeBlockedAudio}
+            className="h-7 text-xs bg-amber-600 hover:bg-amber-700 text-white cursor-pointer rounded-[4px] gap-1 px-3 shadow-xs"
+          >
+            <Volume2 className="h-3 w-3" />
+            <span>{language === "en" ? "Play Audio" : "শুনুন"}</span>
           </Button>
         </div>
       )}

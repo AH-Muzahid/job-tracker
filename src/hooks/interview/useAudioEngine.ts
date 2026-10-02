@@ -27,6 +27,8 @@ export function useAudioEngine(options: {
   const audioPlayerRef = useRef<HTMLAudioElement | null>(null)
   const audioContextRef = useRef<AudioContext | null>(null)
   const audioSourceNodeRef = useRef<AudioBufferSourceNode | null>(null)
+  const pendingAudioRef = useRef<{ arrayBuf: ArrayBuffer; onDone?: () => void } | null>(null)
+  const [isAutoplayBlocked, setIsAutoplayBlocked] = useState(false)
 
   const isVoiceMatchingGender = useCallback(
     (voice: SpeechSynthesisVoice, gender: VoiceGender): boolean => {
@@ -109,6 +111,44 @@ export function useAudioEngine(options: {
     }
   }, [voiceGender, language, findBestVoiceForGender])
 
+  // Cleanup on unmount only
+  useEffect(() => {
+    return () => {
+      if (audioContextRef.current && audioContextRef.current.state !== "closed") {
+        try {
+          audioContextRef.current.close()
+        } catch {}
+      }
+    }
+  }, [])
+
+  const unlockAudio = useCallback(async () => {
+    if (typeof window === "undefined") return
+    try {
+      // 1. Initialize and resume Web Audio AudioContext during user gesture
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext
+      if (AudioCtx) {
+        if (!audioContextRef.current || audioContextRef.current.state === "closed") {
+          audioContextRef.current = new AudioCtx()
+        }
+        if (audioContextRef.current.state === "suspended") {
+          await audioContextRef.current.resume()
+        }
+      }
+
+      // 2. Prime HTMLAudioElement with silent audio to register user interaction
+      if (!audioPlayerRef.current) {
+        audioPlayerRef.current = new Audio()
+      }
+      const silentWav = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA"
+      audioPlayerRef.current.src = silentWav
+      await audioPlayerRef.current.play().catch(() => {})
+      setIsAutoplayBlocked(false)
+    } catch {
+      // Non-blocking
+    }
+  }, [])
+
   const stopAllAudioAndMic = useCallback((cleanupRecognition?: () => void) => {
     if (cleanupRecognition) {
       cleanupRecognition()
@@ -123,26 +163,19 @@ export function useAudioEngine(options: {
       }
       audioSourceNodeRef.current = null
     }
-    if (audioContextRef.current) {
-      try {
-        audioContextRef.current.close()
-      } catch {
-        // Ignore
-      }
-      audioContextRef.current = null
-    }
+
+    // Keep audioContextRef open so future plays remain unlocked without user gesture
 
     if (audioPlayerRef.current) {
       try {
         audioPlayerRef.current.pause()
+        audioPlayerRef.current.currentTime = 0
         audioPlayerRef.current.onplay = null
         audioPlayerRef.current.onended = null
         audioPlayerRef.current.onerror = null
-        audioPlayerRef.current.src = ""
       } catch {
         // Ignore
       }
-      audioPlayerRef.current = null
     }
 
     if (typeof window !== "undefined" && window.speechSynthesis) {
@@ -156,12 +189,136 @@ export function useAudioEngine(options: {
     setIsAiSpeaking(false)
   }, [])
 
+  const playAudioBuffer = useCallback(
+    async (arrayBuf: ArrayBuffer, onDone?: () => void): Promise<boolean> => {
+      // 1. Primary: Web Audio API (immune to autoplay restrictions once resumed)
+      if (audioContextRef.current) {
+        try {
+          if (audioContextRef.current.state === "suspended") {
+            await audioContextRef.current.resume()
+          }
+          if (audioContextRef.current.state === "running") {
+            if (audioSourceNodeRef.current) {
+              try {
+                audioSourceNodeRef.current.stop()
+                audioSourceNodeRef.current.disconnect()
+              } catch {}
+              audioSourceNodeRef.current = null
+            }
+
+            const decodedBuffer = await audioContextRef.current.decodeAudioData(arrayBuf.slice(0))
+            const sourceNode = audioContextRef.current.createBufferSource()
+            sourceNode.buffer = decodedBuffer
+            sourceNode.playbackRate.value = speechRate
+            sourceNode.connect(audioContextRef.current.destination)
+            sourceNode.onended = () => {
+              audioSourceNodeRef.current = null
+              setIsAiSpeaking(false)
+              if (onDone) onDone()
+            }
+            audioSourceNodeRef.current = sourceNode
+            setIsAiSpeaking(true)
+            setIsAutoplayBlocked(false)
+            sourceNode.start(0)
+            return true
+          }
+        } catch (webAudioErr) {
+          console.warn("[AudioEngine] WebAudio decode/playback error, falling back to Audio element:", webAudioErr)
+        }
+      }
+
+      // 2. Secondary: HTMLAudioElement
+      try {
+        const blob = new Blob([arrayBuf], { type: "audio/mpeg" })
+        const blobUrl = URL.createObjectURL(blob)
+        if (!audioPlayerRef.current) {
+          audioPlayerRef.current = new Audio()
+        }
+        const audio = audioPlayerRef.current
+        audio.src = blobUrl
+        audio.playbackRate = speechRate
+
+        audio.onplay = () => {
+          setIsAiSpeaking(true)
+          setIsAutoplayBlocked(false)
+        }
+        audio.onended = () => {
+          URL.revokeObjectURL(blobUrl)
+          setIsAiSpeaking(false)
+          if (onDone) onDone()
+        }
+        audio.onerror = (e) => {
+          URL.revokeObjectURL(blobUrl)
+          console.warn("[AudioEngine] Audio element playback error:", e)
+          setIsAiSpeaking(false)
+          if (onDone) onDone()
+        }
+
+        await audio.play()
+        return true
+      } catch (audioErr: any) {
+        if (audioErr?.name === "NotAllowedError" || audioErr?.message?.includes("interact")) {
+          setIsAutoplayBlocked(true)
+          pendingAudioRef.current = { arrayBuf, onDone }
+          return false
+        }
+        console.warn("[AudioEngine] Audio element play failed:", audioErr)
+        setIsAiSpeaking(false)
+        if (onDone) onDone()
+        return false
+      }
+    },
+    [speechRate]
+  )
+
+  const resumeBlockedAudio = useCallback(async () => {
+    setIsAutoplayBlocked(false)
+    await unlockAudio()
+    if (pendingAudioRef.current) {
+      const { arrayBuf, onDone } = pendingAudioRef.current
+      pendingAudioRef.current = null
+      // Re-run playback with the unblocked context
+      if (audioContextRef.current && audioContextRef.current.state === "running") {
+        try {
+          const decoded = await audioContextRef.current.decodeAudioData(arrayBuf.slice(0))
+          const source = audioContextRef.current.createBufferSource()
+          source.buffer = decoded
+          source.playbackRate.value = speechRate
+          source.connect(audioContextRef.current.destination)
+          source.onended = () => {
+            setIsAiSpeaking(false)
+            if (onDone) onDone()
+          }
+          audioSourceNodeRef.current = source
+          setIsAiSpeaking(true)
+          source.start(0)
+          return
+        } catch {
+          // Fall through
+        }
+      }
+      if (audioPlayerRef.current) {
+        const blob = new Blob([arrayBuf], { type: "audio/mpeg" })
+        const blobUrl = URL.createObjectURL(blob)
+        audioPlayerRef.current.src = blobUrl
+        audioPlayerRef.current.onended = () => {
+          URL.revokeObjectURL(blobUrl)
+          setIsAiSpeaking(false)
+          if (onDone) onDone()
+        }
+        await audioPlayerRef.current.play().catch(() => {
+          if (onDone) onDone()
+        })
+      }
+    }
+  }, [unlockAudio, speechRate])
+
   const playServerTts = useCallback(
     async (textToSpeak: string, onDone?: () => void) => {
       try {
-        const ttsUrl = `/api/ai/tts?text=\$\{encodeURIComponent(textToSpeak)}\&lang=\$\{
+        const ttsUrl = `/api/ai/tts?text=${encodeURIComponent(textToSpeak)}&lang=${
           language === "bn" ? "bn" : "en"
-        }\&gender=\$\{voiceGender}`
+        }&gender=${voiceGender}`
 
         const res = await fetch(ttsUrl)
         if (res.status === 204 || !res.ok) {
@@ -194,42 +351,37 @@ export function useAudioEngine(options: {
         }
 
         const arrayBuf = await res.arrayBuffer()
-
-        // Clean, natural audio playback without mechanical pitch distortion
-        const blob = new Blob([arrayBuf], { type: "audio/mpeg" })
-        const blobUrl = URL.createObjectURL(blob)
-        const audio = new Audio(blobUrl)
-        audioPlayerRef.current = audio
-        audio.playbackRate = speechRate
-
-        audio.onplay = () => {
-          setIsAiSpeaking(true)
+        const played = await playAudioBuffer(arrayBuf, onDone)
+        if (!played && isAutoplayBlocked) {
+          // If autoplay blocked, try speech synthesis as backup
+          if (typeof window !== "undefined" && window.speechSynthesis) {
+            try {
+              const utterance = new SpeechSynthesisUtterance(cleanTextForSpeech(textToSpeak))
+              utterance.lang = language === "en" ? "en-US" : "bn-BD"
+              utterance.rate = speechRate
+              utterance.onstart = () => setIsAiSpeaking(true)
+              utterance.onend = () => {
+                setIsAiSpeaking(false)
+                setIsAutoplayBlocked(false)
+                if (onDone) onDone()
+              }
+              utterance.onerror = () => {
+                setIsAiSpeaking(false)
+              }
+              window.speechSynthesis.speak(utterance)
+              return
+            } catch {
+              // Ignore
+            }
+          }
         }
-        audio.onended = () => {
-          URL.revokeObjectURL(blobUrl)
-          setIsAiSpeaking(false)
-          if (onDone) onDone()
-        }
-        audio.onerror = (e) => {
-          URL.revokeObjectURL(blobUrl)
-          console.warn("Server TTS playback error:", e)
-          setIsAiSpeaking(false)
-          if (onDone) onDone()
-        }
-
-        audio.play().catch((err) => {
-          URL.revokeObjectURL(blobUrl)
-          console.warn("Audio autoplay blocked or failed:", err)
-          setIsAiSpeaking(false)
-          if (onDone) onDone()
-        })
       } catch (e) {
         console.warn("Failed to initialize Audio TTS:", e)
         setIsAiSpeaking(false)
         if (onDone) onDone()
       }
     },
-    [language, speechRate, voiceGender]
+    [language, playAudioBuffer, speechRate, voiceGender, isAutoplayBlocked]
   )
 
   const speakText = useCallback(
@@ -256,6 +408,9 @@ export function useAudioEngine(options: {
     selectedVoice,
     setSelectedVoice,
     isAiSpeaking,
+    isAutoplayBlocked,
+    resumeBlockedAudio,
+    unlockAudio,
     speakText,
     stopAllAudioAndMic,
     isVoiceMatchingGender,
