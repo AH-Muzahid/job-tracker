@@ -353,10 +353,14 @@ export async function generateExecutiveBriefing(userId: string): Promise<Executi
   }
 
   if (priorityActions.length < 3) {
+    const targetRoles = user?.profile?.targetRoles
+    const targetRole = targetRoles && targetRoles.length > 0 ? targetRoles[0] : null
+    const roleTitle = targetRole ? `Source 2 new ${targetRole} roles` : "Source high-fit opportunities"
+
     priorityActions.push({
       id: "discover-opportunities",
       type: "DISCOVER_JOBS",
-      title: "Source 2 new senior frontend roles",
+      title: roleTitle,
       description: "Explore curated roles or evaluate any JD to trigger autonomous 1-click application packaging.",
       count: 2,
       href: "/discovery",

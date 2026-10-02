@@ -86,9 +86,9 @@ export function DailyBriefingCard() {
   const priorityActions = briefing.priorityActions || [];
   const displayPriorities = priorityActions.slice(0, 3);
 
-  let insightHeadline = "Your interview pipeline is slowing down.";
+  let insightHeadline = "Pipeline Ready.";
   let insightBody =
-    "You've applied to many roles, but haven't received new interviews in the last 72 hours. Focus on follow-ups and targeted applications to improve conversion.";
+    "Your pipeline is ready for new opportunities. Explore Discovery or paste a job description to package your next application.";
 
   if (summaryLines.length > 0) {
     const firstLine = summaryLines[0];
@@ -104,8 +104,14 @@ export function DailyBriefingCard() {
       insightHeadline = firstLine;
       insightBody =
         summaryLines[1] ||
-        "Focus on follow-ups and targeted applications to improve conversion.";
+        (briefing.metrics?.activeApplicationsCount && briefing.metrics.activeApplicationsCount > 0
+          ? "Focus on follow-ups and targeted applications to improve conversion."
+          : "Explore curated matches or evaluate external job descriptions to stage your next roles.");
     }
+  } else if ((briefing.metrics?.activeApplicationsCount ?? 0) > 0) {
+    const active = briefing.metrics.activeApplicationsCount;
+    insightHeadline = "Active Pipeline Velocity.";
+    insightBody = `You have ${active} active application${active === 1 ? "" : "s"} in progress. Focus on timely follow-ups and interview preparation.`;
   }
 
   let projectionTip = briefing.projectionTip;

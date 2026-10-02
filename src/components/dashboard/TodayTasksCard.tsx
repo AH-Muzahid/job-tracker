@@ -121,47 +121,66 @@ export function TodayTasksCard({ tasks, isLoading }: TodayTasksCardProps) {
           </div>
         ) : (
           taskList.map((task) => (
-            <button
+            <div
               key={task.id}
-              type="button"
-              role="checkbox"
-              aria-checked={task.completed}
-              onClick={() => toggleTask(task.id)}
-              onKeyDown={(e) => {
-                if (e.key === " " || e.key === "Enter") {
-                  e.preventDefault();
-                  toggleTask(task.id);
-                }
-              }}
-              className="w-full flex items-start gap-2.5 py-1 px-1 rounded-sm hover:bg-muted/50 transition-colors text-left group cursor-pointer focus:outline-hidden focus-visible:ring-1 focus-visible:ring-ring"
+              className="w-full flex items-start gap-2.5 py-1 px-1 rounded-sm hover:bg-muted/50 transition-colors text-left group"
             >
-              <div
+              <button
+                type="button"
+                role="checkbox"
+                aria-checked={task.completed}
+                onClick={() => toggleTask(task.id)}
                 className={cn(
-                  "mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-xs border transition-colors",
+                  "mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-xs border transition-colors cursor-pointer",
                   task.completed
                     ? "border-emerald-600 bg-emerald-600 text-white"
                     : "border-border group-hover:border-foreground/40 bg-card"
                 )}
+                aria-label={`Toggle ${task.title}`}
               >
                 {task.completed && <Check className="size-3 stroke-[2.5] text-white" />}
-              </div>
+              </button>
 
-              <div className="min-w-0 flex-1 select-none">
-                <p
-                  className={cn(
-                    "text-xs leading-snug transition-colors",
-                    task.completed
-                      ? "font-normal text-muted-foreground line-through"
-                      : "font-medium text-foreground group-hover:text-primary"
-                  )}
+              {task.href ? (
+                <Link
+                  href={task.href}
+                  className="min-w-0 flex-1 select-none flex items-start justify-between gap-1 group/task-link"
                 >
-                  {task.title}
-                </p>
-                <p className="text-[11px] text-muted-foreground/75 mt-0.5 font-normal">
-                  {task.subtitle}
-                </p>
-              </div>
-            </button>
+                  <div className="min-w-0 flex-1">
+                    <p
+                      className={cn(
+                        "text-xs leading-snug transition-colors",
+                        task.completed
+                          ? "font-normal text-muted-foreground line-through"
+                          : "font-medium text-foreground group-hover/task-link:text-primary"
+                      )}
+                    >
+                      {task.title}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground/75 mt-0.5 font-normal">
+                      {task.subtitle}
+                    </p>
+                  </div>
+                  <ArrowRight className="size-3 text-muted-foreground/40 group-hover/task-link:text-primary group-hover/task-link:translate-x-0.5 transition-all shrink-0 mt-0.5" />
+                </Link>
+              ) : (
+                <div className="min-w-0 flex-1 select-none">
+                  <p
+                    className={cn(
+                      "text-xs leading-snug transition-colors",
+                      task.completed
+                        ? "font-normal text-muted-foreground line-through"
+                        : "font-medium text-foreground"
+                    )}
+                  >
+                    {task.title}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground/75 mt-0.5 font-normal">
+                    {task.subtitle}
+                  </p>
+                </div>
+              )}
+            </div>
           ))
         )}
       </div>
