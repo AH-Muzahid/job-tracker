@@ -22,6 +22,33 @@ export function OpportunityJobDetailsCard({ opportunity }: OpportunityJobDetails
     }
   }, [opportunity.postedAt])
 
+  const expDisplay = useMemo(() => {
+    if (opportunity.rationaleParsed?.experienceFit) {
+      return opportunity.rationaleParsed.experienceFit
+    }
+    const desc = opportunity.description || ""
+    const descExpMatch = desc.match(/(?:at least|minimum|\b)\s*(\d+(?:\s*[-–]\s*\d+|\+)?)\s*(?:years?|yrs?)(?:\s*of\s*experience)?/i)
+    if (descExpMatch && descExpMatch[1]) {
+      const num = descExpMatch[1].trim()
+      return `${num} year${num === "1" ? "" : "s"}`
+    }
+    if (/fresher|entry[- ]level|intern|trainee/i.test(desc) || /fresher|entry[- ]level|intern|trainee/i.test(opportunity.title)) {
+      return "Entry / Fresher (0-1 yr)"
+    }
+    return "1-3 years"
+  }, [opportunity])
+
+  const salDisplay = useMemo(() => {
+    const clean = opportunity.cleanSalary
+    if (clean && clean !== "Competitive" && clean !== "Competitive / Not disclosed") return clean
+    const raw = opportunity.salary
+    if (raw && raw !== "Competitive / Not disclosed" && raw !== "Competitive") return raw
+    const desc = opportunity.description || ""
+    const salMatch = desc.match(/(?:remuneration|salary|compensation|pay)[:\s]*([^\n.]+)/i)
+    if (salMatch && salMatch[1]) return salMatch[1].trim()
+    return "Competitive"
+  }, [opportunity])
+
   const details = [
     {
       icon: Building2,
@@ -43,12 +70,12 @@ export function OpportunityJobDetailsCard({ opportunity }: OpportunityJobDetails
     {
       icon: Briefcase,
       label: "Experience Level",
-      value: opportunity.rationaleParsed?.experienceFit || "Mid / Senior Level",
+      value: expDisplay,
     },
     {
       icon: Banknote,
       label: "Salary Range",
-      value: opportunity.cleanSalary || opportunity.salary || "Competitive / Not disclosed",
+      value: salDisplay,
     },
     {
       icon: Building,

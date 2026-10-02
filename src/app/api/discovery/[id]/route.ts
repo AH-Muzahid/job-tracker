@@ -10,6 +10,7 @@ import { parseMatchRationale, getEmploymentType, formatSalaryClean } from "@/com
 import { getCompanyEnrichment } from "@/lib/discovery/company-enrichment"
 import { normalizeCompany, normalizeTitle } from "@/lib/discovery/matching"
 import { getCachedJson } from "@/lib/redis"
+import { fetchLinkedInJobDetail } from "@/lib/discovery/scrapers"
 
 export async function GET(
   request: NextRequest,
@@ -55,6 +56,42 @@ export async function GET(
     const job = match?.job || canonical
     if (!job) {
       return ResponseUtil.error("Opportunity not found", 404)
+    }
+
+    // On-demand enrichment: if description is short or placeholder, fetch authentic rich detail from LinkedIn
+    const isPlaceholderDesc =
+      !job.description ||
+      job.description.length < 250 ||
+      job.description.includes("Verified LinkedIn developer opening")
+    if (
+      isPlaceholderDesc &&
+      (job.sourceBoard === "linkedin_post" || (job.url && job.url.includes("linkedin.com")))
+    ) {
+      const idMatch = (job.url && job.url.match(/-(\d+)(?:$|\/)/)) || job.id.match(/li-(?:guest-)?(\d+)/)
+      if (idMatch) {
+        try {
+          const detail = await fetchLinkedInJobDetail(idMatch[1])
+          if (detail && detail.description && detail.description.length > 80) {
+            job.description = detail.description
+            if (detail.salary) job.salary = detail.salary
+            if (detail.employmentType) job.employmentType = detail.employmentType as any
+
+            // Persist rich description & salary back to database asynchronously
+            withDbRetry(() =>
+              prisma.canonicalJob.update({
+                where: { id: job.id },
+                data: {
+                  description: detail.description,
+                  ...(detail.salary ? { salary: detail.salary } : {}),
+                  ...(detail.employmentType ? { employmentType: detail.employmentType } : {}),
+                },
+              })
+            ).catch(() => {})
+          }
+        } catch {
+          // Fail safely to existing description
+        }
+      }
     }
 
     // 2. Resolve existing Application record in Tracker if already staged or applied

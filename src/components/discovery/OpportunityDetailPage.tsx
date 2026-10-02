@@ -155,43 +155,34 @@ export function OpportunityDetailPage({ id }: OpportunityDetailPageProps) {
     }
   }
 
-  // Parse structured description sections (About, Responsibilities, Qualifications)
+  // Parse structured description sections (About, Responsibilities, Qualifications, What We Offer)
   const parsedDescription = useMemo(() => {
     if (!data?.opportunity.description) {
       return {
-        intro: "We are seeking a talented professional to join our team and build high-impact solutions.",
-        responsibilities: [
-          "Define product vision, strategy, and roadmap aligned with business goals.",
-          "Work closely with cross-functional engineering, design, and product teams to deliver features.",
-          "Conduct user research, market analysis, and evaluate customer feedback.",
-          "Measure product performance and iterate rapidly based on data insights.",
-          "Communicate with stakeholders and team members across the organization.",
-        ],
-        qualifications: [
-          "3+ years of experience in product, engineering, or related software development.",
-          "Strong analytical, problem-solving, and communication skills.",
-          "Experience with modern software stacks and agile development methodologies.",
-          "Proven track record of collaborating across multidisciplinary teams.",
-          "Bachelor's degree or equivalent practical industry experience.",
-        ],
+        intro: "Detailed specifications for this position will be provided during interview stages.",
+        responsibilities: [],
+        qualifications: [],
+        whatWeOffer: [],
       }
     }
 
     const text = data.opportunity.description
-    const respMatch = text.match(/(?:responsibilities|duties|what you['’]ll do|key responsibilities)[:\n]([\s\S]*?)(?=(?:qualifications|requirements|what you['’]ll need|who you are|benefits|$))/i)
-    const qualMatch = text.match(/(?:qualifications|requirements|what you['’]ll need|who you are)[:\n]([\s\S]*?)(?=(?:benefits|perks|about us|$))/i)
+    const respMatch = text.match(/(?:responsibilities|duties|what you['’]ll do|key responsibilities)[:\n]([\s\S]*?)(?=(?:qualifications|requirements|what you['’]ll need|who you are|remuneration|what we offer|benefits|$))/i)
+    const qualMatch = text.match(/(?:qualifications|requirements|what you['’]ll need|who you are)[:\n]([\s\S]*?)(?=(?:remuneration|what we offer|benefits|perks|about us|degree required|$))/i)
+    const offerMatch = text.match(/(?:what we offer|benefits|perks)[:\n]([\s\S]*?)(?=(?:degree required|location|remuneration|a quick note|$))/i)
 
     const parseBullets = (rawSection?: string) => {
       if (!rawSection) return []
       return rawSection
         .split(/\n|\r\n|•|\*/)
         .map((s) => s.trim().replace(/^[-•*]\s*/, ""))
-        .filter((s) => s.length > 15 && s.length < 300)
-        .slice(0, 5)
+        .filter((s) => s.length > 8 && s.length < 350)
+        .slice(0, 8)
     }
 
     const responsibilities = parseBullets(respMatch?.[1])
     const qualifications = parseBullets(qualMatch?.[1])
+    const whatWeOffer = parseBullets(offerMatch?.[1])
 
     let intro = text
     if (respMatch?.index !== undefined && respMatch.index > 20) {
@@ -199,22 +190,15 @@ export function OpportunityDetailPage({ id }: OpportunityDetailPageProps) {
     } else if (qualMatch?.index !== undefined && qualMatch.index > 20) {
       intro = text.slice(0, qualMatch.index).trim()
     }
-    if (intro.length > 500) intro = intro.slice(0, 480) + "..."
+    // Clean leading "Description" word
+    intro = intro.replace(/^description\s*/i, "").trim()
+    if (intro.length > 600) intro = intro.slice(0, 580) + "..."
 
     return {
-      intro: intro || "Join our team to design, build, and scale innovative software products that serve users worldwide.",
-      responsibilities: responsibilities.length > 0 ? responsibilities : [
-        "Define product vision, strategy, and roadmap aligned with business goals.",
-        "Work closely with cross-functional teams to deliver high-impact features.",
-        "Conduct user research and iterate based on actionable product metrics.",
-        "Communicate clearly with technical and non-technical stakeholders.",
-      ],
-      qualifications: qualifications.length > 0 ? qualifications : [
-        "3+ years of experience in product management or software engineering.",
-        "Strong analytical, problem-solving, and team communication skills.",
-        "Experience collaborating with cross-functional agile teams.",
-        "Bachelor's degree in Computer Science, Engineering, or equivalent experience.",
-      ],
+      intro: intro || "Review the full job details and requirements below.",
+      responsibilities,
+      qualifications,
+      whatWeOffer,
     }
   }, [data?.opportunity.description])
 
@@ -227,17 +211,45 @@ export function OpportunityDetailPage({ id }: OpportunityDetailPageProps) {
   }, [data?.opportunity])
 
   const experienceDisplay = useMemo(() => {
-    if (!data?.opportunity) return "3-5 years"
+    if (!data?.opportunity) return "Not specified"
+    const desc = data.opportunity.description || ""
+
+    // Scan description first for authentic experience requirements:
+    // e.g. "At least 1 year of experience", "Minimum 1 year", "1-3 years", "Freshers welcome"
+    const descExpMatch = desc.match(/(?:at least|minimum|\b)\s*(\d+(?:\s*[-–]\s*\d+|\+)?)\s*(?:years?|yrs?)(?:\s*of\s*experience)?/i)
+    if (descExpMatch && descExpMatch[1]) {
+      const num = descExpMatch[1].trim()
+      return `${num} year${num === "1" ? "" : "s"}`
+    }
+    if (/fresher|entry[- ]level|intern|trainee/i.test(desc) || /fresher|entry[- ]level|intern|trainee/i.test(data.opportunity.title)) {
+      return "Entry / Fresher (0-1 yr)"
+    }
+
     const exp = data.opportunity.rationaleParsed?.experienceFit || ""
     const match = exp.match(/(\d+(?:\s*[-–]\s*\d+|\+)?\s*(?:years|yrs))/i)
     if (match) return match[1]
-    if (exp.length > 0 && exp.length <= 25) return exp
-    return data.opportunity.employmentType ? "3-5 years" : "Mid / Senior Level"
+    if (exp.length > 0 && exp.length <= 25 && !/senior/i.test(exp)) return exp
+
+    return "1-3 years"
   }, [data?.opportunity])
 
   const salaryDisplay = useMemo(() => {
     if (!data?.opportunity) return ""
-    return data.opportunity.cleanSalary || data.opportunity.salary || "Competitive Salary"
+    const clean = data.opportunity.cleanSalary
+    if (clean && clean !== "Competitive" && clean !== "Competitive / Not disclosed" && clean !== "Competitive Salary") {
+      return clean
+    }
+    const raw = data.opportunity.salary
+    if (raw && raw !== "Competitive / Not disclosed" && raw !== "Competitive" && raw !== "Competitive Salary") {
+      return raw
+    }
+    // Scan description for authentic remuneration / salary
+    const desc = data.opportunity.description || ""
+    const salMatch = desc.match(/(?:remuneration|salary|compensation|pay)[:\s]*([^\n.]+)/i)
+    if (salMatch && salMatch[1]) {
+      return salMatch[1].trim()
+    }
+    return "Competitive"
   }, [data?.opportunity])
 
   // Loading skeleton
@@ -419,30 +431,49 @@ export function OpportunityDetailPage({ id }: OpportunityDetailPageProps) {
             </div>
 
             {/* Key Responsibilities */}
-            <div className="space-y-2.5 pt-2 sm:pt-1">
-              <h3 className="text-xs sm:text-sm font-bold text-foreground">Key Responsibilities</h3>
-              <ul className="space-y-2 text-xs sm:text-sm text-muted-foreground">
-                {parsedDescription.responsibilities.map((resp, idx) => (
-                  <li key={idx} className="flex items-start gap-2 leading-relaxed">
-                    <span className="size-1.5 rounded-full bg-primary/70 shrink-0 mt-2" />
-                    <span>{resp}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
+            {parsedDescription.responsibilities.length > 0 && (
+              <div className="space-y-2.5 pt-2 sm:pt-1">
+                <h3 className="text-xs sm:text-sm font-bold text-foreground">Key Responsibilities</h3>
+                <ul className="space-y-2 text-xs sm:text-sm text-muted-foreground">
+                  {parsedDescription.responsibilities.map((resp, idx) => (
+                    <li key={idx} className="flex items-start gap-2 leading-relaxed">
+                      <span className="size-1.5 rounded-full bg-primary/70 shrink-0 mt-2" />
+                      <span>{resp}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
-            {/* Qualifications */}
-            <div className="space-y-2.5 pt-1">
-              <h3 className="text-xs sm:text-sm font-bold text-foreground">Qualifications</h3>
-              <ul className="space-y-2 text-xs sm:text-sm text-muted-foreground">
-                {parsedDescription.qualifications.map((qual, idx) => (
-                  <li key={idx} className="flex items-start gap-2 leading-relaxed">
-                    <span className="size-1.5 rounded-full bg-primary/70 shrink-0 mt-2" />
-                    <span>{qual}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
+            {/* Qualifications / Requirements */}
+            {parsedDescription.qualifications.length > 0 && (
+              <div className="space-y-2.5 pt-1">
+                <h3 className="text-xs sm:text-sm font-bold text-foreground">Requirements & Qualifications</h3>
+                <ul className="space-y-2 text-xs sm:text-sm text-muted-foreground">
+                  {parsedDescription.qualifications.map((qual, idx) => (
+                    <li key={idx} className="flex items-start gap-2 leading-relaxed">
+                      <span className="size-1.5 rounded-full bg-primary/70 shrink-0 mt-2" />
+                      <span>{qual}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* What We Offer */}
+            {parsedDescription.whatWeOffer && parsedDescription.whatWeOffer.length > 0 && (
+              <div className="space-y-2.5 pt-1">
+                <h3 className="text-xs sm:text-sm font-bold text-foreground">What We Offer</h3>
+                <ul className="space-y-2 text-xs sm:text-sm text-muted-foreground">
+                  {parsedDescription.whatWeOffer.map((offer, idx) => (
+                    <li key={idx} className="flex items-start gap-2 leading-relaxed">
+                      <span className="size-1.5 rounded-full bg-emerald-500/70 shrink-0 mt-2" />
+                      <span>{offer}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
             {/* Note Alert Callout Box (Matching media_1790344251697.png) */}
             <div className="flex items-start gap-3 p-3.5 rounded-sm bg-sky-50 dark:bg-sky-950/40 border border-sky-200/80 dark:border-sky-800/40 text-xs">

@@ -1,6 +1,6 @@
 import { prisma, withDbRetry } from "@/lib/prisma"
 import { UnifiedRawJob } from "./types"
-import { fetchLinkedInGuestJobs } from "./scrapers"
+import { fetchLinkedInGuestJobs, fetchLinkedInJobDetail } from "./scrapers"
 import {
   isValidJobPostingUrl,
   isLegitimateTechDevRole,
@@ -126,7 +126,27 @@ export async function harvestLinkedInOpportunities(
     }
   }
 
-  return Array.from(uniqueJobsMap.values())
+  const uniqueJobsList = Array.from(uniqueJobsMap.values())
+
+  // Parallel enrichment: fetch authentic full descriptions and remuneration for harvested jobs
+  await Promise.allSettled(
+    uniqueJobsList.slice(0, 12).map(async (job) => {
+      const idMatch = job.url.match(/-(\d+)(?:$|\/)/)
+      if (!idMatch) return
+      try {
+        const detail = await fetchLinkedInJobDetail(idMatch[1])
+        if (detail && detail.isActive && detail.description && detail.description.length > 80) {
+          job.description = detail.description
+          if (detail.salary) job.salary = detail.salary
+          if (detail.employmentType) job.employmentType = detail.employmentType as any
+        }
+      } catch {
+        // Safe fallback to snippet
+      }
+    })
+  )
+
+  return uniqueJobsList
 }
 
 /**
@@ -175,7 +195,7 @@ export async function ingestLinkedInOpportunitiesToCatalog(
               location: job.location,
               isRemote,
               url: job.url,
-              salary: job.salaryText || null,
+              salary: job.salary || job.salaryText || null,
               salaryMin: job.salaryMin || null,
               salaryMax: job.salaryMax || null,
               tags: job.tags || [],
@@ -192,6 +212,9 @@ export async function ingestLinkedInOpportunitiesToCatalog(
               location: job.location,
               url: job.url,
               tags: job.tags || [],
+              description: job.description || null,
+              salary: job.salary || job.salaryText || null,
+              employmentType: job.employmentType || "full-time",
               isExpired: false,
               updatedAt: now,
             },

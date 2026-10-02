@@ -436,6 +436,7 @@ export async function fetchLinkedInJobDetail(jobId: string): Promise<{
   seniority?: string
   employmentType?: string
   isActive: boolean
+  salary?: string
 } | null> {
   try {
     const controller = new AbortController()
@@ -472,19 +473,39 @@ export async function fetchLinkedInJobDetail(jobId: string): Promise<{
       criteria[label] = val
     }
 
-    // Extract rich description text
+    // Extract rich description text preserving linebreaks and bullet points
     let description: string | undefined
+    let salary: string | undefined
     const descMatch = html.match(/class="(?:show-more-less-html__markup|description__text)[^"]*"[^>]*>([\s\S]*?)<\/div>/i)
     if (descMatch) {
       description = descMatch[1]
+        .replace(/<li[^>]*>/gi, "\n• ")
+        .replace(/<\/li>/gi, "")
         .replace(/<br\s*\/?>/gi, "\n")
-        .replace(/<\/p>/gi, "\n\n")
-        .replace(/<[^>]+>/g, " ")
+        .replace(/<\/(p|div|h[1-6])>/gi, "\n\n")
+        .replace(/<[^>]+>/g, "")
         .replace(/&amp;/g, "&")
         .replace(/&quot;/g, '"')
         .replace(/&#39;/g, "'")
-        .replace(/\s+/g, " ")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/[ \t]+/g, " ")
+        .replace(/\n\s*\n\s*\n+/g, "\n\n")
         .trim()
+
+      // Extract remuneration / salary if mentioned in the job description text
+      const salMatch = description.match(/(?:remuneration|salary|compensation|pay)[:\s]*([^\n.]+)/i)
+      if (salMatch && salMatch[1]) {
+        salary = salMatch[1].trim()
+      }
+    }
+
+    // Secondary salary search from LinkedIn header metadata if not in description
+    if (!salary) {
+      const metaSalMatch = html.match(/class="[^"]*(?:salary|compensation)[^"]*"[^>]*>([\s\S]*?)<\//i)
+      if (metaSalMatch && metaSalMatch[1]) {
+        salary = metaSalMatch[1].replace(/<[^>]+>/g, "").trim()
+      }
     }
 
     return {
@@ -492,6 +513,7 @@ export async function fetchLinkedInJobDetail(jobId: string): Promise<{
       seniority: criteria["seniority level"],
       employmentType: criteria["employment type"],
       isActive: true,
+      salary,
     }
   } catch {
     return null

@@ -59,6 +59,7 @@ export interface UnifiedRawJob {
   salaryMin?: number
   salaryMax?: number
   salaryText?: string
+  salary?: string
   description: string
   postedAt?: string | Date
   visaSponsorship?: "available" | "not_available" | "unknown"
