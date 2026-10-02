@@ -64,6 +64,11 @@ const REDIS_KEYS = {
 
 const MAX_RING_BUFFER_SIZE = 50
 
+// Resilient process-level fallback buffers in case Redis is unconfigured or temporarily unavailable
+const inMemoryLLMRing: LLMCallRingItem[] = []
+const inMemoryAgentRing: AgentStepRingItem[] = []
+const inMemoryJobRing: JobRunRingItem[] = []
+
 /**
  * Calculates estimated USD cost based on published frontier and small model rates.
  */
@@ -112,44 +117,50 @@ export async function recordLLMCallToRing(params: {
   userId?: string
   sessionId?: string
 }): Promise<void> {
+  const promptTokens = params.promptTokens || 0
+  const completionTokens = params.completionTokens || 0
+  const totalTokens = promptTokens + completionTokens
+  const model = params.model || "unknown-model"
+  const cost = estimateTokenCost(model, promptTokens, completionTokens)
+
+  const item: LLMCallRingItem = {
+    id: `llm_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+    name: params.name,
+    provider: params.provider || "openai",
+    model,
+    promptTokens,
+    completionTokens,
+    totalTokens,
+    latencyMs: Math.round(params.latencyMs || 0),
+    status: params.status,
+    error: params.error,
+    userId: params.userId,
+    sessionId: params.sessionId,
+    estimatedCostUsd: cost,
+    timestamp: new Date().toISOString(),
+  }
+
+  // 1. Always record into process-level in-memory ring buffer
+  inMemoryLLMRing.unshift(item)
+  if (inMemoryLLMRing.length > MAX_RING_BUFFER_SIZE) {
+    inMemoryLLMRing.length = MAX_RING_BUFFER_SIZE
+  }
+
   const redis = getRedisClient()
   if (!redis) return
 
   try {
-    const promptTokens = params.promptTokens || 0
-    const completionTokens = params.completionTokens || 0
-    const totalTokens = promptTokens + completionTokens
-    const model = params.model || "unknown-model"
-    const cost = estimateTokenCost(model, promptTokens, completionTokens)
-
-    const item: LLMCallRingItem = {
-      id: `llm_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-      name: params.name,
-      provider: params.provider || "openai",
-      model,
-      promptTokens,
-      completionTokens,
-      totalTokens,
-      latencyMs: Math.round(params.latencyMs || 0),
-      status: params.status,
-      error: params.error,
-      userId: params.userId,
-      sessionId: params.sessionId,
-      estimatedCostUsd: cost,
-      timestamp: new Date().toISOString(),
-    }
-
     const today = getTodayKey()
     const statsKey = REDIS_KEYS.DAILY_STATS(today)
 
     await Promise.allSettled([
-      // 1. Push to ring buffer & trim
+      // Push to ring buffer & trim
       (async () => {
         await redis.lpush(REDIS_KEYS.LLM_RECENT, JSON.stringify(item))
         await redis.ltrim(REDIS_KEYS.LLM_RECENT, 0, MAX_RING_BUFFER_SIZE - 1)
         await redis.expire(REDIS_KEYS.LLM_RECENT, 86400 * 7) // 7 days retention
       })(),
-      // 2. Increment daily aggregation counters
+      // Increment daily aggregation counters
       (async () => {
         await redis.hincrby(statsKey, "totalCalls", 1)
         await redis.hincrby(statsKey, "promptTokens", promptTokens)
@@ -163,7 +174,7 @@ export async function recordLLMCallToRing(params: {
       })(),
     ])
   } catch (err) {
-    console.warn("[Ops Telemetry Ring] Failed to record LLM call:", err)
+    console.warn("[Ops Telemetry Ring] Failed to record LLM call to Redis:", err)
   }
 }
 
@@ -172,20 +183,28 @@ export async function recordLLMCallToRing(params: {
  */
 export async function getRecentLLMCalls(limit = 30): Promise<LLMCallRingItem[]> {
   const redis = getRedisClient()
-  if (!redis) return []
+  if (!redis) {
+    return inMemoryLLMRing.slice(0, limit)
+  }
 
   try {
     const rawItems = await redis.lrange(REDIS_KEYS.LLM_RECENT, 0, limit - 1)
-    return (rawItems || []).map((str) => {
+    const redisCalls = (rawItems || []).map((str) => {
       try {
         return typeof str === "string" ? JSON.parse(str) : str
       } catch {
         return null
       }
     }).filter(Boolean) as LLMCallRingItem[]
+
+    if (redisCalls.length > 0) {
+      return redisCalls
+    }
+    // Fallback to in-memory ring if Redis list is empty
+    return inMemoryLLMRing.slice(0, limit)
   } catch (err) {
-    console.warn("[Ops Telemetry Ring] Failed to get recent LLM calls:", err)
-    return []
+    console.warn("[Ops Telemetry Ring] Failed to get recent LLM calls from Redis, falling back to memory:", err)
+    return inMemoryLLMRing.slice(0, limit)
   }
 }
 
@@ -201,27 +220,33 @@ export async function recordAgentStepToRing(params: {
   status: "success" | "error"
   error?: string
 }): Promise<void> {
+  const item: AgentStepRingItem = {
+    id: `agent_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+    nodeName: params.nodeName,
+    sessionId: params.sessionId,
+    userId: params.userId,
+    tokens: params.tokens || 0,
+    durationMs: Math.round(params.durationMs || 0),
+    status: params.status,
+    error: params.error,
+    timestamp: new Date().toISOString(),
+  }
+
+  // Always record into process-level in-memory ring buffer
+  inMemoryAgentRing.unshift(item)
+  if (inMemoryAgentRing.length > MAX_RING_BUFFER_SIZE) {
+    inMemoryAgentRing.length = MAX_RING_BUFFER_SIZE
+  }
+
   const redis = getRedisClient()
   if (!redis) return
 
   try {
-    const item: AgentStepRingItem = {
-      id: `agent_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-      nodeName: params.nodeName,
-      sessionId: params.sessionId,
-      userId: params.userId,
-      tokens: params.tokens || 0,
-      durationMs: Math.round(params.durationMs || 0),
-      status: params.status,
-      error: params.error,
-      timestamp: new Date().toISOString(),
-    }
-
     await redis.lpush(REDIS_KEYS.AGENT_RECENT, JSON.stringify(item))
     await redis.ltrim(REDIS_KEYS.AGENT_RECENT, 0, MAX_RING_BUFFER_SIZE - 1)
     await redis.expire(REDIS_KEYS.AGENT_RECENT, 86400 * 7)
   } catch (err) {
-    console.warn("[Ops Telemetry Ring] Failed to record Agent step:", err)
+    console.warn("[Ops Telemetry Ring] Failed to record Agent step to Redis:", err)
   }
 }
 
@@ -230,20 +255,27 @@ export async function recordAgentStepToRing(params: {
  */
 export async function getRecentAgentSteps(limit = 30): Promise<AgentStepRingItem[]> {
   const redis = getRedisClient()
-  if (!redis) return []
+  if (!redis) {
+    return inMemoryAgentRing.slice(0, limit)
+  }
 
   try {
     const rawItems = await redis.lrange(REDIS_KEYS.AGENT_RECENT, 0, limit - 1)
-    return (rawItems || []).map((str) => {
+    const redisSteps = (rawItems || []).map((str) => {
       try {
         return typeof str === "string" ? JSON.parse(str) : str
       } catch {
         return null
       }
     }).filter(Boolean) as AgentStepRingItem[]
+
+    if (redisSteps.length > 0) {
+      return redisSteps
+    }
+    return inMemoryAgentRing.slice(0, limit)
   } catch (err) {
-    console.warn("[Ops Telemetry Ring] Failed to get recent Agent steps:", err)
-    return []
+    console.warn("[Ops Telemetry Ring] Failed to get recent Agent steps from Redis, falling back to memory:", err)
+    return inMemoryAgentRing.slice(0, limit)
   }
 }
 
@@ -260,27 +292,33 @@ export async function recordJobRunToRing(params: {
   details?: Record<string, unknown>
   logs?: string[]
 }): Promise<void> {
+  const item: JobRunRingItem = {
+    id: `job_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+    functionId: params.functionId,
+    eventId: params.eventId,
+    status: params.status,
+    durationMs: Math.round(params.durationMs || 0),
+    error: params.error,
+    startedAt: params.startedAt || new Date().toISOString(),
+    details: params.details,
+    logs: params.logs || [],
+  }
+
+  // Always record into process-level in-memory ring buffer
+  inMemoryJobRing.unshift(item)
+  if (inMemoryJobRing.length > MAX_RING_BUFFER_SIZE) {
+    inMemoryJobRing.length = MAX_RING_BUFFER_SIZE
+  }
+
   const redis = getRedisClient()
   if (!redis) return
 
   try {
-    const item: JobRunRingItem = {
-      id: `job_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-      functionId: params.functionId,
-      eventId: params.eventId,
-      status: params.status,
-      durationMs: Math.round(params.durationMs || 0),
-      error: params.error,
-      startedAt: params.startedAt || new Date().toISOString(),
-      details: params.details,
-      logs: params.logs || [],
-    }
-
     await redis.lpush(REDIS_KEYS.JOB_RECENT, JSON.stringify(item))
     await redis.ltrim(REDIS_KEYS.JOB_RECENT, 0, MAX_RING_BUFFER_SIZE - 1)
     await redis.expire(REDIS_KEYS.JOB_RECENT, 86400 * 7)
   } catch (err) {
-    console.warn("[Ops Telemetry Ring] Failed to record Job run:", err)
+    console.warn("[Ops Telemetry Ring] Failed to record Job run to Redis:", err)
   }
 }
 
@@ -289,20 +327,27 @@ export async function recordJobRunToRing(params: {
  */
 export async function getRecentJobRuns(limit = 30): Promise<JobRunRingItem[]> {
   const redis = getRedisClient()
-  if (!redis) return []
+  if (!redis) {
+    return inMemoryJobRing.slice(0, limit)
+  }
 
   try {
     const rawItems = await redis.lrange(REDIS_KEYS.JOB_RECENT, 0, limit - 1)
-    return (rawItems || []).map((str) => {
+    const redisJobs = (rawItems || []).map((str) => {
       try {
         return typeof str === "string" ? JSON.parse(str) : str
       } catch {
         return null
       }
     }).filter(Boolean) as JobRunRingItem[]
+
+    if (redisJobs.length > 0) {
+      return redisJobs
+    }
+    return inMemoryJobRing.slice(0, limit)
   } catch (err) {
-    console.warn("[Ops Telemetry Ring] Failed to get recent Job runs:", err)
-    return []
+    console.warn("[Ops Telemetry Ring] Failed to get recent Job runs from Redis, falling back to memory:", err)
+    return inMemoryJobRing.slice(0, limit)
   }
 }
 
@@ -311,21 +356,45 @@ export async function getRecentJobRuns(limit = 30): Promise<JobRunRingItem[]> {
  */
 export async function getOpsMetricsSummary(): Promise<OpsMetricsSummary> {
   const redis = getRedisClient()
-  const emptySummary: OpsMetricsSummary = {
-    totalLLMCalls: 0,
-    totalTokens: 0,
-    promptTokens: 0,
-    completionTokens: 0,
-    totalCostUsd: 0,
-    avgLatencyMs: 0,
-    errorCount: 0,
-    successRate: 100,
-    activePipelinesCount: 14,
-    recentJobsCount: 0,
-    jobSuccessRate: 100,
+
+  const computeFromLocal = async (): Promise<OpsMetricsSummary> => {
+    const recentLLMs = await getRecentLLMCalls(50)
+    const recentJobs = await getRecentJobRuns(50)
+
+    const totalCalls = recentLLMs.length
+    const promptTokens = recentLLMs.reduce((acc, c) => acc + c.promptTokens, 0)
+    const completionTokens = recentLLMs.reduce((acc, c) => acc + c.completionTokens, 0)
+    const totalTokens = promptTokens + completionTokens
+    const totalLatencyMs = recentLLMs.reduce((acc, c) => acc + c.latencyMs, 0)
+    const errorCount = recentLLMs.filter((c) => c.status === "error").length
+
+    const avgLatencyMs = totalCalls > 0 ? Math.round(totalLatencyMs / totalCalls) : 0
+    const successRate = totalCalls > 0 ? Math.round(((totalCalls - errorCount) / totalCalls) * 1000) / 10 : 100
+    const totalCostUsd = recentLLMs.reduce((acc, c) => acc + (c.estimatedCostUsd || 0), 0)
+
+    const jobSuccessCount = recentJobs.filter((j) => j.status === "completed").length
+    const jobSuccessRate = recentJobs.length > 0
+      ? Math.round((jobSuccessCount / recentJobs.length) * 1000) / 10
+      : 100
+
+    return {
+      totalLLMCalls: totalCalls,
+      totalTokens,
+      promptTokens,
+      completionTokens,
+      totalCostUsd: Math.round(totalCostUsd * 1000) / 1000,
+      avgLatencyMs,
+      errorCount,
+      successRate,
+      activePipelinesCount: 14,
+      recentJobsCount: recentJobs.length,
+      jobSuccessRate,
+    }
   }
 
-  if (!redis) return emptySummary
+  if (!redis) {
+    return computeFromLocal()
+  }
 
   try {
     const today = getTodayKey()
@@ -369,7 +438,7 @@ export async function getOpsMetricsSummary(): Promise<OpsMetricsSummary> {
       jobSuccessRate,
     }
   } catch (err) {
-    console.warn("[Ops Telemetry Ring] Failed to get metrics summary:", err)
-    return emptySummary
+    console.warn("[Ops Telemetry Ring] Failed to get metrics summary from Redis:", err)
+    return computeFromLocal()
   }
 }
