@@ -2,11 +2,12 @@
 
 import { useState } from "react"
 import {
-  Search, X, SlidersHorizontal, RefreshCw
+  Search, X, SlidersHorizontal, RefreshCw, Plus, Layers
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { cn } from "@/lib/utils"
+import { useUI } from "@/lib/store"
 import { DiscoveryFilterSidebar } from "./DiscoveryFilterSidebar"
 import { DiscoverySortDropdown } from "./DiscoverySortDropdown"
 import { DiscoveryJobList } from "./DiscoveryJobList"
@@ -60,6 +61,8 @@ export function DiscoveryPage() {
     queryClient,
   } = useJobDiscovery()
 
+  const setEvaluatorModal = useUI((s) => s.setEvaluatorModal)
+
   const tabs: { id: DiscoveryTab; label: string; count?: number }[] = [
     { id: "all", label: "All", count: data?.count ?? allOpportunities.length },
     { id: "today", label: "Today", count: facetCounts.today },
@@ -91,8 +94,17 @@ export function DiscoveryPage() {
               <BatchCountdown nextBatchAt={data?.nextBatchAt} className="mt-1.5" />
             </div>
             
-            {/* Header Actions: Sync Live Jobs & Job Preferences */}
+            {/* Header Actions: Import Feed Post, Sync Live Jobs & Job Preferences */}
             <div className="flex items-center gap-2 shrink-0">
+              <Button
+                variant="outline"
+                onClick={() => setEvaluatorModal(true)}
+                className="h-8.5 px-3 text-xs gap-1.5 rounded-sm cursor-pointer border-border font-medium hover:bg-muted transition-colors shadow-none"
+                title="Paste LinkedIn feed post text, shortlink, or raw job description"
+              >
+                <Plus className="size-3.5 text-muted-foreground" />
+                <span>Import Feed Post / JD</span>
+              </Button>
               <Button
                 variant="outline"
                 disabled={isRefreshingFeed || isRefetching}
@@ -123,6 +135,14 @@ export function DiscoveryPage() {
                 Opportunities
               </h1>
               <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setEvaluatorModal(true)}
+                  className="size-8.5 rounded-sm border border-border flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+                  title="Import LinkedIn Feed Post or external JD"
+                >
+                  <Plus className="size-4" />
+                </button>
                 <button
                   type="button"
                   disabled={isRefreshingFeed || isRefetching}
@@ -176,6 +196,32 @@ export function DiscoveryPage() {
                 )}
               </div>
             )}
+          </div>
+
+          {/* Quick Intake Banner for Organic Feed Posts */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 rounded-md border border-border/80 bg-card/60">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="size-7 rounded-sm bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+                <Layers className="size-3.5 text-primary" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-medium text-foreground truncate sm:whitespace-normal">
+                  Found an organic hiring post on LinkedIn Feed, X, or WhatsApp?
+                </p>
+                <p className="text-[11px] text-muted-foreground truncate sm:whitespace-normal">
+                  Paste the post text or apply link to instantly extract company info, evaluate profile fit, and 1-click stage your application.
+                </p>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setEvaluatorModal(true)}
+              className="h-7 px-2.5 text-xs rounded-sm shrink-0 font-medium border-border hover:bg-muted cursor-pointer shadow-none gap-1"
+            >
+              <Plus className="size-3 text-muted-foreground" />
+              <span>Evaluate Post</span>
+            </Button>
           </div>
 
           {/* ========================================================================= */}

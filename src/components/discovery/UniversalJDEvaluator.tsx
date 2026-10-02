@@ -151,12 +151,15 @@ export function UniversalJDEvaluator({
 
     try {
       const isUrl = /^https?:\/\/[^\s]+$/i.test(trimmedInput)
+      const embeddedUrlMatch = trimmedInput.match(/https?:\/\/[^\s"'<>]+/i)
+      const resolvedUrl = isUrl ? trimmedInput : (jobUrl.trim() || (embeddedUrlMatch ? embeddedUrlMatch[0] : undefined))
+
       const payload = {
-        url: isUrl ? trimmedInput : jobUrl.trim() || undefined,
+        url: resolvedUrl,
         rawText: isUrl ? undefined : trimmedInput,
         companyName: companyName.trim() || undefined,
         jobTitle: jobTitle.trim() || undefined,
-        source,
+        source: source || (trimmedInput.toLowerCase().includes("linkedin") ? "LinkedIn" : "Direct"),
       }
 
       const res = await fetch("/api/discovery/evaluate", {
@@ -546,7 +549,7 @@ export function UniversalJDEvaluator({
               </Badge>
             </CardTitle>
             <CardDescription className="text-xs text-muted-foreground">
-              Paste any job posting URL or raw text to get an instant match evaluation, tech stack extraction, and scam risk check.
+              Paste any job posting URL, raw JD, or informal LinkedIn/X/WhatsApp hiring post to get an instant match evaluation, tech stack extraction, and 1-click tailored application package.
             </CardDescription>
           </div>
         </div>
@@ -557,7 +560,7 @@ export function UniversalJDEvaluator({
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <Label htmlFor="jd-input" className="text-xs font-semibold text-foreground">
-                Job Posting URL or Description
+                Job Posting URL, Description, or Feed Post
               </Label>
               <Button
                 type="button"
@@ -571,7 +574,7 @@ export function UniversalJDEvaluator({
             </div>
             <Textarea
               id="jd-input"
-              placeholder="Paste LinkedIn, Greenhouse, Lever, or Indeed URL, or paste the raw job description..."
+              placeholder="Paste a LinkedIn feed post, hiring announcement, WhatsApp message, or job URL (e.g. 'We\'re Hiring: Full Stack Developer...', https://lnkd.in/...)"
               className="min-h-[130px] max-h-[220px] text-xs leading-relaxed bg-muted/20 border-border focus-visible:ring-1 rounded-lg resize-none placeholder:text-muted-foreground/60"
               value={jdInput}
               onChange={(e) => setJdInput(e.target.value)}

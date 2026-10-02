@@ -74,6 +74,12 @@ export async function POST(request: NextRequest) {
     if (!targetUrl && /^https?:\/\/[^\s]+$/i.test(finalJdText)) {
       targetUrl = finalJdText
       finalJdText = ""
+    } else if (!targetUrl && finalJdText) {
+      // Extract embedded apply or source link (e.g. lnkd.in, forms.gle, bit.ly, career page)
+      const embeddedUrlMatch = finalJdText.match(/https?:\/\/[^\s"'<>]+/i)
+      if (embeddedUrlMatch) {
+        targetUrl = embeddedUrlMatch[0]
+      }
     }
 
     // Scrape URL if provided and raw text is insufficient (< 50 chars)
