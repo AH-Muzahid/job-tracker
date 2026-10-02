@@ -304,4 +304,12 @@ describe("Copilot Fresh Chat & Non-Empty Responder Guarantees", () => {
       "https://generativelanguage.googleapis.com/v1beta/openai/"
     );
   });
+
+  it("falls back to resilient BaseCheckpointSaver when checkpointer is requested", async () => {
+    const { getGraphCheckpointer } = await import("@/lib/ai/graph/checkpointer");
+    const checkpointer = await getGraphCheckpointer();
+    expect(checkpointer).toBeDefined();
+    expect(typeof checkpointer.getTuple).toBe("function");
+    expect(typeof checkpointer.put).toBe("function");
+  });
 });

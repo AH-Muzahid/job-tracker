@@ -4,12 +4,21 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }
 
+const connectionUrl = process.env.DATABASE_URL
+  ? process.env.DATABASE_URL.includes("connection_limit")
+    ? process.env.DATABASE_URL
+    : `${process.env.DATABASE_URL}${process.env.DATABASE_URL.includes("?") ? "&" : "?"}connection_limit=3`
+  : undefined
+
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export const prisma: PrismaClient & {
   userMemory: any
   knowledgeGraph: any
   [key: string]: any
-} = (globalForPrisma.prisma ?? new PrismaClient()) as any
+} = (globalForPrisma.prisma ??
+  new PrismaClient({
+    datasourceUrl: connectionUrl,
+  })) as any
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma
 

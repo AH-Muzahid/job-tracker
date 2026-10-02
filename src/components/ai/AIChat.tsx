@@ -176,6 +176,7 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar, onToggl
   const abortRef = useRef<AbortController | null>(null)
   const createdSessionIdRef = useRef<string | null>(null)
   const isStreamingRef = useRef(false)
+  const activeStreamSessionIdRef = useRef<string | null>(null)
   
   const pathname = usePathname()
   const params = useParams()
@@ -252,6 +253,11 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar, onToggl
 
   // Fast session switch: abort previous stream & immediately show cached messages or clear ghost messages
   useEffect(() => {
+    // If the active stream is for THIS session (e.g. session just created or in-flight), DO NOT abort or wipe!
+    if (activeStreamSessionIdRef.current && activeStreamSessionIdRef.current === sessionId) {
+      return
+    }
+
     if (createdSessionIdRef.current === sessionId) {
       return
     }
@@ -304,8 +310,16 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar, onToggl
       return
     }
 
+    // If streaming is currently active for this session, never overwrite local messages
+    if (activeStreamSessionIdRef.current === sessionId) {
+      loadedSessionIdRef.current = sessionId
+      return
+    }
+
     if (createdSessionIdRef.current === sessionId) {
-      createdSessionIdRef.current = null
+      if (!isStreamingRef.current) {
+        createdSessionIdRef.current = null
+      }
       loadedSessionIdRef.current = sessionId
       return
     }
@@ -511,6 +525,8 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar, onToggl
       } else {
         console.log(`[Chat] 3. Using existing session: ${currentSessionId}`)
       }
+
+      activeStreamSessionIdRef.current = currentSessionId
 
       const controller = new AbortController()
       abortRef.current = controller
@@ -766,6 +782,8 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar, onToggl
       console.log(`[Chat] 9. Streaming complete — cleaning up`)
       setIsStreaming(false)
       isStreamingRef.current = false
+      activeStreamSessionIdRef.current = null
+      createdSessionIdRef.current = null
       abortRef.current = null
       void queryClient.invalidateQueries({ queryKey: ["applications"] })
       void queryClient.invalidateQueries({ queryKey: ["stats"] })
@@ -787,6 +805,8 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar, onToggl
       abortRef.current.abort()
       abortRef.current = null
     }
+    activeStreamSessionIdRef.current = null
+    createdSessionIdRef.current = null
     setIsStreaming(false)
     isStreamingRef.current = false
   }
@@ -867,6 +887,7 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar, onToggl
 
       isStreamingRef.current = true
       setIsStreaming(true)
+      activeStreamSessionIdRef.current = currentSessionId
 
       setMessages((prev) => [
         ...prev,
@@ -1031,6 +1052,7 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar, onToggl
       } finally {
         isStreamingRef.current = false
         setIsStreaming(false)
+        activeStreamSessionIdRef.current = null
         abortRef.current = null
         void queryClient.invalidateQueries({ queryKey: ["applications"] })
         void queryClient.invalidateQueries({ queryKey: ["stats"] })
