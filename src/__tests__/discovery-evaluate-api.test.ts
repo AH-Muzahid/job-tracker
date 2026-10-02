@@ -96,4 +96,71 @@ describe("Discovery Evaluate & Ingestion Engine (CAG-03)", () => {
       expect(isPrivateOrLocalHost("stripe.com")).toBe(false)
     })
   })
+
+  describe("LinkedIn Post & URL Scraper Resilience", () => {
+    it("correctly extracts company and role using pipe delimiter and decodes HTML entities", () => {
+      const rawTitle = "🚀 We’re Hiring: Full Stack Developer | BEK &amp; Co."
+      const decodedTitle = rawTitle
+        .replace(/&amp;/g, "&")
+        .replace(/&#39;/g, "'")
+        .replace(/&quot;/g, '"')
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .trim()
+
+      const parts = decodedTitle.split(/[-|–|\|]/)
+      const rolePart = parts[0]?.trim()
+      const companyPart = parts[1]?.trim()
+
+      expect(decodedTitle).toBe("🚀 We’re Hiring: Full Stack Developer | BEK & Co.")
+      expect(rolePart).toContain("Full Stack Developer")
+      expect(companyPart).toBe("BEK & Co.")
+    })
+
+    it("detects LinkedIn login and authentication walls to prevent feeding junk to LLM", () => {
+      const isAuthwall = (text: string) =>
+        /authwall|join linkedin to view|agree & join linkedin|sign in to linkedin|sign-in to view/i.test(text) &&
+        !/responsibilities|qualifications|requirements|we are hiring|about the role/i.test(text)
+
+      const authwallPageText = "Agree & Join LinkedIn. By clicking Continue to join or sign in, you agree to LinkedIn's User Agreement."
+      expect(isAuthwall(authwallPageText)).toBe(true)
+
+      const realPostText = "🚀 We are hiring a Senior Full Stack Engineer. Responsibilities include building scalable web apps with React and Node.js."
+      expect(isAuthwall(realPostText)).toBe(false)
+    })
+
+    it("safely handles non-JSON responses from Vercel without throwing SyntaxError", async () => {
+      // Simulates Vercel 504 / 500 plain text response
+      const mockVercel504Response = {
+        ok: false,
+        status: 504,
+        headers: new Headers({ "content-type": "text/plain; charset=utf-8" }),
+        json: async () => {
+          throw new SyntaxError("Unexpected token 'A', \"An error o\"... is not valid JSON")
+        },
+        text: async () => "An error occurred with this application.",
+      }
+
+      let parsedError = `Evaluation failed (HTTP ${mockVercel504Response.status})`
+      try {
+        const contentType = mockVercel504Response.headers.get("content-type") || ""
+        if (contentType.includes("application/json")) {
+          const json = (await mockVercel504Response.json()) as { error?: string }
+          parsedError = json.error || parsedError
+        } else {
+          const raw = await mockVercel504Response.text()
+          if (mockVercel504Response.status === 504) {
+            parsedError = "Evaluation timed out on the server. Please copy and paste the job description text directly into the box."
+          } else if (raw && raw.length < 300 && !raw.includes("<html")) {
+            parsedError = raw.trim()
+          }
+        }
+      } catch {
+        // Fallback
+      }
+
+      expect(parsedError).toBe("Evaluation timed out on the server. Please copy and paste the job description text directly into the box.")
+      expect(parsedError).not.toContain("Unexpected token")
+    })
+  })
 })

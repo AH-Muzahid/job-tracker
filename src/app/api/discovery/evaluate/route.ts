@@ -22,7 +22,7 @@ import {
 import { appLogger } from "@/lib/ops/app-logger"
 
 export const runtime = "nodejs"
-export const maxDuration = 30
+export const maxDuration = 60
 
 const EvaluateInputSchema = z.object({
   url: z.string().optional().or(z.literal("")),
@@ -85,6 +85,17 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    void appLogger.info(
+      "discovery:evaluate",
+      `Initiating opportunity evaluation (source: ${_source || "Direct"})`,
+      {
+        targetUrl: targetUrl || undefined,
+        hasRawText: Boolean(finalJdText),
+        textLength: finalJdText.length,
+      },
+      userId
+    )
+
     // Scrape URL if provided and raw text is insufficient (< 50 chars)
     if (targetUrl && (!finalJdText || finalJdText.length < 50)) {
       try {
@@ -114,12 +125,21 @@ export async function POST(request: NextRequest) {
               "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
             Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
           },
-          signal: AbortSignal.timeout(10_000),
+          signal: AbortSignal.timeout(6_000),
+          redirect: "follow",
         })
 
         if (!res.ok) {
+          if (res.status === 999 || res.status === 429 || res.status === 403) {
+            return NextResponse.json(
+              {
+                error: `Automated access to this URL was blocked by the host (HTTP ${res.status}). Please copy and paste the job description or post text directly into the box.`,
+              },
+              { status: 422 }
+            )
+          }
           return NextResponse.json(
-            { error: `Failed to fetch job post from URL (HTTP ${res.status})` },
+            { error: `Failed to fetch job post from URL (HTTP ${res.status}). Please copy and paste the job description text manually.` },
             { status: 502 }
           )
         }
@@ -133,7 +153,15 @@ export async function POST(request: NextRequest) {
         const truncatedHtml = html.length > 2 * 1024 * 1024 ? html.slice(0, 2 * 1024 * 1024) : html
 
         const titleMatch = truncatedHtml.match(/<title[^>]*>([\s\S]*?)<\/title>/i)
-        scrapedTitle = titleMatch ? titleMatch[1].trim() : ""
+        scrapedTitle = titleMatch
+          ? titleMatch[1]
+              .replace(/&amp;/g, "&")
+              .replace(/&#39;/g, "'")
+              .replace(/&quot;/g, '"')
+              .replace(/&lt;/g, "<")
+              .replace(/&gt;/g, ">")
+              .trim()
+          : ""
 
         const extractedText = truncatedHtml
           .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, " ")
@@ -142,19 +170,45 @@ export async function POST(request: NextRequest) {
           .replace(/<footer[^>]*>[\s\S]*?<\/footer>/gi, " ")
           .replace(/<header[^>]*>[\s\S]*?<\/header>/gi, " ")
           .replace(/<[^>]+>/g, " ")
+          .replace(/&amp;/g, "&")
+          .replace(/&#39;/g, "'")
+          .replace(/&quot;/g, '"')
+          .replace(/&lt;/g, "<")
+          .replace(/&gt;/g, ">")
           .replace(/\s+/g, " ")
           .trim()
+
+        const isAuthwall =
+          /authwall|join linkedin to view|agree & join linkedin|sign in to linkedin|sign-in to view/i.test(extractedText) &&
+          !/responsibilities|qualifications|requirements|we are hiring|about the role/i.test(extractedText)
+
+        if (isAuthwall) {
+          return NextResponse.json(
+            {
+              error:
+                "This page requires user login (authentication wall). Please copy the text from the post or job page and paste it directly into the box.",
+            },
+            { status: 422 }
+          )
+        }
 
         if (extractedText.length >= 50) {
           finalJdText = extractedText
         } else {
           return NextResponse.json(
-            { error: "Could not extract sufficient text from URL. Please paste the job description text manually." },
+            { error: "Could not extract sufficient text from URL. Please copy and paste the job description text manually." },
             { status: 422 }
           )
         }
       } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : "Error scraping URL"
+        const isTimeout =
+          (err instanceof DOMException && err.name === "TimeoutError") ||
+          (err instanceof Error && /timeout/i.test(err.message))
+        const msg = isTimeout
+          ? "The job post URL took too long to respond (timeout after 6s). Please copy and paste the job description text directly into the box."
+          : err instanceof Error
+          ? err.message
+          : "Error scraping URL"
         return NextResponse.json({ error: `URL Scraping failed: ${msg}` }, { status: 502 })
       }
     }
@@ -172,13 +226,13 @@ export async function POST(request: NextRequest) {
     // 2. Evaluate Scam Risk
     const detectedCompanyHint =
       overrideCompany ||
-      scrapedTitle.split(/[-|–]/)[1]?.trim() ||
+      scrapedTitle.split(/[-|–|\|]/)[1]?.trim() ||
       finalJdText.match(/(?:at|company:?)\s+([A-Z][A-Za-z0-9\s&]{2,25})/i)?.[1]?.trim() ||
       ""
 
     const detectedTitleHint =
       overrideTitle ||
-      scrapedTitle.split(/[-|–]/)[0]?.trim() ||
+      scrapedTitle.split(/[-|–|\|]/)[0]?.trim() ||
       finalJdText.match(/(?:role:?|title:?|hiring a:?)\s+([A-Z][A-Za-z0-9\s-]{3,30})/i)?.[1]?.trim() ||
       ""
 
@@ -287,6 +341,7 @@ export async function POST(request: NextRequest) {
           model: targetModel,
           system: systemPrompt,
           prompt: `Analyze this job description:\n\n${truncatedJd}`,
+          abortSignal: AbortSignal.timeout(18_000),
         })
 
         analysisResult = parseAndNormalizeAnalysis(textResult.text || "")
@@ -315,6 +370,17 @@ export async function POST(request: NextRequest) {
         })
       } catch (aiErr) {
         console.warn("AI generation failed or timed out, falling back to deterministic analysis:", aiErr)
+        void appLogger.warn(
+          "discovery:evaluate",
+          `AI evaluation timed out or failed; fallen back to deterministic engine: ${aiErr instanceof Error ? aiErr.message : String(aiErr)}`,
+          {
+            targetUrl: targetUrl || undefined,
+            company: overrideCompany || detectedCompanyHint,
+            role: overrideTitle || detectedTitleHint,
+            error: aiErr instanceof Error ? aiErr.stack : String(aiErr),
+          },
+          currentUserId || undefined
+        )
         void traceAIGeneration({
           name: "job-discovery-evaluation",
           userId,
@@ -481,7 +547,13 @@ export async function POST(request: NextRequest) {
   } catch (error: unknown) {
     console.error("Discovery Evaluate API error:", error)
     const errMsg = error instanceof Error ? error.message : "Failed to evaluate job description"
-    void appLogger.error("discovery:evaluate", errMsg, error, undefined, currentUserId || undefined)
+    void appLogger.error(
+      "discovery:evaluate",
+      `Discovery evaluation route failure: ${errMsg}`,
+      error,
+      undefined,
+      currentUserId || undefined
+    )
     return NextResponse.json({ error: errMsg }, { status: 500 })
   }
 }

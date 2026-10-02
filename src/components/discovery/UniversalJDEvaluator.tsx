@@ -24,6 +24,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "sonner"
+import { reportClientError } from "@/lib/ops/client-logger"
 
 export const EVALUATOR_STORAGE_KEY = "careertrack_jd_evaluator_cache_v1"
 
@@ -285,11 +286,49 @@ export function UniversalJDEvaluator({
       clearInterval(stepInterval)
 
       if (!res.ok) {
-        const errorData = await res.json()
-        throw new Error(errorData.error || "Failed to evaluate job post")
+        let errorMsg = `Evaluation failed (HTTP ${res.status})`
+        try {
+          const contentType = res.headers.get("content-type") || ""
+          if (contentType.includes("application/json")) {
+            const errorData = await res.json()
+            errorMsg = errorData.error || errorData.message || errorMsg
+          } else {
+            const rawText = await res.text()
+            if (rawText && rawText.length < 300 && !rawText.includes("<html") && !rawText.includes("<!DOCTYPE")) {
+              errorMsg = rawText.trim()
+            } else if (res.status === 504 || res.status === 408) {
+              errorMsg = "Evaluation timed out on the server. Please copy and paste the job description text directly into the box."
+            } else if (res.status === 502 || res.status === 503) {
+              errorMsg = "Evaluation service is temporarily unavailable. Please try again or paste the JD text directly."
+            } else if (res.status === 500) {
+              errorMsg = "Server error while evaluating. Please copy and paste the job description text directly into the box."
+            }
+          }
+        } catch {
+          if (res.status === 504) {
+            errorMsg = "Evaluation timed out. Please copy and paste the job description text directly."
+          }
+        }
+
+        reportClientError("discovery:evaluate", new Error(errorMsg), {
+          status: res.status,
+          targetUrl: resolvedUrl,
+          hasDirectText: Boolean(trimmedInput && !isUrl),
+        })
+
+        throw new Error(errorMsg)
       }
 
-      const data: OpportunityDossier = await res.json()
+      let data: OpportunityDossier
+      try {
+        data = await res.json()
+      } catch (parseErr) {
+        reportClientError("discovery:evaluate:parse", parseErr, {
+          targetUrl: resolvedUrl,
+        })
+        throw new Error("Received an unexpected response from evaluation service. Please try pasting the JD text directly.")
+      }
+
       setDossier(data)
       setIsRestored(false)
       if (data.sourceUrl && !jobUrl) setJobUrl(data.sourceUrl)
@@ -307,8 +346,14 @@ export function UniversalJDEvaluator({
         toast.info("Evaluation cancelled")
         return
       }
-      console.error(err)
+      console.error("Opportunity evaluation error:", err)
       const errMsg = err instanceof Error ? err.message : "Something went wrong during evaluation"
+
+      reportClientError("discovery:evaluate", err, {
+        inputPreview: jdInput.slice(0, 100),
+        targetUrl: jobUrl,
+      })
+
       toast.error(errMsg)
     } finally {
       setLoading(false)
@@ -338,11 +383,33 @@ export function UniversalJDEvaluator({
       })
 
       if (!appRes.ok) {
-        const errorData = await appRes.json()
-        throw new Error(errorData.error || "Failed to save application")
+        let errorMsg = "Failed to save application"
+        try {
+          const contentType = appRes.headers.get("content-type") || ""
+          if (contentType.includes("application/json")) {
+            const errorData = await appRes.json()
+            errorMsg = errorData.error || errorMsg
+          } else {
+            const raw = await appRes.text()
+            if (raw && raw.length < 200) errorMsg = raw.trim()
+          }
+        } catch {}
+
+        reportClientError("discovery:stage-application", new Error(errorMsg), {
+          targetStatus,
+          company: companyName || dossier.roleSnapshot.company,
+        })
+
+        throw new Error(errorMsg)
       }
 
-      const application = await appRes.json()
+      let application: { id: string }
+      try {
+        application = await appRes.json()
+      } catch (parseErr) {
+        reportClientError("discovery:stage-application:parse", parseErr)
+        throw new Error("Application record could not be confirmed. Please check your applications board.")
+      }
 
       // 2. Persist Pre-computed Analysis to ApplicationAnalysis
       try {
@@ -385,6 +452,7 @@ export function UniversalJDEvaluator({
     } catch (err: unknown) {
       console.error(err)
       const errMsg = err instanceof Error ? err.message : "Failed to create application"
+      reportClientError("discovery:stage-application", err, { targetStatus })
       toast.error(errMsg, { id: toastId })
     } finally {
       setActionLoading(false)
