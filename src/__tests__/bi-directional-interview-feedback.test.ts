@@ -69,6 +69,7 @@ vi.mock("@/lib/redis", () => ({
   invalidateCache: vi.fn().mockResolvedValue(true),
   getCachedJson: vi.fn().mockResolvedValue(null),
   setCachedJson: vi.fn().mockResolvedValue(true),
+  getRedisClient: vi.fn(() => null),
 }))
 
 vi.mock("@/lib/rate-limit", () => ({
