@@ -49,8 +49,8 @@ describe("CAG-11: Ambient Copilot Route & Entity Context Injection", () => {
       const testState: AgentStateType = {
         userId: "user-123",
         sessionId: "sess-1",
-        goal: "What system design questions might they ask?",
-        messages: [new HumanMessage("What system design questions might they ask?")],
+        goal: "Search applications and draft outreach for Stripe",
+        messages: [new HumanMessage("Search applications and draft outreach for Stripe")],
         plan: [],
         currentStepIndex: 0,
         reflection: { passed: true, retryCount: 0 },
@@ -148,6 +148,7 @@ describe("CAG-11: Ambient Copilot Route & Entity Context Injection", () => {
           {
             id: "step-1",
             task: "Analyze role",
+            toolName: "analyzeJobRole",
             status: "completed",
             result: { matchScore: 95 },
           },
