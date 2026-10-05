@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getInternalUserId } from "@/lib/auth"
 import { checkDistributedRateLimit, rateLimitResponse } from "@/lib/rate-limit"
+import { validateSafePublicUrl } from "@/lib/ssrf"
 
 export async function POST(req: NextRequest) {
   try {
@@ -17,26 +18,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "URL is required" }, { status: 400 })
     }
 
-    let parsedUrl: URL
-    try {
-      parsedUrl = new URL(url.startsWith("http") ? url : `https://${url}`)
-    } catch {
-      return NextResponse.json({ error: "Invalid URL format" }, { status: 400 })
+    const ssrfCheck = validateSafePublicUrl(url)
+    if (!ssrfCheck.isValid || !ssrfCheck.parsedUrl) {
+      return NextResponse.json({ error: ssrfCheck.error || "Internal or invalid URLs are not allowed" }, { status: 400 })
     }
 
-    // Block internal/private IPs to prevent SSRF
-    const hostname = parsedUrl.hostname
-    if (
-      hostname === "localhost" ||
-      hostname === "127.0.0.1" ||
-      hostname === "0.0.0.0" ||
-      hostname.startsWith("192.168.") ||
-      hostname.startsWith("10.") ||
-      hostname.startsWith("172.") ||
-      hostname.endsWith(".local")
-    ) {
-      return NextResponse.json({ error: "Internal URLs are not allowed" }, { status: 400 })
-    }
+    const parsedUrl = ssrfCheck.parsedUrl
 
     const res = await fetch(parsedUrl.toString(), {
       headers: {

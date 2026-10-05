@@ -20,6 +20,7 @@ import {
   saveKnowledgeGraph,
 } from "@/lib/ai/knowledge-graph"
 import { appLogger } from "@/lib/ops/app-logger"
+import { validateSafePublicUrl } from "@/lib/ssrf"
 
 export const runtime = "nodejs"
 export const maxDuration = 60
@@ -99,25 +100,14 @@ export async function POST(request: NextRequest) {
     // Scrape URL if provided and raw text is insufficient (< 50 chars)
     if (targetUrl && (!finalJdText || finalJdText.length < 50)) {
       try {
-        const parsedUrl = new URL(targetUrl.startsWith("http") ? targetUrl : `https://${targetUrl}`)
-        const hostname = parsedUrl.hostname.toLowerCase()
-
-        // SSRF protection: reject localhost, loopback, private ranges, local names
-        if (
-          hostname === "localhost" ||
-          hostname === "127.0.0.1" ||
-          hostname === "0.0.0.0" ||
-          hostname.startsWith("192.168.") ||
-          hostname.startsWith("10.") ||
-          hostname.startsWith("172.") ||
-          hostname.endsWith(".local") ||
-          hostname.endsWith(".internal")
-        ) {
+        const ssrfCheck = validateSafePublicUrl(targetUrl)
+        if (!ssrfCheck.isValid || !ssrfCheck.parsedUrl) {
           return NextResponse.json(
-            { error: "Access to private or local network URLs is prohibited (SSRF Protection)" },
+            { error: ssrfCheck.error || "Access to private or local network URLs is prohibited (SSRF Protection)" },
             { status: 400 }
           )
         }
+        const parsedUrl = ssrfCheck.parsedUrl
 
         const res = await fetch(parsedUrl.toString(), {
           headers: {
