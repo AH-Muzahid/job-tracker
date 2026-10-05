@@ -148,7 +148,7 @@ describe("Pixel-Perfect Dashboard Components & Strict Constraints", () => {
 
   it("defines exact sidebar nav structure matching the reference screenshot", async () => {
     const { navGroups } = await import("@/components/app-shared");
-    expect(navGroups).toHaveLength(2);
+    expect(navGroups).toHaveLength(3);
     
     // Group 1: Main navigation
     const mainItems = navGroups[0].items.map((i) => i.title);
@@ -163,5 +163,9 @@ describe("Pixel-Perfect Dashboard Components & Strict Constraints", () => {
       i.subItems?.length ? [i.title, ...i.subItems.map((s) => s.title)] : [i.title]
     );
     expect(allToolTitles).toEqual(expect.arrayContaining(["Career Profile", "Career Brain", "System Settings"]));
+
+    // Group 3: OPERATIONS
+    expect(navGroups[2].label).toBe("OPERATIONS");
+    expect(navGroups[2].items.map((i) => i.title)).toEqual(["Ops & Observability"]);
   });
 });

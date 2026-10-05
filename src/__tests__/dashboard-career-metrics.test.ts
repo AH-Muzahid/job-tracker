@@ -71,7 +71,7 @@ describe("CAG-01: Career Operating System Dashboard & Metrics", () => {
     expect(content).toContain('"Applications"');
     expect(content).toContain('"Interviews"');
     expect(content).toContain('"Career Profile"');
-    expect(content).toContain('"Settings"');
+    expect(content).toContain('"System Settings"');
   });
 
   it("verifies stats API route supports rich career metrics, KPIs, and recommendations", () => {
