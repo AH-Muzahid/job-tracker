@@ -66,8 +66,22 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  // Ensure ChatSession exists in DB
+  // Ensure ChatSession exists in DB and enforce tenant isolation
   try {
+    const existingSession = await withDbRetry(() =>
+      prisma.chatSession.findUnique({
+        where: { id: sessionId },
+        select: { userId: true },
+      })
+    )
+
+    if (existingSession && existingSession.userId !== userId) {
+      return new Response(
+        JSON.stringify({ error: "Forbidden: Session belongs to another user" }),
+        { status: 403, headers: { "Content-Type": "application/json" } }
+      )
+    }
+
     await withDbRetry(() =>
       prisma.chatSession.upsert({
         where: { id: sessionId },
