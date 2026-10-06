@@ -107,4 +107,25 @@ describe("Unified Tool Manifest Contract Tests", () => {
     expect(safeTools).not.toContain("forgetUserMemory")
     expect(safeTools).not.toContain("sendOutreachEmailViaResend")
   })
+
+  it("blocks private network and cloud metadata URLs in scrapeJobLink (SSRF protection)", async () => {
+    const testCases = [
+      "http://localhost:3000/api/admin",
+      "http://127.0.0.1:8080/jobs",
+      "http://169.254.169.254/latest/meta-data",
+      "http://10.0.0.1/internal",
+      "http://192.168.1.1/router",
+    ]
+
+    for (const url of testCases) {
+      const result = await executeToolByName(
+        "scrapeJobLink",
+        { url },
+        "test-user-id"
+      )
+
+      expect(result.success).toBe(false)
+      expect(result.error).toContain("SSRF Protection")
+    }
+  })
 })

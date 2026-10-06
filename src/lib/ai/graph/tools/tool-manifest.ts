@@ -31,6 +31,7 @@ import {
   executeSearchExternalJobs,
   executeSaveJobOpportunityToTracker,
 } from "./discovery-tools"
+import { validateSafePublicUrl } from "@/lib/ssrf"
 
 import { ToolRisk } from "@/lib/ai/tool-registry"
 export { ToolRisk }
@@ -494,7 +495,15 @@ export const TOOL_MANIFEST: Record<string, ToolDefinition<any>> = {
     execute: async (_userId, input) => {
       try {
         const url = input.url
-        const res = await fetch(url, {
+        const ssrfCheck = validateSafePublicUrl(url)
+        if (!ssrfCheck.isValid || !ssrfCheck.parsedUrl) {
+          return {
+            success: false,
+            error: ssrfCheck.error || "Access to private or restricted network addresses is prohibited (SSRF Protection)",
+          }
+        }
+        const safeUrl = ssrfCheck.parsedUrl.toString()
+        const res = await fetch(safeUrl, {
           headers: {
             "User-Agent":
               "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
