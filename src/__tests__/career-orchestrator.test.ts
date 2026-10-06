@@ -557,4 +557,86 @@ describe("Career Orchestrator State Machine (REC-18)", () => {
     expect(coverLetterAgent.generateApplicationMaterialsAgent).not.toHaveBeenCalled()
     expect(prisma.application.create).not.toHaveBeenCalled()
   })
+
+  it("never demotes an application with active status (e.g., Interview, Applied, Offer) back to STAGED", async () => {
+    vi.mocked(vectorRetrieval.retrieveCandidateJobsTier1).mockResolvedValue([
+      {
+        id: "job-active-1",
+        title: "Staff Engineer",
+        company: "Stripe",
+        location: "Remote",
+        isRemote: true,
+        url: "https://stripe.com/jobs/staff-eng",
+        salary: "$200k",
+        salaryMin: 200000,
+        salaryMax: 200000,
+        tags: ["typescript", "architecture"],
+        description: "Staff platform role.",
+        postedAt: new Date(),
+        visaSponsorship: "available",
+        cosineSimilarity: 0.95,
+      },
+    ])
+
+    vi.mocked(aiReranker.deepReRankCandidateJobs).mockResolvedValue([
+      {
+        id: "job-active-1",
+        title: "Staff Engineer",
+        company: "Stripe",
+        location: "Remote",
+        isRemote: true,
+        url: "https://stripe.com/jobs/staff-eng",
+        salary: "$200k",
+        salaryMin: 200000,
+        salaryMax: 200000,
+        tags: ["typescript", "architecture"],
+        description: "Staff platform role.",
+        postedAt: new Date(),
+        visaSponsorship: "available",
+        cosineSimilarity: 0.95,
+        fitScore: 95,
+        matchRationale: "Exceptional alignment with career goals.",
+        missingSkills: [],
+        scoreBreakdown: { skills: 40, role: 25, location: 20, seniority: 10 },
+      },
+    ])
+
+    vi.mocked(coverLetterAgent.generateApplicationMaterialsAgent).mockResolvedValue({
+      coverLetter: "Cover letter text...",
+      highlights: ["Leader"],
+      outreachPitch: "Pitch...",
+      atsKeywords: ["typescript"],
+    })
+
+    // Mock existing application already in Interview status
+    vi.mocked(prisma.application.findFirst).mockResolvedValue({
+      id: "app-active-stripe",
+      userId: testUserId,
+      companyName: "Stripe",
+      jobTitle: "Staff Engineer",
+      status: "Interview",
+      jobUrl: "https://stripe.com/jobs/staff-eng",
+      source: "Manual",
+    } as any)
+    vi.mocked(prisma.application.update).mockResolvedValue({ id: "app-active-stripe" } as any)
+    vi.mocked(prisma.applicationAnalysis.upsert).mockResolvedValue({ id: "analysis-1" } as any)
+    vi.mocked(prisma.userJobMatch.upsert).mockResolvedValue({ id: "match-1" } as any)
+    vi.mocked(prisma.notification.create).mockResolvedValue({ id: "notif-1" } as any)
+
+    const graph = createCareerOrchestratorGraph()
+    const result = await graph.invoke({
+      userId: testUserId,
+      candidateGoal: { targetRole: "Staff Engineer" },
+    })
+
+    expect(result.approvedOpportunities).toHaveLength(1)
+    // Application update must NOT overwrite status to STAGED or create regressive statusChanges
+    expect(prisma.application.update).toHaveBeenCalledWith({
+      where: { id: "app-active-stripe" },
+      data: {
+        jobUrl: "https://stripe.com/jobs/staff-eng",
+      },
+    })
+    expect(prisma.application.create).not.toHaveBeenCalled()
+  })
 })

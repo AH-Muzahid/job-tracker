@@ -272,28 +272,51 @@ async function persistenceNode(
 
     let applicationId = existing?.id
 
+    // Status Regression Guard:
+    // Never demote an application that has already progressed past staging (e.g. Applied, Interview, Offer, Rejected).
+    // Only transition to STAGED if it does not exist, was previously Saved, or is already Staged.
+    const isStageableStatus =
+      !existing ||
+      existing.status === "Saved" ||
+      existing.status === "Staged" ||
+      existing.status === "STAGED"
+
     if (existing) {
-      await withDbRetry(() =>
-        prisma.application.update({
-          where: { id: existing.id },
-          data: {
-            status: "STAGED",
-            source: "Career Orchestrator",
-            jobUrl: opp.url,
-            notes: `Discovered & staged via Career Orchestrator (Fit: ${opp.fitScore}%)`,
-            statusChanges: {
-              create: {
-                fromStatus: existing.status,
-                toStatus: "STAGED",
-                metadata: {
-                  reason: "Autonomous Career Orchestrator staged high-fit application",
-                  agent: "career_orchestrator",
+      if (isStageableStatus) {
+        await withDbRetry(() =>
+          prisma.application.update({
+            where: { id: existing.id },
+            data: {
+              status: "STAGED",
+              source: existing.source || "Career Orchestrator",
+              jobUrl: existing.jobUrl || opp.url,
+              notes: existing.notes || `Discovered & staged via Career Orchestrator (Fit: ${opp.fitScore}%)`,
+              statusChanges: {
+                create: {
+                  fromStatus: existing.status,
+                  toStatus: "STAGED",
+                  metadata: {
+                    reason: "Autonomous Career Orchestrator staged high-fit application",
+                    agent: "career_orchestrator",
+                  },
                 },
               },
             },
-          },
-        })
-      )
+          })
+        )
+        stagedCount++
+      } else {
+        // Application is already active (Applied, Interview, Offer, Rejected, etc.)
+        // Preserve active status and do NOT regress; only enrich jobUrl if not present.
+        await withDbRetry(() =>
+          prisma.application.update({
+            where: { id: existing.id },
+            data: {
+              jobUrl: existing.jobUrl || opp.url,
+            },
+          })
+        )
+      }
     } else {
       const created = await withDbRetry(() =>
         prisma.application.create({
@@ -319,9 +342,8 @@ async function persistenceNode(
         })
       )
       applicationId = created.id
+      stagedCount++
     }
-
-    stagedCount++
 
     const pkg = state.applicationPackages[opp.id]
     if (pkg && applicationId) {
