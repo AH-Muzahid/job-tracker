@@ -1,6 +1,6 @@
 /**
  * Universal SMS Dispatcher & Formatter for CareerTrack
- * Supports Twilio REST dispatch with safe simulation fallback when credentials are not configured.
+ * Supports MiMSMS (Bangladesh Local Gateway API V2) and Twilio with safe simulation fallback.
  */
 
 export interface SendSmsOptions {
@@ -14,6 +14,7 @@ export interface SendSmsResult {
   id?: string
   simulated?: boolean
   error?: string
+  provider?: "mimsms" | "twilio" | "simulation"
 }
 
 export interface FormatJobMatchSmsOptions {
@@ -28,7 +29,7 @@ export interface FormatJobMatchSmsOptions {
 }
 
 /**
- * Normalizes phone numbers to standard E.164-compatible format.
+ * Normalizes phone numbers to standard E.164 format.
  * Strips whitespace, dashes, and parentheses. Ensures leading '+'.
  */
 export function normalizePhoneNumber(phone: string): string {
@@ -37,8 +38,26 @@ export function normalizePhoneNumber(phone: string): string {
   if (cleaned.startsWith("+")) {
     return cleaned
   }
-  // If no country code provided and 10 or 11 digits, assume + or keep clean
   return `+${cleaned}`
+}
+
+/**
+ * Normalizes Bangladeshi mobile numbers into the standard 13-digit format (8801XXXXXXXXX)
+ * expected by Bangladeshi telecom SMS gateways like MiMSMS.
+ */
+export function formatBdPhoneNumber(phone: string): string {
+  if (!phone) return ""
+  const digits = phone.replace(/\D/g, "").trim()
+  if (digits.startsWith("880") && digits.length === 13) {
+    return digits
+  }
+  if (digits.startsWith("01") && digits.length === 11) {
+    return `88${digits}`
+  }
+  if (digits.startsWith("1") && digits.length === 10) {
+    return `880${digits}`
+  }
+  return digits
 }
 
 /**
@@ -73,7 +92,10 @@ export function formatJobMatchSms({
 }
 
 /**
- * Universal SMS sender supporting Twilio REST API with safe simulation fallback.
+ * Universal SMS sender:
+ * 1. Dispatches via MiMSMS API V2 if MIM_SMS_API_KEY is configured.
+ * 2. Dispatches via Twilio if TWILIO_ACCOUNT_SID & TWILIO_AUTH_TOKEN are configured.
+ * 3. Falls back to safe simulation mode for local development or testing.
  */
 export async function sendSms({
   to,
@@ -88,60 +110,120 @@ export async function sendSms({
     }
   }
 
+  // 1. Check for MiMSMS (Bangladesh Local Gateway API V2)
+  const mimApiKey = process.env.MIM_SMS_API_KEY
+  const mimUserName = process.env.MIM_SMS_USER_NAME
+  const mimSenderName = from || process.env.MIM_SMS_SENDER_NAME || process.env.MIM_SMS_SENDER_ID
+
+  if (mimApiKey && mimUserName && mimSenderName) {
+    try {
+      const bdPhone = formatBdPhoneNumber(to)
+      const payload = {
+        apiKey: mimApiKey,
+        userName: mimUserName,
+        senderName: mimSenderName,
+        transactionType: process.env.MIM_SMS_TRANSACTION_TYPE || "T", // "T" for Transactional/Alerts
+        mobileNumber: bdPhone,
+        message: body,
+      }
+
+      const response = await fetch("https://api.mimsms.com/api/V2/SMS", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify(payload),
+      })
+
+      const data = await response.json().catch(() => ({}))
+
+      if (!response.ok || (data?.statusCode && data.statusCode !== "200" && data.statusCode !== 200)) {
+        const errorMsg = data?.message || data?.status || `MiMSMS error with HTTP ${response.status}`
+        console.error("[MiMSMS Dispatch Error]", errorMsg)
+        return {
+          success: false,
+          error: errorMsg,
+          provider: "mimsms",
+        }
+      }
+
+      return {
+        success: true,
+        id: data?.trxnId || data?.messageId || `mim_${Date.now()}`,
+        simulated: false,
+        provider: "mimsms",
+      }
+    } catch (mimErr: unknown) {
+      const errorMsg = mimErr instanceof Error ? mimErr.message : "Failed to dispatch via MiMSMS"
+      console.error("[MiMSMS Exception]", mimErr)
+      return {
+        success: false,
+        error: errorMsg,
+        provider: "mimsms",
+      }
+    }
+  }
+
+  // 2. Check for Twilio
   const accountSid = process.env.TWILIO_ACCOUNT_SID
   const authToken = process.env.TWILIO_AUTH_TOKEN
   const senderNumber = from || process.env.TWILIO_PHONE_NUMBER
 
-  // Safe simulation fallback when unconfigured in local or staging
-  if (!accountSid || !authToken || !senderNumber) {
-    console.info(`[SMS Simulation] To: ${normalizedTo} | Body: ${body}`)
-    return {
-      success: true,
-      simulated: true,
-      id: `sim_sms_${Date.now()}`,
-    }
-  }
+  if (accountSid && authToken && senderNumber) {
+    try {
+      const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`
+      const basicAuth = Buffer.from(`${accountSid}:${authToken}`).toString("base64")
 
-  try {
-    const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`
-    const basicAuth = Buffer.from(`${accountSid}:${authToken}`).toString("base64")
+      const params = new URLSearchParams()
+      params.append("To", normalizedTo)
+      params.append("From", senderNumber)
+      params.append("Body", body)
 
-    const params = new URLSearchParams()
-    params.append("To", normalizedTo)
-    params.append("From", senderNumber)
-    params.append("Body", body)
+      const response = await fetch(twilioUrl, {
+        method: "POST",
+        headers: {
+          Authorization: `Basic ${basicAuth}`,
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: params.toString(),
+      })
 
-    const response = await fetch(twilioUrl, {
-      method: "POST",
-      headers: {
-        Authorization: `Basic ${basicAuth}`,
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: params.toString(),
-    })
+      const data = await response.json().catch(() => ({}))
 
-    const data = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        const errorMsg = data?.message || `Twilio dispatch failed with HTTP ${response.status}`
+        console.error("[Twilio Dispatch Error]", errorMsg)
+        return {
+          success: false,
+          error: errorMsg,
+          provider: "twilio",
+        }
+      }
 
-    if (!response.ok) {
-      const errorMsg = data?.message || `Twilio dispatch failed with HTTP ${response.status}`
-      console.error("[SMS Dispatch Error]", errorMsg)
+      return {
+        success: true,
+        id: data?.sid,
+        simulated: false,
+        provider: "twilio",
+      }
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : "Failed to send SMS via Twilio"
+      console.error("[Twilio Exception]", err)
       return {
         success: false,
         error: errorMsg,
+        provider: "twilio",
       }
     }
+  }
 
-    return {
-      success: true,
-      id: data?.sid,
-      simulated: false,
-    }
-  } catch (err: unknown) {
-    const errorMsg = err instanceof Error ? err.message : "Failed to send SMS"
-    console.error("[SMS Dispatch Exception]", err)
-    return {
-      success: false,
-      error: errorMsg,
-    }
+  // 3. Safe Simulation fallback when no external provider is configured
+  console.info(`[SMS Simulation] To: ${normalizedTo} | Body: ${body}`)
+  return {
+    success: true,
+    simulated: true,
+    id: `sim_sms_${Date.now()}`,
+    provider: "simulation",
   }
 }

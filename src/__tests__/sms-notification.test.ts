@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import {
   normalizePhoneNumber,
+  formatBdPhoneNumber,
   truncateSmsBody,
   formatJobMatchSms,
   sendSms,
@@ -12,6 +13,10 @@ describe("SMS Notification Utility (src/lib/sms.ts)", () => {
     delete process.env.TWILIO_ACCOUNT_SID
     delete process.env.TWILIO_AUTH_TOKEN
     delete process.env.TWILIO_PHONE_NUMBER
+    delete process.env.MIM_SMS_API_KEY
+    delete process.env.MIM_SMS_USER_NAME
+    delete process.env.MIM_SMS_SENDER_NAME
+    delete process.env.MIM_SMS_SENDER_ID
   })
 
   describe("normalizePhoneNumber", () => {
@@ -27,6 +32,22 @@ describe("SMS Notification Utility (src/lib/sms.ts)", () => {
 
     it("returns empty string on empty input", () => {
       expect(normalizePhoneNumber("")).toBe("")
+    })
+  })
+
+  describe("formatBdPhoneNumber", () => {
+    it("normalizes Bangladeshi 11-digit numbers to standard 13-digit format", () => {
+      expect(formatBdPhoneNumber("01711223344")).toBe("8801711223344")
+      expect(formatBdPhoneNumber("+880 1711-223344")).toBe("8801711223344")
+      expect(formatBdPhoneNumber("8801711223344")).toBe("8801711223344")
+    })
+
+    it("handles 10-digit without leading 0", () => {
+      expect(formatBdPhoneNumber("1711223344")).toBe("8801711223344")
+    })
+
+    it("returns empty string for empty input", () => {
+      expect(formatBdPhoneNumber("")).toBe("")
     })
   })
 
@@ -79,15 +100,16 @@ describe("SMS Notification Utility (src/lib/sms.ts)", () => {
     })
   })
 
-  describe("sendSms (Universal Sender)", () => {
-    it("returns simulated success when Twilio is unconfigured in dev/test", async () => {
+  describe("sendSms (Universal Sender with MiMSMS and Twilio)", () => {
+    it("returns simulated success when no provider is configured in dev/test", async () => {
       const result = await sendSms({
-        to: "+15551234567",
+        to: "+8801711223344",
         body: "CareerTrack test notification",
       })
 
       expect(result.success).toBe(true)
       expect(result.simulated).toBe(true)
+      expect(result.provider).toBe("simulation")
       expect(result.id).toMatch(/^sim_sms_/)
     })
 
@@ -101,7 +123,38 @@ describe("SMS Notification Utility (src/lib/sms.ts)", () => {
       expect(result.error).toBe("Invalid recipient phone number")
     })
 
-    it("dispatches HTTP request to Twilio API when credentials are provided", async () => {
+    it("dispatches HTTP request to MiMSMS API V2 when MIM_SMS credentials are provided", async () => {
+      process.env.MIM_SMS_API_KEY = "mim_test_key_123"
+      process.env.MIM_SMS_USER_NAME = "developer@careertrack.ai"
+      process.env.MIM_SMS_SENDER_NAME = "CareerTrack"
+
+      const fetchMock = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ statusCode: "200", status: "Success", trxnId: "MIM_TX_98765" }),
+      })
+      vi.stubGlobal("fetch", fetchMock)
+
+      const result = await sendSms({
+        to: "01711223344",
+        body: "CareerTrack: 1 new job match found!",
+      })
+
+      expect(fetchMock).toHaveBeenCalledOnce()
+      const [url, options] = fetchMock.mock.calls[0]
+      expect(url).toBe("https://api.mimsms.com/api/V2/SMS")
+      expect(options.method).toBe("POST")
+      const parsedBody = JSON.parse(options.body)
+      expect(parsedBody.apiKey).toBe("mim_test_key_123")
+      expect(parsedBody.userName).toBe("developer@careertrack.ai")
+      expect(parsedBody.senderName).toBe("CareerTrack")
+      expect(parsedBody.mobileNumber).toBe("8801711223344")
+      expect(parsedBody.transactionType).toBe("T")
+      expect(result.success).toBe(true)
+      expect(result.provider).toBe("mimsms")
+      expect(result.id).toBe("MIM_TX_98765")
+    })
+
+    it("dispatches HTTP request to Twilio API when Twilio credentials are provided", async () => {
       process.env.TWILIO_ACCOUNT_SID = "ACmock123"
       process.env.TWILIO_AUTH_TOKEN = "mockauth456"
       process.env.TWILIO_PHONE_NUMBER = "+15550001111"
@@ -122,6 +175,7 @@ describe("SMS Notification Utility (src/lib/sms.ts)", () => {
       expect(url).toBe("https://api.twilio.com/2010-04-01/Accounts/ACmock123/Messages.json")
       expect(options.method).toBe("POST")
       expect(result.success).toBe(true)
+      expect(result.provider).toBe("twilio")
       expect(result.id).toBe("SM_test_sid_789")
       expect(result.simulated).toBe(false)
     })

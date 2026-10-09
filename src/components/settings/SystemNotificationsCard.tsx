@@ -197,7 +197,7 @@ export function SystemNotificationsCard() {
                       <div className="flex items-center gap-2">
                         <p className="text-xs font-semibold text-foreground">High-Fit SMS Job Alerts</p>
                         <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-[2px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                          QUEUE / TWILIO
+                          MIM SMS (BD) / SMS
                         </span>
                       </div>
                       <p className="text-[11px] text-muted-foreground leading-relaxed">
@@ -234,11 +234,11 @@ export function SystemNotificationsCard() {
                         type="tel"
                         value={phone}
                         onChange={(e) => setPhone(e.target.value)}
-                        placeholder="+8801700000000 or +1234567890"
+                        placeholder="01712345678 or +8801712345678"
                         className="w-full text-xs font-mono h-8 px-2.5 rounded-[4px] border border-border bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                       />
                       <span className="text-[10px] text-muted-foreground mt-0.5 block">
-                        Include country code (e.g. +880, +1)
+                        Bangladeshi 11-digit (01XXXXXXXXX) or International (+880...)
                       </span>
                     </div>
 
