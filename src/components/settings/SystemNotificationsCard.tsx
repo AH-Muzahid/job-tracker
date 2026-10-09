@@ -157,12 +157,7 @@ export function SystemNotificationsCard() {
                     <Mail className="h-4 w-4 text-foreground" />
                   </div>
                   <div className="space-y-0.5 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="text-xs font-semibold text-foreground">Daily Opportunity Email Digest</p>
-                      <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-[2px] bg-primary/10 text-primary border border-primary/20">
-                        RESEND
-                      </span>
-                    </div>
+                    <p className="text-xs font-semibold text-foreground">Daily Opportunity Email Digest</p>
                     <p className="text-[11px] text-muted-foreground leading-relaxed">
                       Delivers top matched jobs (&ge;{minMatchScore}%), active pipeline metrics, and stale follow-ups every morning.
                     </p>
@@ -194,14 +189,9 @@ export function SystemNotificationsCard() {
                       <Smartphone className="h-4 w-4 text-foreground" />
                     </div>
                     <div className="space-y-0.5 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="text-xs font-semibold text-foreground">High-Fit SMS Job Alerts</p>
-                        <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-[2px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                          MIM SMS (BD) / SMS
-                        </span>
-                      </div>
+                      <p className="text-xs font-semibold text-foreground">High-Fit SMS Job Alerts</p>
                       <p className="text-[11px] text-muted-foreground leading-relaxed">
-                        Instant single-segment text message when newly evaluated opportunities meet your match criteria.
+                        Instant text message when newly evaluated opportunities meet your match criteria.
                       </p>
                     </div>
                   </div>
@@ -228,7 +218,7 @@ export function SystemNotificationsCard() {
                   <div className="pl-11 pt-2 grid grid-cols-1 sm:grid-cols-2 gap-3 border-t border-border/40">
                     <div>
                       <label className="block text-[11px] font-semibold text-foreground uppercase tracking-wider mb-1">
-                        Recipient Mobile Number
+                        Mobile Phone Number
                       </label>
                       <input
                         type="tel"
@@ -238,7 +228,7 @@ export function SystemNotificationsCard() {
                         className="w-full text-xs font-mono h-8 px-2.5 rounded-[4px] border border-border bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                       />
                       <span className="text-[10px] text-muted-foreground mt-0.5 block">
-                        Bangladeshi 11-digit (01XXXXXXXXX) or International (+880...)
+                        Enter your mobile number to receive alerts
                       </span>
                     </div>
 
