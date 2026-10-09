@@ -11,6 +11,7 @@ import {
   generateFollowUpDraft,
   stageFollowUpForApplication,
 } from "@/lib/applications/follow-up-engine"
+import { sendSms, formatJobMatchSms } from "@/lib/sms"
 
 /**
  * 1. Master Fan-out Dispatcher (Cron Triggered / Event Triggered)
@@ -91,7 +92,19 @@ export const processUserAuditBatch = inngest.createFunction(
           withDbRetry(() =>
             prisma.user.findUnique({
               where: { id: userId },
-              select: { id: true, name: true, email: true },
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                profile: {
+                  select: {
+                    phone: true,
+                    notifyEmail: true,
+                    notifySms: true,
+                    minMatchScore: true,
+                  },
+                },
+              },
             })
           ),
           withDbRetry(() =>
@@ -203,7 +216,9 @@ export const processUserAuditBatch = inngest.createFunction(
           }
         }
 
-        const matchesList = (topMatches || []) as DiscoveredJobMatchRecord[]
+        const userMinMatchScore = user.profile?.minMatchScore ?? 75
+        const rawMatches = (topMatches || []) as DiscoveredJobMatchRecord[]
+        const matchesList = rawMatches.filter((m) => m.fitScore >= userMinMatchScore)
 
         const opportunitiesSummary = matchesList
           .map(
@@ -252,8 +267,9 @@ Provide 2-3 specific, actionable recommendations prioritizing highest-impact mov
           })
         )
 
-        // Send Email if user has an email address
-        if (user.email) {
+        // Send Email if user has an email address and hasn't opted out
+        const shouldSendEmail = Boolean(user.email && user.profile?.notifyEmail !== false)
+        if (shouldSendEmail && user.email) {
           try {
             const formatEmploymentType = (type?: string) => {
               if (!type) return undefined
@@ -303,6 +319,30 @@ Provide 2-3 specific, actionable recommendations prioritizing highest-impact mov
             })
           } catch (emailErr) {
             console.warn(`[Daily Briefing Email Error] User ${userId}:`, emailErr)
+          }
+        }
+
+        // Send SMS if user enabled SMS notifications, provided a phone number, and has top matches
+        const shouldSendSms = Boolean(user.profile?.notifySms && user.profile?.phone && matchesList.length > 0)
+        if (shouldSendSms && user.profile?.phone) {
+          try {
+            const topMatch = matchesList[0]
+            const smsText = formatJobMatchSms({
+              candidateName: user.name || undefined,
+              topMatch: {
+                title: topMatch.job.title,
+                company: topMatch.job.company,
+                matchScore: topMatch.fitScore,
+              },
+              totalMatchesCount: matchesList.length,
+            })
+
+            await sendSms({
+              to: user.profile.phone,
+              body: smsText,
+            })
+          } catch (smsErr) {
+            console.warn(`[Daily Briefing SMS Error] User ${userId}:`, smsErr)
           }
         }
 
