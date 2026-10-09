@@ -20,6 +20,10 @@ const profileSchema = z.object({
   noticePeriod: z.string().max(50).optional(),
   linkedinUrl: z.string().url().max(500).optional().nullable(),
   portfolioUrl: z.string().url().max(500).optional().nullable(),
+  phone: z.string().max(30).optional().nullable(),
+  notifyEmail: z.boolean().optional(),
+  notifySms: z.boolean().optional(),
+  minMatchScore: z.number().int().min(50).max(100).optional(),
 }).passthrough()
 
 export async function GET() {
