@@ -98,6 +98,22 @@ export function DiscoveryFilterSidebar({
         )}
       </div>
 
+      {/* Quick Discovery Stream Toggle: Hide Staged & Applied */}
+      <div className="pb-3 border-b border-border">
+        <label className="flex items-center gap-2 text-xs text-foreground font-medium hover:text-primary cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={Boolean(filters.hideApplied)}
+            onChange={(e) => update({ hideApplied: e.target.checked })}
+            className="size-3.5 rounded-xs border-border accent-primary cursor-pointer"
+          />
+          <span>Hide Staged &amp; Applied</span>
+        </label>
+        <p className="text-[11px] text-muted-foreground mt-1 ml-5.5 leading-tight">
+          Show only untouched discovery opportunities
+        </p>
+      </div>
+
       {/* Job Type Section */}
       <div className="space-y-2 pt-1">
         <label className="text-xs font-semibold text-foreground uppercase tracking-wider">

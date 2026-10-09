@@ -317,7 +317,13 @@ export async function GET(request: NextRequest) {
       console.log(`[JobDiscovery API] Tier 2 re-ranked ${reRankedOpportunities.length} opportunities`)
 
       const pipelineOpps = reRankedOpportunities.map((job) =>
-        transformToOpportunity(job, { id: job.id, fitScore: job.fitScore, matchRationale: job.matchRationale, isSaved: false })
+        transformToOpportunity(job, {
+          id: job.id,
+          fitScore: job.fitScore,
+          matchRationale: job.matchRationale,
+          isSaved: false,
+          publishedAt: now,
+        })
       )
 
       // Merge: pre-computed first, then pipeline results (deduplicate by job id)
@@ -330,8 +336,28 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Re-sort by fitScore descending (pre-computed already sorted, but merged results need re-sort)
-    opportunities.sort((a, b) => b.fitScore - a.fitScore)
+    // Discovery Ranking Law:
+    // Tier 0: Un-actioned fresh opportunities (Not Staged, Not Applied)
+    // Tier 1: Staged opportunities (already in staging)
+    // Tier 2: Applied opportunities (already actioned)
+    // Within each tier, rank by fitScore + freshness recency boost
+    opportunities.sort((a, b) => {
+      const getTier = (o: typeof a) => {
+        if (o.appliedStatus === "Applied" || o.appliedStatus === "applied" || o.appliedStatus === "Interview" || o.appliedStatus === "Offer") return 2
+        if (o.appliedStatus === "STAGED" || o.appliedStatus === "Staged" || o.appliedStatus === "staged") return 1
+        return 0
+      }
+      const tierA = getTier(a)
+      const tierB = getTier(b)
+      if (tierA !== tierB) return tierA - tierB
+
+      const daysA = Math.floor((now.getTime() - new Date(a.publishedAt || a.postedAt || now).getTime()) / (1000 * 60 * 60 * 24))
+      const daysB = Math.floor((now.getTime() - new Date(b.publishedAt || b.postedAt || now).getTime()) / (1000 * 60 * 60 * 24))
+      const freshBoostA = daysA === 0 ? 5 : daysA <= 2 ? 3 : daysA <= 7 ? 0 : -5
+      const freshBoostB = daysB === 0 ? 5 : daysB <= 2 ? 3 : daysB <= 7 ? 0 : -5
+
+      return (b.fitScore + freshBoostB) - (a.fitScore + freshBoostA)
+    })
 
     // Filter by search query if provided
     const filteredOpportunities = query

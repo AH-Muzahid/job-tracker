@@ -191,7 +191,11 @@ export function useJobDiscovery() {
     const q = searchQuery.trim().toLowerCase()
 
     return tabOpportunities.filter((job) => {
-      if (filters.hideApplied && job.appliedStatus) return false
+      const isAlreadyTouched =
+        Boolean(job.appliedStatus) ||
+        stagedJobs.has(job.id) ||
+        Boolean(job.jobId && stagedJobs.has(job.jobId))
+      if (filters.hideApplied && isAlreadyTouched) return false
       if (q) {
         const target = `${job.title} ${job.company} ${job.location} ${(job.tags || []).join(" ")}`.toLowerCase()
         if (!target.includes(q)) return false
@@ -251,11 +255,41 @@ export function useJobDiscovery() {
     })
   }, [tabOpportunities, searchQuery, filters])
 
-  // Memoized sorting
+  // Memoized sorting with Discovery Actionability Tiering (REC-19)
   const sortedOpportunities = useMemo(() => {
     return [...filteredOpportunities].sort((a, b) => {
       switch (sortBy) {
-        case "score-desc": return b.fitScore - a.fitScore
+        case "score-desc": {
+          // If viewing saved tab, user explicitly evaluates saved roles: sort by pure fitScore
+          if (activeTab === "saved") {
+            return b.fitScore - a.fitScore
+          }
+
+          // In Discovery Streams ("all", "today", "yesterday", "week"):
+          // Tier 0: Un-actioned fresh opportunities (Not Staged, Not Applied) -> Priority 1
+          // Tier 1: Staged opportunities (already in staging) -> Priority 2
+          // Tier 2: Applied opportunities (already in tracker) -> Priority 3
+          const getActionTier = (job: ExternalJobOpportunity) => {
+            const status = (job.appliedStatus || "").toLowerCase()
+            if (status === "applied" || status === "interview" || status === "offer" || status === "rejected") return 2
+            if (status === "staged") return 1
+            return 0
+          }
+
+          const tierA = getActionTier(a)
+          const tierB = getActionTier(b)
+          if (tierA !== tierB) {
+            return tierA - tierB
+          }
+
+          // Composite Discovery Relevance: fitScore + recency boost
+          const daysA = daysSincePosted(a.publishedAt || a.postedAt)
+          const daysB = daysSincePosted(b.publishedAt || b.postedAt)
+          const freshBonusA = daysA === 0 ? 6 : daysA <= 2 ? 4 : daysA <= 7 ? 1 : daysA <= 14 ? -2 : -6
+          const freshBonusB = daysB === 0 ? 6 : daysB <= 2 ? 4 : daysB <= 7 ? 1 : daysB <= 14 ? -2 : -6
+
+          return (b.fitScore + freshBonusB) - (a.fitScore + freshBonusA)
+        }
         case "score-asc": return a.fitScore - b.fitScore
         case "salary-desc": return parseSalary(b.salary) - parseSalary(a.salary)
         case "salary-asc": return parseSalary(a.salary) - parseSalary(b.salary)
@@ -267,7 +301,7 @@ export function useJobDiscovery() {
         default: return 0
       }
     })
-  }, [filteredOpportunities, sortBy])
+  }, [filteredOpportunities, sortBy, activeTab])
 
   const saveMutation = useMutation<
     { json: unknown; job: ExternalJobOpportunity; action: "save" | "unsave" },

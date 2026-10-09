@@ -421,29 +421,66 @@ export async function executeSearchExternalJobs(
         }
       }
 
-      // Factor 2: Skill Match & Demonstrated Project Proof (up to 40 pts)
-      let winningBoost = 0
-      const matchedWinningSkills: string[] = []
-      let projectProvenCount = 0
-      let declaredOnlyCount = 0
-
-      matchedSkillNames.forEach((skill) => {
-        if (projectProvenSkills.has(skill)) {
-          projectProvenCount++
-        } else {
-          declaredOnlyCount++
+      // =========================================================================
+      // FACTOR 2 & ATS: Realistic Technology & Keyword Extraction
+      // =========================================================================
+      const jdTechSkills = new Set<string>()
+      tags.forEach((t: string) => {
+        const canonical = toCanonical(t)
+        if (ATS_TECH_VOCAB_SET.has(canonical) || ATS_TECH_VOCAB_SET.has(t.toLowerCase())) {
+          jdTechSkills.add(canonical)
         }
-        if (winningSkills.has(skill)) {
-          winningBoost += 6
-          matchedWinningSkills.push(skill)
-        }
-        if (penalizedSkills.has(skill)) {
-          winningBoost -= 6
+      })
+      ATS_TECH_VOCAB_REGEXES.forEach(({ vocab, regex }) => {
+        if (regex.test(jobSearchText)) {
+          jdTechSkills.add(toCanonical(vocab))
         }
       })
 
-      const rawSkillPoints = (projectProvenCount * 10) + (declaredOnlyCount * 8)
-      const skillScore = Math.max(0, Math.min(40, rawSkillPoints + winningBoost))
+      const matchedAtsSkills: string[] = []
+      const missingAtsSkills: string[] = []
+      let projectProvenCount = 0
+      let declaredOnlyCount = 0
+
+      jdTechSkills.forEach((tech) => {
+        if (userSkills.has(tech) || projectProvenSkills.has(tech)) {
+          matchedAtsSkills.push(tech)
+          if (projectProvenSkills.has(tech)) {
+            projectProvenCount++
+          } else {
+            declaredOnlyCount++
+          }
+        } else {
+          missingAtsSkills.push(tech)
+        }
+      })
+
+      let winningBoost = 0
+      const matchedWinningSkills: string[] = []
+
+      matchedSkillNames.forEach((skill) => {
+        if (winningSkills.has(skill)) {
+          winningBoost += 3
+          matchedWinningSkills.push(skill)
+        }
+        if (penalizedSkills.has(skill)) {
+          winningBoost -= 3
+        }
+      })
+
+      // Skill Score (Scale: 0 to 35 pts)
+      let skillScore = 0
+      if (jdTechSkills.size > 0) {
+        const coverageRatio = matchedAtsSkills.length / jdTechSkills.size
+        const provenBonus = Math.min(6, projectProvenCount * 2)
+        const baseSkillPoints = coverageRatio * 25 + provenBonus
+        const missingPenalty = missingAtsSkills.length >= 3 ? Math.min(5, (missingAtsSkills.length - 2) * 1.2) : 0
+        skillScore = Math.max(0, Math.min(35, Math.round(baseSkillPoints - missingPenalty + winningBoost)))
+      } else {
+        const matchedCount = matchedSkillNames.length
+        const baseSkillPoints = Math.min(28, matchedCount * 7 + (projectProvenCount > 0 ? 4 : 0))
+        skillScore = Math.max(0, Math.min(35, Math.round(baseSkillPoints + winningBoost)))
+      }
 
       // Factor 3: Target Role Alignment (up to 25 pts)
       let roleScore = 0
@@ -455,7 +492,7 @@ export async function executeSearchExternalJobs(
       } else {
         const matchedTargetRole = targetRolesLower.find((r: string) => posLower.includes(r))
         if (matchedTargetRole) {
-          roleScore = 20
+          roleScore = 22
           roleRationale = `Target match for "${matchedTargetRole}"`
         } else {
           const targetTokens = targetRolesLower.flatMap((r: string) => r.split(/\s+/)).filter((t: string) => t.length > 3)
@@ -466,10 +503,10 @@ export async function executeSearchExternalJobs(
             roleScore = 18
             roleRationale = "Software engineering profile alignment"
           } else if (/\b(salesforce|crm)\b/i.test(posLower)) {
-            roleScore = 15
+            roleScore = 14
             roleRationale = "Salesforce & CRM enterprise engineering"
           } else if (/\b(solutions architect|cloud architect)\b/i.test(posLower)) {
-            roleScore = 15
+            roleScore = 14
             roleRationale = "Solutions & Cloud systems architecture"
           } else {
             roleScore = 5
@@ -478,7 +515,7 @@ export async function executeSearchExternalJobs(
       }
 
       if (winningRoles.some((wr) => posLower.includes(wr))) {
-        roleScore = Math.min(25, roleScore + 4)
+        roleScore = Math.min(25, roleScore + 2)
       }
 
       // Factor 4: Seniority & Experience Level Alignment (up to 15 pts)
@@ -504,7 +541,7 @@ export async function executeSearchExternalJobs(
 
       if (isJuniorCandidate) {
         if (jobSeniority === "junior" || jobSeniority === "entry") {
-          experienceScore = 18
+          experienceScore = 15
           experienceRationale = "Junior / Early-career: Ideal seniority match for your current portfolio & experience stage"
         } else if (jobSeniority === "mid") {
           experienceScore = 10
@@ -539,7 +576,7 @@ export async function executeSearchExternalJobs(
         }
       }
 
-      // Factor 5: Implicit Learned Preferences (REC-09)
+      // Factor 5: Implicit Learned Preferences (gentle scaling: max +4 boost, up to -15 aversion)
       const implicitAdj = calculateImplicitPreferenceAdjustment(
         {
           title: position,
@@ -550,6 +587,10 @@ export async function executeSearchExternalJobs(
         },
         implicitPrefs
       )
+      const scaledImplicitDelta =
+        implicitAdj.scoreDelta > 0
+          ? Math.min(4, Math.round(implicitAdj.scoreDelta * 0.4))
+          : implicitAdj.scoreDelta
 
       // Factor 6: Posting Freshness & Decay (REC-15)
       const freshness = calculateJobFreshness(job.postedAt)
@@ -561,7 +602,7 @@ export async function executeSearchExternalJobs(
       const isCandidateAbroad = isGeoDisqualified({ location: "US", title: "", description: "" }, userLocation)
 
       if (visaStatus === "available") {
-        visaScore = isCandidateAbroad ? 3 : 1
+        visaScore = isCandidateAbroad ? 2 : 1
         visaRationale = "Visa sponsorship supported / available"
       } else if (
         visaStatus === "not_available" &&
@@ -589,33 +630,9 @@ export async function executeSearchExternalJobs(
         }
       )
 
-      const rawPoints = locationScore + skillScore + roleScore + experienceScore + implicitAdj.scoreDelta + freshness.scoreDelta + visaScore + semanticResult.bonus
-      const finalFitScore = Math.max(1, Math.min(99, Math.round(rawPoints)))
-
-      // Realistic ATS Keyword Matching Simulation
-      const jdTechSkills = new Set<string>()
-      tags.forEach((t: string) => {
-        const canonical = toCanonical(t)
-        if (ATS_TECH_VOCAB_SET.has(canonical) || ATS_TECH_VOCAB_SET.has(t.toLowerCase())) {
-          jdTechSkills.add(canonical)
-        }
-      })
-      ATS_TECH_VOCAB_REGEXES.forEach(({ vocab, regex }) => {
-        if (regex.test(jobSearchText)) {
-          jdTechSkills.add(toCanonical(vocab))
-        }
-      })
-
-      const matchedAtsSkills: string[] = []
-      const missingAtsSkills: string[] = []
-
-      jdTechSkills.forEach((tech) => {
-        if (userSkills.has(tech) || projectProvenSkills.has(tech)) {
-          matchedAtsSkills.push(tech)
-        } else {
-          missingAtsSkills.push(tech)
-        }
-      })
+      // Total Calibrated Points Calculation (Smooth, Realistic Scale: 30% to 98%)
+      const rawPoints = locationScore + skillScore + roleScore + experienceScore + scaledImplicitDelta + freshness.scoreDelta + visaScore + semanticResult.bonus
+      const finalFitScore = Math.max(1, Math.min(98, Math.round(rawPoints)))
 
       let atsScore = 72
       if (jdTechSkills.size > 0) {
@@ -657,11 +674,11 @@ export async function executeSearchExternalJobs(
       }
 
       // Transparent Score Factor Breakdown (REC-06 & REC-09)
-      const learnedSnippet = implicitAdj.scoreDelta !== 0
-        ? ` • Learned: ${implicitAdj.scoreDelta > 0 ? `+${implicitAdj.scoreDelta}` : implicitAdj.scoreDelta}`
+      const learnedSnippet = scaledImplicitDelta !== 0
+        ? ` • Learned: ${scaledImplicitDelta > 0 ? `+${scaledImplicitDelta}` : scaledImplicitDelta}`
         : ""
       const rationaleParts: string[] = [
-        `📊 Fit Breakdown: ${finalFitScore}% (Skills: ${skillScore}/40 • Role: ${roleScore}/25 • Location: ${locationScore}/20 • Seniority: ${experienceScore}/15${learnedSnippet})`,
+        `📊 Fit Breakdown: ${finalFitScore}% (Skills: ${skillScore}/35 • Role: ${roleScore}/25 • Location: ${locationScore}/20 • Seniority: ${experienceScore}/15${learnedSnippet})`,
       ]
 
       if (implicitAdj.reasons.length > 0) {
