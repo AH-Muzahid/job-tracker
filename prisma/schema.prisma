@@ -162,6 +162,9 @@ model UserProfile {
   id                    String   @id @default(uuid())
   userId                String   @unique
   phone                 String?
+  notifyEmail           Boolean  @default(true)
+  notifySms             Boolean  @default(false)
+  minMatchScore         Int      @default(80)
   location              String?
   targetRoles           String[]
   workPreference        String?

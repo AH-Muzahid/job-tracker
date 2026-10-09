@@ -1,0 +1,129 @@
+import { describe, it, expect, vi, beforeEach } from "vitest"
+import {
+  normalizePhoneNumber,
+  truncateSmsBody,
+  formatJobMatchSms,
+  sendSms,
+} from "@/lib/sms"
+
+describe("SMS Notification Utility (src/lib/sms.ts)", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks()
+    delete process.env.TWILIO_ACCOUNT_SID
+    delete process.env.TWILIO_AUTH_TOKEN
+    delete process.env.TWILIO_PHONE_NUMBER
+  })
+
+  describe("normalizePhoneNumber", () => {
+    it("handles numbers with spaces, dashes, and parentheses", () => {
+      expect(normalizePhoneNumber("+1 (555) 234-5678")).toBe("+15552345678")
+      expect(normalizePhoneNumber("+880 1711-223344")).toBe("+8801711223344")
+    })
+
+    it("adds leading '+' if missing", () => {
+      expect(normalizePhoneNumber("8801711223344")).toBe("+8801711223344")
+      expect(normalizePhoneNumber("15552345678")).toBe("+15552345678")
+    })
+
+    it("returns empty string on empty input", () => {
+      expect(normalizePhoneNumber("")).toBe("")
+    })
+  })
+
+  describe("truncateSmsBody", () => {
+    it("does not truncate if under max length", () => {
+      const short = "Hello from CareerTrack"
+      expect(truncateSmsBody(short, 160)).toBe(short)
+    })
+
+    it("truncates with ellipsis when exceeding limit", () => {
+      const longText = "a".repeat(200)
+      const truncated = truncateSmsBody(longText, 160)
+      expect(truncated.length).toBe(160)
+      expect(truncated.endsWith("...")).toBe(true)
+    })
+  })
+
+  describe("formatJobMatchSms", () => {
+    it("formats message for single job match within 160 chars", () => {
+      const msg = formatJobMatchSms({
+        topMatch: {
+          title: "Senior Fullstack Engineer",
+          company: "Linear",
+          matchScore: 94.2,
+        },
+        totalMatchesCount: 1,
+        appUrl: "https://careertrack.ai",
+      })
+
+      expect(msg).toContain("CareerTrack: New 94% match!")
+      expect(msg).toContain("Senior Fullstack Engineer at Linear")
+      expect(msg).toContain("https://careertrack.ai/discovery")
+      expect(msg.length).toBeLessThanOrEqual(160)
+    })
+
+    it("formats message for multiple job matches within 160 chars", () => {
+      const msg = formatJobMatchSms({
+        topMatch: {
+          title: "Staff Software Engineer, Platform Infrastructure",
+          company: "Acme Super Systems Corporation",
+          matchScore: 89,
+        },
+        totalMatchesCount: 4,
+        appUrl: "https://careertrack.ai",
+      })
+
+      expect(msg).toContain("CareerTrack: 4 new job matches!")
+      expect(msg).toContain("89%")
+      expect(msg.length).toBeLessThanOrEqual(160)
+    })
+  })
+
+  describe("sendSms (Universal Sender)", () => {
+    it("returns simulated success when Twilio is unconfigured in dev/test", async () => {
+      const result = await sendSms({
+        to: "+15551234567",
+        body: "CareerTrack test notification",
+      })
+
+      expect(result.success).toBe(true)
+      expect(result.simulated).toBe(true)
+      expect(result.id).toMatch(/^sim_sms_/)
+    })
+
+    it("fails early with descriptive error when phone number is invalid", async () => {
+      const result = await sendSms({
+        to: "123", // too short
+        body: "CareerTrack test notification",
+      })
+
+      expect(result.success).toBe(false)
+      expect(result.error).toBe("Invalid recipient phone number")
+    })
+
+    it("dispatches HTTP request to Twilio API when credentials are provided", async () => {
+      process.env.TWILIO_ACCOUNT_SID = "ACmock123"
+      process.env.TWILIO_AUTH_TOKEN = "mockauth456"
+      process.env.TWILIO_PHONE_NUMBER = "+15550001111"
+
+      const fetchMock = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ sid: "SM_test_sid_789" }),
+      })
+      vi.stubGlobal("fetch", fetchMock)
+
+      const result = await sendSms({
+        to: "+15559876543",
+        body: "CareerTrack Twilio live test",
+      })
+
+      expect(fetchMock).toHaveBeenCalledOnce()
+      const [url, options] = fetchMock.mock.calls[0]
+      expect(url).toBe("https://api.twilio.com/2010-04-01/Accounts/ACmock123/Messages.json")
+      expect(options.method).toBe("POST")
+      expect(result.success).toBe(true)
+      expect(result.id).toBe("SM_test_sid_789")
+      expect(result.simulated).toBe(false)
+    })
+  })
+})
