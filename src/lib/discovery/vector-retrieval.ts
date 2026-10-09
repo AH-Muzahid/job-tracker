@@ -162,6 +162,13 @@ export async function retrieveCandidateJobsTier1(params: {
   for (const row of rawResults) {
     if (!isValidJobPostingUrl(row.url)) continue
 
+    // Remote preference hard gate: If candidate wants remote, strictly exclude non-remote jobs
+    if (workPreference === "remote") {
+      const locLower = (row.location || "").toLowerCase()
+      const isRemoteJob = row.isRemote || locLower.includes("remote") || locLower.includes("anywhere") || locLower.includes("worldwide")
+      if (!isRemoteJob) continue
+    }
+
     // Negative feedback penalty: If role contains repeatedly dismissed tokens, drop similarity
     let adjustedSim = Number(row.similarity)
     const lowerTitle = row.title.toLowerCase()

@@ -4,6 +4,7 @@ export interface ExternalJobOpportunity {
   title: string
   company: string
   location: string
+  isRemote?: boolean
   url: string
   sourceBoard: "remoteok" | "arbeitnow" | "adzuna" | "curated" | "linkedin" | "jobicy" | "linkedin_post" | "company_portal" | "greenhouse" | "lever"
   tags: string[]

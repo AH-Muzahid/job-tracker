@@ -11,7 +11,7 @@ import {
   normalizeTitle,
   calculateJobFreshness,
 } from "@/lib/ai/graph/tools/discovery-tools"
-import { detectEmploymentType } from "@/lib/discovery/matching"
+import { detectEmploymentType, detectJobWorkMode } from "@/lib/discovery/matching"
 import {
   getNextBatchReleaseTime,
   getCurrentBatchStartTime,
@@ -255,6 +255,7 @@ export async function GET(request: NextRequest) {
         title: jobData.title,
         company: jobData.company,
         location: jobData.location,
+        isRemote: jobData.isRemote,
         url: jobData.url,
         sourceBoard: (jobData.sourceBoard || "curated") as any,
         tags: jobData.tags || [],
@@ -283,9 +284,22 @@ export async function GET(request: NextRequest) {
     }
 
     // 4. Build opportunities from pre-computed matches (instant — no vector retrieval, no AI re-ranking)
-    const opportunities = allMatches
+    let opportunities = allMatches
       .filter((m) => m.job)
       .map((m) => transformToOpportunity(m.job!, m))
+
+    // Hard Gate: If user's active work preference is remote, strictly exclude non-remote jobs
+    if (workPreference === "remote") {
+      opportunities = opportunities.filter((o) => {
+        const wm = detectJobWorkMode({
+          location: o.location,
+          title: o.title,
+          description: o.descriptionSnippet,
+          sourceBoard: o.sourceBoard,
+        })
+        return wm === "remote"
+      })
+    }
 
     // 5. FALLBACK: If pre-computed matches are insufficient or if Today's feed has 0 jobs, run vector retrieval + re-ranking pipeline
     const FAST_PATH_MIN_THRESHOLD = 10

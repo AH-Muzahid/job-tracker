@@ -73,7 +73,7 @@ export function DiscoveryFilterSidebar({
       batchSlot: filters.batchSlot,
       postedWithin: "",
       tags: [],
-      hideApplied: false,
+      hideApplied: true,
     })
   }
 

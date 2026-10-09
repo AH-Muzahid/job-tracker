@@ -372,8 +372,9 @@ export function DiscoveryPage() {
         currentPreferences={userProfile}
         onSaved={() => {
           queryClient.invalidateQueries({ queryKey: ["user-profile"] })
+          queryClient.invalidateQueries({ queryKey: ["discovery"] })
           refetchProfile()
-          refetch()
+          refreshFeed()
         }}
       />
 

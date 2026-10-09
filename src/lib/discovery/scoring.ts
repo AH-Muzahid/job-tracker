@@ -267,12 +267,12 @@ export async function executeSearchExternalJobs(
       const isNationalHub = isNationalTechHubMatch(jobLocation, userLocation)
       const isViableLocalMatch = isStrictCityMatch || isNationalHub
 
-      if (!isExplicitSearch) {
-        // Gate 1A: Remote-first candidate will NEVER see on-site or hybrid jobs
-        if (userWorkPreference === "remote" && jobWorkMode !== "remote") {
-          continue
-        }
+      // Gate 1A: Remote-first candidate will NEVER see on-site or hybrid jobs under any circumstances
+      if (userWorkPreference === "remote" && jobWorkMode !== "remote") {
+        continue
+      }
 
+      if (!isExplicitSearch) {
         // Gate 1B: On-site candidate in city X will NEVER see on-site or hybrid jobs in distant foreign locations
         if (userWorkPreference === "onsite" && (jobWorkMode === "onsite" || jobWorkMode === "hybrid") && !isViableLocalMatch && userLocation) {
           continue
@@ -364,15 +364,9 @@ export async function executeSearchExternalJobs(
         if (jobWorkMode === "remote") {
           locationScore = 20
           locationRationale = "100% Global Remote Compatible"
-        } else if (isStrictCityMatch) {
-          locationScore = 18
-          locationRationale = `Direct Local match in ${userLocation}`
-        } else if (isNationalHub) {
-          locationScore = 16
-          locationRationale = "Dhaka Tech Hub opportunity in Bangladesh"
-        } else if (isLocationMatch) {
-          locationScore = 15
-          locationRationale = `Local Hybrid in ${userLocation}`
+        } else {
+          locationScore = 0
+          locationRationale = "On-site / Hybrid mismatch for remote preference"
         }
       } else if (userWorkPreference === "onsite") {
         if (isStrictCityMatch && jobWorkMode === "onsite") {
@@ -386,37 +380,43 @@ export async function executeSearchExternalJobs(
           const hubName = jobLocation.toLowerCase().includes("dhaka") ? "Dhaka Tech Hub" : "National Tech Hub"
           locationRationale = `${hubName} opening (Accessible from ${userLocation})`
         } else if (jobWorkMode === "remote") {
-          locationScore = 12
+          locationScore = 14
           locationRationale = "Remote work option (flexible alternative)"
+        } else {
+          locationScore = 0
+          locationRationale = `Non-local city (${jobLocation})`
         }
       } else if (userWorkPreference === "hybrid") {
         if (isStrictCityMatch && jobWorkMode === "hybrid") {
           locationScore = 20
           locationRationale = `Direct Local Hybrid match in ${userLocation}`
-        } else if (isStrictCityMatch && jobWorkMode === "onsite") {
+        } else if (jobWorkMode === "remote") {
           locationScore = 18
-          locationRationale = `Local On-site in ${userLocation}`
+          locationRationale = "Remote flexibility (ideal alternative to Hybrid)"
+        } else if (isStrictCityMatch && jobWorkMode === "onsite") {
+          locationScore = 15
+          locationRationale = `Direct Local On-site match in ${userLocation}`
         } else if (isNationalHub && (jobWorkMode === "hybrid" || jobWorkMode === "onsite")) {
-          locationScore = 17
+          locationScore = 12
           const hubName = jobLocation.toLowerCase().includes("dhaka") ? "Dhaka Tech Hub" : "National Tech Hub"
           locationRationale = `${hubName} opening (Accessible from ${userLocation})`
-        } else if (jobWorkMode === "remote") {
-          locationScore = 14
-          locationRationale = "Remote flexibility (alternative to Hybrid)"
+        } else {
+          locationScore = 0
+          locationRationale = `Non-local city (${jobLocation})`
         }
       } else {
         if (isStrictCityMatch) {
           locationScore = 20
           locationRationale = `Local opportunity in ${userLocation}`
+        } else if (jobWorkMode === "remote") {
+          locationScore = 20
+          locationRationale = "Global Remote opportunity"
         } else if (isNationalHub) {
-          locationScore = 18
+          locationScore = 14
           const hubName = jobLocation.toLowerCase().includes("dhaka") ? "Dhaka Tech Hub opportunity in Bangladesh" : "National Tech Hub opportunity"
           locationRationale = hubName
-        } else if (jobWorkMode === "remote") {
-          locationScore = 18
-          locationRationale = "Global Remote opportunity"
         } else {
-          locationScore = 10
+          locationScore = 5
           locationRationale = `Location: ${jobLocation}`
         }
       }
@@ -746,6 +746,7 @@ export async function executeSearchExternalJobs(
         title: position,
         company,
         location: jobLocation,
+        isRemote: jobWorkMode === "remote",
         url: job.url || `https://www.google.com/search?q=${encodeURIComponent(`${company} ${position}`)}`,
         sourceBoard: job.sourceBoard,
         tags,
@@ -797,8 +798,14 @@ export async function executeSearchExternalJobs(
           isRemote: job.isRemote,
         })
 
-        // Strict remote candidate check: Remote-only users should never receive onsite-only foreign roles
+        // Strict remote candidate check: Remote-only users should never receive onsite-only roles
         if (userWorkPreference === "remote" && jobWorkMode !== "remote") {
+          continue
+        }
+
+        // Strict local candidate check: Onsite/Hybrid users should never receive onsite roles in distant cities
+        const isStrictCityMatchFallback = userLocation ? checkLocationMatch(jobLocation, userLocation, { strictCity: true }) : false
+        if ((userWorkPreference === "onsite" || userWorkPreference === "hybrid") && jobWorkMode !== "remote" && !isStrictCityMatchFallback && userLocation) {
           continue
         }
 

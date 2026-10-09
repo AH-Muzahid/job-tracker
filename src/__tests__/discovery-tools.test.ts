@@ -12,6 +12,7 @@ import {
 import { prisma } from "@/lib/prisma"
 import * as learningEngine from "@/lib/ai/learning-engine"
 import * as scrapers from "@/lib/discovery/scrapers"
+import * as preferences from "@/lib/discovery/preferences"
 
 const TEST_FIXTURE_JOBS: UnifiedRawJob[] = [
   {
@@ -69,6 +70,23 @@ describe("Multi-Board Job Discovery Engine Tools", () => {
     vi.clearAllMocks()
     vi.spyOn(scrapers, "fetchMultiBoardOpportunities").mockResolvedValue(TEST_FIXTURE_JOBS)
     vi.spyOn((prisma as any).canonicalJob, "findMany").mockResolvedValue(TEST_FIXTURE_JOBS)
+    vi.spyOn(preferences, "getUserImplicitPreferences").mockResolvedValue({
+      userId: testUserId,
+      updatedAt: new Date().toISOString(),
+      favoredSkills: {},
+      favoredRoles: {},
+      favoredCompanies: {},
+      favoredWorkModes: {},
+      dislikedRoles: {},
+      dislikedSkills: {},
+      dislikedCompanies: {},
+      dislikedLocations: {},
+      averseToOnsite: false,
+      totalSaved: 0,
+      totalDismissed: 0,
+      totalApplied: 0,
+      dismissReasons: {},
+    })
   })
 
   it("normalizes company names and job titles for deduplication", () => {

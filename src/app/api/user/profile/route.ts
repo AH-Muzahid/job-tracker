@@ -59,6 +59,9 @@ export async function PUT(request: NextRequest) {
   )
 
   void invalidateCache(`user:profile:${userId}`)
+  void invalidateCache(`discovery:feed:v1:${userId}`)
+  void invalidateCache(`user:stats:${userId}`)
+  void invalidateCache(`user:stats:v2:${userId}`)
   void syncUserProfileToMemories(userId).catch(() => {})
 
   return NextResponse.json(profile)

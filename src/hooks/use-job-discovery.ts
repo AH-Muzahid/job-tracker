@@ -38,7 +38,7 @@ export function useJobDiscovery() {
     batchSlot: "",
     postedWithin: "",
     tags: [],
-    hideApplied: false,
+    hideApplied: true,
   })
   const [sortBy, setSortBy] = useState<SortOption>("score-desc")
   const [savedJobs, setSavedJobs] = useState<Set<string>>(new Set())
@@ -195,7 +195,7 @@ export function useJobDiscovery() {
         Boolean(job.appliedStatus) ||
         stagedJobs.has(job.id) ||
         Boolean(job.jobId && stagedJobs.has(job.jobId))
-      if (filters.hideApplied && isAlreadyTouched) return false
+      if (filters.hideApplied && isAlreadyTouched && activeTab !== "saved") return false
       if (q) {
         const target = `${job.title} ${job.company} ${job.location} ${(job.tags || []).join(" ")}`.toLowerCase()
         if (!target.includes(q)) return false
@@ -210,8 +210,8 @@ export function useJobDiscovery() {
       }
       if (filters.source && job.sourceBoard !== filters.source) return false
       if (filters.location) {
-        const loc = job.location.toLowerCase()
-        const isRemote = loc.includes("remote") || loc.includes("anywhere")
+        const loc = (job.location || "").toLowerCase()
+        const isRemote = job.isRemote === true || loc.includes("remote") || loc.includes("anywhere") || loc.includes("worldwide")
         const isHybrid = loc.includes("hybrid")
         if (filters.location === "remote" && !isRemote) return false
         if (filters.location === "hybrid" && !isHybrid) return false
@@ -538,7 +538,7 @@ export function useJobDiscovery() {
 
   const clearAllFilters = useCallback(() => {
     setSearchQuery("")
-    setFilters({ source: "", location: "", minScore: "", visaSponsorship: "", batchSlot: "", postedWithin: "", tags: [], hideApplied: false })
+    setFilters({ source: "", location: "", minScore: "", visaSponsorship: "", batchSlot: "", postedWithin: "", tags: [], hideApplied: true })
   }, [])
 
   const unhideJob = useCallback((jobId: string) => {

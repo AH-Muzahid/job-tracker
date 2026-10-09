@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest"
 import { executeSearchExternalJobs } from "@/lib/discovery/scoring"
 import { prisma } from "@/lib/prisma"
 import * as learningEngine from "@/lib/ai/learning-engine"
+import * as preferences from "@/lib/discovery/preferences"
 
 describe("Discovery Scoring Calibration & Actionability Tiering", () => {
   const testUserId = "user-calibration-test-456"
@@ -42,6 +43,23 @@ describe("Discovery Scoring Calibration & Actionability Tiering", () => {
       isExpired: false,
       scamScore: 0.1,
     },
+    {
+      id: "job-onsite-dhaka",
+      title: "Full Stack Developer",
+      company: "Local Dhaka Tech",
+      location: "Dhaka, Bangladesh",
+      isRemote: false,
+      url: "https://localdhaka.com/job/3",
+      sourceBoard: "bdjobs",
+      tags: ["react", "nodejs", "typescript"],
+      salaryMin: 80000,
+      salaryMax: 100000,
+      description: "Onsite developer role in Dhaka office.",
+      postedAt: new Date(Date.now() - 1000 * 60 * 60 * 6),
+      visaSponsorship: "unknown",
+      isExpired: false,
+      scamScore: 0.1,
+    },
   ]
 
   beforeEach(() => {
@@ -73,6 +91,23 @@ describe("Discovery Scoring Calibration & Actionability Tiering", () => {
       winningSkills: [],
       penalizedSkills: [],
       averageTimeToInterviewDays: null,
+    })
+    vi.spyOn(preferences, "getUserImplicitPreferences").mockResolvedValue({
+      userId: testUserId,
+      updatedAt: new Date().toISOString(),
+      favoredSkills: {},
+      favoredRoles: {},
+      favoredCompanies: {},
+      favoredWorkModes: {},
+      dislikedRoles: {},
+      dislikedSkills: {},
+      dislikedCompanies: {},
+      dislikedLocations: {},
+      averseToOnsite: false,
+      totalSaved: 0,
+      totalDismissed: 0,
+      totalApplied: 0,
+      dismissReasons: {},
     })
   })
 
@@ -118,4 +153,32 @@ describe("Discovery Scoring Calibration & Actionability Tiering", () => {
     expect(freshJob!.matchRationale).toContain("Seniority:")
     expect(freshJob!.matchRationale).toContain("/15")
   })
+
+  it("strictly disqualifies onsite jobs when candidate has workPreference='remote'", async () => {
+    const result = await executeSearchExternalJobs(testUserId, { limit: 10 })
+    expect(result.success).toBe(true)
+    const onsiteJob = result.opportunities.find((o) => o.id === "job-onsite-dhaka")
+    // Gate 1A must completely eliminate the onsite job from candidate's discovery feed
+    expect(onsiteJob).toBeUndefined()
+  })
+
+  it("scores local onsite jobs accurately when candidate prefers onsite in Dhaka", async () => {
+    // Override profile for onsite candidate in Dhaka
+    vi.spyOn((prisma as any).userProfile, "findUnique").mockResolvedValue({
+      userId: testUserId,
+      strengths: "React, Node.js, TypeScript",
+      targetRoles: ["Full Stack Developer"],
+      workPreference: "onsite",
+      location: "Dhaka, Bangladesh",
+      experienceLevel: "mid",
+    })
+
+    const result = await executeSearchExternalJobs(testUserId, { limit: 10 })
+    expect(result.success).toBe(true)
+    const onsiteJob = result.opportunities.find((o) => o.id === "job-onsite-dhaka")
+    expect(onsiteJob).toBeDefined()
+    // Local Dhaka job must receive 20/20 location points
+    expect(onsiteJob!.matchRationale).toContain("Location: 20/20")
+  })
 })
+
