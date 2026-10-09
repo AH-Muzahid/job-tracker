@@ -98,6 +98,18 @@ describe("SMS Notification Utility (src/lib/sms.ts)", () => {
       expect(msg).toContain("89%")
       expect(msg.length).toBeLessThanOrEqual(160)
     })
+
+    it("falls back to career-track-nine.vercel.app when appUrl is omitted", () => {
+      const msg = formatJobMatchSms({
+        topMatch: {
+          title: "Fullstack Developer",
+          company: "TechCorp",
+          matchScore: 92,
+        },
+      })
+
+      expect(msg).toContain("https://career-track-nine.vercel.app/discovery")
+    })
   })
 
   describe("sendSms (Universal Sender with MiMSMS and Twilio)", () => {

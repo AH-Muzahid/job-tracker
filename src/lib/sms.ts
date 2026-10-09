@@ -76,7 +76,7 @@ export function truncateSmsBody(text: string, maxLen = 160): string {
 export function formatJobMatchSms({
   topMatch,
   totalMatchesCount = 1,
-  appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://careertrack.ai",
+  appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://career-track-nine.vercel.app",
 }: FormatJobMatchSmsOptions): string {
   const matchPct = Math.round(topMatch.matchScore)
   const discoveryUrl = `${appUrl.replace(/\/$/, "")}/discovery`

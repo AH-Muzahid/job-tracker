@@ -140,7 +140,7 @@ export function formatDailyOpportunityDigestHtml({
   opportunities = [],
   staleApplicationsCount = 0,
   activeApplicationsCount = 0,
-  appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://careertrack.ai",
+  appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://career-track-nine.vercel.app",
 }: {
   candidateName?: string
   briefingText: string
@@ -296,7 +296,7 @@ export function formatInterviewReminderHtml({
   interviewMeetingUrl,
   interviewNotes,
   reminderType,
-  appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://careertrack.ai",
+  appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://career-track-nine.vercel.app",
   applicationId,
 }: InterviewReminderEmailOptions): string {
   const roundTitle = interviewRound || "Interview Round"
