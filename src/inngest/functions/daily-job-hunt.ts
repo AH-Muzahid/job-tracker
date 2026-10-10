@@ -85,6 +85,14 @@ export const processUserAuditBatch = inngest.createFunction(
 
     for (const userId of userIds) {
       await step.run(`audit-user-${userId}`, async () => {
+        // Fresh Feed Guarantee: Evaluate, score, and publish fresh jobs to user's feed before audit
+        try {
+          const { processUserJobBatch } = await import("./batch-job-pipeline")
+          await processUserJobBatch(userId, { forceImmediatePublish: true, notify: false })
+        } catch (feedErr) {
+          console.warn(`[Daily Job Hunt] Pre-briefing feed refresh non-fatal warning for user ${userId}:`, feedErr)
+        }
+
         const sevenDaysAgo = new Date()
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
 

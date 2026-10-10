@@ -27,6 +27,15 @@ vi.mock("@/lib/prisma", () => ({
     },
     userJobMatch: {
       findMany: vi.fn(),
+      updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+      createMany: vi.fn().mockResolvedValue({ count: 0 }),
+    },
+    canonicalJob: {
+      updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+      findMany: vi.fn().mockResolvedValue([]),
+    },
+    discoveryEvent: {
+      create: vi.fn().mockResolvedValue({ id: "mock-event-1" }),
     },
   },
   withDbRetry: vi.fn((fn) => fn()),

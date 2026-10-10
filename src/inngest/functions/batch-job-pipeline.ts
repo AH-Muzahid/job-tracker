@@ -394,6 +394,7 @@ export const globalJobCrawlScheduler = inngest.createFunction(
     retries: 2,
     triggers: [
       { cron: "0 */4 * * *" }, // Runs every 4 hours
+      { cron: "30 1 * * *" }, // Pre-hunt fresh crawl: Runs daily at 01:30 AM UTC (07:30 AM BST, 30m before daily 8 AM job hunt)
       { event: "discovery/global-crawl.trigger" },
     ],
   },

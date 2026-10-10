@@ -70,10 +70,10 @@ export const INNGEST_PIPELINE_CATALOG: InngestPipelineMetadata[] = [
   {
     id: "global-job-crawl-scheduler",
     name: "Global Job Board Crawler",
-    description: "Multi-board scrapers crawler that pulls external listings into the CanonicalJob catalog.",
+    description: "Multi-board scrapers crawler that pulls external listings into CanonicalJob (runs every 4h + daily 07:30 BST pre-hunt).",
     category: "Job Discovery",
     triggerType: "hybrid",
-    cronSchedule: "0 */4 * * * (Every 4h UTC)",
+    cronSchedule: "0 */4 * * * & 30 1 * * * (Every 4h + Daily 07:30 BST)",
     triggerEvent: "discovery/global-crawl.trigger",
     retries: 2,
   },
