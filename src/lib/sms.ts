@@ -1,6 +1,6 @@
 /**
  * Universal SMS Dispatcher & Formatter for CareerTrack
- * Supports MiMSMS (Bangladesh Local Gateway API V2) and Twilio with safe simulation fallback.
+ * Supports BulkSMSBD (bulksmsbd.net API), MiMSMS (API V2), and Twilio with safe simulation fallback.
  */
 
 export interface SendSmsOptions {
@@ -14,7 +14,7 @@ export interface SendSmsResult {
   id?: string
   simulated?: boolean
   error?: string
-  provider?: "mimsms" | "twilio" | "simulation"
+  provider?: "bulksmsbd" | "mimsms" | "twilio" | "simulation"
 }
 
 export interface FormatJobMatchSmsOptions {
@@ -43,7 +43,7 @@ export function normalizePhoneNumber(phone: string): string {
 
 /**
  * Normalizes Bangladeshi mobile numbers into the standard 13-digit format (8801XXXXXXXXX)
- * expected by Bangladeshi telecom SMS gateways like MiMSMS.
+ * expected by Bangladeshi telecom SMS gateways like BulkSMSBD and MiMSMS.
  */
 export function formatBdPhoneNumber(phone: string): string {
   if (!phone) return ""
@@ -93,9 +93,10 @@ export function formatJobMatchSms({
 
 /**
  * Universal SMS sender:
- * 1. Dispatches via MiMSMS API V2 if MIM_SMS_API_KEY is configured.
- * 2. Dispatches via Twilio if TWILIO_ACCOUNT_SID & TWILIO_AUTH_TOKEN are configured.
- * 3. Falls back to safe simulation mode for local development or testing.
+ * 1. Dispatches via BulkSMSBD (bulksmsbd.net) if BULKSMSBD_API_KEY is configured.
+ * 2. Dispatches via MiMSMS API V2 if MIM_SMS_API_KEY is configured.
+ * 3. Dispatches via Twilio if TWILIO_ACCOUNT_SID & TWILIO_AUTH_TOKEN are configured.
+ * 4. Falls back to safe simulation mode for local development or testing.
  */
 export async function sendSms({
   to,
@@ -110,7 +111,75 @@ export async function sendSms({
     }
   }
 
-  // 1. Check for MiMSMS (Bangladesh Local Gateway API V2)
+  // 1. Check for BulkSMSBD (bulksmsbd.net - Recommended for Bangladesh)
+  const bulkSmsApiKey = process.env.BULKSMSBD_API_KEY || process.env.BULKSMS_API_KEY
+  const bulkSmsSenderId = from || process.env.BULKSMSBD_SENDER_ID || process.env.BULKSMS_SENDER_ID || "8809617000000"
+
+  if (bulkSmsApiKey) {
+    try {
+      const bdPhone = formatBdPhoneNumber(to)
+      const params = new URLSearchParams()
+      params.append("api_key", bulkSmsApiKey)
+      params.append("type", "text")
+      params.append("number", bdPhone)
+      params.append("senderid", bulkSmsSenderId)
+      params.append("message", body)
+
+      // Primary attempt with HTTPS, with automatic HTTP fallback if gateway SSL is unconfigured
+      let response: Response
+      try {
+        response = await fetch("https://bulksmsbd.net/api/smsapi", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          body: params.toString(),
+        })
+      } catch {
+        response = await fetch("http://bulksmsbd.net/api/smsapi", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          body: params.toString(),
+        })
+      }
+
+      const data = await response.json().catch(() => ({}))
+
+      // BulkSMSBD standard success code is 202
+      if (response.ok && (data?.response_code === 202 || data?.response_code === "202")) {
+        return {
+          success: true,
+          id: String(data?.message_id || `bulksms_${Date.now()}`),
+          simulated: false,
+          provider: "bulksmsbd",
+        }
+      }
+
+      const errorMsg =
+        data?.error_message ||
+        data?.success_message ||
+        `BulkSMSBD error with code ${data?.response_code || response.status}`
+
+      console.error("[BulkSMSBD Dispatch Error]", errorMsg)
+      return {
+        success: false,
+        error: errorMsg,
+        provider: "bulksmsbd",
+      }
+    } catch (bulkErr: unknown) {
+      const errorMsg = bulkErr instanceof Error ? bulkErr.message : "Failed to dispatch via BulkSMSBD"
+      console.error("[BulkSMSBD Exception]", bulkErr)
+      return {
+        success: false,
+        error: errorMsg,
+        provider: "bulksmsbd",
+      }
+    }
+  }
+
+  // 2. Check for MiMSMS (Bangladesh Gateway API V2)
   const mimApiKey = process.env.MIM_SMS_API_KEY
   const mimUserName = process.env.MIM_SMS_USER_NAME
   const mimSenderName = from || process.env.MIM_SMS_SENDER_NAME || process.env.MIM_SMS_SENDER_ID
@@ -165,7 +234,7 @@ export async function sendSms({
     }
   }
 
-  // 2. Check for Twilio
+  // 3. Check for Twilio
   const accountSid = process.env.TWILIO_ACCOUNT_SID
   const authToken = process.env.TWILIO_AUTH_TOKEN
   const senderNumber = from || process.env.TWILIO_PHONE_NUMBER
@@ -218,7 +287,7 @@ export async function sendSms({
     }
   }
 
-  // 3. Safe Simulation fallback when no external provider is configured
+  // 4. Safe Simulation fallback when no external provider is configured
   console.info(`[SMS Simulation] To: ${normalizedTo} | Body: ${body}`)
   return {
     success: true,

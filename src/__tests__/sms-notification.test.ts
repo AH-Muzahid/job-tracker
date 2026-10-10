@@ -10,6 +10,10 @@ import {
 describe("SMS Notification Utility (src/lib/sms.ts)", () => {
   beforeEach(() => {
     vi.restoreAllMocks()
+    delete process.env.BULKSMSBD_API_KEY
+    delete process.env.BULKSMSBD_SENDER_ID
+    delete process.env.BULKSMS_API_KEY
+    delete process.env.BULKSMS_SENDER_ID
     delete process.env.TWILIO_ACCOUNT_SID
     delete process.env.TWILIO_AUTH_TOKEN
     delete process.env.TWILIO_PHONE_NUMBER
@@ -112,7 +116,7 @@ describe("SMS Notification Utility (src/lib/sms.ts)", () => {
     })
   })
 
-  describe("sendSms (Universal Sender with MiMSMS and Twilio)", () => {
+  describe("sendSms (Universal Sender with BulkSMSBD, MiMSMS, and Twilio)", () => {
     it("returns simulated success when no provider is configured in dev/test", async () => {
       const result = await sendSms({
         to: "+8801711223344",
@@ -133,6 +137,62 @@ describe("SMS Notification Utility (src/lib/sms.ts)", () => {
 
       expect(result.success).toBe(false)
       expect(result.error).toBe("Invalid recipient phone number")
+    })
+
+    it("dispatches HTTP request to BulkSMSBD when BULKSMSBD credentials are provided", async () => {
+      process.env.BULKSMSBD_API_KEY = "bulk_api_key_test_123"
+      process.env.BULKSMSBD_SENDER_ID = "8809617000000"
+
+      const fetchMock = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          response_code: 202,
+          success_message: "SMS Submitted Successfully",
+          message_id: 887766,
+        }),
+      })
+      vi.stubGlobal("fetch", fetchMock)
+
+      const result = await sendSms({
+        to: "01711223344",
+        body: "CareerTrack: 1 new job match found!",
+      })
+
+      expect(fetchMock).toHaveBeenCalledOnce()
+      const [url, options] = fetchMock.mock.calls[0]
+      expect(url).toContain("bulksmsbd.net/api/smsapi")
+      expect(options.method).toBe("POST")
+      const params = new URLSearchParams(options.body)
+      expect(params.get("api_key")).toBe("bulk_api_key_test_123")
+      expect(params.get("senderid")).toBe("8809617000000")
+      expect(params.get("number")).toBe("8801711223344")
+      expect(params.get("type")).toBe("text")
+      expect(params.get("message")).toBe("CareerTrack: 1 new job match found!")
+      expect(result.success).toBe(true)
+      expect(result.provider).toBe("bulksmsbd")
+      expect(result.id).toBe("887766")
+    })
+
+    it("handles BulkSMSBD errors gracefully", async () => {
+      process.env.BULKSMSBD_API_KEY = "bulk_api_key_test_123"
+
+      const fetchMock = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          response_code: 1007,
+          error_message: "Balance insufficient",
+        }),
+      })
+      vi.stubGlobal("fetch", fetchMock)
+
+      const result = await sendSms({
+        to: "01711223344",
+        body: "CareerTrack test",
+      })
+
+      expect(result.success).toBe(false)
+      expect(result.provider).toBe("bulksmsbd")
+      expect(result.error).toBe("Balance insufficient")
     })
 
     it("dispatches HTTP request to MiMSMS API V2 when MIM_SMS credentials are provided", async () => {
