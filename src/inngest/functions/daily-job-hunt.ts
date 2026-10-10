@@ -23,7 +23,7 @@ export const dailyJobHuntScheduler = inngest.createFunction(
     name: "Daily Job Hunt Scheduler",
     retries: 2,
     triggers: [
-      { cron: "0 9 * * 1-5" }, // Every Mon-Fri at 9 AM UTC
+      { cron: "0 2 * * *" }, // Every day at 02:00 AM UTC (08:00 AM Bangladesh Standard Time / BST)
       { event: "app/job-hunt.trigger" },
     ],
   },

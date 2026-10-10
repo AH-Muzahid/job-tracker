@@ -23,10 +23,10 @@ export const INNGEST_PIPELINE_CATALOG: InngestPipelineMetadata[] = [
   {
     id: "daily-job-hunt-scheduler",
     name: "Daily Job Hunt Scheduler",
-    description: "Scans active user profiles every weekday morning and dispatches tailored job match alerts.",
+    description: "Scans active user profiles daily every morning at 8:00 AM BST and dispatches tailored job match alerts.",
     category: "Job Discovery",
     triggerType: "hybrid",
-    cronSchedule: "0 9 * * 1-5 (Mon-Fri 09:00 UTC)",
+    cronSchedule: "0 2 * * * (Daily 02:00 UTC / 08:00 BST)",
     triggerEvent: "app/job-hunt.trigger",
     retries: 2,
   },
