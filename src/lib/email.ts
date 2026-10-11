@@ -69,6 +69,226 @@ export async function sendEmail({
 }
 
 /**
+ * Safely encodes HTML entities while leaving existing entity references intact.
+ */
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&(?!(?:[a-zA-Z0-9]+|#\d+|#x[a-fA-F0-9]+);)/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;")
+}
+
+/**
+ * Formats inline markdown syntax into inline CSS styled HTML for email clients.
+ */
+function formatInlineMarkdown(text: string): string {
+  let formatted = escapeHtml(text)
+
+  // Markdown links: [text](url)
+  formatted = formatted.replace(
+    /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
+    '<a href="$2" style="color: #533AFD; font-weight: 600; text-decoration: underline;">$1</a>'
+  )
+
+  // Bold: **text** or __text__
+  formatted = formatted.replace(
+    /\*\*(.+?)\*\*/g,
+    '<strong style="font-weight: 700; color: #0f172a;">$1</strong>'
+  )
+  formatted = formatted.replace(
+    /__([^_]+)__/g,
+    '<strong style="font-weight: 700; color: #0f172a;">$1</strong>'
+  )
+
+  // Italic: *text* or _text_
+  formatted = formatted.replace(
+    /(^|[^*])\*([^*]+)\*([^*]|$)/g,
+    '$1<em style="font-style: italic;">$2</em>$3'
+  )
+  formatted = formatted.replace(
+    /(^|[^_])_([^_]+)_([^_]|$)/g,
+    '$1<em style="font-style: italic;">$2</em>$3'
+  )
+
+  // Inline code: `code`
+  formatted = formatted.replace(
+    /`([^`]+)`/g,
+    '<code style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 12px; background: #f1f5f9; padding: 2px 5px; border-radius: 3px; color: #0f172a;">$1</code>'
+  )
+
+  return formatted
+}
+
+/**
+ * Parses markdown text (headers, bold headings, ordered and unordered lists, nested bullets)
+ * into email-client compatible inline-styled HTML.
+ */
+export function renderMarkdownToEmailHtml(markdown: string): string {
+  if (!markdown || !markdown.trim()) {
+    return ""
+  }
+
+  const lines = markdown.split(/\r?\n/)
+  const result: string[] = []
+
+  let listType: "ol" | "ul" | null = null
+  let openLi = false
+  let inNestedUl = false
+
+  const closeNestedList = () => {
+    if (inNestedUl) {
+      result.push("</ul>")
+      inNestedUl = false
+    }
+  }
+
+  const closeCurrentLi = () => {
+    closeNestedList()
+    if (openLi) {
+      result.push("</li>")
+      openLi = false
+    }
+  }
+
+  const closeList = () => {
+    closeCurrentLi()
+    if (listType === "ol") {
+      result.push("</ol>")
+      listType = null
+    } else if (listType === "ul") {
+      result.push("</ul>")
+      listType = null
+    }
+  }
+
+  for (let i = 0; i < lines.length; i++) {
+    const rawLine = lines[i]
+    const trimmed = rawLine.trim()
+
+    if (!trimmed) {
+      closeList()
+      continue
+    }
+
+    // Horizontal Rule: --- or ***
+    if (/^[-*_]{3,}$/.test(trimmed)) {
+      closeList()
+      result.push(
+        '<hr style="border: none; border-top: 1px solid #e2e8f0; margin: 18px 0;" />'
+      )
+      continue
+    }
+
+    // Markdown Headers: #, ##, ###, ####
+    const headerMatch = trimmed.match(/^(#{1,4})\s+(.*)$/)
+    if (headerMatch) {
+      closeList()
+      const level = headerMatch[1].length
+      const text = formatInlineMarkdown(headerMatch[2])
+      if (level === 1) {
+        result.push(
+          `<h3 style="margin: 18px 0 8px 0; font-size: 16px; font-weight: 800; color: #0f172a; text-transform: uppercase; letter-spacing: -0.01em;">${text}</h3>`
+        )
+      } else {
+        result.push(
+          `<h4 style="margin: 14px 0 6px 0; font-size: 13px; font-weight: 800; color: #0f172a; text-transform: uppercase; letter-spacing: 0.04em;">${text}</h4>`
+        )
+      }
+      continue
+    }
+
+    // Standalone Bold Line Acting as Title / Section Subheader
+    // Matches e.g. **Daily Career Briefing – AH Muzahid** or **Pipeline:**
+    const standaloneBoldMatch = trimmed.match(/^\*\*([^*]+)\*\*[:]?$/)
+    if (standaloneBoldMatch) {
+      closeList()
+      const isColonEnding = trimmed.endsWith(":")
+      const text = escapeHtml(standaloneBoldMatch[1]) + (isColonEnding ? ":" : "")
+      const isPrimaryTitle = i === 0 || trimmed.toLowerCase().includes("briefing")
+      if (isPrimaryTitle) {
+        result.push(
+          `<div style="margin: 0 0 12px 0; font-size: 14px; font-weight: 800; color: #0f172a; text-transform: uppercase; letter-spacing: 0.04em; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">${text}</div>`
+        )
+      } else {
+        result.push(
+          `<div style="margin: 16px 0 6px 0; font-size: 12px; font-weight: 800; color: #475569; text-transform: uppercase; letter-spacing: 0.05em;">${text}</div>`
+        )
+      }
+      continue
+    }
+
+    // Check for Indented Nested Bullet Item (e.g. "   - Item" or "   • Item")
+    const isIndented = /^\s{2,}|\t/.test(rawLine)
+    const nestedBulletMatch = isIndented && trimmed.match(/^[-*•\u2022]\s+(.*)$/)
+    if (nestedBulletMatch && listType !== null) {
+      if (!inNestedUl) {
+        result.push(
+          '<ul style="margin: 6px 0 6px 18px; padding-left: 0; list-style-type: disc; color: #475569;">'
+        )
+        inNestedUl = true
+      }
+      const itemContent = formatInlineMarkdown(nestedBulletMatch[1])
+      result.push(
+        `<li style="margin-bottom: 4px; font-size: 13px; line-height: 1.5;">${itemContent}</li>`
+      )
+      continue
+    }
+
+    // Ordered List Item (e.g. "1. Item")
+    const olMatch = trimmed.match(/^(\d+)\.\s+(.*)$/)
+    if (olMatch) {
+      if (listType !== "ol") {
+        closeList()
+        result.push(
+          '<ol style="margin: 8px 0 14px 0; padding-left: 20px; color: #334155;">'
+        )
+        listType = "ol"
+      } else {
+        closeCurrentLi()
+      }
+      const itemContent = formatInlineMarkdown(olMatch[2])
+      result.push(
+        `<li style="margin-bottom: 8px; font-size: 14px; line-height: 1.6;">${itemContent}`
+      )
+      openLi = true
+      continue
+    }
+
+    // Unordered List Item (e.g. "- Item", "* Item", "• Item")
+    const ulMatch = trimmed.match(/^[-*•\u2022]\s+(.*)$/)
+    if (ulMatch) {
+      if (listType !== "ul") {
+        closeList()
+        result.push(
+          '<ul style="margin: 8px 0 14px 0; padding-left: 20px; list-style-type: disc; color: #334155;">'
+        )
+        listType = "ul"
+      } else {
+        closeCurrentLi()
+      }
+      const itemContent = formatInlineMarkdown(ulMatch[1])
+      result.push(
+        `<li style="margin-bottom: 6px; font-size: 14px; line-height: 1.6;">${itemContent}`
+      )
+      openLi = true
+      continue
+    }
+
+    // Regular Paragraph
+    closeList()
+    const pContent = formatInlineMarkdown(trimmed)
+    result.push(
+      `<p style="margin: 0 0 10px 0; font-size: 14px; line-height: 1.6; color: #334155;">${pContent}</p>`
+    )
+  }
+
+  closeList()
+  return result.join("\n")
+}
+
+/**
  * Formats a clean HTML wrapper for job applications, cold outreach, and follow-ups.
  */
 export function formatOutreachEmailHtml({
@@ -82,12 +302,7 @@ export function formatOutreachEmailHtml({
   companyName?: string
   jobTitle?: string
 }): string {
-  const formattedParagraphs = bodyText
-    .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0)
-    .map((p) => `<p style="margin: 0 0 14px 0; font-size: 15px; line-height: 1.6; color: #1e293b;">${p}</p>`)
-    .join("")
+  const formattedParagraphs = renderMarkdownToEmailHtml(bodyText)
 
   return `
 <!DOCTYPE html>
@@ -149,12 +364,7 @@ export function formatDailyOpportunityDigestHtml({
   activeApplicationsCount?: number
   appUrl?: string
 }): string {
-  const formattedParagraphs = briefingText
-    .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0)
-    .map((p) => `<p style="margin: 0 0 12px 0; font-size: 14px; line-height: 1.6; color: #1e293b;">${p}</p>`)
-    .join("")
+  const formattedParagraphs = renderMarkdownToEmailHtml(briefingText)
 
   const opportunitiesHtml =
     opportunities.length > 0

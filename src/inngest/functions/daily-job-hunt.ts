@@ -235,7 +235,14 @@ export const processUserAuditBatch = inngest.createFunction(
           )
           .join("\n")
 
-        const taskPrompt = `Generate a concise, proactive daily career briefing for ${user.name || "the candidate"}.
+        const todayFormatted = new Date().toLocaleDateString("en-US", {
+          weekday: "long",
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+        })
+
+        const taskPrompt = `Today is ${todayFormatted}. Generate a concise, high-impact daily career briefing for ${user.name || "the candidate"}.
 Current Pipeline: ${appliedCount} active applied applications.
 ${hasStaged ? `Applications currently STAGED (packaged and ready to submit):\n${stagedSummary}` : "No staged applications currently pending submission."}
 ${staleApps.length > 0 ? `Stale applications needing follow-up:\n${staleSummary}` : "No stale applications needing immediate follow-up."}
@@ -244,7 +251,12 @@ ${hasTopMatches ? `Top high-fit job opportunities discovered today (>=75% match)
 Provide 2-3 specific, actionable recommendations prioritizing highest-impact moves:
 1. Submitting pre-packaged staged applications to get them in recruiters' queues.
 2. Following up on stale applications that have gone quiet.
-3. Reviewing newly discovered top-fit opportunities.`
+3. Reviewing newly discovered top-fit opportunities.
+
+Formatting instructions:
+- Be direct, professional, and action-oriented.
+- Highlight company names and roles in bold.
+- Use clear bullet points or numbered action steps.`
 
         const evaluation = await runHeadlessEvaluation(userId, taskPrompt)
         const aiBriefing = evaluation.content
