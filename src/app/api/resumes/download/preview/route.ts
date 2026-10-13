@@ -1,3 +1,4 @@
+import { TailoredResumeSchema } from "@/lib/ai/verified-resume"
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export const dynamic = "force-dynamic"
 
@@ -13,11 +14,12 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const data = (await req.json()) as TailoredResumeData
-    if (!data || !data.header) {
+    const parsed = TailoredResumeSchema.safeParse(await req.json().catch(() => null))
+    if (!parsed.success) {
       return NextResponse.json({ error: "Invalid resume data payload" }, { status: 400 })
     }
 
+    const data: TailoredResumeData = parsed.data
     const pdfBuffer = await buildResumePdfBuffer(data)
     const sanitizedFileName = (data.targetCompany ? `${data.targetCompany}-Tailored-Resume` : "Tailored-Resume")
       .replace(/[^a-zA-Z0-9-_]/g, "_")

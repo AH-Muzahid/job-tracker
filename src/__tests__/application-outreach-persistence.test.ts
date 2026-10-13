@@ -1,3 +1,4 @@
+vi.mock("@/lib/ai/application-assets", () => ({ mergeApplicationAssets: vi.fn().mockResolvedValue(undefined) }))
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import { NextRequest } from "next/server"

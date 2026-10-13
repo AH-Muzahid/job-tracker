@@ -206,6 +206,7 @@ async function assetGeneratorNode(
   const results = await Promise.allSettled(
     topOpportunities.map(async (opp) => {
       const materials = await generateApplicationMaterialsAgent(state.userId, opp.id, {
+        previewOnly: true,
         jobTitle: opp.title,
         companyName: opp.company,
         jobUrl: opp.url,

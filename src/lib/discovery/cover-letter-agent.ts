@@ -1,9 +1,10 @@
+import { mergeApplicationAssets } from "@/lib/ai/application-assets"
+import { requireOwnedApplication } from "@/lib/ai/ownership"
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { prisma, withDbRetry } from "@/lib/prisma"
 import { getUserAIConfig } from "@/lib/ai/config"
 import { getProvider } from "@/lib/ai/client"
 import { generateText } from "ai"
-import { toCanonical } from "@/lib/ai/knowledge-graph"
 import { traceAIGeneration } from "@/lib/ai/telemetry"
 import { extractJsonObject } from "@/lib/ai/json-extractor"
 import { getCachedJson } from "@/lib/redis"
@@ -19,7 +20,6 @@ import {
   sanitizeOutreachPlaceholders,
   generateDeterministicOutreachBundle,
   detectApplicationStrategy,
-  pruneRelevantStack,
   cleanJobTitle,
   OutreachChannel,
   OutreachChannelBundle,
@@ -99,150 +99,19 @@ function generateDeterministicMaterials(
     notes?: string
   }
 ): GeneratedApplicationMaterials {
-  const jobTitle = context.jobTitle || "Software Engineer"
+  const jobTitle = context.jobTitle || "the position"
   const companyName = context.companyName || "the team"
-  const bestProjects = Array.isArray(profile?.bestProjects) ? profile.bestProjects : []
-  const topProject = bestProjects[0] || {
-    name: "Full-Stack Web Architecture",
-    stack: "React, TypeScript, Next.js, Node.js, PostgreSQL",
-    description: "Production scalable web applications with real-time state and database persistence",
-  }
-  const secondProject = bestProjects[1]
-
-  const candidateSkills: string[] = []
-  if (profile?.strengths) {
-    candidateSkills.push(...profile.strengths.split(/[,/|\n]+/).map((s: string) => s.trim()))
-  }
-  if (topProject.stack) {
-    candidateSkills.push(...topProject.stack.split(/[,/|\n]+/).map((s: string) => s.trim()))
-  }
-  const uniqueSkills = Array.from(new Set(candidateSkills.filter((s) => s.length > 1)))
-  const prunedSkills = pruneRelevantStack(uniqueSkills, jobTitle, 3)
-  const prunedTopProjStack = pruneRelevantStack(topProject.stack || prunedSkills, jobTitle, 3)
-
-  const archetype = detectPersonaArchetype(jobTitle, profile?.experienceLevel, context.notes)
-
-  let coverLetter = ""
-  let highlights: string[] = []
-  let strategyTip = ""
-
-  if (archetype === "staff") {
-    coverLetter = `Dear Hiring Team at ${companyName},
-
-I noticed ${companyName} is expanding its technical leadership for the ${jobTitle} position. With hands-on experience architecting high-scale production systems using ${prunedSkills}, I am writing to share how my background aligns with your engineering goals.
-
-In my recent work on "${topProject.name}", I engineered core technical architecture using ${prunedTopProjStack}, focusing on distributed scale, high performance, and clean modular component design.${
-      secondProject ? ` Additionally, through my "${secondProject.name}" project, I implemented production systems using ${pruneRelevantStack(secondProject.stack || "modern web stack", jobTitle, 3)} with an emphasis on developer ergonomics and system stability.` : ""
-    } My focus is always on delivering measurable product impact while maintaining maintainable, type-safe codebases.
-
-I would welcome the opportunity to discuss technical trade-offs, system boundaries, and how my architectural foundation directly supports ${companyName}'s upcoming roadmap. Thank you for your time and consideration.
-
-Sincerely,
-${candidateName}`
-
-    highlights = [
-      `Architected "${topProject.name}" using ${prunedTopProjStack}, delivering end-to-end features with high test coverage and robust type safety.`,
-      `Established architectural patterns with ${prunedSkills}, optimizing response latencies and database queries for seamless user experiences.`,
-      `Demonstrated autonomous ownership and rapid delivery of complex product features from conception to deployment.`,
-    ]
-    strategyTip = `Focus on highlighting your hands-on experience with ${topProject.name} and your architectural trade-offs in ${prunedSkills}.`
-  } else if (archetype === "founding") {
-    coverLetter = `Dear Hiring Team at ${companyName},
-
-I noticed ${companyName} is expanding its engineering team for the ${jobTitle} position. With hands-on experience shipping 0-to-1 production systems using ${prunedSkills}, I am writing to share how my background aligns with your engineering goals.
-
-In my recent work on "${topProject.name}", I took full-stack build ownership using ${prunedTopProjStack}, focusing on rapid delivery, clean modular component design, and reliable data synchronization.${
-      secondProject ? ` Additionally, through my "${secondProject.name}" project, I implemented production features using ${pruneRelevantStack(secondProject.stack || "modern web stack", jobTitle, 3)} with an emphasis on developer ergonomics and system stability.` : ""
-    } My focus is always on delivering measurable product impact while maintaining maintainable, type-safe codebases.
-
-I would welcome the opportunity to discuss how my technical foundation, autonomous execution, and problem-solving skills align with ${companyName}'s upcoming roadmap. Thank you for your time and consideration.
-
-Sincerely,
-${candidateName}`
-
-    highlights = [
-      `Engineered "${topProject.name}" from 0-to-1 using ${prunedTopProjStack}, delivering end-to-end features with high test coverage and robust type safety.`,
-      `Architected full-stack workflows with ${prunedSkills}, optimizing response latencies and database queries for seamless user experiences.`,
-      `Demonstrated autonomous ownership and rapid delivery of complex product features from conception to deployment.`,
-    ]
-    strategyTip = `Highlight your autonomous shipping speed, 0-to-1 ownership of ${topProject.name}, and proficiency in ${prunedSkills}.`
-  } else if (archetype === "early_career") {
-    coverLetter = `Dear Hiring Team at ${companyName},
-
-I noticed ${companyName} is expanding its engineering team for the ${jobTitle} position. With hands-on experience building production web systems using ${prunedSkills}, I am writing to share how my background aligns with your engineering goals.
-
-In my recent work on "${topProject.name}", I engineered core architecture using ${prunedTopProjStack}, focusing on high performance, clean modular component design, and reliable data synchronization.${
-      secondProject ? ` Additionally, through my "${secondProject.name}" project, I implemented production features using ${pruneRelevantStack(secondProject.stack || "modern web stack", jobTitle, 3)} with an emphasis on developer ergonomics and system stability.` : ""
-    } My focus is always on delivering measurable product impact while maintaining maintainable, type-safe codebases.
-
-I would welcome the opportunity to discuss how my technical foundation, autonomous execution, and problem-solving skills align with ${companyName}'s upcoming roadmap. Thank you for your time and consideration.
-
-Sincerely,
-${candidateName}`
-
-    highlights = [
-      `Engineered "${topProject.name}" using ${prunedTopProjStack}, delivering end-to-end features with high test coverage and robust type safety.`,
-      `Demonstrated solid computer science fundamentals with ${prunedSkills}, optimizing response latencies and database queries.`,
-      `Demonstrated autonomous ownership and rapid delivery of complex product features from conception to deployment.`,
-    ]
-    strategyTip = `Walk through concrete engineering challenges in ${topProject.name} to demonstrate rapid onboarding velocity.`
-  } else {
-    // Senior & Default Archetype
-    coverLetter = `Dear Hiring Team at ${companyName},
-
-I noticed ${companyName} is expanding its engineering team for the ${jobTitle} position. With hands-on experience building production web systems using ${prunedSkills}, I am writing to share how my background aligns with your engineering goals.
-
-In my recent work on "${topProject.name}", I engineered core architecture using ${prunedTopProjStack}, focusing on high performance, clean modular component design, and reliable data synchronization.${
-      secondProject ? ` Additionally, through my "${secondProject.name}" project, I implemented production features using ${pruneRelevantStack(secondProject.stack || "modern web stack", jobTitle, 3)} with an emphasis on developer ergonomics and system stability.` : ""
-    } My focus is always on delivering measurable product impact while maintaining maintainable, type-safe codebases.
-
-I would welcome the opportunity to discuss how my technical foundation, autonomous execution, and problem-solving skills align with ${companyName}'s upcoming roadmap. Thank you for your time and consideration.
-
-Sincerely,
-${candidateName}`
-
-    highlights = [
-      `Engineered "${topProject.name}" using ${prunedTopProjStack}, delivering end-to-end features with high test coverage and robust type safety.`,
-      `Architected full-stack workflows with ${prunedSkills}, optimizing response latencies and database queries for seamless user experiences.`,
-      `Demonstrated autonomous ownership and rapid delivery of complex product features from conception to deployment.`,
-    ]
-    strategyTip = `Focus on highlighting your hands-on experience with ${topProject.name} and your proficiency in ${prunedSkills}.`
-  }
-
-  // Detect matching single channel to prevent token waste during staging
-  const strategyDetection = detectApplicationStrategy(context.notes || "", "", context.jobUrl)
-  const primaryChannel: OutreachChannel = strategyDetection.strategy
-
-  const outreachBundle = generateDeterministicOutreachBundle(
-    {
-      companyName,
-      jobTitle,
-      candidateName,
-      skills: uniqueSkills,
-      topProjects: bestProjects,
-      location: context.location,
-      notes: context.notes,
-    },
-    primaryChannel
-  )
-
-  let outreachPitch = `Hi ${companyName} Team! I saw the opening for ${jobTitle} at ${companyName}. I recently engineered ${topProject.name} using ${prunedTopProjStack}. Would love to share my portfolio and discuss how my hands-on build experience aligns with your roadmap!`
-  if (primaryChannel === "form_portal" && outreachBundle.form_portal?.portalNote) {
-    outreachPitch = outreachBundle.form_portal.portalNote
-  } else if (primaryChannel === "linkedin_dm" && outreachBundle.linkedin_dm?.body) {
-    outreachPitch = outreachBundle.linkedin_dm.body
-  } else if (primaryChannel === "email" && outreachBundle.email?.body) {
-    outreachPitch = outreachBundle.email.body
-  }
-
+  const projects = Array.isArray(profile?.bestProjects) ? profile.bestProjects.slice(0, 3) : []
+  const skills = profile?.matchedSkills?.map((item: any) => item.skill || item.canonicalName).filter(Boolean) || []
+  if (!projects.length && !skills.length && !profile?.verifiedStrengths && !profile?.strengths) throw new Error("Add verified candidate facts before preparing a package")
+  const highlights = projects.map((p: any) => `${p.name}${p.description ? `: ${p.description}` : ""}`)
+  const proof = highlights.join("\n") || profile?.verifiedStrengths || profile?.strengths || skills.join(", ")
   return {
-    coverLetter,
-    highlights,
-    outreachPitch,
-    strategyTip,
-    atsKeywords: uniqueSkills.map((s) => toCanonical(s)),
-    outreachChannels: outreachBundle,
+    coverLetter: `Dear Hiring Team at ${companyName},\n\nI am interested in the ${jobTitle} role.\n\n${proof}\n\nI would welcome a conversation about the position.\n\nSincerely,\n${candidateName}`,
+    outreachPitch: `Hi ${companyName} Team, I am interested in the ${jobTitle} role. ${proof} Would you be open to a brief conversation? — ${candidateName}`,
+    highlights, atsKeywords: skills, strategyTip: "Review candidate-provided evidence before submitting.",
   }
+
 }
 
 /**
@@ -262,8 +131,10 @@ export async function generateApplicationMaterialsAgent(
     salary?: string
     fitScore?: number
     matchScore?: number
+    previewOnly?: boolean
   }
 ): Promise<GeneratedApplicationMaterials> {
+  if (!context.previewOnly) await requireOwnedApplication(userId, applicationId)
   const sessionId = applicationId
     ? (applicationId.startsWith("pkg-") ? applicationId : `pkg-${applicationId}`)
     : `pkg-${Date.now()}`
@@ -491,6 +362,7 @@ Respond in valid JSON format:
         status: "success",
       })
 
+      if (!squadResult.isDeterministicFallback && !squadResult.approvedByCritic) throw new Error("Package quality checks did not pass; please retry")
       if (squadResult.isDeterministicFallback) {
         materials = generateDeterministicMaterials(candidateName, dossier, context)
       } else {
@@ -643,6 +515,13 @@ Respond in valid JSON format:
     materials = generateDeterministicMaterials(candidateName, dossier, context)
   }
 
+  const finalGrounding = auditApplicationMaterialsGrounding(materials, { knowledgeGraph: dossier?.knowledgeGraph || null, profile: dossier ? { bestProjects: dossier.bestProjects, strengths: dossier.verifiedStrengths } : null, targetCompany: context.companyName, targetRole: context.jobTitle, candidateName })
+  if (!finalGrounding.audit.isFullyGrounded) throw new Error("Candidate facts could not be verified; review your profile and retry")
+
+  if (context.previewOnly) return materials
+  const detectedChannel = detectApplicationStrategy(context.notes || "", "", context.jobUrl).strategy
+  if (!materials.outreachChannels) materials.outreachChannels = generateDeterministicOutreachBundle({ companyName: context.companyName, jobTitle: context.jobTitle, candidateName, topProjects: dossier?.bestProjects, skills: (dossier?.matchedSkills || []).map((item) => item.skill) }, detectedChannel)
+
   // Persist the generated materials to ApplicationAnalysis
   try {
     const outreachCtx = {
@@ -661,7 +540,7 @@ Respond in valid JSON format:
     const primaryChannel: OutreachChannel = strategyDetection.strategy
     const outreachBundle =
       materials.outreachChannels ||
-      generateDeterministicOutreachBundle(outreachCtx, primaryChannel)
+      { email: { subject: `Application for ${context.jobTitle}`, body: materials.outreachPitch }, linkedin_dm: { subject: `Application for ${context.jobTitle}`, body: materials.outreachPitch }, form_portal: { portalNote: materials.coverLetter, screenerAnswers: [] } }
 
     let outreachSubject = `Application for ${cleanJobTitle(context.jobTitle)} - ${candidateName}`
     let outreachBody = sanitizeOutreachPlaceholders(materials.outreachPitch, outreachCtx)
@@ -699,11 +578,11 @@ Respond in valid JSON format:
 
     // Resolve authentic match score instead of hardcoded fallback
     let resolvedMatchScore = context.fitScore ?? context.matchScore ?? null
-    if (!resolvedMatchScore && context.notes) {
+    if (resolvedMatchScore == null && context.notes) {
       const match = context.notes.match(/Fit Score:\s*(\d+)%/i)
       if (match) resolvedMatchScore = parseInt(match[1], 10)
     }
-    if (!resolvedMatchScore && prisma.userJobMatch?.findFirst) {
+    if (resolvedMatchScore == null && prisma.userJobMatch?.findFirst) {
       const ujm = await withDbRetry(() =>
         prisma.userJobMatch.findFirst({
           where: {
@@ -716,37 +595,25 @@ Respond in valid JSON format:
           select: { fitScore: true },
         })
       ).catch(() => null)
-      if (ujm?.fitScore) resolvedMatchScore = Math.round(ujm.fitScore)
+      if (ujm?.fitScore != null) resolvedMatchScore = Math.round(ujm.fitScore)
     }
-    if (!resolvedMatchScore) {
+    if (resolvedMatchScore == null) {
       const feed = await getCachedJson<any[]>(`discovery:feed:v1:${userId}`).catch(() => null)
       if (Array.isArray(feed)) {
         const item = feed.find(
           (j) => j.company?.toLowerCase() === context.companyName.toLowerCase() &&
                  j.title?.toLowerCase() === context.jobTitle.toLowerCase()
         )
-        if (item?.fitScore) resolvedMatchScore = Math.round(item.fitScore)
+        if (item?.fitScore != null) resolvedMatchScore = Math.round(item.fitScore)
       }
     }
-    if (!resolvedMatchScore) {
-      // Deterministic calculation from dossier matched skills vs target role
-      const candidateSkills = (dossier?.matchedSkills?.map((s) => s.skill).join(", ") || "").toLowerCase()
-      const roleLower = context.jobTitle.toLowerCase()
-      let overlapCount = 0
-      for (const skill of candidateSkills.split(/[,/|\n]+/)) {
-        const s = skill.trim()
-        if (s && roleLower.includes(s)) overlapCount++
-      }
-      resolvedMatchScore = Math.min(88, Math.max(55, 60 + overlapCount * 8))
-    }
-
     const verdict =
-      resolvedMatchScore >= 80
+      resolvedMatchScore == null ? "Fit not evaluated" : resolvedMatchScore >= 80
         ? "Strong Candidate Match"
         : resolvedMatchScore >= 65
           ? "Good Candidate Match"
           : "Stretch Opportunity"
-    const confidence = resolvedMatchScore >= 80 ? "high" : "medium"
+    const confidence = resolvedMatchScore == null ? null : resolvedMatchScore >= 80 ? "high" : "medium"
 
     await withDbRetry(() =>
       prisma.applicationAnalysis.upsert({
@@ -770,12 +637,9 @@ Respond in valid JSON format:
           outreachBody,
           outreachChecklist,
           outreachGeneratedAt: new Date(),
-          tailoredResumeJson: tailoredResumeJson as any,
         },
         update: {
-          matchScore: resolvedMatchScore,
-          confidence,
-          verdict,
+          ...(resolvedMatchScore != null ? { matchScore: resolvedMatchScore, confidence, verdict } : {}),
           resumeAdvice: {
             highlights: materials.highlights,
             atsKeywords: materials.atsKeywords,
@@ -790,10 +654,11 @@ Respond in valid JSON format:
           outreachBody,
           outreachChecklist,
           outreachGeneratedAt: new Date(),
-          tailoredResumeJson: tailoredResumeJson as any,
         },
       })
     )
+
+    await mergeApplicationAssets(userId, applicationId, tailoredResumeJson)
 
     // Notify user that application materials have been drafted
     await withDbRetry(() =>

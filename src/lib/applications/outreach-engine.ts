@@ -353,128 +353,24 @@ export function generateDeterministicOutreachBundle(
   customQuestions?: string[]
 ): OutreachChannelBundle {
   const company = ctx.companyName || "the team"
-  const role = cleanJobTitle(ctx.jobTitle) || "Software Engineer"
+  const role = cleanJobTitle(ctx.jobTitle) || "the position"
   const candidate = ctx.candidateName || "Candidate"
-  
-  const projects = Array.isArray(ctx.topProjects) ? ctx.topProjects : []
-  const topProj = projects[0] || {
-    name: "Full-Stack Web Architecture",
-    stack: "TypeScript, Next.js, Node.js",
-    description: "production scalable systems with database persistence",
-  }
-
-  // Prune skills and project stack to eliminate buzzword-stuffing
-  const prunedSkills = pruneRelevantStack(ctx.skills || "TypeScript, React, Next.js, Node.js", role, 3)
-  const prunedProjStack = pruneRelevantStack(topProj.stack || prunedSkills, role, 3)
-
-  const linksLine = [
-    ctx.portfolioUrl ? `Portfolio: ${ctx.portfolioUrl}` : null,
-    ctx.githubUrl ? `GitHub: ${ctx.githubUrl}` : null,
-    ctx.linkedinUrl ? `LinkedIn: ${ctx.linkedinUrl}` : null,
-  ].filter(Boolean).join(" | ")
-
+  const project = ctx.topProjects?.[0]
+  const skills = pruneRelevantStack(ctx.skills || [], role, 3)
+  const proof = project?.name ? `${project.name}${project.description ? `: ${project.description}` : ""}` : skills ? `My skills: ${skills}.` : ""
+  const body = `Dear ${company} Hiring Team,\n\nI am interested in the ${role} role. ${proof}\n\nWould you be open to a brief conversation?\n\nBest regards,\n${candidate}`
+  const subject = `Application for ${role} - ${candidate}`
   const bundle: OutreachChannelBundle = {}
-
-  // 1. Full Direct Email (Linear/Stripe builder standard, under 110 words)
-  if (!targetChannel || targetChannel === "email") {
-    const emailSubject = `Application for ${role} - ${candidate}`
-    const emailBody = `Dear ${company} Hiring Team,
-
-I noticed ${company} is looking for a ${role}. Given my background engineering scalable web applications with ${prunedSkills}, I wanted to reach out directly.
-
-Recently, I engineered ${topProj.name} using ${prunedProjStack}. I focused on solving core architectural challenges around real-time performance and state consistency, keeping latency low and code modular.
-
-Given ${company}'s focus on shipping high-velocity products, I can make an immediate impact on your upcoming milestones. Would you be open to a brief 10-minute intro chat this week?
-
-Best regards,
-${candidate}
-${ctx.candidateEmail ? `${ctx.candidateEmail}\n` : ""}${linksLine ? `${linksLine}\n` : ""}`.trim()
-
-    bundle.email = {
-      subject: sanitizeOutreachPlaceholders(emailSubject, ctx),
-      body: sanitizeOutreachPlaceholders(emailBody, ctx),
-    }
-  }
-
-  // 2. LinkedIn InMail / Recruiter DM (< 90 words, conversational & direct)
-  if (!targetChannel || targetChannel === "linkedin_dm") {
-    const linkedinDmSubject = `${role} role inquiry - ${candidate}`
-    const linkedinDmBody = `Hi ${company} Team,
-
-I saw the opening for the ${role} position at ${company} and wanted to reach out directly.
-
-I specialize in full-stack architecture with ${prunedSkills}, recently building ${topProj.name} (${prunedProjStack}). Given ${company}'s tech roadmap, I'm confident I can make an immediate contribution to your engineering velocity.
-
-Are you the right person leading this search, or could you point me to who is? Would love to share my portfolio if you have 5 minutes.
-
-Best regards,
-${candidate}`.trim()
-
-    bundle.linkedin_dm = {
-      subject: sanitizeOutreachPlaceholders(linkedinDmSubject, ctx),
-      body: sanitizeOutreachPlaceholders(linkedinDmBody, ctx),
-    }
-  }
-
-  // 3. LinkedIn Connection Note (Strict <= 300 characters for LinkedIn connection modal)
+  if (!targetChannel || targetChannel === "email") bundle.email = { subject, body }
+  if (!targetChannel || targetChannel === "linkedin_dm") bundle.linkedin_dm = { subject: `${role} role inquiry - ${candidate}`, body: body.replace(`Dear ${company} Hiring Team,`, `Hi ${company} Team,`) }
   if (!targetChannel || targetChannel === "linkedin_connect") {
-    let connectRaw = `Hi! I saw the ${role} opening at ${company}. I recently built ${topProj.name} with ${prunedProjStack}. Would love to connect and follow ${company}'s engineering work!`
-    if (connectRaw.length > 295) {
-      connectRaw = `Hi! I saw the ${role} role at ${company}. I specialize in ${prunedSkills} (e.g. ${topProj.name}) and would love to connect with your team.`
-    }
-    if (connectRaw.length > 295) {
-      connectRaw = `Hi! I saw the ${role} opening at ${company}. I specialize in ${prunedSkills} and would love to connect!`
-    }
-    const connectBody = connectRaw.slice(0, 300)
-
-    bundle.linkedin_connect = {
-      body: sanitizeOutreachPlaceholders(connectBody, ctx),
-      charCount: connectBody.length,
-    }
+    const note = `Hi, I am interested in the ${role} role at ${company}.${project?.name ? ` Project: ${project.name}.` : ""} Would you be open to connecting?`.slice(0, 300)
+    bundle.linkedin_connect = { body: note, charCount: note.length }
   }
-
-  // 4. 5-7 Day Follow-Up (Courteous, sharp, under 90 words)
-  if (!targetChannel || targetChannel === "follow_up") {
-    const followUpSubject = `Following up: ${role} application - ${candidate}`
-    const followUpBody = `Dear ${company} Hiring Team,
-
-I wanted to briefly follow up on my application for the ${role} position at ${company}. I remain very enthusiastic about the opportunity to contribute with my experience in ${prunedSkills}.
-
-Since applying, I've continued building and would be delighted to answer any questions or share code samples. If there are any updates regarding your hiring timeline, please let me know.
-
-Thank you again for your time and consideration.
-
-Best regards,
-${candidate}`.trim()
-
-    bundle.follow_up = {
-      subject: sanitizeOutreachPlaceholders(followUpSubject, ctx),
-      body: sanitizeOutreachPlaceholders(followUpBody, ctx),
-    }
-  }
-
-  // 5. Form Portal
-  if (!targetChannel || targetChannel === "form_portal") {
-    const portalNote = `I noticed ${company} is looking for a ${role}. Given my background engineering scalable web applications with ${prunedSkills}, I am excited to apply.
-
-Recently, I engineered ${topProj.name} using ${prunedProjStack}, focusing on real-time performance and clean modular architecture. Given ${company}'s shipping velocity, I am confident I can make an immediate contribution to your engineering roadmap.
-
-Portfolio & Code: ${linksLine || "Available on profile"}`.trim()
-
-    const screenerAnswers = customQuestions && customQuestions.length > 0
-      ? generateDeterministicScreenerAnswers(ctx, customQuestions)
-      : generateDeterministicScreenerAnswers(ctx)
-
-    bundle.form_portal = {
-      portalNote: sanitizeOutreachPlaceholders(portalNote, ctx),
-      screenerAnswers: screenerAnswers.map((qa) => ({
-        question: sanitizeOutreachPlaceholders(qa.question, ctx),
-        answer: sanitizeOutreachPlaceholders(qa.answer, ctx),
-      })),
-    }
-  }
-
+  if (!targetChannel || targetChannel === "follow_up") bundle.follow_up = { subject: `Following up: ${role} application - ${candidate}`, body: `Dear ${company} Hiring Team, I would like to follow up on my ${role} application. Please let me know if further information would be useful. Best regards, ${candidate}` }
+  if (!targetChannel || targetChannel === "form_portal") bundle.form_portal = { portalNote: body, screenerAnswers: generateDeterministicScreenerAnswers(ctx, customQuestions) }
   return bundle
+
 }
 
 /**
@@ -565,63 +461,9 @@ export function generateDeterministicScreenerAnswers(
   questionsOrDomain?: string[] | string,
   roleDomain: string = "fullstack"
 ): ScreenerQA[] {
-  const company = ctx.companyName || "the team"
-  const role = cleanJobTitle(ctx.jobTitle) || "Software Engineer"
-  const prunedSkills = pruneRelevantStack(ctx.skills || "TypeScript, React, Next.js, Node.js", role, 3)
-  const topProj = ctx.topProjects?.[0] || {
-    name: "Full-Stack Web Architecture",
-    stack: "TypeScript, Next.js, Node.js",
-  }
+  void roleDomain
+  const questions = Array.isArray(questionsOrDomain) && questionsOrDomain.length ? questionsOrDomain : [`Why are you interested in joining ${ctx.companyName} as a ${cleanJobTitle(ctx.jobTitle)}?`, "Describe a relevant project", "What is your availability and work authorization?"]
+  const project = ctx.topProjects?.[0]
+  return questions.map((question) => ({ question, answer: /project|built|technical|building|experience|state consistency/i.test(question) && project?.name ? `${project.name}${project.stack ? ` (${project.stack})` : ""}${project.description ? `: ${project.description}` : ""}` : "Please provide your verified answer before submitting." }))
 
-  const resolvedDomain = typeof questionsOrDomain === "string" ? questionsOrDomain : roleDomain
-  const domainFocus =
-    resolvedDomain === "frontend"
-      ? "ensuring responsive UI state synchronization and smooth client rendering"
-      : resolvedDomain === "backend"
-      ? "optimizing API response times, database query performance, and reliable server architecture"
-      : "shipping end-to-end features with type-safe APIs and responsive user interfaces"
-
-  // If specific questions were passed
-  if (Array.isArray(questionsOrDomain) && questionsOrDomain.length > 0) {
-    return questionsOrDomain.map((q) => {
-      const qLower = q.toLowerCase()
-      let answer = ""
-
-      if (qLower.includes("why") && (qLower.includes("company") || qLower.includes("join") || qLower.includes("work") || qLower.includes("interest") || qLower.includes("role"))) {
-        answer = `I admire ${company}'s engineering focus. Having hands-on experience building production systems in ${prunedSkills}, I am excited to apply my background in ${domainFocus} to help your team ship high-velocity products.`
-      } else if (qLower.includes("challenge") || qLower.includes("difficult") || qLower.includes("project") || qLower.includes("built") || qLower.includes("bug") || qLower.includes("accomplish") || qLower.includes("decision") || qLower.includes("architecture")) {
-        answer = `In my project ${topProj.name}, I solved core architectural and performance challenges using ${topProj.stack || prunedSkills}. I optimized component boundaries and asynchronous data flow, preventing state synchronization bottlenecks and keeping response times low.`
-      } else if (qLower.includes("salary") || qLower.includes("compensation") || qLower.includes("expectation")) {
-        answer = `My compensation expectation is aligned with current market rates for a ${role}, and I am open to discussing this based on the complete scope and responsibilities of the role.`
-      } else if (qLower.includes("visa") || qLower.includes("authorization") || qLower.includes("sponsor") || qLower.includes("eligib") || qLower.includes("status") || qLower.includes("authorized")) {
-        answer = `I am legally authorized to work and available to start immediately or within a standard two-week notice period.`
-      } else if (qLower.includes("websocket") || qLower.includes("real-time") || qLower.includes("realtime")) {
-        answer = `In ${topProj.name}, I implemented real-time communication using WebSockets and Node.js streams, minimizing update latency and handling state consistency across concurrent sessions.`
-      } else if (qLower.includes("experience") || qLower.includes("years") || qLower.includes("stack") || qLower.includes("tech") || qLower.includes("background") || qLower.includes("how do you")) {
-        answer = `I have extensive practical engineering experience with ${prunedSkills}, demonstrated in production-grade systems like ${topProj.name}. I specialize in modular architecture, end-to-end type safety, and shipping clean, reliable user experiences.`
-      } else {
-        answer = `In my work on ${topProj.name}, I approach engineering challenges pragmatically, combining ${prunedSkills} with thorough testing, autonomous ownership, and clear communication to deliver reliable results for ${company}.`
-      }
-
-      return {
-        question: sanitizeOutreachPlaceholders(q, ctx),
-        answer: sanitizeOutreachPlaceholders(answer, ctx),
-      }
-    })
-  }
-
-  return [
-    {
-      question: `Why are you interested in joining ${company} as a ${role}?`,
-      answer: `I admire ${company}'s product engineering focus. Having hands-on experience building production systems with ${prunedSkills}, I am eager to apply my background in ${domainFocus} to help your team ship faster.`,
-    },
-    {
-      question: `Describe a recent technical project you built with ${prunedSkills} and the primary engineering challenge solved.`,
-      answer: `I recently engineered ${topProj.name} using ${prunedSkills}. The core challenge was keeping latency low and code modular while handling high-frequency state updates. I structured clean component boundaries and optimized data flow to ensure rock-solid performance.`,
-    },
-    {
-      question: `What is your work authorization, availability, or preferred work arrangement?`,
-      answer: `I am available to start immediately or within two weeks. I thrive in remote or hybrid teams with asynchronous communication, thorough documentation, and core collaboration overlaps.`,
-    },
-  ]
 }

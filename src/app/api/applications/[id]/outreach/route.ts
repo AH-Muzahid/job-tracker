@@ -1,3 +1,4 @@
+import { mergeApplicationAssets } from "@/lib/ai/application-assets"
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server"
 import { generateText } from "ai"
@@ -531,29 +532,22 @@ Evaluate and respond in JSON ONLY matching:
     ]
 
     const now = new Date()
-    const conversionScore = optimizerResult?.conversionScore ?? (activeChannel === "form_portal" ? 92 : 88)
-    const conversionJudge = optimizerResult?.conversionJudge ?? {
-      score: conversionScore,
-      verdict: "approved" as const,
-      critique: [],
-      strengths: [
-        `Technical proof grounded in ${app.jobTitle}`,
-        "Clean builder tone with zero robotic formulas",
-      ],
-    }
+    const conversionScore = optimizerResult?.conversionScore ?? null
+    const conversionJudge = optimizerResult?.conversionJudge ?? null
 
     // Persist generated outreach materials directly to PostgreSQL ApplicationAnalysis
     try {
       const updatedTailored = {
-        ...existingTailored,
         outreachChannels: finalBundle,
         detectedEmail,
         recommendedChannel,
         strategy: activeChannel,
         strategyReason: detectedStrategy.reason,
+        qualityEvaluated: Boolean(optimizerResult?.conversionJudge),
         conversionScore,
         conversionJudge,
       }
+      await mergeApplicationAssets(userId, id, updatedTailored)
 
       await withDbRetry(() =>
         prisma.applicationAnalysis.upsert({
@@ -564,14 +558,12 @@ Evaluate and respond in JSON ONLY matching:
             outreachBody: activeBody,
             outreachChecklist: defaultChecklist,
             outreachGeneratedAt: now,
-            tailoredResumeJson: updatedTailored as any,
           },
           update: {
             outreachSubject: activeSubject,
             outreachBody: activeBody,
             outreachChecklist: defaultChecklist,
             outreachGeneratedAt: now,
-            tailoredResumeJson: updatedTailored as any,
           },
         })
       )
@@ -587,7 +579,7 @@ Evaluate and respond in JSON ONLY matching:
 
     await appLogger.info(
       "applications:outreach",
-      `Successfully generated ${activeChannel} outreach for ${app.companyName} (${conversionScore}% conversion score)`,
+      `Successfully generated ${activeChannel} outreach for ${app.companyName} (${conversionScore === null ? "quality evaluation unavailable" : `${conversionScore}/100 draft quality`})`,
       { applicationId: id, company: app.companyName, channel: activeChannel, score: conversionScore }
     )
 

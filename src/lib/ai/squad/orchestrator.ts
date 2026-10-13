@@ -261,16 +261,11 @@ function createDeterministicSquadFallback(
   const cleanName = candidateName || "Applicant"
 
   return {
-    coverLetter: `Dear ${cleanCompany} Hiring Team,\n\nI noticed ${cleanCompany} is expanding its team for the ${cleanJob} position. With hands-on experience building production-grade web systems and high-performance applications, I am writing to share how my background aligns with your engineering goals.\n\nThroughout my work, I focus on measurable product impact, reliable delivery, and maintainable, type-safe codebases. I would welcome the opportunity to discuss how my technical background directly supports your team's upcoming roadmap.\n\nSincerely,\n${cleanName}`,
-    outreachPitch: `Hi ${cleanCompany} Team — I saw the ${cleanJob} opening and wanted to reach out directly. I focus on modern full-stack web architecture and reliable, maintainable systems. Would love to share my portfolio if you have 5 minutes! — ${cleanName}`,
-    highlights: [
-      `Hands-on experience building and shipping production web systems`,
-      `Strong foundation in full-stack architecture with an emphasis on reliability and type safety`,
-      `Delivered features end-to-end from design through deployment and iteration`,
-    ],
-    strategyTip: `Align your interview examples with ${cleanCompany}'s public technical blogs and architecture.`,
-    atsKeywords: ["TypeScript", "React", "Next.js", "Node.js", "System Design"],
+    coverLetter: `Dear ${cleanCompany} Hiring Team,\n\nI am interested in the ${cleanJob} role and would welcome a conversation about the position.\n\nSincerely,\n${cleanName}`,
+    outreachPitch: `Hi ${cleanCompany} Team, I am interested in the ${cleanJob} role. Would you be open to a conversation? — ${cleanName}`,
+    highlights: [], atsKeywords: [], strategyTip: "Add verified project evidence before submission.",
   }
+
 }
 
 /**
@@ -298,7 +293,7 @@ export async function coordinateApplicationPackageSquad(
   if (!strategistFn || !scribeFn) {
     return {
       materials: createDeterministicSquadFallback(jobTitle, companyName, candidateName),
-      approvedByCritic: true,
+      approvedByCritic: false,
       rounds: 1,
       isDeterministicFallback: true,
     }
@@ -333,7 +328,7 @@ export async function coordinateApplicationPackageSquad(
         groundingContext,
       })
 
-      if (criticEval.approved) {
+      if (criticEval.approved && groundingContext) {
         // Critic signs off
         return {
           materials: currentDraft,
@@ -384,7 +379,7 @@ export async function coordinateApplicationPackageSquad(
 
     return {
       materials: createDeterministicSquadFallback(jobTitle, companyName, candidateName),
-      approvedByCritic: true,
+      approvedByCritic: false,
       rounds,
       isDeterministicFallback: true,
     }
@@ -392,7 +387,7 @@ export async function coordinateApplicationPackageSquad(
     console.warn("[MultiAgentSquad] Execution error, falling back to deterministic baseline:", error)
     return {
       materials: createDeterministicSquadFallback(jobTitle, companyName, candidateName),
-      approvedByCritic: true,
+      approvedByCritic: false,
       rounds: 1,
       isDeterministicFallback: true,
     }

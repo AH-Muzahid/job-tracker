@@ -246,6 +246,7 @@ export async function runEvaluatorOptimizer<TOutput = string>(
     if (evalResult.passed && semanticJudge) {
       try {
         const judgeRes = await semanticJudge(currentText, currentDraft)
+        if (!judgeRes) evalResult = { passed: false, violations: ["Quality evaluation unavailable; retry before approval."] }
         if (judgeRes) {
           lastJudgeResult = judgeRes
           if (judgeRes.score < 80 || judgeRes.verdict === "rejected") {
@@ -269,7 +270,9 @@ export async function runEvaluatorOptimizer<TOutput = string>(
           }
         }
       } catch (judgeErr) {
-        console.warn("[EvaluatorOptimizer] Semantic judge error (ignoring to prevent blockage):", judgeErr)
+        void judgeErr
+        lastJudgeResult = null
+        evalResult = { passed: false, violations: ["Quality evaluation unavailable; retry before approval."] }
       }
     }
 
@@ -282,7 +285,7 @@ export async function runEvaluatorOptimizer<TOutput = string>(
         selfCorrected: iterations > 1,
         violations: [],
         conversionJudge: lastJudgeResult,
-        conversionScore: lastJudgeResult?.score ?? (iterations === 1 ? 88 : 82),
+        conversionScore: lastJudgeResult?.score,
       }
     }
   }
@@ -308,6 +311,6 @@ export async function runEvaluatorOptimizer<TOutput = string>(
     violations: evalResult.violations,
     usedFallbackSanitizer: usedFallback,
     conversionJudge: lastJudgeResult,
-    conversionScore: lastJudgeResult?.score ?? (evalResult.violations.length === 0 ? 80 : 65),
+    conversionScore: lastJudgeResult?.score,
   }
 }

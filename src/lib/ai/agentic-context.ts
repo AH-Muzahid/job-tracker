@@ -12,6 +12,7 @@ import { getUserMacroOutcomes } from "./learning-engine"
 
 export interface GroundedCandidateDossier {
   candidateName: string
+  verifiedStrengths?: string
   candidateEmail?: string
   targetRoles: string[]
   experienceLevel?: string
@@ -87,6 +88,7 @@ export async function assembleAgenticCandidateContext(
   const penalizedSkills = macroOutcomes?.penalizedSkills || []
 
   const dossier: GroundedCandidateDossier = {
+    verifiedStrengths: profile?.strengths || undefined,
     candidateName,
     candidateEmail,
     targetRoles,

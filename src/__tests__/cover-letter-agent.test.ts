@@ -1,3 +1,5 @@
+import { mergeApplicationAssets } from "@/lib/ai/application-assets"
+vi.mock("@/lib/ai/application-assets", () => ({ mergeApplicationAssets: vi.fn().mockResolvedValue(undefined) }))
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import {
@@ -8,6 +10,7 @@ import { getRecentLLMCalls, getRecentAgentSteps } from "@/lib/ops/telemetry-ring
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
+    application: { findFirst: vi.fn().mockResolvedValue({ id: "app", userId: "user" }) },
     userProfile: {
       findUnique: vi.fn(),
     },
@@ -98,18 +101,13 @@ describe("Autonomous Cover Letter & Application Materials Agent (REC-16)", () =>
           rawAnalysis: expect.stringContaining("Dear Hiring Team at Vercel"),
           outreachSubject: expect.stringContaining("Senior Frontend Engineer"),
           outreachBody: expect.stringContaining("Senior Frontend Engineer"),
-          tailoredResumeJson: expect.objectContaining({
-            targetRole: "Senior Frontend Engineer",
-            company: "Vercel",
-            outreachChannels: expect.objectContaining({
-              form_portal: expect.any(Object),
-            }),
-          }),
+
         }),
       })
     )
 
     // Verify token optimization: only detected primary channel (form_portal) is populated at staging
+    expect(mergeApplicationAssets).toHaveBeenCalledWith("user-1", "app-100", expect.objectContaining({ targetRole: "Senior Frontend Engineer" }))
     expect(result.outreachChannels).toBeDefined()
     expect(result.outreachChannels?.form_portal).toBeDefined()
     expect(result.outreachChannels?.email).toBeUndefined()
@@ -127,7 +125,7 @@ describe("Autonomous Cover Letter & Application Materials Agent (REC-16)", () =>
     )
   })
 
-  it("uses LLM when user AI config is present and properly parses JSON output", async () => {
+  it("rejects unsupported LLM materials and falls back to candidate facts", async () => {
     ;(getUserAIConfig as any).mockResolvedValue({
       provider: "openai",
       apiKey: "sk-test",
@@ -156,16 +154,16 @@ describe("Autonomous Cover Letter & Application Materials Agent (REC-16)", () =>
       jobTitle: "AI Engineer",
     })
 
-    expect(result.coverLetter).toContain("Dear OpenAI team")
-    expect(result.highlights).toContain("Built scalable LLM inference pipelines")
-    expect(result.strategyTip).toContain("Emphasize evaluation metrics")
+    expect(result.coverLetter).toContain("OpenAI")
+    expect(result.highlights).not.toContain("Built scalable LLM inference pipelines")
+    expect(result.strategyTip).toContain("candidate-provided")
     expect(generateText).toHaveBeenCalled()
     expect(prisma.applicationAnalysis.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { applicationId: "app-200" },
         create: expect.objectContaining({
           applicationId: "app-200",
-          rawAnalysis: "Dear OpenAI team, I am excited to apply for AI Engineer...",
+          rawAnalysis: expect.stringContaining("OpenAI"),
         }),
       })
     )
@@ -187,7 +185,7 @@ describe("Autonomous Cover Letter & Application Materials Agent (REC-16)", () =>
     expect(stepNodes).toContain("package:strategist")
     expect(stepNodes).toContain("package:scribe")
     expect(stepNodes).toContain("package:critic")
-    expect(stepNodes).toContain("package:grounding")
+    expect(result.squadTrace?.criticAudit?.approved).not.toBe(true)
   })
 
   it("resiliently falls back to deterministic materials if LLM call fails or times out", async () => {
@@ -221,6 +219,7 @@ describe("Autonomous Cover Letter & Application Materials Agent (REC-16)", () =>
   })
 
   it("propagates authentic fitScore from notes regex when fitScore is omitted from context", async () => {
+    ;(getUserAIConfig as any).mockResolvedValue(null)
     ;(prisma.userProfile.findUnique as any).mockResolvedValue({
       fullName: "Alex Rivera",
       strengths: "TypeScript, React, Next.js",
@@ -276,10 +275,10 @@ describe("Autonomous Cover Letter & Application Materials Agent (REC-16)", () =>
         jobTitle: "Staff Infrastructure Engineer",
       })
 
-      expect(result.coverLetter).toContain("technical leadership")
-      expect(result.coverLetter).toContain("technical trade-offs")
-      expect(result.highlights[0]).toContain("Architected")
-      expect(result.strategyTip).toContain("architectural trade-offs")
+      expect(result.coverLetter).toContain("Staff")
+      expect(result.coverLetter).toContain("Stripe")
+      expect(result.highlights[0]).toContain("Event Broker")
+      expect(result.strategyTip).toContain("candidate-provided")
     })
 
     it("generates 0-to-1 velocity narrative for Founding Engineer archetype", async () => {
@@ -303,10 +302,10 @@ describe("Autonomous Cover Letter & Application Materials Agent (REC-16)", () =>
         jobTitle: "Founding Engineer",
       })
 
-      expect(result.coverLetter).toContain("0-to-1")
-      expect(result.coverLetter).toContain("build ownership")
-      expect(result.highlights[0]).toContain("0-to-1")
-      expect(result.strategyTip).toContain("autonomous shipping speed")
+      expect(result.coverLetter).not.toContain("0-to-1")
+      expect(result.coverLetter).not.toContain("build ownership")
+      expect(result.highlights[0]).not.toContain("0-to-1")
+      expect(result.strategyTip).toContain("candidate-provided")
     })
   })
 })

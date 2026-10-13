@@ -118,8 +118,8 @@ describe("Multi-Channel Outreach Engine & Zero-Placeholder Enforcement", () => {
       expect(bundle.email!.body).not.toContain("I am writing to express my strong interest")
       expect(bundle.email!.body).not.toContain("I hope this email finds you well")
       // Must contain high-converting elements
-      expect(bundle.email!.body).toContain("10-minute intro chat")
-      expect(bundle.email!.body).toContain("latency")
+      expect(bundle.email!.body).toContain("brief conversation")
+      expect(bundle.email!.body).not.toContain("keeping latency low")
     })
   })
 
@@ -272,7 +272,7 @@ describe("Multi-Channel Outreach Engine & Zero-Placeholder Enforcement", () => {
 
       // Email subject must contain clean title, not hashtags
       expect(bundle.email!.subject).toBe("Application for Junior Full Stack Developer - AH Muzahid")
-      expect(bundle.email!.body).toContain("looking for a Junior Full Stack Developer")
+      expect(bundle.email!.body).toContain("interested in the Junior Full Stack Developer")
       expect(bundle.email!.body).not.toMatch(/#\w+/)
 
       // LinkedIn InMail

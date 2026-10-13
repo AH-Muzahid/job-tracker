@@ -15,6 +15,7 @@ import {
   getCachedKnowledgeGraph,
   saveKnowledgeGraph,
 } from "@/lib/ai/knowledge-graph"
+import { AIAccessError, requireOwnedApplication } from "@/lib/ai/ownership"
 import { traceAIGeneration } from "@/lib/ai/telemetry"
 
 export async function POST(request: NextRequest) {
@@ -31,8 +32,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "AI provider not configured" }, { status: 400 })
   }
 
-  const { jdText, applicationId } = await request.json()
-  if (!jdText) return NextResponse.json({ error: "jdText is required" }, { status: 400 })
+  const parsedInput = z.object({ jdText: z.string().min(20).max(30000), applicationId: z.string().min(1).max(128).optional() }).safeParse(await request.json().catch(() => null))
+  if (!parsedInput.success) return NextResponse.json({ error: "Invalid job description" }, { status: 400 })
+  const { jdText, applicationId } = parsedInput.data
+  if (applicationId) {
+    try { await requireOwnedApplication(userId, applicationId) }
+    catch (error) { return NextResponse.json({ error: error instanceof AIAccessError ? "Application not found" : "Unable to verify ownership" }, { status: error instanceof AIAccessError ? 404 : 503 }) }
+  }
 
   // Fast targeted user profile context
   const [user, profile, defaultResume] = await Promise.all([
@@ -150,7 +156,7 @@ interface ProjectDetail {
       tags: ["scan-jd", "error"],
       flush: true,
     })
-    const errMsg = err instanceof Error ? err.message : "AI scan failed"
+    const errMsg = "Unable to analyze this job. Check your provider connection and retry."
     return NextResponse.json({ error: errMsg }, { status: 500 })
   }
 

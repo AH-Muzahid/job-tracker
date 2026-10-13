@@ -77,7 +77,7 @@ I am excited to apply for the Senior Frontend Engineer role. At my project CodeA
 Sincerely,
 Alex Rivera`
 
-      const result = auditFactualGrounding(honestCoverLetter, mockContext)
+      const result = auditFactualGrounding(honestCoverLetter, { ...mockContext, evidenceText: honestCoverLetter })
       expect(result.isFullyGrounded).toBe(true)
       expect(result.groundingScore).toBeGreaterThanOrEqual(90)
       expect(result.unsupportedClaims).toHaveLength(0)
@@ -101,13 +101,13 @@ Alex Rivera`
       expect(flaggedSkills.some((c) => c.claim === "kafka")).toBe(true)
     })
 
-    it("rewrites unsupported skills into honest learning bridges", () => {
+    it("blocks unsupported production qualifications without inventing a learning history", () => {
       const hallucinatedClaim = "Extensive production mastery in Kubernetes cluster orchestration."
       const result = auditFactualGrounding(hallucinatedClaim, mockContext)
 
       expect(result.sanitizedContent).not.toContain("production mastery in Kubernetes")
-      // Should rewrite with honest bridge using existing Docker foundation
-      expect(result.sanitizedContent).toMatch(/Docker|learning bridge|expanding into/i)
+      expect(result.isFullyGrounded).toBe(false)
+      expect(result.sanitizedContent).toContain("requires verification")
     })
 
     it("flags exaggerated metrics exceeding user's verified evidence", () => {
@@ -146,7 +146,7 @@ Alex Rivera`
         ],
       }
 
-      const { materials, audit, hasModifications } = auditApplicationMaterialsGrounding(draft, mockContext)
+      const { materials, audit, hasModifications } = auditApplicationMaterialsGrounding(draft, { ...mockContext, evidenceText: "Built CodeArena with TypeScript and React" })
 
       expect(hasModifications).toBe(true)
       expect(audit.isFullyGrounded).toBe(false)

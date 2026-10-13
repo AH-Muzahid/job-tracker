@@ -1,3 +1,5 @@
+import { mergeApplicationAssets } from "@/lib/ai/application-assets"
+vi.mock("@/lib/ai/application-assets", () => ({ mergeApplicationAssets: vi.fn().mockResolvedValue(undefined) }))
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import { buildResumePdfBuffer } from "@/lib/pdf/generator"
@@ -72,7 +74,7 @@ describe("Tailored Resume PDF Generation Engine", () => {
     expect(pdfHeader).toBe("%PDF")
   })
 
-  it("executes tailorResumeForJob tool, computes match score, saves to DB, and returns download URL", async () => {
+  it("saves candidate-provided resume facts to an owned Application package", async () => {
     vi.spyOn((prisma as any).resume, "findFirst").mockResolvedValueOnce({
       id: "res-base-1",
       userId: testUserId,
@@ -93,7 +95,10 @@ describe("Tailored Resume PDF Generation Engine", () => {
       email: "jane@example.com",
     })
 
-    vi.spyOn((prisma as any).resume, "create").mockResolvedValueOnce({
+    vi.spyOn((prisma as any).application, "findFirst").mockResolvedValueOnce({ id: "app-stripe", userId: testUserId, companyName: "Stripe", jobTitle: "Senior Backend Engineer" })
+    vi.spyOn((prisma as any).applicationAnalysis, "findUnique").mockResolvedValueOnce(null)
+    vi.spyOn((prisma as any).applicationAnalysis, "upsert").mockResolvedValueOnce({
+      applicationId: "app-stripe",
       id: "res-tailored-99",
       userId: testUserId,
       title: "Tailored - Senior Backend Engineer at Stripe",
@@ -102,16 +107,19 @@ describe("Tailored Resume PDF Generation Engine", () => {
     })
 
     const result = await executeTailorResumeForJob(testUserId, {
+      applicationId: "app-stripe",
       companyName: "Stripe",
       jobTitle: "Senior Backend Engineer",
       jobDescription: "We are looking for a Senior Backend Engineer proficient in Go, Redis, and PostgreSQL to scale distributed payments.",
     })
 
     expect(result.success).toBe(true)
-    expect(result.resumeId).toBe("res-tailored-99")
-    expect(result.downloadUrl).toBe("/api/resumes/download/res-tailored-99")
-    expect(result.matchScore).toBeGreaterThanOrEqual(50)
-    expect(result.tailoredHighlights?.targetCompany).toBe("Stripe")
-    expect(result.tailoredHighlights?.targetRole).toBe("Senior Backend Engineer")
+    if (!result.success || !("data" in result)) throw new Error("Expected owned resume package")
+    expect(result.downloadUrl).toBe("/applications/app-stripe")
+    expect(result.data.experience).toEqual([])
+    expect(result.data.education).toEqual([])
+    expect(result.data.skillsByDomain.flatMap((d) => d.skills)).not.toContain("redis")
+    expect(mergeApplicationAssets).toHaveBeenCalledWith(testUserId, "app-stripe", expect.objectContaining({ resumeData: expect.any(Object) }))
+
   })
 })

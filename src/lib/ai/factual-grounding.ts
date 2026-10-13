@@ -35,6 +35,7 @@ export interface GroundingContext {
     bestProjects?: any
     experienceLevel?: string | null
   } | null
+  evidenceText?: string
   candidateName?: string
   targetCompany?: string
   targetRole?: string
@@ -85,11 +86,22 @@ export function extractTechMentions(text: string): string[] {
   return Array.from(found)
 }
 
+/** Goals, gaps and learning statements are not evidence of existing capability. */
+export function extractEvidenceTechMentions(text: string): string[] {
+  const evidence = text.split(/(?<=[.!?।])\s+|\n/).filter((line) => !/\b(?:never|not|lacking|learning|aspiring|seeking|targeting|no\s+(?:experience|knowledge)|interested\s+in|shikhchi|shikhtesi)\b|\b(?:pari|jani)\s+na\b|অভিজ্ঞতা নেই|শিখছি|পারি না/i.test(line))
+  return extractTechMentions(evidence.join("\n"))
+}
+
+function normalizeDigits(text: string): string {
+  return text.replace(/[০-৯]/g, (digit) => String("০১২৩৪৫৬৭৮৯".indexOf(digit)))
+}
+
 /**
  * Extracts quantitative metric claims (percentages, user counts, latency numbers, dollar amounts)
  */
 export function extractMetricClaims(text: string): string[] {
   if (!text) return []
+  text = normalizeDigits(text)
   const metrics: string[] = []
 
   // Percentages: 45%, 99.999%
@@ -145,7 +157,7 @@ function assembleVerifiedFacts(context: GroundingContext): {
   const verifiedSkills = new Set<string>()
   const verifiedMetrics: string[] = []
   const verifiedProjects: string[] = []
-  let textPool = ""
+  let textPool = context.evidenceText || ""
 
   // 1. From Knowledge Graph nodes
   if (context.knowledgeGraph?.nodes) {
@@ -173,9 +185,9 @@ function assembleVerifiedFacts(context: GroundingContext): {
 
   if (Array.isArray(context.profile?.bestProjects)) {
     for (const p of context.profile.bestProjects) {
-      if (p.name) verifiedProjects.push(p.name.toLowerCase())
+      if (p.name) { verifiedProjects.push(p.name.toLowerCase()); textPool += ` ${p.name}` }
       if (p.stack) {
-        const stackItems = p.stack.split(/[,/|\n]+/).map((s: string) => s.trim())
+        const stackItems = (Array.isArray(p.stack) ? p.stack.join(",") : String(p.stack)).split(/[,/|\n]+/).map((s: string) => s.trim())
         for (const item of stackItems) {
           verifiedSkills.add(toCanonical(item))
         }
@@ -190,8 +202,9 @@ function assembleVerifiedFacts(context: GroundingContext): {
   // 3. From Memories
   if (Array.isArray(context.memories)) {
     for (const m of context.memories) {
+      if (m.category === "weakness") continue
       textPool += ` ${m.content}`
-      const extracted = extractTechMentions(m.content)
+      const extracted = extractEvidenceTechMentions(m.content)
       for (const t of extracted) verifiedSkills.add(t)
       verifiedMetrics.push(...extractMetricClaims(m.content))
     }
@@ -199,7 +212,7 @@ function assembleVerifiedFacts(context: GroundingContext): {
 
   return {
     verifiedSkills,
-    verifiedMetrics: verifiedMetrics.map((m) => m.toLowerCase()),
+    verifiedMetrics: verifiedMetrics.map((m) => normalizeDigits(m).toLowerCase()),
     verifiedProjects,
     verifiedTextPool: textPool.toLowerCase(),
   }
@@ -226,32 +239,6 @@ function findClosestSupportedSkill(unsupported: string, verifiedSkills: Set<stri
     }
   }
   return undefined
-}
-
-/**
- * Parses numeric scale numbers (e.g. "10,000", "5M", "5,000,000") into raw integers.
- */
-function parseNumericScale(str: string): number | null {
-  const match = str.match(/(\d+(?:,\d+)*(?:\.\d+)?)\s*([kKmMbB])?/)
-  if (!match) return null
-  const num = parseFloat(match[1].replace(/,/g, ""))
-  const unit = (match[2] || "").toLowerCase()
-  if (unit === "k") return num * 1_000
-  if (unit === "m") return num * 1_000_000
-  if (unit === "b") return num * 1_000_000_000
-  return num
-}
-
-/**
- * Formats a corrected numeric scale preserving the original metric's unit semantics,
- * so a dollar claim is never rewritten into a user count and vice-versa.
- */
-function formatScaleCorrection(metric: string, scale: number): string {
-  const formatted = scale.toLocaleString()
-  if (/^\$/.test(metric)) return `$${formatted}`
-  if (/\b(users?|dau|mau|clients?|customers?)\b/i.test(metric)) return `${formatted} users`
-  if (/\b(req(?:uests)?\/s|rps|queries)\b/i.test(metric)) return `${formatted} req/s`
-  return formatted
 }
 
 /**
@@ -285,6 +272,20 @@ export function auditFactualGrounding(
   const unsupportedClaims: GroundingIssue[] = []
   let sanitizedContent = text
 
+  // Copy evidence rather than accepting a new accomplishment merely because its tools match.
+  const normalizedEvidence = verifiedTextPool.replace(/\s+/g, " ").trim()
+  for (const sentence of text.split(/(?<=[.!?।])\s+|\n+/).map((s) => s.trim()).filter(Boolean)) {
+    const personal = /\b(?:I|my)\b[^.!?]*\b(?:built|engineered|led|delivered|designed|developed|achieved|managed|worked|specialize|expertise|experience)\b/i.test(sentence)
+    const accomplishment = /^(?:[-•]\s*)?(?:built|engineered|architected|led|delivered|designed|developed|achieved|managed|reduced|improved)\b/i.test(sentence)
+    const qualification = /\b(?:expertise|mastery|proficiency|experience)\s+(?:in|with|building|developing|at|as)\b|^(?:[-•]\s*)?(?:certified|expert|proficient)\b/i.test(sentence) && !/\b(?:role|position|job)\b.*\b(?:requires|seeks)\b/i.test(sentence)
+    const bengaliPersonal = /(?:আমি|আমার).*(?:বানিয়েছি|তৈরি করেছি|কাজ করেছি|ব্যবহার করেছি|অভিজ্ঞতা|নেতৃত্ব|উন্নত করেছি)/.test(sentence)
+    const claim = sentence.replace(/^[-•]\s*/, "").replace(/[.!?]$/, "").toLowerCase().replace(/\s+/g, " ")
+    if ((personal || accomplishment || qualification || bengaliPersonal) && !normalizedEvidence.includes(claim)) {
+      unsupportedClaims.push({ claim: sentence, type: "experience", severity: "critical", originalText: sentence, reason: "This accomplishment is not present in candidate-provided evidence." })
+      sanitizedContent = sanitizedContent.split(sentence).join("[accomplishment requires verification]")
+    }
+  }
+
   // 1. Audit Skills
   for (const skill of extractedSkills) {
     // If the skill is verified in candidate profile/knowledge graph, approve
@@ -296,7 +297,7 @@ export function auditFactualGrounding(
     // Check if the skill mention is just referring to the target job requirements or company context
     // E.g. "for the Senior Rust Engineer role at Stripe" - mentioning the target role is fine,
     // but claiming "I bring deep production expertise in Rust" or "mastery in Kubernetes" is a violation.
-    const isTargetContext = targetRole.includes(skill) || targetCompany.includes(skill)
+    const isTargetContext = extractTechMentions(targetRole).includes(skill) || extractTechMentions(targetCompany).includes(skill)
     const claimsExperiencePattern = new RegExp(
       `(?:expertise|experience|mastery|proficien(?:cy|t)|skilled|hands-on|engineered|built|architected|scaled)[^.\n]{0,50}\\b${skill}\\b`,
       "i"
@@ -353,58 +354,34 @@ export function auditFactualGrounding(
       continue
     }
 
-    // Check for extreme exaggeration: compare parsed scale against verified maximum scale
-    const claimedScale = parseNumericScale(metric)
-    if (claimedScale !== null && claimedScale > 50_000) {
-      // Find max verified user/scale count
-      let maxVerifiedScale = 10_000
-      for (const vm of verifiedMetrics) {
-        const s = parseNumericScale(vm)
-        if (s !== null && s > maxVerifiedScale) maxVerifiedScale = s
-      }
-
-      if (claimedScale > maxVerifiedScale * 5) {
-        unsupportedClaims.push({
-          claim: metric,
-          type: "metric",
-          severity: "critical",
-          originalText: metric,
-          suggestedCorrection: formatScaleCorrection(metric, maxVerifiedScale),
-          reason: `Metric claim '${metric}' (${claimedScale.toLocaleString()}) drastically exceeds candidate's verified maximum evidence of ${maxVerifiedScale.toLocaleString()}.`,
-        })
-
-        // Sanitize metric in text, preserving the original unit (dollar/scale/throughput)
-        sanitizedContent = sanitizedContent.replace(
-          new RegExp(metric.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&"), "g"),
-          formatScaleCorrection(metric, maxVerifiedScale)
-        )
-        continue
-      }
-    }
-
-    // Percentages: if candidate claims > 80% without verification
-    const pctMatch = metric.match(/(\d+)%/)
-    if (pctMatch) {
-      const pct = parseInt(pctMatch[1], 10)
-      if (pct >= 80 && !verifiedTextPool.includes(`${pct}%`)) {
-        unsupportedClaims.push({
-          claim: metric,
-          type: "metric",
-          severity: "warning",
-          originalText: metric,
-          reason: `High percentage metric '${metric}' has no grounding evidence in verified projects or memories.`,
-        })
-      }
-    }
+    unsupportedClaims.push({ claim: metric, type: "metric", severity: "critical", originalText: metric, reason: `Metric '${metric}' has no candidate evidence.` })
+    sanitizedContent = sanitizedContent.split(metric).join("[metric requires verification]")
   }
 
-  const totalClaims = extractedSkills.length + extractedMetrics.length
+  // Employment, duration and credential claims cannot be inferred from skill vocabulary.
+  const personalFacts = [
+    ...text.matchAll(/\b(?:worked|employed|engineer|developer|manager)\s+(?:at|for)\s+([A-Z][\w&.-]*(?: [A-Z][\w&.-]*)?)/g),
+    ...text.matchAll(/\b(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten)\s+years?(?: of experience)?/gi),
+    ...text.matchAll(/\b(?:bachelor|master|doctorate|phd|B\.?S\.?|M\.?S\.?)(?:[^.\n]{0,80})/gi),
+  ]
+  for (const fact of personalFacts) {
+    const claim = fact[0]
+    if (!verifiedTextPool.includes(claim.toLowerCase())) {
+      unsupportedClaims.push({ claim, type: "experience", severity: "critical", originalText: claim, reason: "Employment, duration or credential claim lacks source evidence." })
+      sanitizedContent = sanitizedContent.split(claim).join("[fact requires verification]")
+    } else verifiedClaims.push(claim)
+  }
+  if (!verifiedTextPool.trim() && /\b(?:I|my)\b[^.\n]*\b(?:built|engineered|led|delivered|designed|achieved|experience|expertise|worked)\b/i.test(text)) {
+    unsupportedClaims.push({ claim: text, type: "experience", severity: "critical", originalText: text, reason: "No candidate evidence is available for personal achievements." })
+  }
+
+  const totalClaims = extractedSkills.length + extractedMetrics.length + personalFacts.length
   const penalty = unsupportedClaims.reduce((acc, issue) => acc + (issue.severity === "critical" ? 20 : 10), 0)
   const groundingScore = Math.max(0, Math.min(100, 100 - penalty))
   const isFullyGrounded = unsupportedClaims.length === 0
 
   const auditReport = isFullyGrounded
-    ? `✓ 100% Factual Grounding Verified: ${verifiedClaims.length} verified claims substantiated by Career Knowledge Graph.`
+    ? `Evidence checks passed for ${verifiedClaims.length} recognized claims; this is not a complete semantic verification.`
     : `⚠ Grounding Violations Detected (${unsupportedClaims.length}):\n${unsupportedClaims.map((u) => `- [${u.type.toUpperCase()}] ${u.reason}`).join("\n")}`
 
   return {
@@ -435,11 +412,13 @@ export function auditApplicationMaterialsGrounding(
 
   const sanitizedHighlights: string[] = []
   let highlightsModified = false
+  const highlightAudits: GroundingAuditResult[] = []
   const { verifiedSkills } = assembleVerifiedFacts(context)
 
   if (Array.isArray(materials.highlights)) {
     for (const bullet of materials.highlights) {
       const bAudit = auditFactualGrounding(bullet, context)
+      highlightAudits.push(bAudit)
       if (bAudit.isFullyGrounded) {
         sanitizedHighlights.push(bullet)
       } else {
@@ -457,13 +436,13 @@ export function auditApplicationMaterialsGrounding(
     }
   }
 
-  const allUnsupported = [...clAudit.unsupportedClaims, ...opAudit.unsupportedClaims]
+  const allUnsupported = [...clAudit.unsupportedClaims, ...opAudit.unsupportedClaims, ...highlightAudits.flatMap((a) => a.unsupportedClaims)]
   const hasModifications =
     clAudit.sanitizedContent !== materials.coverLetter ||
     opAudit.sanitizedContent !== materials.outreachPitch ||
     highlightsModified
 
-  const mergedScore = Math.min(clAudit.groundingScore, opAudit.groundingScore)
+  const mergedScore = Math.min(clAudit.groundingScore, opAudit.groundingScore, ...highlightAudits.map((a) => a.groundingScore))
   const isFullyGrounded = allUnsupported.length === 0 && !highlightsModified
 
   const sanitizedMaterials: ApplicationMaterialsDraft = {

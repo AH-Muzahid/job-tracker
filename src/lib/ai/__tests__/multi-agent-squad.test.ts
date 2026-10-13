@@ -50,6 +50,7 @@ describe("Level 4 Multi-Agent Squad Orchestration", () => {
       companyName: "Vercel",
       candidateName: "Jordan Hayes",
       dossierContext: "Candidate has 8 years DevOps experience.",
+      groundingContext: { profile: { strengths: "Kubernetes, Next.js" }, evidenceText: "Dear Vercel Hiring Team, I scaled Kubernetes at Acme with 99.99% uptime. Hi Sarah, check out how I maintained 99.99% uptime on ClusterScaler." },
       strategistFn: mockStrategist,
       scribeFn: mockScribe,
       maxCriticRounds: 3,
@@ -77,7 +78,7 @@ describe("Level 4 Multi-Agent Squad Orchestration", () => {
       maxCriticRounds: 2,
     })
 
-    expect(result.approvedByCritic).toBe(true)
+    expect(result.approvedByCritic).toBe(false)
     expect(result.isDeterministicFallback).toBe(true)
     expect(result.materials.coverLetter).toContain("Linear")
     expect(result.materials.coverLetter).not.toContain("[")
