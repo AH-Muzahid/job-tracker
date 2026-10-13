@@ -22,7 +22,7 @@ export async function runHeadlessEvaluation(
       }
     }
 
-    const app = await buildCareerAgentGraph(aiConfig)
+    const app = await buildCareerAgentGraph(aiConfig, { ephemeral: true })
     const threadId = `bg-eval-${userId}-${Date.now()}`
     const langfuseHandler = createLangfuseCallbackHandler({
       userId,
@@ -47,11 +47,11 @@ export async function runHeadlessEvaluation(
       isHeadlessMode: true,
     }
 
-    const finalState: any = await app.invoke(inputArg, threadConfig)
+    const finalState: any = await app.invoke(inputArg, { ...threadConfig, signal: AbortSignal.timeout(120000), recursionLimit: 30 })
     await flushLangfuse()
 
     return {
-      success: true,
+      success: !(finalState.plan || []).some((s: any) => s.status === "failed"),
       content: finalState.responseContent || "Evaluation completed successfully.",
       plan: finalState.plan || [],
     }

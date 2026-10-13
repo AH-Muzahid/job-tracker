@@ -161,6 +161,8 @@ export async function executeGetUserMemories(userId: string, input: { category?:
           ...(input.category ? { category: input.category } : {}),
         },
         orderBy: { createdAt: "desc" },
+        take: 30,
+        select: { id: true, category: true, content: true, source: true, confidence: true, createdAt: true },
       })
     )
     return { success: true, count: memories?.length || 0, memories: memories || [] }

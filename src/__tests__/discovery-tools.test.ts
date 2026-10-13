@@ -1,3 +1,4 @@
+vi.mock("@/lib/ai/execution-lock", () => ({ withExecutionLock: vi.fn((_key, task) => task()) }))
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import {

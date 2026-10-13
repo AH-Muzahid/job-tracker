@@ -1,3 +1,4 @@
+import { getGraphCheckpointer } from "@/lib/ai/graph/checkpointer"
 import { NextRequest, NextResponse } from "next/server"
 import { getInternalUserId } from "@/lib/auth"
 import { prisma, withDbRetry } from "@/lib/prisma"
@@ -95,6 +96,10 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const { id } = await params
+  const session = await withDbRetry(() => prisma.chatSession.findFirst({ where: { id, userId }, select: { id: true } }))
+  if (!session) return NextResponse.json({ error: "Not found" }, { status: 404 })
+  const checkpointer = await getGraphCheckpointer()
+  await checkpointer.deleteThread(`user:${userId}:session:${id}`)
   const deleted = await withDbRetry(() =>
     prisma.chatSession.deleteMany({
       where: { id, userId },

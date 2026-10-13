@@ -1,3 +1,4 @@
+import { assertContextBudget } from "@/lib/ai/context-budget"
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { SystemMessage, HumanMessage, AIMessage } from "@langchain/core/messages"
 import type { AgentStateType } from "../state"
@@ -157,6 +158,7 @@ export function createResponderNode(
       }
     }
 
+    assertContextBudget("", messagesToSend)
     try {
       let responseText = ""
 

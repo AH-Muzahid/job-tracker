@@ -214,7 +214,7 @@ I will proceed with this plan.`
     expect(outcome.subject).toContain("Defdone")
     expect(outcome.subject).toContain("Alex Rivera")
     expect(outcome.body).toContain("Alex Rivera")
-    expect(outcome.body).toContain("10-minute intro chat")
+    expect(outcome.body).toContain("brief conversation")
     expect(outcome.body).not.toContain("I am writing to express my strong interest")
     expect(outcome.body).not.toContain("[Your Name]")
     expect(outcome.body).not.toContain("[Job Title]")

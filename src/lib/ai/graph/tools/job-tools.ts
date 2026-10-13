@@ -1,3 +1,4 @@
+import { withExecutionLock } from "@/lib/ai/execution-lock"
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { prisma, withDbRetry } from "@/lib/prisma"
 import { invalidateCache } from "@/lib/redis"
@@ -9,13 +10,14 @@ export async function executeCreateApplication(userId: string, input: {
   source?: string
   status?: string
   notes?: string
-}) {
+}): Promise<{ success: boolean; error?: string; message?: string; applicationId?: string; application?: unknown }> {
   if (!userId) return { success: false, error: "Unauthorized" }
   if (!input.companyName || !input.jobTitle) {
     return { success: false, error: "Company name and job title are required" }
   }
 
   try {
+    return await withExecutionLock(`application:${userId}:${input.companyName.trim().toLowerCase()}:${input.jobTitle.trim().toLowerCase()}`, async () => {
     const status = input.status || "Applied"
     const source = input.source || "Manual"
 
@@ -88,6 +90,7 @@ export async function executeCreateApplication(userId: string, input: {
       applicationId: application.id,
       application,
     }
+    })
   } catch (error: any) {
     return { success: false, error: error?.message || "Failed to create application" }
   }

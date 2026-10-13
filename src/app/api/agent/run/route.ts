@@ -1,3 +1,8 @@
+import { z } from "zod"
+import { checkDistributedRateLimit, rateLimitResponse } from "@/lib/rate-limit"
+import { acquireAgentLease, ExecutionBusyError } from "@/lib/ai/execution-lock"
+import { requireOwnedApplication } from "@/lib/ai/ownership"
+import { pruneSettledThread } from "@/lib/ai/graph/checkpoint-retention"
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export const dynamic = "force-dynamic"
 
@@ -23,25 +28,20 @@ export async function POST(request: NextRequest) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 })
   }
 
-  let body: {
-    message?: string
-    sessionId?: string
-    resumeAction?: string
-    resumePayload?: any
-    modelOverride?: string
-    routeContext?: {
-      currentRoute?: string
-      entityId?: string
-      entityType?: "application" | "opportunity" | "general" | string
-      metadata?: Record<string, any>
-    }
+  const rate = await checkDistributedRateLimit(`agent:${userId}`, 10, 60)
+  if (!rate.success) return rateLimitResponse(rate)
+  const parsedBody = z.object({
+    message: z.string().trim().min(1).max(4000).optional(), sessionId: z.string().min(1).max(128).regex(/^[a-zA-Z0-9_-]+$/).optional(),
+    resumeAction: z.enum(["APPROVE", "REJECT", "approved", "rejected"]).optional(), resumePayload: z.record(z.string().max(100), z.union([z.string().max(50000), z.number(), z.boolean(), z.null()])).refine((value) => Object.keys(value).length <= 12 && JSON.stringify(value).length <= 60000).optional(),
+    modelOverride: z.string().max(200).optional(),
+    routeContext: z.object({ currentRoute: z.string().max(300).optional(), entityId: z.string().max(128).optional(), entityType: z.string().max(30).optional(), metadata: z.object({}).optional() }).optional(),
+  }).safeParse(await request.json().catch(() => null))
+  if (!parsedBody.success) return new Response(JSON.stringify({ error: "Invalid agent request" }), { status: 400 })
+  const body = parsedBody.data
+  if (body.routeContext?.entityType === "application" && body.routeContext.entityId) {
+    try { await requireOwnedApplication(userId, body.routeContext.entityId) }
+    catch { return new Response(JSON.stringify({ error: "Application not found" }), { status: 404 }) }
   }
-  try {
-    body = await request.json()
-  } catch {
-    return new Response(JSON.stringify({ error: "Invalid JSON body" }), { status: 400 })
-  }
-
   const aiConfig = await getUserAIConfig(userId, body.modelOverride, { requireUserKey: true })
   if (!aiConfig) {
     return new Response(
@@ -68,33 +68,16 @@ export async function POST(request: NextRequest) {
 
   // Ensure ChatSession exists in DB and enforce tenant isolation
   try {
-    const existingSession = await withDbRetry(() =>
-      prisma.chatSession.findUnique({
-        where: { id: sessionId },
-        select: { userId: true },
-      })
-    )
-
-    if (existingSession && existingSession.userId !== userId) {
-      return new Response(
-        JSON.stringify({ error: "Forbidden: Session belongs to another user" }),
-        { status: 403, headers: { "Content-Type": "application/json" } }
-      )
+    const existingSession = await withDbRetry(() => prisma.chatSession.findUnique({ where: { id: sessionId }, select: { userId: true } }))
+    if (existingSession && existingSession.userId !== userId) return new Response(JSON.stringify({ error: "Session not found" }), { status: 404 })
+    if (!existingSession && resumeAction) return new Response(JSON.stringify({ error: "Session not found" }), { status: 404 })
+    if (!existingSession) {
+      try { await withDbRetry(() => prisma.chatSession.create({ data: { id: sessionId, userId, title: message ? message.slice(0, 40) : "Agent Session" } })) }
+      catch (error: any) { if (error?.code !== "P2002") throw error }
     }
-
-    await withDbRetry(() =>
-      prisma.chatSession.upsert({
-        where: { id: sessionId },
-        create: {
-          id: sessionId,
-          userId,
-          title: message ? message.slice(0, 40) : "Agent Session",
-        },
-        update: {
-          updatedAt: new Date(),
-        },
-      })
-    )
+    const ownedSession = await withDbRetry(() => prisma.chatSession.findFirst({ where: { id: sessionId, userId }, select: { id: true } }))
+    if (!ownedSession) return new Response(JSON.stringify({ error: "Session not found" }), { status: 404 })
+    await withDbRetry(() => prisma.chatSession.update({ where: { id: sessionId, userId }, data: { updatedAt: new Date() } }))
 
     if (message) {
       await withDbRetry(() =>
@@ -109,7 +92,8 @@ export async function POST(request: NextRequest) {
       await invalidateCache(`session:data:${sessionId}`, `user:sessions:${userId}`)
     }
   } catch (dbErr) {
-    console.warn("[Session Upsert Warning]:", dbErr)
+    void dbErr
+    return new Response(JSON.stringify({ error: "Unable to verify session. Please retry." }), { status: 503 })
   }
 
   // Candidate Profile Context to prevent generic placeholder hallucination
@@ -234,6 +218,9 @@ export async function POST(request: NextRequest) {
 
   const encoder = new TextEncoder()
 
+  let releaseLease: Awaited<ReturnType<typeof acquireAgentLease>>
+  try { releaseLease = await acquireAgentLease(`career-agent:${userId}`) }
+  catch (error) { return new Response(JSON.stringify({ error: error instanceof ExecutionBusyError ? error.message : "Agent temporarily unavailable" }), { status: error instanceof ExecutionBusyError ? 409 : 503 }) }
   const stream = new ReadableStream({
     async start(controller) {
       const sendEvent = (event: string, data: any) => {
@@ -267,10 +254,14 @@ export async function POST(request: NextRequest) {
         })
         const threadConfig = {
           configurable: {
-            thread_id: sessionId,
+            thread_id: `user:${userId}:session:${sessionId}`,
           },
         }
 
+        if (resumeAction) {
+          const checkpoint = await app.getState(threadConfig)
+          if (checkpoint.values?.userId !== userId || !checkpoint.tasks?.some((task: any) => task.interrupts?.length)) throw new Error("No owned pending approval exists")
+        }
         let inputArg: any
 
         if (resumeAction) {
@@ -304,6 +295,8 @@ export async function POST(request: NextRequest) {
         const events = await app.stream(inputArg, {
           ...threadConfig,
           streamMode: "updates",
+          signal: releaseLease.signal ? AbortSignal.any([releaseLease.signal, AbortSignal.timeout(120000)]) : AbortSignal.timeout(120000),
+          recursionLimit: 30,
           ...(langfuseHandler ? { callbacks: [langfuseHandler] } : {}),
         })
 
@@ -366,7 +359,7 @@ export async function POST(request: NextRequest) {
         if (finalState.tasks && finalState.tasks.length > 0 && finalState.tasks[0].interrupts?.length > 0) {
           sendEvent("interrupt", {
             interrupts: finalState.tasks[0].interrupts,
-            state: finalState.values,
+            state: { plan: finalState.values?.plan },
           })
         } else {
           const finalValues: any = finalState.values || {}
@@ -464,9 +457,13 @@ export async function POST(request: NextRequest) {
         }
 
         await flushLangfuse()
+        if (!finalState.tasks?.some((task: any) => task.interrupts?.length)) {
+          await pruneSettledThread(userId, sessionId).catch(() => console.warn("Checkpoint retention will retry on the next settled turn"))
+        }
+        await releaseLease().catch(() => {})
         controller.close()
       } catch (err: any) {
-        const errorMsg = err?.message || "Encountered a temporary AI service delay"
+        const errorMsg = "Unable to finish this action. Check your provider connection and retry."
         console.warn("[Agent Run Error]:", err)
 
         const totalDurationMs = Date.now() - startTime
@@ -513,6 +510,7 @@ export async function POST(request: NextRequest) {
 
         sendEvent("error", { error: errorMsg })
         await flushLangfuse()
+        await releaseLease().catch(() => {})
         controller.close()
       }
     },

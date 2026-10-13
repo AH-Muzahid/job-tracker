@@ -14,7 +14,7 @@ export function createExecutorNode() {
       return {}
     }
 
-    const currentStep = plan[currentStepIndex]
+    const currentStep = { ...plan[currentStepIndex] }
     const updatedPlan: AgentPlanStep[] = [...plan]
 
     // If no tool is needed for this step, mark completed without synthetic outcome string
@@ -49,7 +49,7 @@ export function createExecutorNode() {
     }
 
     // Interactive Human-in-the-Loop (HITL) interrupt for sensitive tools
-    if (hitlRequired && !state.interruptData?.payload?.__approved) {
+    if (hitlRequired) {
       const interruptPayload = {
         actionRequired: "CONFIRM_ACTION",
         title: `Approval required for ${toolName}`,
@@ -71,6 +71,9 @@ export function createExecutorNode() {
           interruptData: null,
         }
       }
+      if (resumedValue.payload && typeof resumedValue.payload === "object" && !Array.isArray(resumedValue.payload)) {
+        currentStep.toolInput = { ...(currentStep.toolInput || {}), ...resumedValue.payload }
+      }
     }
 
     // Execute tool
@@ -79,9 +82,11 @@ export function createExecutorNode() {
       status: "in_progress",
     }
 
+    const toolInput = { ...(currentStep.toolInput || {}) }
+    if (toolName === "tailorResumeForJob" && !toolInput.applicationId && state.routeContext?.entitySummary?.applicationId) toolInput.applicationId = state.routeContext.entitySummary.applicationId
     const execution = await executeToolByName(
       toolName,
-      currentStep.toolInput || {},
+      toolInput,
       userId,
       { isHeadless: Boolean(isHeadlessMode) }
     )

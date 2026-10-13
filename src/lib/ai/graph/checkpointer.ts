@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { PostgresSaver } from "@langchain/langgraph-checkpoint-postgres"
-import { MemorySaver } from "@langchain/langgraph"
 import type { BaseCheckpointSaver } from "@langchain/langgraph-checkpoint"
 import { Pool } from "pg"
 import { prisma } from "@/lib/prisma"
@@ -14,8 +13,8 @@ const globalForCheckpointer = globalThis as unknown as {
 /**
  * Returns a singleton PostgresSaver instance configured with the PostgreSQL connection pool.
  * Automatically initializes checkpoint tables via .setup().
- * If database pool connection fails (e.g. EMAXCONNSESSION, timeout), gracefully falls back to MemorySaver
- * to guarantee that interactive chat streaming never freezes or crashes.
+ * Fails closed on storage errors and retries initialization on the next request.
+ * Interactive approval state is never silently switched to ephemeral memory.
  */
 export async function getGraphCheckpointer(): Promise<BaseCheckpointSaver> {
   if (globalForCheckpointer.graphCheckpointer) {
@@ -68,23 +67,13 @@ export async function getGraphCheckpointer(): Promise<BaseCheckpointSaver> {
       globalForCheckpointer.graphCheckpointer = saver
       return saver
     } catch (setupErr: any) {
-      console.warn(
-        "[PostgresSaver Setup Fallback]: Could not initialize PostgresSaver (using MemorySaver fallback):",
-        setupErr?.message || setupErr
-      )
-      const fallbackSaver = new MemorySaver()
-      globalForCheckpointer.graphCheckpointer = fallbackSaver
-      return fallbackSaver
+      console.warn("[PostgresSaver unavailable]:", setupErr?.message)
+      throw new Error("Durable conversation storage unavailable. Please retry.")
     }
   })()
+  try { return await globalForCheckpointer.checkpointerSetupPromise }
+  finally { globalForCheckpointer.checkpointerSetupPromise = undefined }
 
-  try {
-    return await globalForCheckpointer.checkpointerSetupPromise
-  } catch {
-    const fallbackSaver = new MemorySaver()
-    globalForCheckpointer.graphCheckpointer = fallbackSaver
-    return fallbackSaver
-  }
 }
 
 /**

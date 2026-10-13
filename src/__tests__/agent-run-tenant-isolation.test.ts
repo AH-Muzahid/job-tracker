@@ -1,3 +1,5 @@
+vi.mock("@/lib/rate-limit", () => ({ checkDistributedRateLimit: vi.fn().mockResolvedValue({ success: true }), rateLimitResponse: vi.fn() }))
+vi.mock("@/lib/ai/execution-lock", () => ({ acquireAgentLease: vi.fn().mockResolvedValue(async () => {}), ExecutionBusyError: class extends Error {} }))
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import { NextRequest } from "next/server"
@@ -17,6 +19,9 @@ vi.mock("@/lib/prisma", () => ({
   prisma: {
     chatSession: {
       findUnique: vi.fn(),
+      findFirst: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
       upsert: vi.fn(),
     },
     chatMessage: {
@@ -110,20 +115,21 @@ describe("Chat Session Tenant Isolation & Ownership Guard (/api/agent/run)", () 
     })
 
     const res = await POST(req)
-    expect(res.status).toBe(403)
+    expect(res.status).toBe(404)
     const json = await res.json()
-    expect(json.error).toBe("Forbidden: Session belongs to another user")
+    expect(json.error).toBe("Session not found")
 
     // Verify no chat message was appended and session was not updated
     expect(prisma.chatSession.upsert).not.toHaveBeenCalled()
     expect(prisma.chatMessage.create).not.toHaveBeenCalled()
   })
 
-  it("allows execution and upserts session when session belongs to the current user", async () => {
+  it("executes only after verifying the existing session owner", async () => {
     // Session exists and belongs to Alice
     vi.mocked(prisma.chatSession.findUnique).mockResolvedValue({
       userId: currentUserId,
     } as any)
+    vi.mocked(prisma.chatSession.findFirst).mockResolvedValue({ id: targetSessionId } as any)
     vi.mocked(prisma.chatSession.upsert).mockResolvedValue({
       id: targetSessionId,
       userId: currentUserId,
@@ -145,9 +151,9 @@ describe("Chat Session Tenant Isolation & Ownership Guard (/api/agent/run)", () 
 
     const res = await POST(req)
     expect(res.status).toBe(200)
-    expect(prisma.chatSession.upsert).toHaveBeenCalledWith(
+    expect(prisma.chatSession.update).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: targetSessionId },
+        where: { id: targetSessionId, userId: currentUserId },
       })
     )
     expect(prisma.chatMessage.create).toHaveBeenCalledWith(
@@ -163,6 +169,7 @@ describe("Chat Session Tenant Isolation & Ownership Guard (/api/agent/run)", () 
   it("allows creation when session does not exist yet", async () => {
     // Session does not exist in DB yet
     vi.mocked(prisma.chatSession.findUnique).mockResolvedValue(null)
+    vi.mocked(prisma.chatSession.findFirst).mockResolvedValue({ id: targetSessionId } as any)
     vi.mocked(prisma.chatSession.upsert).mockResolvedValue({
       id: "new-session-id",
       userId: currentUserId,
@@ -184,7 +191,15 @@ describe("Chat Session Tenant Isolation & Ownership Guard (/api/agent/run)", () 
 
     const res = await POST(req)
     expect(res.status).toBe(200)
-    expect(prisma.chatSession.upsert).toHaveBeenCalled()
+    expect(prisma.chatSession.update).toHaveBeenCalled()
     expect(prisma.chatMessage.create).toHaveBeenCalled()
   })
+
+  it("fails closed when the ownership database lookup fails", async () => {
+    vi.mocked(prisma.chatSession.findUnique).mockRejectedValueOnce(new Error("Database unavailable"))
+    const response = await POST(new NextRequest("http://localhost/api/agent/run", { method: "POST", body: JSON.stringify({ sessionId: targetSessionId, resumeAction: "APPROVE" }) }))
+    expect(response.status).toBe(503)
+    expect(prisma.chatMessage.create).not.toHaveBeenCalled()
+  })
+
 })

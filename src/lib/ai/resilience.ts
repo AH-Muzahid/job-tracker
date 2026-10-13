@@ -1,3 +1,4 @@
+import { assertContextBudget } from "./context-budget"
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { generateText, streamText } from "ai"
 import type { LanguageModelV4 } from "@ai-sdk/provider"
@@ -332,6 +333,7 @@ export async function resilientGenerateText(options: {
   } = options
 
   const startTime = Date.now()
+  assertContextBudget(systemPrompt, messages)
   const candidates = await getFallbackModelCascade(userId, preferredModelId)
 
   if (candidates.length === 0) {

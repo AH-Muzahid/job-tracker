@@ -17,6 +17,7 @@ export async function buildCareerAgentGraph(
   callbacks?: {
     modelName?: string
     onToken?: (delta: string) => void
+    ephemeral?: boolean
   }
 ) {
   const model = getLangChainChatModel(aiConfig, { streaming: true, modelName: callbacks?.modelName })
@@ -62,7 +63,7 @@ export async function buildCareerAgentGraph(
     .addEdge("replanner", "executor")
     .addEdge("responder", END)
 
-  const checkpointer = await getGraphCheckpointer()
+  const checkpointer = callbacks?.ephemeral ? undefined : await getGraphCheckpointer()
 
   return workflow.compile({
     checkpointer,

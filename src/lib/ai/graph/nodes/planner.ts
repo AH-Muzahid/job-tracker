@@ -1,3 +1,4 @@
+import { assertContextBudget } from "@/lib/ai/context-budget"
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { SystemMessage, HumanMessage } from "@langchain/core/messages"
 import type { AgentStateType, AgentPlanStep } from "../state"
@@ -171,6 +172,7 @@ export function createPlannerNode(model: BaseChatModel) {
 
     try {
       const systemPrompt = getPlannerSystemPrompt()
+      assertContextBudget(systemPrompt, [{ content: promptText }])
       const response = await model.invoke([
         new SystemMessage(systemPrompt),
         new HumanMessage(promptText),

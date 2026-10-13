@@ -28,6 +28,14 @@ vi.mock("@/lib/prisma", () => ({
       findUnique: vi.fn(),
     },
     application: {
+      groupBy: vi.fn(async () => {
+        const { prisma } = await import("@/lib/prisma")
+        const rows = vi.mocked(prisma.application.findMany).mock.results.at(-1)
+        const apps = rows ? await rows.value : []
+        const counts: Record<string, number> = {}
+        for (const app of apps || []) counts[app.status] = (counts[app.status] || 0) + 1
+        return Object.entries(counts).map(([status, _count]) => ({ status, _count }))
+      }),
       findMany: vi.fn().mockResolvedValue([]),
     },
   },

@@ -1,3 +1,4 @@
+import { z } from "zod"
 import { NextRequest, NextResponse } from "next/server"
 import { getInternalUserId } from "@/lib/auth"
 import { getUserAIConfig } from "@/lib/ai/config"
@@ -34,7 +35,13 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const body: StudyQueryRequest = await request.json()
+    const parsed = z.object({
+      topic: z.string().max(200).optional(), question: z.string().trim().min(1).max(4000), language: z.enum(["en", "bn", "mixed"]).optional(),
+      history: z.array(z.object({ role: z.enum(["user", "assistant"]), content: z.string().max(4000) })).max(12).optional(),
+      conversationHistory: z.array(z.object({ role: z.enum(["user", "assistant"]), content: z.string().max(4000) })).max(12).optional(),
+    }).safeParse(await request.json().catch(() => null))
+    if (!parsed.success) return NextResponse.json({ error: "Invalid study question" }, { status: 400 })
+    const body = parsed.data
     const { topic = "General", question, language = "mixed" } = body
     const conversationHistory = body.conversationHistory || body.history || []
 
@@ -105,7 +112,7 @@ When explaining any concept or answering a question:
     })
   } catch (error) {
     console.error("AI Study Assistant error:", error)
-    const message = error instanceof Error ? error.message : "Failed to generate study answer"
+    const message = "Unable to answer. Check your AI provider connection and retry."
     return NextResponse.json(
       { error: message },
       { status: 500 }
