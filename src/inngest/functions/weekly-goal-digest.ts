@@ -1,7 +1,7 @@
 import { inngest } from "../client"
 import { prisma, withDbRetry } from "@/lib/prisma"
-import { runHeadlessEvaluation } from "@/lib/ai/graph/headless"
-import { sendEmail, formatOutreachEmailHtml } from "@/lib/email"
+import { generateCareerBriefing } from "@/lib/ai/briefing"
+import { sendEmail, formatOutreachEmailHtml, resolveBriefingContent } from "@/lib/email"
 
 /**
  * Weekly Goal Digest & Accountability Agent with LangGraph & Inngest
@@ -36,7 +36,7 @@ export const weeklyGoalDigestFunction = inngest.createFunction(
           where: whereClause,
           include: {
             user: {
-              select: { id: true, name: true, email: true },
+              select: { id: true, name: true, email: true, profile: { select: { notifyEmail: true } } },
             },
           },
         })
@@ -90,8 +90,10 @@ Synthesize a motivating, high-impact weekly retrospective:
 2. Gap & Velocity Analysis (how target matched output)
 3. 3 Strategic Focus Priorities for next week.`
 
-        const evaluation = await runHeadlessEvaluation(goal.userId, taskPrompt)
-        const digestContent = evaluation.content
+        const evaluation = await generateCareerBriefing(goal.userId, taskPrompt)
+        const digestContent = resolveBriefingContent(evaluation,
+          `**Your weekly progress**\n- Applications logged: ${applicationsCreatedThisWeek}\n- Interviews: ${interviewsMovedThisWeek}\n- Offers: ${offersReceived}\n\nReview your weekly goals, update progress, and choose your next priority.`,
+        )
 
         // Save in-app Notification
         await withDbRetry(() =>
@@ -107,22 +109,6 @@ Synthesize a motivating, high-impact weekly retrospective:
         )
 
         // Email Dispatch via Resend
-        if (goal.user.email) {
-          try {
-            const emailHtml = formatOutreachEmailHtml({
-              candidateName: goal.user.name || undefined,
-              bodyText: digestContent,
-              companyName: "CareerTrack Weekly Retrospective",
-            })
-            await sendEmail({
-              to: goal.user.email,
-              subject: "CareerTrack: Your Weekly Goal Retrospective & Strategy Digest",
-              html: emailHtml,
-            })
-          } catch (emailErr) {
-            console.warn(`[Weekly Digest Email Error] User ${goal.userId}:`, emailErr)
-          }
-        }
 
         return {
           userId: goal.userId,
@@ -132,8 +118,22 @@ Synthesize a motivating, high-impact weekly retrospective:
           interviewsSecured: interviewsMovedThisWeek,
           offersReceived,
           digestGenerated: true,
+          digestContent,
         }
       })
+
+      if (goal.user.email && goal.user.profile?.notifyEmail !== false) {
+        await step.run(`email-goal-${goal.id}`, async () => {
+          const sent = await sendEmail({
+            to: goal.user.email!,
+            subject: "CareerTrack: Your Weekly Goal Retrospective & Strategy Digest",
+            html: formatOutreachEmailHtml({ candidateName: goal.user.name || undefined, bodyText: reviewResult.digestContent }),
+            idempotencyKey: `weekly-digest/${event.id}/${goal.id}`,
+          })
+          if (!sent.success) throw new Error("Weekly digest email delivery failed")
+          return sent
+        })
+      }
 
       results.push(reviewResult)
     }

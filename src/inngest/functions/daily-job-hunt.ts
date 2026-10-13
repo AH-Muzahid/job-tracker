@@ -1,10 +1,12 @@
 import { inngest } from "../client"
 import { prisma, withDbRetry } from "@/lib/prisma"
-import { runHeadlessEvaluation } from "@/lib/ai/graph/headless"
+import { generateCareerBriefing } from "@/lib/ai/briefing"
 import {
   sendEmail,
   formatDailyOpportunityDigestHtml,
   type DailyDigestJobItem,
+  resolveBriefingContent,
+  type SendEmailOptions,
 } from "@/lib/email"
 import { detectEmploymentType } from "@/lib/discovery/matching"
 import {
@@ -84,7 +86,8 @@ export const processUserAuditBatch = inngest.createFunction(
     }
 
     for (const userId of userIds) {
-      await step.run(`audit-user-${userId}`, async () => {
+      const audit = await step.run(`audit-user-${userId}`, async () => {
+        let email: SendEmailOptions | undefined
         // Fresh Feed Guarantee: Evaluate, score, and publish fresh jobs to user's feed before audit
         try {
           const { processUserJobBatch } = await import("./batch-job-pipeline")
@@ -117,7 +120,7 @@ export const processUserAuditBatch = inngest.createFunction(
           ),
           withDbRetry(() =>
             prisma.application.count({
-              where: { userId, status: "Applied" },
+              where: { userId, status: { in: ["Applied", "Interview"] } },
             })
           ),
           withDbRetry(() =>
@@ -197,7 +200,9 @@ export const processUserAuditBatch = inngest.createFunction(
           }
         }
 
-        const hasTopMatches = topMatches && topMatches.length > 0
+        const userMinMatchScore = Math.max(75, user.profile?.minMatchScore ?? 75)
+        const matchesList = (topMatches || []).filter((m) => Number.isFinite(m.fitScore) && m.fitScore >= userMinMatchScore)
+        const hasTopMatches = matchesList.length > 0
         const hasStaged = stagedApps && stagedApps.length > 0
         if (staleApps.length === 0 && appliedCount === 0 && !hasTopMatches && !hasStaged) {
           return { skipped: true, reason: "No active, staged, or stale applications and no new opportunities" }
@@ -211,27 +216,10 @@ export const processUserAuditBatch = inngest.createFunction(
           .map((app) => `- ${app.jobTitle} at ${app.company?.name || app.companyName} (STAGED - Ready for submission)`)
           .join("\n")
 
-        interface DiscoveredJobMatchRecord {
-          fitScore: number
-          job: {
-            id: string
-            title: string
-            company: string
-            location?: string | null
-            salary?: string | null
-            url?: string | null
-            tags?: string[]
-          }
-        }
-
-        const userMinMatchScore = user.profile?.minMatchScore ?? 75
-        const rawMatches = (topMatches || []) as DiscoveredJobMatchRecord[]
-        const matchesList = rawMatches.filter((m) => m.fitScore >= userMinMatchScore)
-
         const opportunitiesSummary = matchesList
           .map(
             (m) =>
-              `- ${m.job.title} at ${m.job.company} (${Math.round(m.fitScore)}% match, ${m.job.location || "Remote"}${m.job.salary ? `, ${m.job.salary}` : ""})`
+              `- ${m.job.title} at ${m.job.company} (${Math.round(m.fitScore)}% match, ${m.job.location || "Location not provided"}${m.job.salary ? `, ${m.job.salary}` : ""})`
           )
           .join("\n")
 
@@ -240,6 +228,7 @@ export const processUserAuditBatch = inngest.createFunction(
           year: "numeric",
           month: "short",
           day: "numeric",
+          timeZone: "Asia/Dhaka",
         })
 
         const taskPrompt = `Today is ${todayFormatted}. Generate a concise, high-impact daily career briefing for ${user.name || "the candidate"}.
@@ -258,16 +247,22 @@ Formatting instructions:
 - Highlight company names and roles in bold.
 - Use clear bullet points or numbered action steps.`
 
-        const evaluation = await runHeadlessEvaluation(userId, taskPrompt)
-        const aiBriefing = evaluation.content
+        const evaluation = await generateCareerBriefing(userId, taskPrompt)
+        const fallback = [
+          hasStaged ? `- Submit your staged applications:\n${stagedSummary}` : "",
+          staleApps.length > 0 ? `- Review these applications and send a follow-up where appropriate:\n${staleSummary}` : "",
+          hasTopMatches ? `- Review your highest-fit opportunities in Discovery:\n${opportunitiesSummary}` : "",
+          !hasStaged && !staleApps.length && !hasTopMatches ? `- Review your ${appliedCount} active applications and record any recruiter updates.` : "",
+        ].filter(Boolean).join("\n\n")
+        const aiBriefing = resolveBriefingContent(evaluation, fallback)
 
         const notifTitle =
           hasStaged
             ? `Action Required: ${stagedApps.length} Staged Application${stagedApps.length > 1 ? "s" : ""} Ready to Submit`
             : hasTopMatches && staleApps.length > 0
-            ? `Daily Briefing: ${topMatches.length} Top Matches & Stale Follow-ups`
+            ? `Daily Briefing: ${matchesList.length} Top Matches & Stale Follow-ups`
             : hasTopMatches
-            ? `Daily Briefing: ${topMatches.length} High-Fit Jobs Discovered`
+            ? `Daily Briefing: ${matchesList.length} High-Fit Jobs Discovered`
             : staleApps.length > 0
             ? "Action Required: Stale Applications Follow-up"
             : "Daily Career Pipeline Briefing"
@@ -332,11 +327,11 @@ Formatting instructions:
               emailSubject = "CareerTrack: Follow-up Reminders on Active Applications"
             }
 
-            await sendEmail({
+            email = {
               to: user.email,
               subject: emailSubject,
               html: emailHtml,
-            })
+            }
           } catch (emailErr) {
             console.warn(`[Daily Briefing Email Error] User ${userId}:`, emailErr)
           }
@@ -370,10 +365,21 @@ Formatting instructions:
           userId,
           appliedCount,
           pendingFollowUps: staleApps.length,
-          topOpportunitiesCount: (topMatches || []).length,
+          topOpportunitiesCount: matchesList.length,
           notificationCreated: true,
+          email,
         }
       })
+      if (audit && "email" in audit && audit.email) {
+        await step.run(`email-user-${userId}`, async () => {
+          const result = await sendEmail({
+            ...audit.email!,
+            idempotencyKey: `daily-briefing/${event.id}/${userId}`,
+          })
+          if (!result.success) throw new Error("Daily briefing email delivery failed")
+          return result
+        })
+      }
     }
 
     return { processed: userIds.length }

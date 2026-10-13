@@ -4,7 +4,7 @@ import { dailyJobHuntScheduler, processUserAuditBatch } from "@/inngest/function
 import { weeklyMemoryHygiene } from "@/inngest/functions/memory-decay-digest"
 import { consolidateUserMemories } from "@/lib/ai/memory-consolidator"
 import { prisma } from "@/lib/prisma"
-import * as headless from "@/lib/ai/graph/headless"
+import * as headless from "@/lib/ai/briefing"
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
@@ -92,10 +92,9 @@ describe("Inngest Batch Fan-Out & Scalability Suite", () => {
       },
     ] as any)
 
-    vi.spyOn(headless, "runHeadlessEvaluation").mockResolvedValueOnce({
+    vi.spyOn(headless, "generateCareerBriefing").mockResolvedValueOnce({
       success: true,
       content: "Send a polite follow-up email to the Stripe recruiter regarding your Staff Systems application.",
-      plan: [],
     })
 
     const mockStep = {
@@ -147,10 +146,9 @@ describe("Inngest Batch Fan-Out & Scalability Suite", () => {
       },
     ])
 
-    vi.spyOn(headless, "runHeadlessEvaluation").mockResolvedValueOnce({
+    vi.spyOn(headless, "generateCareerBriefing").mockResolvedValueOnce({
       success: true,
       content: "Prioritize applying to the Senior Full Stack Engineer role at Vercel today.",
-      plan: [],
     })
 
     const mockStep = {
