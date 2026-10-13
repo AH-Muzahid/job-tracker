@@ -1,5 +1,5 @@
 import { getLangfuseInstance, flushLangfuse } from "./graph/telemetry"
-import { sanitizePII } from "./pii-sanitizer"
+import { redactTelemetry } from "./telemetry-redaction"
 import { recordLLMCallToRing } from "@/lib/ops/telemetry-ring"
 
 export interface AITelemetryPayload {
@@ -39,22 +39,7 @@ export interface TraceAIGenerationParams {
 /**
  * Recursively sanitizes any strings inside an input or output object to prevent PII leakage to Langfuse.
  */
-function sanitizeForTelemetry(data: unknown): unknown {
-  if (typeof data === "string") {
-    return sanitizePII(data)
-  }
-  if (Array.isArray(data)) {
-    return data.map(sanitizeForTelemetry)
-  }
-  if (data !== null && typeof data === "object") {
-    const sanitizedObj: Record<string, unknown> = {}
-    for (const [key, value] of Object.entries(data)) {
-      sanitizedObj[key] = sanitizeForTelemetry(value)
-    }
-    return sanitizedObj
-  }
-  return data
-}
+const sanitizeForTelemetry = redactTelemetry
 
 /**
  * Records a full LLM Generation trace in Langfuse adhering to production best practices:
@@ -74,7 +59,7 @@ export async function traceAIGeneration(params: TraceAIGenerationParams): Promis
     completionTokens: params.completionTokens,
     latencyMs: params.latencyMs,
     status: params.status,
-    error: params.error ? (params.error instanceof Error ? params.error.message : String(params.error)) : undefined,
+    error: params.error ? "Generation failed" : undefined,
     userId: params.userId,
     sessionId: params.sessionId,
   })
@@ -119,7 +104,7 @@ export async function traceAIGeneration(params: TraceAIGenerationParams): Promis
       metadata: {
         latencyMs: params.latencyMs,
         provider: params.provider,
-        error: params.error ? (params.error instanceof Error ? params.error.message : String(params.error)) : undefined,
+        error: params.error ? "Generation failed" : undefined,
       },
       level: params.status === "error" ? "ERROR" : "DEFAULT",
       statusMessage: params.status === "error" ? "Generation Failed" : "OK",
@@ -181,7 +166,7 @@ export function logAITransaction(data: AITelemetryPayload) {
         metadata: {
           latencyMs: data.latencyMs,
           ttftMs: data.ttftMs,
-          error: data.error,
+          error: data.error ? "Generation failed" : undefined,
         },
       })
     } catch (err) {

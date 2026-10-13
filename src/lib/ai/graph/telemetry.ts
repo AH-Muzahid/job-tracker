@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Langfuse } from "langfuse"
-import { CallbackHandler } from "@langfuse/langchain"
+import { BaseCallbackHandler } from "@langchain/core/callbacks/base"
+import { redactTelemetry } from "@/lib/ai/telemetry-redaction"
 import { countTokens } from "@/lib/ai/token-counter"
 import { recordAgentStepToRing } from "@/lib/ops/telemetry-ring"
 
@@ -22,7 +23,7 @@ let langfuseInstance: Langfuse | null = null
 export function getLangfuseInstance(): Langfuse | null {
   const publicKey = process.env.LANGFUSE_PUBLIC_KEY
   const secretKey = process.env.LANGFUSE_SECRET_KEY
-  const baseUrl = process.env.LANGFUSE_BASE_URL || "https://cloud.langfuse.com"
+  const baseUrl = process.env.LANGFUSE_BASE_URL || process.env.LANGFUSE_HOST || "https://cloud.langfuse.com"
 
   if (!publicKey || !secretKey) {
     return null
@@ -33,6 +34,7 @@ export function getLangfuseInstance(): Langfuse | null {
       publicKey,
       secretKey,
       baseUrl,
+      mask: ({ data }) => redactTelemetry(data),
     })
   }
 
@@ -75,7 +77,7 @@ export function createLangfuseCallbackHandler(params: {
   category?: TraceTaskCategory
   tags?: string[]
   metadata?: Record<string, any>
-}): CallbackHandler | null {
+}): BaseCallbackHandler | null {
   const publicKey = process.env.LANGFUSE_PUBLIC_KEY
   const secretKey = process.env.LANGFUSE_SECRET_KEY
 
@@ -91,12 +93,13 @@ export function createLangfuseCallbackHandler(params: {
     additionalMetadata: params.metadata,
   })
 
-  return new CallbackHandler({
-    userId: params.userId,
-    sessionId: params.sessionId,
-    tags,
-    traceMetadata: metadata,
-  })
+  // Avoid raw automatic OTEL model-content export. Manual graph spans use one redactor.
+  class SafeGraphCallback extends BaseCallbackHandler {
+    name = "career-track-sanitized-telemetry"
+  }
+  void tags; void metadata
+  return new SafeGraphCallback()
+
 }
 
 /**
@@ -124,7 +127,7 @@ export async function trackGraphExecution(params: {
     tokens: inputTokenCount + outputTokenCount,
     durationMs,
     status: params.error ? "error" : "success",
-    error: params.error ? (params.error instanceof Error ? params.error.message : String(params.error)) : undefined,
+    error: params.error ? "Operation failed" : undefined,
   })
 
   const langfuse = getLangfuseInstance()
@@ -157,10 +160,10 @@ export async function trackGraphExecution(params: {
 
     trace.span({
       name: params.nodeName,
-      input: params.input,
-      output: params.output,
+      input: redactTelemetry(params.input),
+      output: redactTelemetry(params.output),
       level: params.error ? "ERROR" : "DEFAULT",
-      statusMessage: params.error ? String(params.error) : "OK",
+      statusMessage: params.error ? "Operation failed" : "OK",
       metadata: {
         inputTokens: inputTokenCount,
         outputTokens: outputTokenCount,
