@@ -114,12 +114,13 @@ const mockResilientGenerateText = vi.fn().mockImplementation(async (options?: an
 })
 
 vi.mock("@/lib/ai/resilience", () => ({
-  resilientGenerateText: (...args: any[]) => mockResilientGenerateText(...args),
+  resilientGenerateText: (...args: any[]) => args[0]?.systemPrompt?.includes("Bar Raiser") ? Promise.resolve({ text: JSON.stringify({ verdict: "Strong Hire", overallScore: 88, technicalScore: 85, clarityScore: 90, starBreakdown: { situation: "Context", task: "Goal", action: "Caching", result: "Improved" }, strengths: ["Structure"], improvementAreas: ["Explain partitioning"], executiveSummary: "Evidence reviewed", knowledgeGaps: [{ id: "gap-1", topic: "Raft Consensus & Leader Lease Expiry", type: "technical", severity: "medium", questionAsked: "Scale?", candidateAnswerSummary: "Caching", weaknessReason: "No partitioning", idealAnswer: "Partition keys", keyTakeaways: ["Measure"], followUpPracticePrompt: "Partition?" }] }), modelUsed: "test", fallbackTriggered: false }) : mockResilientGenerateText(...args),
   getEmergencyInterviewTurn: vi.fn().mockReturnValue("Can you walk me through your engineering rationale?"),
 }))
 
 // 6. Mock Prisma
 vi.mock("@/lib/prisma", () => ({
+  withDbRetry: vi.fn((fn) => fn()),
   prisma: {
     application: {
       findFirst: vi.fn().mockResolvedValue({
@@ -186,6 +187,7 @@ vi.mock("ai", () => ({
           weaknessReason: "Omitted clock drift compensation.",
           idealAnswer: "Use true monotonic clocks with safe lease bound intervals.",
           keyTakeaways: ["Account for NTP skew", "Enforce majority quorums"],
+          followUpPracticePrompt: "Explain lease safety",
         },
       ],
     }),

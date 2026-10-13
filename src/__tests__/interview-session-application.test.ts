@@ -15,7 +15,7 @@ vi.mock("@/lib/ai/config", () => ({
 vi.mock("@/lib/ai/resilience", () => ({
   resilientGenerateText: vi.fn().mockResolvedValue({
     text: JSON.stringify({
-      overallScore: 88,
+      overallScore: 88, technicalScore: 85, clarityScore: 90,
       verdict: "Strong Hire",
       strengths: ["Strong system design"],
       improvementAreas: ["Minor cache invalidation details"],
@@ -37,6 +37,7 @@ const mockCreate = vi.fn().mockResolvedValue({ id: "session-123" })
 const mockFindFirst = vi.fn().mockResolvedValue({ id: "app-target-456" })
 
 vi.mock("@/lib/prisma", () => ({
+  withDbRetry: vi.fn((fn) => fn()),
   prisma: {
     application: {
       findFirst: (...args: any[]) => mockFindFirst(...args),
@@ -49,8 +50,23 @@ vi.mock("@/lib/prisma", () => ({
 
 import { POST } from "@/app/api/ai/mock-interview/report/route"
 import { NextRequest } from "next/server"
+import { resilientGenerateText } from "@/lib/ai/resilience"
 
 describe("InterviewSession - Application Relational Linking (INT-07)", () => {
+  it("keeps assistant questions distinct from user answers in the evaluation transcript", async () => {
+    vi.mocked(resilientGenerateText).mockClear()
+    const response = await POST(new NextRequest("http://localhost:3000/api/ai/mock-interview/report", {
+      method: "POST",
+      body: JSON.stringify({ targetRole: "Engineer", targetCompany: "Acme", history: [
+        { role: "assistant", text: "How do you test a cache?" },
+        { role: "user", text: "I test eviction and expiration." },
+      ] }),
+    }))
+    expect(response.status).toBe(200)
+    const prompt = JSON.stringify(vi.mocked(resilientGenerateText).mock.calls)
+    expect(prompt).toContain("INTERVIEWER: How do you test a cache?")
+    expect(prompt).toContain("CANDIDATE: I test eviction and expiration.")
+  })
   it("links interview session to verified applicationId", async () => {
     mockCreate.mockClear()
     mockFindFirst.mockClear()

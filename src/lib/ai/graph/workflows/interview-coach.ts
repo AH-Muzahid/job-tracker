@@ -1,3 +1,5 @@
+import { requireOwnedApplication } from "@/lib/ai/ownership"
+import { InterviewReportSchema, EvaluationUnavailableError } from "@/lib/ai/interview-report-schema"
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { StateGraph, START, END, Annotation } from "@langchain/langgraph"
 import { getUserWeaknesses, persistInterviewWeaknesses, type WeaknessMemory } from "@/lib/ai/memory"
@@ -180,9 +182,9 @@ async function starEvaluationNode(
     return { status: "ready" }
   }
 
-  const candidateTurns = state.dialogue.filter((d) => d.role === "candidate")
+  const candidateTurns = state.dialogue.filter((d) => d.role === "candidate" || d.role === "user")
   const dialogueTranscript = state.dialogue
-    .map((d) => `${d.role === "interviewer" ? "INTERVIEWER" : "CANDIDATE"}: ${d.text}`)
+    .map((d) => `${(d.role === "interviewer" || d.role === "assistant") ? "INTERVIEWER" : "CANDIDATE"}: ${d.text}`)
     .join("\n\n")
 
   let evaluationReport: any = null
@@ -255,7 +257,7 @@ Rules:
         const jsonStart = cleaned.indexOf("{")
         const jsonEnd = cleaned.lastIndexOf("}")
         if (jsonStart !== -1 && jsonEnd !== -1) {
-          evaluationReport = JSON.parse(cleaned.substring(jsonStart, jsonEnd + 1))
+          evaluationReport = InterviewReportSchema.parse(JSON.parse(cleaned.substring(jsonStart, jsonEnd + 1)))
           isAiEvaluated = true
         }
       }
@@ -264,59 +266,10 @@ Rules:
     // Graceful fallback to deterministic evaluation when offline or in test environments
   }
 
-  if (!evaluationReport) {
-    const avgLength =
-      candidateTurns.reduce((acc, curr) => acc + curr.text.length, 0) /
-      Math.max(1, candidateTurns.length)
-    const score = Math.min(92, Math.max(60, Math.round(avgLength / 12 + 65)))
-    const verdict = score >= 85 ? "Strong Hire" : score >= 70 ? "Hire" : "Lean Hire"
+  if (!evaluationReport) throw new EvaluationUnavailableError()
 
-    evaluationReport = {
-      verdict,
-      overallScore: score,
-      technicalScore: Math.max(50, score - 3),
-      clarityScore: Math.min(95, score + 2),
-      starBreakdown: {
-        situation: "Clearly articulated business context and constraints.",
-        task: "Definitively claimed ownership of system architecture.",
-        action: "Detailed key implementation steps and design trade-offs.",
-        result: "Demonstrated measurable latency improvements and high resilience.",
-      },
-      strengths: [
-        "Structured communication and problem breakdown",
-        "Clear articulation of architectural trade-offs",
-        "Ownership of technical execution details",
-      ],
-      improvementAreas: [
-        "Include more quantitative throughput metrics in results",
-        "Explicitly discuss fallback circuit breaking and edge cases",
-      ],
-      executiveSummary: `Candidate demonstrated solid foundational competence for the ${state.targetRole} role at ${state.targetCompany} with structured answers.`,
-      knowledgeGaps: [
-        {
-          id: `gap-${Date.now()}-1`,
-          topic: `${state.roundType} Trade-offs`,
-          type: "technical",
-          severity: "medium",
-          questionAsked: state.formulatedQuestions[2]?.question || "Scaling Bottlenecks",
-          candidateAnswerSummary: candidateTurns[0]?.text?.slice(0, 120) || "Discussed architecture",
-          weaknessReason: "Could offer deeper exploration of partition key distribution.",
-          idealAnswer: `When scaling ${state.targetRole} systems, evaluate bottlenecks across storage, caching, and network layers with measurable SLA boundaries.`,
-          starBreakdown: {
-            situation: "High-load production environment with stringent SLAs",
-            task: "Prevent cascading failures under peak traffic",
-            action: "Implemented distributed caching with circuit breaking and fallback pools",
-            result: "Zero downtime during peak traffic with p99 under 50ms",
-          },
-          keyTakeaways: ["Benchmark before tuning", "Design with bulkhead isolation", "Monitor p99 latency"],
-          followUpPracticePrompt: "How would you handle cache stampedes during sudden traffic surges?",
-        },
-      ],
-    }
-  }
-
-  const score = evaluationReport.overallScore || 75
-  const verdict = evaluationReport.verdict || "Hire"
+  const score = evaluationReport.overallScore
+  const verdict = evaluationReport.verdict
 
   return {
     evaluationReport,
@@ -343,6 +296,7 @@ async function longitudinalTrackingNode(
     return { status: "completed" }
   }
 
+  if (state.applicationId) await requireOwnedApplication(state.userId, state.applicationId)
   let persistedGaps = 0
   if (state.userId && state.evaluationReport.knowledgeGaps.length > 0) {
     persistedGaps = await persistInterviewWeaknesses(
@@ -382,7 +336,7 @@ async function longitudinalTrackingNode(
           await prisma.applicationAnalysis.create({
             data: {
               applicationId: state.applicationId!,
-              matchScore: state.evaluationReport?.overallScore || 75,
+              matchScore: null,
               confidence: "medium",
               verdict: state.evaluationReport?.verdict || "Interview Evaluated",
               gapAnalysis: gapRecord,
@@ -450,6 +404,8 @@ export async function runInterviewCoachPipeline(input: {
   roundType?: string
   dialogue?: Array<{ role: string; text: string }>
 }) {
+  if (!input.userId) throw new Error("Unauthorized")
+  if (input.applicationId) await requireOwnedApplication(input.userId, input.applicationId)
   const graph = buildInterviewCoachGraph()
   const result = await graph.invoke({
     userId: input.userId,

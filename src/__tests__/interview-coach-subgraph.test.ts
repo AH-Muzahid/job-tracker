@@ -1,3 +1,4 @@
+vi.mock("@/lib/ai/resilience", () => ({ resilientGenerateText: vi.fn().mockResolvedValue({ text: JSON.stringify({ verdict: "Hire", overallScore: 80, technicalScore: 80, clarityScore: 80, starBreakdown: { situation: "Context", task: "Goal", action: "Caching", result: "Improved" }, strengths: ["Structure"], improvementAreas: ["Explain partitioning"], executiveSummary: "Evidence reviewed", knowledgeGaps: [{ id: "gap-1", topic: "Partitioning", type: "technical", severity: "medium", questionAsked: "Scale?", candidateAnswerSummary: "Caching", weaknessReason: "No partitioning", idealAnswer: "Partition keys", keyTakeaways: ["Measure"], followUpPracticePrompt: "Partition?" }] }) }) }))
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import {
   buildInterviewCoachGraph,
@@ -13,7 +14,7 @@ vi.mock("@/lib/prisma", () => ({
       create: vi.fn().mockResolvedValue({ id: "mem-1" }),
     },
     application: {
-      findFirst: vi.fn(),
+      findFirst: vi.fn().mockResolvedValue({ id: "app-openai-1", userId: "user-123" }),
       update: vi.fn(),
     },
     notification: {

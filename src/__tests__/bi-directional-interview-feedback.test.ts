@@ -1,3 +1,4 @@
+vi.mock("@/lib/ai/application-assets", () => ({ mergeApplicationAssets: vi.fn().mockResolvedValue(undefined) }))
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import {
@@ -43,7 +44,7 @@ vi.mock("@/lib/prisma", () => ({
       create: vi.fn().mockResolvedValue({ id: "mem-1" }),
     },
     application: {
-      findFirst: vi.fn(),
+      findFirst: vi.fn().mockResolvedValue({ id: "app-stripe-1", userId: "user-123" }),
       update: vi.fn(),
     },
     applicationAnalysis: {
@@ -73,6 +74,7 @@ vi.mock("@/lib/redis", () => ({
 }))
 
 vi.mock("@/lib/rate-limit", () => ({
+  checkDistributedRateLimit: vi.fn().mockResolvedValue({ success: true }),
   checkRateLimit: vi.fn().mockReturnValue({ success: true }),
   rateLimitResponse: vi.fn(),
 }))
@@ -91,6 +93,7 @@ vi.mock("@/lib/ai/agents/company-dossier-agent", () => ({
 describe("CAG-14: Bi-directional Interview Feedback Loop", () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(prisma.userMemory.findMany).mockReset().mockResolvedValue([])
     vi.spyOn(authModule, "getInternalUserId").mockResolvedValue("user-123")
   })
 
@@ -135,7 +138,7 @@ describe("CAG-14: Bi-directional Interview Feedback Loop", () => {
       vi.mocked(prisma.interviewSession.create).mockResolvedValueOnce({ id: "session-1" } as any)
       vi.mocked(prisma.userMemory.findMany).mockResolvedValueOnce([])
       vi.mocked(prisma.userMemory.create).mockResolvedValue({ id: "mem-new" } as any)
-      vi.mocked(prisma.applicationAnalysis.findUnique).mockResolvedValueOnce({ id: "analysis-1" } as any)
+      vi.mocked(prisma.applicationAnalysis.findUnique).mockResolvedValue({ id: "analysis-1" } as any)
       vi.mocked(prisma.applicationAnalysis.update).mockResolvedValueOnce({} as any)
       vi.mocked(prisma.application.update).mockResolvedValueOnce({} as any)
 
@@ -239,7 +242,7 @@ describe("CAG-14: Bi-directional Interview Feedback Loop", () => {
   })
 
   describe("Resume Tailoring Engine -> Weakness Mitigation", () => {
-    it("fetches historical weaknesses and outputs weaknessMitigations in tailored resume payload", async () => {
+    it("does not invent resume experience to counteract historical weaknesses", async () => {
       vi.spyOn(configModule, "getUserAIConfig").mockResolvedValueOnce({
         providerType: "google",
         apiKey: "test-gemini-key",
@@ -329,9 +332,11 @@ describe("CAG-14: Bi-directional Interview Feedback Loop", () => {
       expect(response.status).toBe(200)
       expect(body.success).toBe(true)
       expect(body.data).toBeDefined()
-      expect(body.data.weaknessMitigations).toBeDefined()
-      expect(body.data.weaknessMitigations.length).toBeGreaterThan(0)
-      expect(body.data.weaknessMitigations[0].weaknessTopic).toContain("Kafka Partitions")
+      expect(body.data.experience).toEqual([])
+      expect(body.data.projects).toEqual([])
+      expect(body.data.skillsByDomain.flatMap((d: { skills: string[] }) => d.skills)).not.toContain("kafka")
+      expect(body.data.weaknessMitigations).toBeUndefined()
+
     })
   })
 
@@ -350,7 +355,7 @@ describe("CAG-14: Bi-directional Interview Feedback Loop", () => {
       } as any)
       vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({ name: "Alex Dev" } as any)
 
-      vi.mocked(prisma.userMemory.findMany).mockResolvedValueOnce([
+      vi.mocked(prisma.userMemory.findMany).mockResolvedValue([
         {
           id: "mem-w-1",
           userId: "user-123",
@@ -377,10 +382,11 @@ describe("CAG-14: Bi-directional Interview Feedback Loop", () => {
       })
 
       expect(materials).toBeDefined()
-      expect(materials.coverLetter).toContain("Dear Team")
+      expect(materials.coverLetter).toContain("Vercel")
+      expect(materials.coverLetter).not.toContain("Built scalable LLM")
 
       // Verify generateText was called with weakness notes in prompt
-      const promptArg = (vi.mocked(generateText).mock.calls[0][0] as any).prompt
+      const promptArg = vi.mocked(generateText).mock.calls.map((call) => String((call[0] as any).prompt || "")).join("\n")
       expect(promptArg.toLowerCase()).toContain("areas of prior technical feedback")
       expect(promptArg).toContain("CSS Grid")
     })
@@ -389,9 +395,10 @@ describe("CAG-14: Bi-directional Interview Feedback Loop", () => {
   describe("Interview Coach Subgraph -> Longitudinal Tracking & Analysis Sync", () => {
     it("synchronizes evaluation findings to ApplicationAnalysis during full cycle execution", async () => {
       vi.mocked(prisma.userMemory.findMany).mockResolvedValueOnce([])
-      vi.mocked(prisma.applicationAnalysis.findUnique).mockResolvedValueOnce({ id: "analysis-stripe" } as any)
+      vi.mocked(prisma.applicationAnalysis.findUnique).mockResolvedValue({ id: "analysis-stripe" } as any)
       vi.mocked(prisma.applicationAnalysis.update).mockResolvedValueOnce({} as any)
 
+      vi.spyOn(resilienceModule, "resilientGenerateText").mockResolvedValue({ text: JSON.stringify({ verdict: "Hire", overallScore: 88, technicalScore: 85, clarityScore: 90, starBreakdown: { situation: "Context", task: "Goal", action: "Caching", result: "Improved" }, strengths: ["Structure"], improvementAreas: ["Explain partitioning"], executiveSummary: "Evidence reviewed", knowledgeGaps: [{ id: "gap-1", topic: "Partitioning", type: "technical", severity: "medium", questionAsked: "Scale?", candidateAnswerSummary: "Caching", weaknessReason: "No partitioning", idealAnswer: "Partition keys", keyTakeaways: ["Measure"], followUpPracticePrompt: "Partition?" }] }), modelUsed: "test", providerUsed: "test", attemptsCount: 1, fallbackTriggered: false, durationMs: 1 })
       const sampleDialogue = [
         { role: "interviewer", text: "How do you ensure data integrity in payment systems?" },
         {
