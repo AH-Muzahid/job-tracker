@@ -1,3 +1,4 @@
+import { safePublicFetchText } from "@/lib/safe-public-fetch"
 import { NextRequest, NextResponse } from "next/server"
 import { getInternalUserId } from "@/lib/auth"
 import { checkDistributedRateLimit, rateLimitResponse } from "@/lib/rate-limit"
@@ -25,14 +26,7 @@ export async function POST(req: NextRequest) {
 
     const parsedUrl = ssrfCheck.parsedUrl
 
-    const res = await fetch(parsedUrl.toString(), {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-      },
-      signal: AbortSignal.timeout(10_000),
-    })
+    const res = await safePublicFetchText(parsedUrl.toString(), { timeoutMs: 10000 })
 
     if (!res.ok) {
       return NextResponse.json({ error: `Failed to fetch page content (Status ${res.status})` }, { status: 500 })

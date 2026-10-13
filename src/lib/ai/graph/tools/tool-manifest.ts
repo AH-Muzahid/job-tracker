@@ -1,3 +1,4 @@
+import { safePublicFetchText } from "@/lib/safe-public-fetch"
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { z } from "zod"
 import {
@@ -108,6 +109,7 @@ export const GetResumeDetailsSchema = z.object({
 }).passthrough()
 
 export const TailorResumeForJobSchema = z.object({
+  applicationId: z.string().min(1).max(128),
   jobDescription: z.string().min(15, "A descriptive job description (at least 15 chars) is required"),
   companyName: z.string().optional(),
   jobTitle: z.string().optional(),
@@ -503,13 +505,7 @@ export const TOOL_MANIFEST: Record<string, ToolDefinition<any>> = {
           }
         }
         const safeUrl = ssrfCheck.parsedUrl.toString()
-        const res = await fetch(safeUrl, {
-          headers: {
-            "User-Agent":
-              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-          },
-          signal: AbortSignal.timeout(8000),
-        })
+        const res = await safePublicFetchText(safeUrl, { timeoutMs: 8000 })
         if (!res.ok) {
           return { success: false, error: `Failed to fetch page content (HTTP ${res.status})` }
         }
@@ -694,7 +690,7 @@ export async function executeToolByName(
     const result = await tool.execute(userId, parseResult.data)
     return {
       ...result,
-      retryable: !result.success,
+      retryable: result.retryable ?? false,
     }
   } catch (err: any) {
     const errorMsg = err?.message || `Execution error on tool ${toolName}`

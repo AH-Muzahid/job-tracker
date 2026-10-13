@@ -1,3 +1,4 @@
+import { safePublicFetchText } from "@/lib/safe-public-fetch"
 import { NextRequest, NextResponse } from "next/server"
 import { generateText } from "ai"
 import { z } from "zod"
@@ -109,15 +110,7 @@ export async function POST(request: NextRequest) {
         }
         const parsedUrl = ssrfCheck.parsedUrl
 
-        const res = await fetch(parsedUrl.toString(), {
-          headers: {
-            "User-Agent":
-              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-            Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-          },
-          signal: AbortSignal.timeout(6_000),
-          redirect: "follow",
-        })
+        const res = await safePublicFetchText(parsedUrl.toString(), { timeoutMs: 6000 })
 
         if (!res.ok) {
           if (res.status === 999 || res.status === 429 || res.status === 403) {

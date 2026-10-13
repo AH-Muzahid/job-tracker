@@ -35,6 +35,15 @@ export function validateSafePublicUrl(inputUrl: string): SSRFValidationResult {
   // Strip brackets from IPv6 hostnames if present (e.g. "[::1]")
   const hostname = parsedUrl.hostname.toLowerCase().replace(/^\[|\]$/g, "")
 
+  if (parsedUrl.username || parsedUrl.password || hostname.includes(":")) {
+    // Reject IPv6 literals including mapped IPv4, unspecified and transition addresses.
+    // Public IPv6 DNS answers are checked separately by the outbound transport.
+    return { isValid: false, error: "Credentials and IPv6 literal URLs are prohibited" }
+  }
+  if (/^(?:0\.|100\.(?:6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.|198\.(?:18|19|51\.100)\.|192\.0\.(?:0|2)\.|203\.0\.113\.|(?:22[4-9]|23\d|24\d|25[0-5])\.)/.test(hostname)) {
+    return { isValid: false, error: "Reserved network addresses are prohibited" }
+  }
+
   // 2. Loopback & local names
   if (
     hostname === "localhost" ||
