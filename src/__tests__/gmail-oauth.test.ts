@@ -1,3 +1,4 @@
+vi.mock("@/lib/ai/side-effect-dedup", () => ({ sideEffectKey: vi.fn(() => "test"), deduplicateDelivery: vi.fn((_key, task) => task()) }))
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import { prisma } from "@/lib/prisma"
@@ -192,7 +193,7 @@ describe("Google OAuth & Gmail Integration Suite", () => {
       const sendResult = await sendGmailMessage("user-456", {
         to: "recruiter@stripe.com",
         subject: "Application for Staff Engineer",
-        html: "<p>Hello, please find my application attached.</p>",
+        html: "<p>Hello, বাংলা — please find my application attached.</p>",
       })
 
       expect(sendResult.success).toBe(true)
@@ -207,10 +208,31 @@ describe("Google OAuth & Gmail Integration Suite", () => {
           }),
         })
       )
+      const mime = Buffer.from(mockMessagesSend.mock.calls.at(-1)![0].requestBody.raw, "base64url").toString("utf8")
+      expect(mime).toContain("Content-Transfer-Encoding: base64")
+      expect(Buffer.from(mime.split("\r\n\r\n")[1], "base64").toString("utf8")).toContain("বাংলা —")
+    })
+    it("rejects threading header injection before contacting Gmail", async () => {
+      const result = await sendGmailMessage("user-456", { to: "recruiter@example.com", subject: "Hi", html: "<p>Hi</p>", inReplyTo: "id\r\nBcc: stolen@example.com" })
+      expect(result.success).toBe(false)
+      expect(mockMessagesSend).not.toHaveBeenCalled()
     })
   })
 
   describe("Integration with AI Email Tools", () => {
+    it("does not change sender identity when connected Gmail rejects delivery", async () => {
+      mockRedisGet.mockResolvedValueOnce({ email: "personal@gmail.com", provider: "google" })
+      vi.mocked(prisma.connectedAccount.findUnique).mockResolvedValueOnce({
+        userId: "user-456", provider: "google", email: "personal@gmail.com",
+        accessToken: cryptoHelper.encryptToken("valid-access"), refreshToken: cryptoHelper.encryptToken("valid-refresh"),
+        expiresAt: new Date(Date.now() + 30 * 60 * 1000),
+      } as any)
+      mockMessagesSend.mockRejectedValueOnce(new Error("Gmail rejected delivery"))
+      const result = await executeSendOutreachEmail("user-456", { toEmail: "hiring@example.com", subject: "Introduction", bodyText: "Hello" })
+      expect(result.success).toBe(false)
+      expect(result.error).toContain("connected Gmail")
+      expect(result).not.toHaveProperty("messageId")
+    })
     it("routes through user's connected Gmail when account exists", async () => {
       mockRedisGet.mockResolvedValueOnce({
         email: "personal@gmail.com",
@@ -259,7 +281,7 @@ describe("Google OAuth & Gmail Integration Suite", () => {
 
       expect(toolResult.success).toBe(true)
       expect(toolResult.provider).toBe("resend")
-      expect(toolResult.message).toContain("successfully sent to recruiter@openai.com")
+      expect(toolResult.message).toContain("was simulated; no email was sent")
     })
   })
 

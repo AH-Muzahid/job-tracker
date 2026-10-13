@@ -1,3 +1,5 @@
+vi.mock("@/lib/ai/side-effect-dedup", () => ({ sideEffectKey: vi.fn(() => "test"), deduplicateDelivery: vi.fn((_key, task) => task()) }))
+vi.mock("@/lib/ai/execution-lock", () => ({ withExecutionLock: vi.fn((_key, task) => task()) }))
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import {

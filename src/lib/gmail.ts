@@ -3,6 +3,7 @@ import { google } from "googleapis"
 import { prisma, withDbRetry } from "@/lib/prisma"
 import { encryptToken, decryptToken } from "@/lib/crypto"
 import { invalidateCache } from "@/lib/redis"
+import { emailPayloadSchema } from "@/lib/email"
 
 export const GMAIL_SCOPES = [
   "https://www.googleapis.com/auth/gmail.send",
@@ -184,13 +185,14 @@ function createMimeMessage({
     `Subject: ${utf8Subject}`,
     "MIME-Version: 1.0",
     "Content-Type: text/html; charset=utf-8",
-    "Content-Transfer-Encoding: 7bit",
+    "Content-Transfer-Encoding: base64",
   ]
 
   if (inReplyTo) headers.push(`In-Reply-To: ${inReplyTo}`)
   if (references) headers.push(`References: ${references}`)
 
-  const message = `${headers.join("\r\n")}\r\n\r\n${html}`
+  const encodedBody = Buffer.from(html, "utf8").toString("base64").match(/.{1,76}/g)?.join("\r\n") || ""
+  const message = `${headers.join("\r\n")}\r\n\r\n${encodedBody}`
 
   return Buffer.from(message)
     .toString("base64")
@@ -214,6 +216,10 @@ export async function sendGmailMessage(
     references?: string
   }
 ): Promise<{ success: boolean; messageId?: string; threadId?: string; from?: string; error?: string }> {
+  if (!userId || !emailPayloadSchema.safeParse(options).success ||
+      [options.inReplyTo, options.references].some((header) => header && /[\r\n]/.test(header))) {
+    return { success: false, error: "Invalid email payload" }
+  }
   try {
     const authData = await getAuthenticatedGmailClient(userId)
     if (!authData) {
@@ -221,6 +227,9 @@ export async function sendGmailMessage(
     }
 
     const { gmail, email } = authData
+    if (!emailPayloadSchema.shape.to.safeParse(email).success) {
+      return { success: false, error: "Invalid sender address" }
+    }
     const raw = createMimeMessage({
       to: options.to,
       from: email,
@@ -238,6 +247,7 @@ export async function sendGmailMessage(
       },
     })
 
+    if (!res.data.id) return { success: false, error: "Gmail returned no message ID" }
     return {
       success: true,
       messageId: res.data.id || undefined,

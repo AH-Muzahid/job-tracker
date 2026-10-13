@@ -1,5 +1,5 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import { sendEmail, formatOutreachEmailHtml } from "@/lib/email"
+import { deduplicateDelivery, sideEffectKey } from "@/lib/ai/side-effect-dedup"
+import { sendEmail, formatOutreachEmailHtml, emailPayloadSchema } from "@/lib/email"
 import { getConnectedGoogleAccount, sendGmailMessage } from "@/lib/gmail"
 import { prisma, withDbRetry } from "@/lib/prisma"
 import { pruneRelevantStack } from "@/lib/applications/outreach-engine"
@@ -70,20 +70,13 @@ export async function executeDraftOutreachEmail(
   const finalRole = role || "Software Engineer"
   const signoffName = candidateName || "Candidate"
 
-  // Extract hero project or fallback to high-value project
-  type ProjectItem = { name?: string; stack?: string }
-  const rawProjects = Array.isArray(profileRecord?.bestProjects) ? (profileRecord.bestProjects as unknown[]) : []
-  const topProj = (rawProjects[0] && typeof rawProjects[0] === "object" ? (rawProjects[0] as ProjectItem) : null) || {
-    name: "Full-Stack Web Architecture",
-    stack: profileRecord?.strengths || "TypeScript, Next.js, Node.js",
-  }
-
-  const prunedSkills = pruneRelevantStack(
-    profileRecord?.strengths || "TypeScript, React, Next.js, Node.js",
-    finalRole,
-    3
-  )
-  const prunedProjStack = pruneRelevantStack(topProj.stack || prunedSkills, finalRole, 3)
+  type ProjectItem = { name?: string; stack?: string; description?: string }
+  const rawProjects = Array.isArray(profileRecord?.bestProjects) ? profileRecord.bestProjects as ProjectItem[] : []
+  const topProj = rawProjects.find((p) => p && typeof p.name === "string" && p.name.trim())
+  const strengths = profileRecord?.strengths?.trim() || ""
+  if (!topProj && !strengths) return { success: false, error: "Add verified skills or a project to your profile before drafting outreach.", retryable: false }
+  const prunedSkills = pruneRelevantStack(strengths, finalRole, 3)
+  const projectProof = topProj ? `My project: ${topProj.name}${topProj.description ? `. ${topProj.description}` : "."}` : `My skills: ${prunedSkills || strengths}.`
 
   const linksList: string[] = []
   if (profileRecord?.portfolioUrl) linksList.push(`Portfolio: ${profileRecord.portfolioUrl}`)
@@ -95,11 +88,11 @@ export async function executeDraftOutreachEmail(
   const subject = `Application for ${finalRole} at ${company} — ${signoffName}`
   const body = `Dear ${company} Hiring Team,
 
-I noticed ${company} is looking for a ${finalRole}. Given my background engineering scalable, production web applications with ${prunedSkills}, I wanted to reach out directly.
+I am interested in the ${finalRole} position at ${company}.
 
-Recently, I engineered ${topProj.name} using ${prunedProjStack}. I focused on solving core architectural challenges around performance and clean modular component design, keeping latency low and system reliability high.
+${projectProof}
 
-Given ${company}'s focus on high-velocity execution, I can make an immediate contribution to your upcoming product milestones. Would you be open to a brief 10-minute intro chat this week?
+Would you be open to a brief conversation about the role?
 
 Best regards,
 ${signoffName}${linksLine}`
@@ -133,27 +126,26 @@ export async function executeSendOutreachEmail(userId: string, input: {
   candidateName?: string
   companyName?: string
   jobTitle?: string
-}) {
+}): Promise<{ success: boolean; error?: string; message?: string; messageId?: string; threadId?: string; senderEmail?: string; provider?: string; simulated?: boolean }> {
   if (!userId) return { success: false, error: "Unauthorized" }
   if (!input.toEmail || !input.subject || !input.bodyText) {
     return { success: false, error: "Recipient email, subject, and body text are required." }
   }
 
   try {
+    return await deduplicateDelivery(sideEffectKey(userId, [input.toEmail.toLowerCase(), input.subject, input.bodyText]), async () => {
     const html = formatOutreachEmailHtml({
       candidateName: input.candidateName,
       bodyText: input.bodyText,
       companyName: input.companyName,
       jobTitle: input.jobTitle,
     })
+    if (!emailPayloadSchema.safeParse({ to: input.toEmail, subject: input.subject, html }).success) {
+      return { success: false, error: "Invalid email payload" }
+    }
 
     // 1. Check if user has an active Google Account connected
-    const googleAccount = await getConnectedGoogleAccount(userId).catch(() => ({
-      connected: false,
-      email: undefined,
-      provider: undefined,
-      expiresAt: undefined,
-    }))
+    const googleAccount = await getConnectedGoogleAccount(userId)
 
     if (googleAccount.connected && googleAccount.email) {
       // Send directly from user's personal Gmail account
@@ -173,7 +165,7 @@ export async function executeSendOutreachEmail(userId: string, input: {
           provider: "gmail",
         }
       } else {
-        console.warn("[Gmail Dispatch Failed, falling back to Resend]:", gmailResult.error)
+        return { success: false, error: "Unable to send outreach from your connected Gmail account. Please check the connection and retry." }
       }
     }
 
@@ -190,11 +182,13 @@ export async function executeSendOutreachEmail(userId: string, input: {
 
     return {
       success: true,
-      message: `Outreach email successfully sent to ${input.toEmail}`,
+      message: result.simulated ? `Email delivery to ${input.toEmail} was simulated; no email was sent.` : `Outreach email successfully sent to ${input.toEmail}`,
       messageId: result.id,
+      simulated: result.simulated ?? false,
       provider: "resend",
-    }
-  } catch (error: any) {
-    return { success: false, error: error?.message || "Email dispatch failed" }
+    }    })
+
+  } catch {
+    return { success: false, error: "Email dispatch failed. Please check your email connection and retry." }
   }
 }

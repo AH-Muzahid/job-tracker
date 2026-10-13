@@ -1,4 +1,46 @@
 import { Resend } from "resend"
+import { z } from "zod"
+import { PLANNING_ERROR_FALLBACK } from "@/lib/ai/graph/constants"
+
+export const emailPayloadSchema = z.object({
+  to: z.string().email().max(254),
+  subject: z.string().trim().min(1).max(998).refine((value) => !/[\r\n]/.test(value)),
+  html: z.string().min(1).max(200_000),
+  text: z.string().max(200_000).optional(),
+  from: z.string().max(320).refine((value) => !/[\r\n]/.test(value)).optional(),
+  replyTo: z.string().email().optional(),
+  idempotencyKey: z.string().min(1).max(256).optional(),
+})
+
+/** Never publish agent diagnostics as candidate recommendations. */
+export function resolveBriefingContent(
+  evaluation: { success: boolean; content: string },
+  fallback: string,
+): string {
+  const content = evaluation.content?.trim()
+  return evaluation.success && content && content !== PLANNING_ERROR_FALLBACK &&
+    !/^(AI provider not configured|Headless evaluation encountered an error|Evaluation completed successfully\.)/i.test(content)
+    ? content : fallback
+}
+
+export function safeEmailUrl(value?: string | null): string | undefined {
+  if (!value || !/^https?:\/\//i.test(value) || /[\s<>"'\\]/.test(value)) return undefined
+  try {
+    const url = new URL(value)
+    return ["https:", "http:"].includes(url.protocol) && !url.username && !url.password
+      ? value : undefined
+  } catch { return undefined }
+}
+
+export function emailHtmlToText(html: string): string {
+  return html.replace(/<head\b[^>]*>[\s\S]*?<\/head>/gi, "")
+    .replace(/<(style|script)\b[^>]*>[\s\S]*?<\/\1>/gi, "")
+    .replace(/<a\b[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi, "$2 ($1)")
+    .replace(/<\/(p|div|h[1-6]|li|tr)>|<br\s*\/?>/gi, "\n")
+    .replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").replace(/&lt;/g, "<")
+    .replace(/&gt;|&rarr;/g, ">").replace(/&ge;/g, ">=").replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'").replace(/&amp;/g, "&").replace(/\n\s*\n/g, "\n\n").trim()
+}
 
 export interface SendEmailOptions {
   to: string
@@ -7,6 +49,47 @@ export interface SendEmailOptions {
   text?: string
   from?: string
   replyTo?: string
+  idempotencyKey?: string
+}
+
+// Inline fallbacks work in older clients; these shared classes support newer clients.
+function emailDocument(html: string): string {
+  const styles = `<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="supported-color-schemes" content="light dark">
+<style>
+  :root { color-scheme: light dark; }
+  body { overflow-wrap: anywhere; }
+  .email-container { box-sizing: border-box; width: 100%; }
+  td { font-variant-numeric: tabular-nums; }
+  @media (max-width: 480px) {
+    body { padding: 8px !important; }
+    .email-container { padding: 16px !important; }
+    td { padding-left: 8px !important; padding-right: 8px !important; }
+  }
+  @media (prefers-color-scheme: dark) {
+    body, .email-muted { background-color: #111827 !important; }
+    .email-card { background-color: #1f2937 !important; }
+    .email-ink { color: #f9fafb !important; }
+    .email-copy { color: #cbd5e1 !important; }
+    .email-border { border-color: #475569 !important; }
+    .email-link { color: #a5b4fc !important; }
+  }
+</style>`
+  return html.replace("</head>", `${styles}</head>`)
+    .replace(/<(div|td|span|p|h[1-6]|table|strong|code|a|ul|ol)([^>]*?)style="([^"]*)"/g,
+      (_match, tag: string, attrs: string, style: string) => {
+        const classes = [
+          /max-width: 600px/.test(style) ? "email-container" : "",
+          /background(?:-color)?: #ffffff/.test(style) ? "email-card" : "",
+          /background(?:-color)?: #(f1f5f9|f8fafc|fafafa)/.test(style) ? "email-muted" : "",
+          /(?:^|;)\s*color: #(0f172a|1e293b)/.test(style) ? "email-ink" : "",
+          /(?:^|;)\s*color: #(334155|475569|64748b|94a3b8)/.test(style) ? "email-copy" : "",
+          /border/.test(style) ? "email-border" : "",
+          /(?:^|;)\s*color: #533AFD/.test(style) ? "email-link" : "",
+        ].filter(Boolean).join(" ")
+        return `<${tag}${attrs} class="${classes}" style="${style.replace(/border-radius: 8px/g, "border-radius: 6px")}"`
+      })
 }
 
 export interface SendEmailResult {
@@ -26,12 +109,19 @@ export async function sendEmail({
   text,
   from,
   replyTo,
+  idempotencyKey,
 }: SendEmailOptions): Promise<SendEmailResult> {
+  if (!emailPayloadSchema.safeParse({ to, subject, html, text, from, replyTo, idempotencyKey }).success) {
+    return { success: false, error: "Invalid email payload" }
+  }
   const apiKey = process.env.RESEND_API_KEY
   const senderEmail = from || process.env.EMAIL_FROM || "CareerTrack Assistant <onboarding@resend.dev>"
 
   // If no API key is provided, log in dev mode and return simulated success
   if (!apiKey) {
+    if (process.env.NODE_ENV === "production") {
+      return { success: false, error: "Email delivery is not configured" }
+    }
     console.info(`[Email Simulation] To: ${to} | Subject: ${subject}`)
     return {
       success: true,
@@ -47,15 +137,16 @@ export async function sendEmail({
       to: [to],
       subject,
       html,
-      text: text || html.replace(/<[^>]*>?/gm, ""),
+      text: text || emailHtmlToText(html),
       replyTo,
-    })
+    }, idempotencyKey ? { idempotencyKey } : undefined)
 
     if (error) {
       console.error("[Email Dispatch Error]", error)
       return { success: false, error: error.message }
     }
 
+    if (!data?.id) return { success: false, error: "Email provider returned no message ID" }
     return {
       success: true,
       id: data?.id,
@@ -84,13 +175,14 @@ function escapeHtml(text: string): string {
  * Formats inline markdown syntax into inline CSS styled HTML for email clients.
  */
 function formatInlineMarkdown(text: string): string {
-  let formatted = escapeHtml(text)
-
-  // Markdown links: [text](url)
-  formatted = formatted.replace(
-    /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
-    '<a href="$2" style="color: #533AFD; font-weight: 600; text-decoration: underline;">$1</a>'
-  )
+  const links: string[] = []
+  const protectedText = text.replace(/\[([^\]]+)\]\(([^\s)]+)\)/g, (_match, label: string, url: string) => {
+    const safeUrl = safeEmailUrl(url)
+    if (!safeUrl) return label
+    links.push(`<a href="${escapeHtml(safeUrl)}" style="color: #533AFD; font-weight: 600; text-decoration: underline;">${escapeHtml(label)}</a>`)
+    return `\u0000${links.length - 1}\u0000`
+  })
+  let formatted = escapeHtml(protectedText)
 
   // Bold: **text** or __text__
   formatted = formatted.replace(
@@ -118,7 +210,7 @@ function formatInlineMarkdown(text: string): string {
     '<code style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 12px; background: #f1f5f9; padding: 2px 5px; border-radius: 3px; color: #0f172a;">$1</code>'
   )
 
-  return formatted
+  return formatted.replace(/\u0000(\d+)\u0000/g, (_match, index: string) => links[Number(index)] || "")
 }
 
 /**
@@ -303,8 +395,11 @@ export function formatOutreachEmailHtml({
   jobTitle?: string
 }): string {
   const formattedParagraphs = renderMarkdownToEmailHtml(bodyText)
+  candidateName = candidateName ? escapeHtml(candidateName) : undefined
+  companyName = companyName ? escapeHtml(companyName) : undefined
+  jobTitle = jobTitle ? escapeHtml(jobTitle) : undefined
 
-  return `
+  return emailDocument(`
 <!DOCTYPE html>
 <html>
 <head>
@@ -331,7 +426,7 @@ export function formatOutreachEmailHtml({
   </div>
 </body>
 </html>
-`
+`)
 }
 
 export interface DailyDigestJobItem {
@@ -364,13 +459,18 @@ export function formatDailyOpportunityDigestHtml({
   activeApplicationsCount?: number
   appUrl?: string
 }): string {
-  const formattedParagraphs = renderMarkdownToEmailHtml(briefingText)
+  appUrl = (safeEmailUrl(appUrl) || "https://career-track-nine.vercel.app").replace(/\/$/, "")
+  candidateName = candidateName ? escapeHtml(candidateName) : undefined
+  const formattedParagraphs = renderMarkdownToEmailHtml(resolveBriefingContent(
+    { success: true, content: briefingText },
+    `${staleApplicationsCount > 0 ? `- Review ${staleApplicationsCount} applications needing follow-up.\n` : ""}${opportunities.length > 0 ? `- Review ${opportunities.length} high-fit opportunities in Discovery.` : "- Review your applications and update your job preferences in Discovery."}`,
+  ))
 
   const opportunitiesHtml =
     opportunities.length > 0
       ? opportunities
           .map((job) => {
-            const applyUrl = job.url || `${appUrl}/discovery`
+            const applyUrl = escapeHtml(safeEmailUrl(job.url) || `${appUrl}/discovery`)
             const scoreColor =
               job.matchScore >= 90
                 ? "#059669"
@@ -383,24 +483,24 @@ export function formatDailyOpportunityDigestHtml({
               <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom: 8px;">
                 <tr>
                   <td align="left" style="vertical-align: top;">
-                    <span style="font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em;">${job.company}</span>
-                    <h4 style="margin: 4px 0; font-size: 16px; font-weight: 700; color: #0f172a;">${job.title}</h4>
+                    <span style="font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em;">${escapeHtml(job.company)}</span>
+                    <h4 style="margin: 4px 0; font-size: 16px; font-weight: 700; color: #0f172a; overflow-wrap: anywhere;">${escapeHtml(job.title)}</h4>
                   </td>
                   <td align="right" style="vertical-align: top; width: 100px;">
                     <span style="background: ${scoreColor}; color: #ffffff; font-size: 11px; font-weight: 800; padding: 4px 8px; text-transform: uppercase; letter-spacing: 0.05em; display: inline-block;">
-                      ${job.matchScore}% MATCH
+                      ${Number.isFinite(job.matchScore) ? Math.max(0, Math.min(100, Math.round(job.matchScore))) : 0}% MATCH
                     </span>
                   </td>
                 </tr>
               </table>
               <div style="font-size: 12px; color: #64748b; margin-bottom: 12px; line-height: 1.5;">
-                ${job.location ? `<span style="margin-right: 12px;">📍 ${job.location}</span>` : ""}
-                ${job.employmentType ? `<span style="margin-right: 12px;">💼 ${job.employmentType}</span>` : ""}
-                ${job.salary ? `<span>💰 ${job.salary}</span>` : ""}
+                ${job.location ? `<span style="margin-right: 12px;">${escapeHtml(job.location)}</span>` : ""}
+                ${job.employmentType ? `<span style="margin-right: 12px;">${escapeHtml(job.employmentType)}</span>` : ""}
+                ${job.salary && !/^(range|n\/?a|negotiable|null|undefined)$/i.test(job.salary.trim()) ? `<span>${escapeHtml(job.salary)}</span>` : ""}
               </div>
               <div style="text-align: right;">
-                <a href="${applyUrl}" style="display: inline-block; background: #0f172a; color: #ffffff; text-decoration: none; font-size: 12px; font-weight: 700; padding: 8px 16px; text-transform: uppercase; letter-spacing: 0.05em;">
-                  View & Apply &rarr;
+                <a href="${applyUrl}" style="display: inline-block; color: #533AFD; text-decoration: underline; font-size: 12px; font-weight: 700; padding: 12px 0;">
+                  Review Opportunity &rarr;
                 </a>
               </div>
             </div>`
@@ -408,7 +508,7 @@ export function formatDailyOpportunityDigestHtml({
           .join("")
       : `<p style="font-size: 13px; color: #64748b; font-style: italic;">No new high-fit opportunities found in this cycle.</p>`
 
-  return `
+  return emailDocument(`
 <!DOCTYPE html>
 <html>
 <head>
@@ -449,7 +549,7 @@ export function formatDailyOpportunityDigestHtml({
     <!-- AI Briefing Section -->
     <div style="margin-bottom: 28px;">
       <div style="font-size: 12px; font-weight: 800; color: #0f172a; text-transform: uppercase; letter-spacing: 0.05em; border-left: 3px solid #0f172a; padding-left: 8px; margin-bottom: 12px;">
-        Agent Recommendations
+        Today's Priorities
       </div>
       <div style="background: #fafafa; border: 1px solid #e2e8f0; padding: 16px;">
         ${formattedParagraphs}
@@ -459,14 +559,14 @@ export function formatDailyOpportunityDigestHtml({
     <!-- Top Discovered Opportunities Section -->
     <div style="margin-bottom: 28px;">
       <div style="font-size: 12px; font-weight: 800; color: #0f172a; text-transform: uppercase; letter-spacing: 0.05em; border-left: 3px solid #059669; padding-left: 8px; margin-bottom: 12px;">
-        Top Discovered Opportunities (&ge;75% Fit)
+        Top Discovered Opportunities
       </div>
       ${opportunitiesHtml}
     </div>
 
     <!-- CTA to Discovery Dashboard -->
     <div style="text-align: center; margin: 32px 0 20px 0;">
-      <a href="${appUrl}/discovery" style="display: inline-block; background: #0f172a; color: #ffffff; text-decoration: none; font-size: 13px; font-weight: 700; padding: 12px 28px; text-transform: uppercase; letter-spacing: 0.05em;">
+      <a href="${appUrl}/discovery" style="display: inline-block; background: #533AFD; border-radius: 4px; color: #ffffff; text-decoration: none; font-size: 13px; font-weight: 700; padding: 16px 24px;">
         Open Discovery Dashboard &rarr;
       </a>
     </div>
@@ -478,7 +578,7 @@ export function formatDailyOpportunityDigestHtml({
   </div>
 </body>
 </html>
-`
+`)
 }
 
 export interface InterviewReminderEmailOptions {
@@ -492,6 +592,7 @@ export interface InterviewReminderEmailOptions {
   reminderType: "24h" | "2h"
   appUrl?: string
   applicationId: string
+  timeZone?: string
 }
 
 /**
@@ -508,29 +609,45 @@ export function formatInterviewReminderHtml({
   reminderType,
   appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://career-track-nine.vercel.app",
   applicationId,
+  timeZone = "Asia/Dhaka",
 }: InterviewReminderEmailOptions): string {
+  const rawCompanyName = companyName
+  const rawJobTitle = jobTitle
+  companyName = escapeHtml(companyName)
+  jobTitle = escapeHtml(jobTitle)
+  candidateName = candidateName ? escapeHtml(candidateName) : undefined
+  interviewRound = interviewRound ? escapeHtml(interviewRound) : undefined
+  interviewNotes = interviewNotes ? escapeHtml(interviewNotes) : undefined
+  interviewMeetingUrl = safeEmailUrl(interviewMeetingUrl)
+  if (interviewMeetingUrl) interviewMeetingUrl = escapeHtml(interviewMeetingUrl)
+  appUrl = (safeEmailUrl(appUrl) || "https://career-track-nine.vercel.app").replace(/\/$/, "")
+  applicationId = encodeURIComponent(applicationId)
   const roundTitle = interviewRound || "Interview Round"
   const dateObj = new Date(interviewDate)
+  if (Number.isNaN(dateObj.getTime())) throw new Error("Invalid interview date")
   const formattedDate = dateObj.toLocaleDateString("en-US", {
     weekday: "long",
     month: "long",
     day: "numeric",
     year: "numeric",
+    timeZone,
   })
   const formattedTime = dateObj.toLocaleTimeString("en-US", {
     hour: "2-digit",
     minute: "2-digit",
+    timeZone,
+    timeZoneName: "short",
   })
   const prepRoomUrl = `${appUrl}/interview-prep?appId=${applicationId}&company=${encodeURIComponent(
-    companyName
-  )}&role=${encodeURIComponent(jobTitle)}`
+    rawCompanyName
+  )}&role=${encodeURIComponent(rawJobTitle)}`
   const appDetailUrl = `${appUrl}/applications/${applicationId}`
 
   const isUrgent = reminderType === "2h"
   const badgeText = isUrgent ? "CRITICAL: 2 HOURS REMAINING" : "PREPARATION BRIEFING: 24 HOURS OUT"
   const badgeBg = isUrgent ? "#dc2626" : "#0284c7"
 
-  return `
+  return emailDocument(`
 <!DOCTYPE html>
 <html>
 <head>
@@ -611,7 +728,7 @@ export function formatInterviewReminderHtml({
   </div>
 </body>
 </html>
-`
+`)
 }
 
 
