@@ -1,13 +1,18 @@
+import { mergeApplicationAssets } from "@/lib/ai/application-assets"
+vi.mock("@/lib/ai/application-assets", () => ({ mergeApplicationAssets: vi.fn().mockResolvedValue(undefined) }))
+vi.mock("@/lib/ai/execution-lock", () => ({ withExecutionLock: vi.fn((_key, task) => task()) }))
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import { processProactiveFollowUpsForUser } from "@/inngest/functions/agent-proactive-daemon"
 import { prisma } from "@/lib/prisma"
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
+    $transaction: vi.fn(async (task) => { const { prisma } = await import("@/lib/prisma"); return task(prisma) }),
     application: {
       findMany: vi.fn(),
     },
     applicationAnalysis: {
+      upsert: vi.fn(),
       update: vi.fn(),
     },
     notification: {
@@ -40,29 +45,18 @@ describe("Level 5 Proactive Lifecycle Daemon", () => {
     }
 
     vi.mocked(prisma.application.findMany as any).mockResolvedValueOnce([mockStaleApp])
-    vi.mocked(prisma.applicationAnalysis.update as any).mockResolvedValueOnce({})
+    vi.mocked(prisma.applicationAnalysis.upsert as any).mockResolvedValueOnce({})
     vi.mocked(prisma.notification.create as any).mockResolvedValueOnce({})
 
     const result = await processProactiveFollowUpsForUser("u1")
 
     expect(result.staleProcessed).toBe(1)
-    expect(prisma.applicationAnalysis.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: "analysis-1" },
-        data: expect.objectContaining({
-          tailoredResumeJson: expect.objectContaining({
-            proactiveFollowUp: expect.objectContaining({
-              subject: expect.stringContaining("Figma"),
-            }),
-          }),
-        }),
-      })
-    )
+    expect(mergeApplicationAssets).toHaveBeenCalledWith("u1", "app-stale-1", expect.objectContaining({ proactiveFollowUp: expect.objectContaining({ subject: expect.stringContaining("Figma") }) }), expect.any(Object))
     expect(prisma.notification.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
           userId: "u1",
-          title: expect.stringContaining("Proactive Follow-up Ready"),
+          title: expect.stringContaining("Follow-up ready"),
         }),
       })
     )
@@ -95,6 +89,6 @@ describe("Level 5 Proactive Lifecycle Daemon", () => {
 
     expect(result.staleProcessed).toBe(0)
     expect(result.skippedAlreadyDrafted).toBe(1)
-    expect(prisma.applicationAnalysis.update).not.toHaveBeenCalled()
+    expect(prisma.applicationAnalysis.upsert).not.toHaveBeenCalled()
   })
 })

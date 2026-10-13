@@ -1,3 +1,5 @@
+import { mergeApplicationAssets } from "@/lib/ai/application-assets"
+import { withExecutionLock } from "@/lib/ai/execution-lock"
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { inngest } from "../client"
 import { prisma, withDbRetry } from "@/lib/prisma"
@@ -12,6 +14,7 @@ export interface ProactiveProcessResult {
  * drafts high-converting follow-up pitches, and creates actionable in-app notifications.
  */
 export async function processProactiveFollowUpsForUser(userId: string): Promise<ProactiveProcessResult> {
+  return withExecutionLock(`proactive:${userId}`, async () => {
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
 
   const staleApplications = await withDbRetry<any[]>(() =>
@@ -59,30 +62,16 @@ export async function processProactiveFollowUpsForUser(userId: string): Promise<
       },
     }
 
-    if (analysis?.id) {
-      await withDbRetry(() =>
-        prisma.applicationAnalysis.update({
-          where: { id: analysis.id },
-          data: {
-            tailoredResumeJson: updatedResumeJson,
-          },
-        })
-      )
-    }
-
-    // Deliver notification to user
-    await withDbRetry(() =>
-      prisma.notification.create({
-        data: {
-          userId,
-          title: `Proactive Follow-up Ready: ${company}`,
-          message: `It has been over 7 days since you applied to ${company} for ${role}. A tailored follow-up message is ready in your application workbench.`,
-          type: "FOLLOW_UP",
-          link: `/applications`,
-          isRead: false,
-        },
-      })
-    )
+    const daysWaiting = updatedResumeJson.proactiveFollowUp.daysWaiting
+    updatedResumeJson.proactiveFollowUp.body = followUpBody.replace("submitted last week", `submitted ${daysWaiting} days ago`)
+    await withDbRetry(() => prisma.$transaction(async (tx) => {
+      await mergeApplicationAssets(userId, app.id, { proactiveFollowUp: updatedResumeJson.proactiveFollowUp }, tx)
+      await tx.notification.create({ data: {
+        userId, title: `Follow-up ready: ${company}`,
+        message: `A follow-up draft is ready for your ${role} application at ${company}.`,
+        type: "FOLLOW_UP", link: `/applications/${app.id}`, isRead: false,
+      } })
+    }))
 
     staleProcessed++
   }
@@ -91,6 +80,7 @@ export async function processProactiveFollowUpsForUser(userId: string): Promise<
     staleProcessed,
     skippedAlreadyDrafted,
   }
+  })
 }
 
 /**
