@@ -115,6 +115,7 @@ Whenever ANY change, fix, optimization, or feature is added to the Job Discovery
   - **Completed At**: 2026-09-05
 
 - [x] **`REC-11` [Engagement] Daily Personalized Opportunity Digest Email**
+  - [x] **2026-10-13 mail repair**: Replace planner diagnostics with factual priorities; use preference-filtered match counts; include interviews in active counts; isolate retryable email delivery; escape external fields and validate links; improve mobile/dark rendering. Files: `src/lib/email.ts`, `src/inngest/functions/daily-job-hunt.ts`. Verification recorded in `docs/MAIL-REPAIR-REPORT.md`.
   - **Issue**: Daily Inngest briefing only audits stale applications; it never includes fresh high-fit discovered jobs.
   - **Action**: Inject top 3–5 newly matched jobs (≥75% fit) into the daily morning Inngest briefing (`daily-job-hunt.ts`) and email notification with 1-click apply links and linear blueprint email design.
   - **Target Files**: `src/inngest/functions/daily-job-hunt.ts`, `src/lib/email.ts`, `src/__tests__/inngest-scaling.test.ts`
@@ -335,6 +336,7 @@ Tracking schema additions for the recommended canonical data model:
 | 2026-10-10 | `DAILY-JOB-HUNT-SCHEDULE-EVERYDAY-8AM-BST` | Updated daily job hunt Inngest cron trigger from weekday-only 9 AM UTC (`0 9 * * 1-5`) to every day at 8:00 AM Bangladesh Standard Time (02:00 AM UTC, `0 2 * * *`): (1) Ensures daily digest emails and SMS alerts are dispatched 7 days a week (including weekends); (2) Updated pipeline catalog schedule metadata in `src/lib/ops/inngest-catalog.ts` to `0 2 * * * (Daily 02:00 UTC / 08:00 BST)`; (3) Verified Inngest function initialization and all unit tests. | `src/inngest/functions/daily-job-hunt.ts`, `src/lib/ops/inngest-catalog.ts`, `docs/JOB-DISCOVERY-TRACKER.md` | Antigravity AI |
 | 2026-10-10 | `PRE-BRIEFING-FRESH-FEED-UPDATE-AND-PRE-HUNT-CRAWL` | Guaranteed fresh feed synchronization before dispatching daily briefing emails and SMS alerts: (1) Added automated pre-briefing feed refresh in `processUserAuditBatch` via `processUserJobBatch(userId, { forceImmediatePublish: true, notify: false })`, ensuring new job opportunities are fetched, scored against user profile, published to `/discovery` feed, and cached entries invalidated before composing briefing; (2) Configured pre-hunt global crawl trigger `{ cron: "30 1 * * *" }` in `globalJobCrawlScheduler` running daily at 07:30 AM BST (30 mins before 8:00 AM hunt) to ingest the newest external ATS listings; (3) Updated Inngest catalog metadata; (4) Verified all unit tests and static analysis. | `src/inngest/functions/daily-job-hunt.ts`, `src/inngest/functions/batch-job-pipeline.ts`, `src/lib/ops/inngest-catalog.ts`, `docs/JOB-DISCOVERY-TRACKER.md` | Antigravity AI |
 | 2026-10-11 | `EMAIL-MARKDOWN-PARSING-AND-DATE-GROUNDING` | Implemented full markdown parsing for daily career briefing emails and outreach communications: (1) Created `renderMarkdownToEmailHtml` in `src/lib/email.ts` parsing bold tags (`**text**`), italics (`*text*`), inline code, markdown links, subheaders, ordered lists (`<ol>`), top-level bullet lists (`<ul>`), and indented sub-lists (`<ul style="...">` inside `<li>`) with inline email styling; (2) Eradicated raw markdown asterisks and unrendered list artifacts from Gmail/Outlook in `formatDailyOpportunityDigestHtml` and `formatOutreachEmailHtml`; (3) Injected dynamic current weekday and date (`todayFormatted`) into `daily-job-hunt.ts` `taskPrompt`, preventing day-of-week hallucinations; (4) Added comprehensive unit test suite `src/__tests__/email-markdown.test.ts` (8/8 tests passing). 0 TypeScript errors (`tsc --noEmit`). | `src/lib/email.ts`, `src/inngest/functions/daily-job-hunt.ts`, `src/__tests__/email-markdown.test.ts`, `docs/JOB-DISCOVERY-TRACKER.md` | Antigravity AI |
+| 2026-10-13 | `REC-11-MAIL-REPAIR` | Moved daily/weekly summaries to a bounded read-only model call; replaced agent error text with pipeline-grounded daily priorities; corrected preference-filtered counts and active interview inclusion; isolated retryable Resend dispatch with idempotency keys; escaped job metadata, sanitized links, suppressed placeholder salaries, and added mobile/dark email support. Tests and release evidence: `docs/MAIL-REPAIR-REPORT.md`. | `src/inngest/functions/daily-job-hunt.ts`, `src/lib/email.ts`, `src/__tests__/email-safety.test.ts`, `src/__tests__/email-pipelines.test.ts`, `e2e/email-rendering.spec.ts`, `docs/JOB-DISCOVERY-TRACKER.md` | Codex |
 
 
 
@@ -355,3 +357,27 @@ Tracking schema additions for the recommended canonical data model:
 
 
 
+
+## AI audit repair — 2026-10-13
+
+- [x] AI-02: DNS-pinned public fetch with per-redirect validation and streamed byte limits; verification passed. Files: `src/app/api/discovery/evaluate/route.ts`, `src/lib/safe-public-fetch.ts`, `src/lib/ssrf.ts`.
+
+| Date | Item | Change | Files |
+| --- | --- | --- | --- |
+| 2026-10-13 | AI-02 | Replace unchecked redirect-following fetch with DNS-pinned bounded transport | discovery/evaluate, safe-public-fetch, ssrf |
+
+- [x] AI-03/AI-05/AI-09 (2026-10-13): Reject critic-failed and ungrounded packages before persistence. Files: `src/lib/discovery/cover-letter-agent.ts`, shared factual-grounding.
+
+| 2026-10-13 | AI integrity | Add final factual and critic gates to package persistence | cover-letter-agent, factual-grounding |
+
+- [x] AI repair (2026-10-13): Application ownership required for durable materials; orchestrator scouting generates transient previews. Final evidence gate rejects unverifiable achievements. Files: cover-letter-agent, career-orchestrator, agentic-context, factual-grounding.
+
+| 2026-10-13 | AI-03/05/10 | Separate transient scouting from owned persistence; retain factual provenance | cover-letter-agent, career-orchestrator, agentic-context |
+
+- [x] AI-09/AI-10 (2026-10-13): Preserve unknown/zero fit accurately and merge owned application assets atomically; avoid overwriting resume/follow-up fields during package regeneration. Final verification passed. Files: `src/lib/discovery/cover-letter-agent.ts`, `src/lib/ai/application-assets.ts`, `src/lib/ai/factual-grounding.ts`.
+
+| Date | Item | Change | Files |
+| --- | --- | --- | --- |
+| 2026-10-13 | AI-09/AI-10 | Parameterized owner-checked JSONB merge; unknown fit remains unscored; candidate goals/weaknesses excluded as positive evidence | cover-letter-agent, application-assets, factual-grounding, verified-resume |
+
+| 2026-10-13 | AI-01–AI-12 repair verification | 979 tests passed / 0 failed (144 files); TypeScript and npm production build passed; lint 0 errors / 4 existing warnings; desktop light and mobile dark 4/4 browser checks; production asset/retention SQL verified in isolated PGlite and synthetic Langfuse observation redaction confirmed. Review status: READY FOR REVIEW. | `src/lib/discovery/cover-letter-agent.ts`, `src/app/api/discovery/evaluate/route.ts`, shared AI ownership/assets/grounding/fetch helpers, `docs/AI-REPAIR-REPORT-2026-10-13.md` |
