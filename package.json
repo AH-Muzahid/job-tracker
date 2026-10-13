@@ -23,6 +23,7 @@
     "@clerk/nextjs": "^7.5.20",
     "@clerk/ui": "^1.25.5",
     "@hello-pangea/dnd": "^18.0.1",
+    "@langchain/anthropic": "^1.5.12",
     "@langchain/core": "^1.2.9",
     "@langchain/langgraph": "^1.4.13",
     "@langchain/langgraph-checkpoint-postgres": "^1.0.5",

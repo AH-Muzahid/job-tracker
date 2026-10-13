@@ -1,4 +1,5 @@
 import { ChatOpenAI } from "@langchain/openai"
+import { ChatAnthropic } from "@langchain/anthropic"
 import { BaseChatModel } from "@langchain/core/language_models/chat_models"
 import type { AIProviderConfig } from "@/lib/ai/client"
 
@@ -27,6 +28,9 @@ export function getLangChainChatModel(
 ): BaseChatModel {
   const temperature = options?.temperature ?? 0.3
   const streaming = options?.streaming ?? false
+  if (config.providerType === "anthropic" || config.providerType === "custom-anthropic") {
+    return new ChatAnthropic({ apiKey: config.apiKey, model: options?.modelName || config.model || "claude-sonnet-4-5", temperature, streaming, maxTokens: 4096, maxRetries: 1, clientOptions: { timeout: 30000, ...(config.baseUrl ? { baseURL: config.baseUrl.replace(/\/v1\/?$/, "") } : {}) } })
+  }
 
   switch (config.providerType) {
     case "openai": {
@@ -35,6 +39,9 @@ export function getLangChainChatModel(
         modelName: normalizeModelId(options?.modelName || config.model) || "gpt-4o-mini",
         temperature,
         streaming,
+        timeout: 30000,
+        maxRetries: 1,
+        maxTokens: 4096,
       })
     }
     case "custom-openai": {
@@ -43,21 +50,12 @@ export function getLangChainChatModel(
         modelName: normalizeModelId(options?.modelName || config.model) || "gpt-4o-mini",
         temperature,
         streaming,
+        timeout: 30000,
+        maxRetries: 1,
+        maxTokens: 4096,
         configuration: {
           baseURL: config.baseUrl || "https://api.openai.com/v1",
         },
-      })
-    }
-    case "anthropic":
-    case "custom-anthropic": {
-      // ChatOpenAI works seamlessly with Anthropic when routed through proxy or OpenRouter/LiteLLM,
-      // or fallback to ChatOpenAI with custom endpoint if provided.
-      return new ChatOpenAI({
-        apiKey: config.apiKey,
-        modelName: options?.modelName || config.model || "claude-3-5-sonnet-20241022",
-        temperature,
-        streaming,
-        ...(config.baseUrl ? { configuration: { baseURL: config.baseUrl } } : {}),
       })
     }
     case "google": {
@@ -71,6 +69,9 @@ export function getLangChainChatModel(
         modelName: normalizeModelId(rawModel) || "gemini-2.5-flash",
         temperature,
         streaming,
+        timeout: 30000,
+        maxRetries: 1,
+        maxTokens: 4096,
         configuration: {
           baseURL: googleBaseUrl,
         },
