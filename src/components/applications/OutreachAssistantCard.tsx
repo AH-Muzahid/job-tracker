@@ -297,8 +297,8 @@ export function OutreachAssistantCard({
                   : "Evaluated by Virtual Engineering Leader"
               }
             >
-              <span className="font-bold">{conversionScore}%</span>
-              <span className="text-muted-foreground text-[10px]">Conversion Score</span>
+              <span className="font-bold">{conversionScore}/100</span>
+              <span className="text-muted-foreground text-[10px]">Draft quality</span>
             </div>
           </div>
         )}

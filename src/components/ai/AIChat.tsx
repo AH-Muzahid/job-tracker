@@ -1311,8 +1311,8 @@ export default function AIChat({ sessionId, onSessionCreated, isSidebar, onToggl
                       variant="destructive"
                       onClick={stopStreaming}
                       className="size-8 sm:size-6 rounded-sm transition-colors shadow-none cursor-pointer"
-                      title="Stop response"
-                      aria-label="Stop response"
+                      title="Stop viewing response; requested actions may continue"
+                      aria-label="Stop viewing response; requested actions may continue"
                     >
                       <Square className="size-3.5 sm:size-3" />
                     </Button>

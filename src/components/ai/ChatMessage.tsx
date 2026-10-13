@@ -1375,56 +1375,11 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
           "prose-blockquote:border-l-primary prose-blockquote:text-muted-foreground"
         )}
       >
-        {/* Reasoning / Thought Process Accordion */}
-        {message.reasoning && (
-          <div className="mb-1">
-            <LoadingState reasoning={message.reasoning} isFinished={!isStreaming} />
-          </div>
-        )}
-
-        {/* Multi-Step Execution Plan (shown only when concrete tools are executed) */}
-        {message.plan &&
-          message.plan.length > 0 &&
-          message.plan.some((s) => Boolean(s.toolName) && s.toolName !== "null") && (
-          <div className="my-2 p-2.5 bg-muted/30 border border-border font-sans text-xs space-y-1.5 not-prose">
-            <div className="text-[10px] font-mono font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between border-b border-border/50 pb-1">
-              <span>Agent Execution Plan ({message.plan.filter((p) => p.status === "completed").length}/{message.plan.length})</span>
-              {isStreaming && <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />}
-            </div>
-            <div className="space-y-1 pt-0.5">
-              {message.plan.map((step, idx) => (
-                <div key={step.id || idx} className="flex items-center gap-2 text-[11px]">
-                  <span className="font-mono text-muted-foreground text-[10px] w-4 shrink-0">{idx + 1}.</span>
-                  <span className={cn(
-                    "flex-1 truncate",
-                    step.status === "completed" && "text-muted-foreground line-through opacity-75",
-                    (step.status === "in_progress" || (step.status as string) === "running") && "text-foreground font-semibold",
-                    step.status === "pending" && "text-muted-foreground/70"
-                  )}>
-                    {step.task || step.toolName || "Executing Step"}
-                  </span>
-                  <span className={cn(
-                    "text-[10px] font-mono px-1.5 py-0.5 rounded uppercase shrink-0 font-medium",
-                    step.status === "completed" && "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20",
-                    (step.status === "in_progress" || (step.status as string) === "running") && "bg-amber-500/10 text-amber-500 border border-amber-500/20 animate-pulse",
-                    step.status === "failed" && "bg-rose-500/10 text-rose-500 border border-rose-500/20",
-                    step.status === "pending" && "bg-muted text-muted-foreground border border-border"
-                  )}>
-                    {step.status}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        {isStreaming && <div role="status" aria-live="polite" className="text-xs text-muted-foreground">Preparing your result…</div>}
 
         {/* Tool Calls - Terminal Style */}
         {message.toolInvocations && message.toolInvocations.length > 0 && (
           <div className="mb-2">
-            <LoadingState
-              toolInvocations={message.toolInvocations}
-              isFinished={!isStreaming}
-            />
             {message.toolInvocations.map((tool: ToolInvocation, idx: number) => (
               <React.Fragment key={idx}>
                 {tool.state === 'result' && tool.toolName === 'draftOutreachEmail' && Boolean(tool.result) && (
@@ -1582,8 +1537,6 @@ export default function ChatMessage({ message, isLast, isStreaming, onSuggestion
           <div className="py-1">
             <LoadingState
               label={message.status || undefined}
-              reasoning={message.reasoning}
-              toolInvocations={message.toolInvocations}
               isFinished={false}
               startTimestamp={
                 message.createdAt

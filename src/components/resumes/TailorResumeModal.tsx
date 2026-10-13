@@ -59,7 +59,7 @@ export default function TailorResumeModal({
 
       const data = await res.json()
       if (res.ok && data.success && data.data) {
-        toast.success(`Tailored resume generated with ${data.matchScore}% ATS match!`)
+        toast.success("Resume preview prepared from your profile facts. Review before exporting.")
         setTailoredData(data.data)
       } else {
         toast.error(data.error || "Failed to generate tailored resume")

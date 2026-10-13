@@ -91,7 +91,7 @@ export interface OutreachDrafts {
   channel?: OutreachChannel
   strategy?: OutreachChannel
   strategyReason?: string
-  conversionScore?: number
+  conversionScore?: number | null
   conversionJudge?: ConversionJudgeScore | null
   recommendation?: string
   email?: string

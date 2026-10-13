@@ -2,6 +2,10 @@
 
 import { useState, useEffect, useCallback } from "react"
 import Link from "next/link"
+import dynamic from "next/dynamic"
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
+import { TailoredResumeSchema } from "@/lib/ai/resume-schema"
+const ATSResumePreview = dynamic(() => import("@/components/resumes/ATSResumePreview"))
 import { Layers, Zap, Globe, FileText, ChevronRight, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -15,6 +19,7 @@ interface PackageStudioTabProps {
 }
 
 export function PackageStudioTab({ applicationId }: PackageStudioTabProps) {
+  const [resumeOpen, setResumeOpen] = useState(false)
   const [pkg, setPkg] = useState<ApplicationPackageItem | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -64,12 +69,24 @@ export function PackageStudioTab({ applicationId }: PackageStudioTabProps) {
     )
   }
 
+  const savedAsset = pkg.resume.tailoredResume as { resumeData?: unknown } | null
+  const savedResume = TailoredResumeSchema.safeParse(savedAsset?.resumeData)
   const nba = pkg.nextBestAction
   const intel = pkg.companyIntel
   const techStack = pkg.techStack || []
 
   return (
     <div className="space-y-5">
+      {savedResume.success && <>
+        <Button variant="outline" size="sm" onClick={() => setResumeOpen(true)} className="rounded-sm">Review saved resume</Button>
+        <Dialog open={resumeOpen} onOpenChange={setResumeOpen}>
+          <DialogContent className="max-w-5xl w-[95vw] h-[90vh] flex flex-col overflow-hidden bg-card border-border rounded-md">
+            <DialogTitle>Application resume</DialogTitle>
+            <div className="flex-1 min-h-0"><ATSResumePreview data={savedResume.data} onClose={() => setResumeOpen(false)} /></div>
+          </DialogContent>
+        </Dialog>
+      </>}
+
       {/* 1. Next Best Tactical Action Linear Banner */}
       {nba && (
         <div className="p-4 rounded-[6px] border border-primary/20 bg-primary/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">

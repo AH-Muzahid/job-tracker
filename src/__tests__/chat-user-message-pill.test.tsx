@@ -220,7 +220,7 @@ describe("ChatMessage User Pill Bubble & Hover Actions", () => {
     )
 
     expect(html).toContain("Tailored Resume Studio")
-    expect(html).toContain("ATS Fit:")
+    expect(html).toContain("Skill overlap:")
     expect(html).toContain("95")
     expect(html).toContain("Staff Infrastructure Engineer")
     expect(html).toContain("Google")

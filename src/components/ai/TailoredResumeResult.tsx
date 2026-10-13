@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 
 export interface TailoredResumeCardData {
+  applicationId?: string
   companyName?: string
   role?: string
   matchScore?: number
@@ -20,20 +21,16 @@ export default function TailoredResumeResult({ data }: { data: Record<string, un
 
   const company = resumeData.companyName || "Target Company"
   const role = resumeData.role || "Software Engineer"
-  const matchScore = resumeData.matchScore || 92
+  const matchScore = typeof resumeData.matchScore === "number" && Number.isFinite(resumeData.matchScore) && resumeData.matchScore >= 0 && resumeData.matchScore <= 100 ? resumeData.matchScore : undefined
   const highlights =
     Array.isArray(resumeData.highlights) && resumeData.highlights.length > 0
       ? resumeData.highlights
-      : [
-          "Targeted keywords from JD incorporated naturally",
-          "Project impact metrics re-quantified for maximum ATS ranking",
-          "Anti-AI natural voice preserved without fluff or hallucinations",
-        ]
+      : []
   const summary =
     resumeData.summary ||
-    `Tailored specifically for ${role} at ${company} to maximize recruiter callback rates.`
+    `Review your candidate-provided facts for ${role} at ${company}.`
 
-  const launchUrl = `/resumes?tailor=true&company=${encodeURIComponent(company)}&role=${encodeURIComponent(role)}`
+  const launchUrl = resumeData.applicationId ? `/applications/${encodeURIComponent(resumeData.applicationId)}` : `/resumes?tailor=true&company=${encodeURIComponent(company)}&role=${encodeURIComponent(role)}`
 
   return (
     <Card className="rounded-[6px] border border-border bg-card shadow-none overflow-hidden my-3">
@@ -49,7 +46,7 @@ export default function TailoredResumeResult({ data }: { data: Record<string, un
           className="text-[10px] font-mono font-medium rounded-xs px-2 py-0.5 bg-primary/10 text-primary border-primary/20 flex items-center gap-1 shadow-none"
         >
           <span className="size-1.5 rounded-full bg-primary" />
-          ATS Fit: {matchScore}%
+          {matchScore === undefined ? "Fit not evaluated" : `Skill overlap: ${matchScore}%`}
         </Badge>
       </CardHeader>
 
@@ -110,7 +107,7 @@ export default function TailoredResumeResult({ data }: { data: Record<string, un
           >
             <Link href={launchUrl}>
               <FileText className="size-3.5" />
-              <span>Open in Tailor Studio</span>
+              <span>{resumeData.applicationId ? "Review application package" : "Open in Tailor Studio"}</span>
               <ArrowRight className="size-3.5 ml-0.5" />
             </Link>
           </Button>
