@@ -53,12 +53,11 @@ export async function getUserMacroOutcomes(userId: string): Promise<UserMacroOut
   const applications = await withDbRetry<any[]>(() =>
     prisma.application.findMany({
       where: { userId },
-      include: {
-        statusChanges: {
-          orderBy: { changedAt: "asc" },
-        },
-        analysis: true,
-        company: true,
+      orderBy: { createdAt: "desc" }, take: 200,
+      select: {
+        status: true, jobTitle: true, companyName: true, applicationDate: true, createdAt: true,
+        statusChanges: { where: { toStatus: "Interview" }, orderBy: { changedAt: "asc" }, take: 1, select: { toStatus: true, changedAt: true } },
+        analysis: { select: { jdKeywords: true, gapAnalysis: true } },
       },
     })
   )
@@ -117,7 +116,10 @@ export async function getUserMacroOutcomes(userId: string): Promise<UserMacroOut
     }
   }
 
-  const totalApplications = applications.length
+  const exactGroups = await withDbRetry(() => prisma.application.groupBy({ by: ["status"], where: { userId }, _count: true }))
+  for (const key of Object.keys(statusCounts)) statusCounts[key] = 0
+  for (const group of exactGroups) statusCounts[group.status] = group._count
+  const totalApplications = exactGroups.reduce((sum, group) => sum + group._count, 0)
   const interviewCount = statusCounts.Interview || 0
   const offerCount = statusCounts.Offer || 0
   const rejectedCount = statusCounts.Rejected || 0
