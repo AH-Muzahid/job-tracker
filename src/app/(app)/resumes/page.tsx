@@ -90,8 +90,16 @@ function ResumesContent() {
 
   function fetchResumes() {
     fetch("/api/resumes")
-      .then((r) => r.json())
+      .then(async (r) => {
+        if (!r.ok) return []
+        try {
+          return await r.json()
+        } catch {
+          return []
+        }
+      })
       .then((data) => setResumes(Array.isArray(data) ? data : (data && Array.isArray(data.data) ? data.data : [])))
+      .catch((err) => console.error("fetchResumes error:", err))
       .finally(() => setLoading(false))
   }
 
@@ -132,12 +140,19 @@ function ResumesContent() {
         setForm({ title: "" })
         fetchResumes()
       } else {
-        const data = await res.json()
-        toast.error(data.error || "Failed to upload resume")
+        let errorMsg = `Upload failed (${res.status})`
+        try {
+          const data = await res.json()
+          errorMsg = data.error || errorMsg
+        } catch {
+          // Non-JSON error
+        }
+        toast.error(errorMsg)
       }
     } catch (err) {
       console.error("Upload error:", err)
-      toast.error("An error occurred during upload")
+      const msg = err instanceof Error ? err.message : "An error occurred during upload"
+      toast.error(msg)
     } finally {
       setSubmitting(false)
     }

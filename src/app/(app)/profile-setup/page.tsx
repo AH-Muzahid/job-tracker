@@ -208,10 +208,18 @@ export default function ProfileSetupPage() {
         })
       }
 
-      const data = await res.json()
       if (!res.ok) {
-        throw new Error(data.error || "Failed to extract from resume")
+        let errorMsg = `Server error (${res.status})`
+        try {
+          const errData = await res.json()
+          errorMsg = errData.error || errorMsg
+        } catch {
+          // Non-JSON response
+        }
+        throw new Error(errorMsg)
       }
+
+      const data = await res.json()
 
       const ext = data.extracted || {}
       const newlyExtracted: string[] = []
@@ -239,6 +247,18 @@ export default function ProfileSetupPage() {
 
       setExtractedFields(newlyExtracted)
       toast.success(`Successfully extracted ${newlyExtracted.length} profile fields from resume!`)
+
+      if (file) {
+        fetch("/api/resumes")
+          .then((r) => r.ok ? r.json() : [])
+          .then((resumes) => {
+            if (Array.isArray(resumes) && resumes.length > 0) {
+              setExistingResumes(resumes)
+              setSelectedResumeId(resumes[0].id)
+            }
+          })
+          .catch(() => {})
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Extraction failed"
       toast.error(msg)
