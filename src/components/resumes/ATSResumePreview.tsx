@@ -11,11 +11,22 @@ import {
   Globe, 
   Mail, 
   Link,
+  FileCode,
+  ExternalLink,
+  ChevronDown,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu"
 import { toast } from "sonner"
 import type { TailoredResumeData } from "@/types/tailored-resume"
+import { generateLatexResume } from "@/lib/pdf/latex-generator"
 
 interface ATSResumePreviewProps {
   data: TailoredResumeData
@@ -26,6 +37,7 @@ export default function ATSResumePreview({ data: initialData }: ATSResumePreview
   const [data, setData] = useState<TailoredResumeData>(initialData)
   const [isEditing, setIsEditing] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [latexCopied, setLatexCopied] = useState(false)
   const [downloading, setDownloading] = useState(false)
 
   async function handleDownloadPdf() {
@@ -93,6 +105,60 @@ ${data.education.map(ed => `- **${ed.degree}**, ${ed.institution} (${ed.year || 
     setTimeout(() => setCopied(false), 2000)
   }
 
+  function handleCopyLatex() {
+    try {
+      const tex = generateLatexResume(data)
+      navigator.clipboard.writeText(tex)
+      setLatexCopied(true)
+      toast.success("LaTeX source code copied to clipboard!")
+      setTimeout(() => setLatexCopied(false), 2000)
+    } catch {
+      toast.error("Failed to copy LaTeX code")
+    }
+  }
+
+  function handleDownloadLatex() {
+    try {
+      const tex = generateLatexResume(data)
+      const blob = new Blob([tex], { type: "text/x-tex;charset=utf-8" })
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      const fileName = `${data.targetCompany ? `${data.targetCompany}-` : ""}${data.header.fullName || "Tailored"}-Resume.tex`
+      a.download = fileName.replace(/[^a-zA-Z0-9-_.]/g, "_")
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+      toast.success(".tex file downloaded successfully!")
+    } catch {
+      toast.error("Failed to download LaTeX file")
+    }
+  }
+
+  function handleOpenOverleaf() {
+    try {
+      const tex = generateLatexResume(data)
+      const form = document.createElement("form")
+      form.method = "POST"
+      form.action = "https://www.overleaf.com/docs"
+      form.target = "_blank"
+
+      const input = document.createElement("input")
+      input.type = "hidden"
+      input.name = "snip"
+      input.value = tex
+      form.appendChild(input)
+
+      document.body.appendChild(form)
+      form.submit()
+      document.body.removeChild(form)
+      toast.success("Opening in Overleaf in a new tab...")
+    } catch {
+      toast.error("Failed to open in Overleaf")
+    }
+  }
+
   return (
     <div className="flex flex-col h-full space-y-4">
       {/* Control Bar (Hidden on Print) */}
@@ -129,6 +195,35 @@ ${data.education.map(ed => `- **${ed.degree}**, ${ed.institution} (${ed.year || 
             {copied ? <Check className="h-3.5 w-3.5 mr-1 text-emerald-500" /> : <Copy className="h-3.5 w-3.5 mr-1" />}
             {copied ? "Copied" : "Copy Markdown"}
           </Button>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs h-8 rounded-lg cursor-pointer border-blue-500/30 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40"
+              >
+                <FileCode className="h-3.5 w-3.5 mr-1" />
+                LaTeX (.tex)
+                <ChevronDown className="h-3 w-3 ml-1 opacity-70" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+              <DropdownMenuItem onClick={handleOpenOverleaf} className="cursor-pointer text-xs">
+                <ExternalLink className="h-3.5 w-3.5 mr-2 text-emerald-500" />
+                Open in Overleaf
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleDownloadLatex} className="cursor-pointer text-xs">
+                <Download className="h-3.5 w-3.5 mr-2 text-blue-500" />
+                Download .tex File
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleCopyLatex} className="cursor-pointer text-xs">
+                {latexCopied ? <Check className="h-3.5 w-3.5 mr-2 text-emerald-500" /> : <Copy className="h-3.5 w-3.5 mr-2" />}
+                Copy LaTeX Code
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           <Button
             size="sm"
