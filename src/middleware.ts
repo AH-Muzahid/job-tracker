@@ -1,6 +1,6 @@
 import { clerkMiddleware } from "@clerk/nextjs/server"
 
-
+// UI pages requiring authentication redirect
 const PROTECTED_PATHS = [
   "/dashboard", "/applications", "/discovery", "/brain", "/upskill",
   "/ai-assistant", "/profile-setup", "/weekly-goals",
@@ -8,14 +8,9 @@ const PROTECTED_PATHS = [
   "/integrations", "/ai-memory", "/admin",
 ]
 
-const PROTECTED_API_PATHS = [
-  "/api/applications", "/api/dashboard", "/api/discovery", "/api/jobs",
-  "/api/career", "/api/salary", "/api/notifications",
-  "/api/ai", "/api/user", "/api/weekly-goals",
-  "/api/companies", "/api/resumes", "/api/tags",
-  "/api/prep-notes", "/api/settings",
-  "/api/interview-sessions", "/api/admin",
-]
+// Note: API routes authenticate internally via `getInternalUserId()` in their respective route handlers.
+// Calling `auth.protect()` in middleware for API paths causes Clerk/Next.js to rewrite fetch requests
+// to HTML error pages (<!DOCTYPE...>), breaking client-side JSON parsing.
 
 export default clerkMiddleware(async (auth, req) => {
   const { pathname } = req.nextUrl
@@ -29,11 +24,10 @@ export default clerkMiddleware(async (auth, req) => {
     return
   }
 
-  const isProtected =
-    PROTECTED_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/")) ||
-    PROTECTED_API_PATHS.some((p) => pathname.startsWith(p))
+  const isProtectedPath =
+    PROTECTED_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"))
 
-  if (isProtected) {
+  if (isProtectedPath) {
     await auth.protect()
   }
 })
