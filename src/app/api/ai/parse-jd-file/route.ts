@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server"
 import { getInternalUserId } from "@/lib/auth"
 import { checkDistributedRateLimit, rateLimitResponse } from "@/lib/rate-limit"
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const pdfParse = require("pdf-parse")
+import { PDFParse } from "pdf-parse"
 
 export async function POST(req: Request) {
   try {
@@ -31,8 +30,15 @@ export async function POST(req: Request) {
 
     let text = ""
     if (file.type === "application/pdf" || file.name.endsWith(".pdf")) {
-      const parsed = await pdfParse(buffer)
-      text = parsed.text || ""
+      try {
+        const parser = new PDFParse({ data: buffer })
+        const parsed = await parser.getText()
+        text = parsed.text || ""
+        await parser.destroy()
+      } catch (pdfErr) {
+        console.error("PDF parse JD error:", pdfErr)
+        text = buffer.toString("utf-8")
+      }
     } else {
       text = buffer.toString("utf-8")
     }

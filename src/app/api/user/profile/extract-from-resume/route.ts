@@ -37,19 +37,24 @@ export async function POST(req: NextRequest) {
         const fileName = fileObj.name
         const fileExt = fileName.split(".").pop() || "pdf"
 
-        // Save resume for user
-        const uploadDir = path.join(process.cwd(), "public", "uploads", "resumes")
+        // Save resume for user in private storage
+        const uploadDir = path.join(process.cwd(), "storage", "resumes")
         await mkdir(uploadDir, { recursive: true })
         const finalFileName = `${crypto.randomUUID()}.${fileExt}`
         const filePath = path.join(uploadDir, finalFileName)
         await writeFile(filePath, new Uint8Array(buffer))
-        const fileUrl = `/uploads/resumes/${finalFileName}`
+        const fileUrl = `/storage/resumes/${finalFileName}`
 
         if (fileObj.type === "application/pdf" || fileExt.toLowerCase() === "pdf") {
-          const parser = new PDFParse({ data: buffer })
-          const result = await parser.getText()
-          rawResumeText = result.text || ""
-          await parser.destroy()
+          try {
+            const parser = new PDFParse({ data: buffer })
+            const result = await parser.getText()
+            rawResumeText = result.text || ""
+            await parser.destroy()
+          } catch (pdfErr) {
+            console.error("PDF parsing error during extract:", pdfErr)
+            rawResumeText = buffer.toString("utf-8")
+          }
         } else {
           rawResumeText = buffer.toString("utf-8")
         }
@@ -134,25 +139,34 @@ Return ONLY a valid JSON object with EXACTLY this structure (no markdown fences,
 Resume Content:
 ${truncatedText}`
 
-    const aiResponse = await resilientGenerateText({
-      userId,
-      systemPrompt: "You are a precise JSON extractor. Output only strict JSON.",
-      messages: [{ role: "user", content: extractionPrompt }],
-      temperature: 0.1,
-    })
-
     let parsedData: Record<string, unknown> = {}
+
     try {
+      const aiResponse = await resilientGenerateText({
+        userId,
+        systemPrompt: "You are a precise JSON extractor. Output only strict JSON.",
+        messages: [{ role: "user", content: extractionPrompt }],
+        temperature: 0.1,
+      })
+
       const cleaned = aiResponse.text
         .replace(/```json/gi, "")
         .replace(/```/g, "")
         .trim()
       parsedData = JSON.parse(cleaned)
-    } catch {
-      console.warn("Could not parse AI JSON output directly:", aiResponse.text)
+    } catch (aiErr) {
+      console.warn("AI resume extraction failed, attempting regex heuristic fallback:", aiErr)
+      const phoneMatch = rawResumeText.match(/(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}|\b01\d{9}\b/)
+      const linkedinMatch = rawResumeText.match(/https?:\/\/(?:www\.)?linkedin\.com\/in\/[a-zA-Z0-9_-]+/i)
+      const githubMatch = rawResumeText.match(/https?:\/\/(?:www\.)?github\.com\/[a-zA-Z0-9_-]+/i)
+      const portfolioMatch = rawResumeText.match(/https?:\/\/(?:www\.)?(?!linkedin|github)[a-zA-Z0-9_-]+\.[a-z]{2,}(?:\/[^\s]*)?/i)
+
       parsedData = {
-        phone: "",
+        phone: phoneMatch ? phoneMatch[0] : "",
         location: "",
+        linkedInUrl: linkedinMatch ? linkedinMatch[0] : "",
+        githubUrl: githubMatch ? githubMatch[0] : "",
+        portfolioUrl: portfolioMatch ? portfolioMatch[0] : "",
         targetRoles: [],
         strengths: "",
         bestProjects: [],

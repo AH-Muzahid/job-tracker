@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { prisma } from "@/lib/prisma"
+import { prisma, withDbRetry } from "@/lib/prisma"
 import { getInternalUserId } from "@/lib/auth"
 import { writeFile, mkdir } from "fs/promises"
 import path from "path"
@@ -8,15 +8,23 @@ import { invalidateCache } from "@/lib/redis"
 import { buildCareerGraphFromText, saveKnowledgeGraph } from "@/lib/ai/knowledge-graph"
 
 export async function GET() {
-  const userId = await getInternalUserId()
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  try {
+    const userId = await getInternalUserId()
+    if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const resumes = await prisma.resume.findMany({
-    where: { userId },
-    orderBy: [{ isDefault: "desc" }, { createdAt: "desc" }],
-  })
+    const resumes = await withDbRetry(() =>
+      prisma.resume.findMany({
+        where: { userId },
+        orderBy: [{ isDefault: "desc" }, { createdAt: "desc" }],
+      })
+    )
 
-  return NextResponse.json(resumes)
+    return NextResponse.json(resumes)
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err)
+    console.error("GET /api/resumes error:", message)
+    return NextResponse.json({ error: message }, { status: 500 })
+  }
 }
 
 export async function POST(req: Request) {
@@ -98,28 +106,34 @@ export async function POST(req: Request) {
     }
 
     if (isDefault) {
-      await prisma.resume.updateMany({
-        where: { userId, isDefault: true },
-        data: { isDefault: false },
-      })
+      await withDbRetry(() =>
+        prisma.resume.updateMany({
+          where: { userId, isDefault: true },
+          data: { isDefault: false },
+        })
+      )
     }
 
-    const resume = await prisma.resume.create({
-      data: {
-        userId,
-        title,
-        fileName,
-        fileUrl,
-        fileSize,
-        isDefault,
-        textContent,
-      },
-    })
+    const resume = await withDbRetry(() =>
+      prisma.resume.create({
+        data: {
+          userId,
+          title,
+          fileName,
+          fileUrl,
+          fileSize,
+          isDefault,
+          textContent,
+        },
+      })
+    )
 
     // Auto-generate & persist Career Knowledge Graph for Vector-less RAG
     if (textContent) {
       try {
-        const profile = await prisma.userProfile.findUnique({ where: { userId } })
+        const profile = await withDbRetry(() =>
+          prisma.userProfile.findUnique({ where: { userId } })
+        )
         const graph = buildCareerGraphFromText(textContent, profile)
         await saveKnowledgeGraph(userId, graph)
       } catch (graphErr) {
