@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, Suspense } from "react"
 import { useUser } from "@clerk/nextjs"
 import { useRouter, useSearchParams } from "next/navigation"
+import * as Sentry from "@sentry/nextjs"
 import { toast } from "sonner"
 import { FileText, Star, Trash2, Upload, Eye, Bot } from "lucide-react"
 import { Card } from "@/components/ui/card"
@@ -143,7 +144,7 @@ function ResumesContent() {
         let errorMsg = `Upload failed (${res.status})`
         try {
           const data = await res.json()
-          errorMsg = data.error || errorMsg
+          errorMsg = data.error || data.message || errorMsg
         } catch {
           // Non-JSON error
         }
@@ -151,6 +152,7 @@ function ResumesContent() {
       }
     } catch (err) {
       console.error("Upload error:", err)
+      Sentry.captureException(err)
       const msg = err instanceof Error ? err.message : "An error occurred during upload"
       toast.error(msg)
     } finally {

@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from "react"
 import { useUser } from "@clerk/nextjs"
 import { useRouter, useSearchParams } from "next/navigation"
+import * as Sentry from "@sentry/nextjs"
 import {
   FileText,
   UploadCloud,
@@ -212,7 +213,7 @@ export default function ProfileSetupPage() {
         let errorMsg = `Server error (${res.status})`
         try {
           const errData = await res.json()
-          errorMsg = errData.error || errorMsg
+          errorMsg = errData.error || errData.message || errorMsg
         } catch {
           // Non-JSON response
         }
@@ -260,6 +261,8 @@ export default function ProfileSetupPage() {
           .catch(() => {})
       }
     } catch (err: unknown) {
+      console.error("Resume extraction error:", err)
+      Sentry.captureException(err)
       const msg = err instanceof Error ? err.message : "Extraction failed"
       toast.error(msg)
     } finally {
