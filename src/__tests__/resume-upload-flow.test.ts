@@ -72,6 +72,11 @@ vi.mock("@/lib/rate-limit", () => ({
   rateLimitResponse: vi.fn(),
 }))
 
+vi.mock("@sentry/nextjs", () => ({
+  captureException: vi.fn(),
+  init: vi.fn(),
+}))
+
 vi.mock("fs/promises", async (importOriginal) => {
   const actual = await importOriginal<typeof import("fs/promises")>()
   return {
@@ -286,5 +291,46 @@ describe("Resume Upload & Parsing Architecture", () => {
     expect(json.success).toBe(true)
     expect(json.extracted).toBeDefined()
     expect(json.extracted.targetRoles).toContain("Software Engineer")
+  })
+
+  it("captures exceptions to Sentry and returns descriptive error message if resume creation fails", async () => {
+    const Sentry = await import("@sentry/nextjs")
+    const { prisma } = await import("@/lib/prisma")
+    vi.mocked(prisma.resume.create).mockRejectedValueOnce(new Error("Database connection dropped"))
+
+    const mockFile = {
+      name: "error_test.txt",
+      size: 50,
+      type: "text/plain",
+      arrayBuffer: () => Promise.resolve(Buffer.from("Test resume content")),
+    }
+    const mockFormData = new Map<string, any>([
+      ["file", mockFile],
+      ["title", "Fail Test"],
+    ])
+
+    const req = {
+      headers: {
+        get: (h: string) => (h === "content-type" ? "multipart/form-data" : null),
+      },
+      formData: () => Promise.resolve({
+        get: (key: string) => mockFormData.get(key) || null,
+      }),
+    } as unknown as Request
+
+    const res = await postResume(req)
+    expect(res.status).toBe(500)
+    const json = await res.json()
+    expect(json.error).toBe("Database connection dropped")
+    expect(Sentry.captureException).toHaveBeenCalled()
+  })
+
+  it("handles preview requests and falls back to text content if physical file is missing", async () => {
+    const { GET: getPreview } = await import("@/app/api/resumes/[id]/preview/route")
+    const req = new Request("http://localhost/api/resumes/res-1/preview")
+    const res = await getPreview(req, { params: Promise.resolve({ id: "res-1" }) })
+    expect(res.status).toBe(200)
+    const text = await res.text()
+    expect(text).toBeTruthy()
   })
 })
