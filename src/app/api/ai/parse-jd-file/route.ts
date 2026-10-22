@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { getInternalUserId } from "@/lib/auth"
 import { checkDistributedRateLimit, rateLimitResponse } from "@/lib/rate-limit"
 import { PDFParse } from "pdf-parse"
+import * as Sentry from "@sentry/nextjs"
 
 export async function POST(req: Request) {
   try {
@@ -49,8 +50,11 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ text: text.trim(), fileName: file.name })
   } catch (error: unknown) {
+    console.error("parse-jd-file error:", error)
+    Sentry.captureException(error)
+    const message = error instanceof Error ? error.message : "Failed to parse file"
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to parse file" },
+      { error: message, message },
       { status: 500 }
     )
   }

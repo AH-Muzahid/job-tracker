@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server"
 import { prisma, withDbRetry } from "@/lib/prisma"
 import { getInternalUserId } from "@/lib/auth"
-import { writeFile, mkdir } from "fs/promises"
-import path from "path"
 import { PDFParse } from "pdf-parse"
 import { invalidateCache } from "@/lib/redis"
 import { buildCareerGraphFromText, saveKnowledgeGraph } from "@/lib/ai/knowledge-graph"
+import { storeResumeFile } from "@/lib/storage"
+import * as Sentry from "@sentry/nextjs"
 
 export async function GET() {
   try {
@@ -23,15 +23,16 @@ export async function GET() {
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err)
     console.error("GET /api/resumes error:", message)
-    return NextResponse.json({ error: message }, { status: 500 })
+    Sentry.captureException(err)
+    return NextResponse.json({ error: message, message }, { status: 500 })
   }
 }
 
 export async function POST(req: Request) {
-  const userId = await getInternalUserId()
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-
   try {
+    const userId = await getInternalUserId()
+    if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
     const contentType = req.headers.get("content-type") || ""
     
     let title = ""
@@ -52,34 +53,25 @@ export async function POST(req: Request) {
       }
 
       title = titleVal.trim()
-      fileName = fileObj.name
-      fileSize = fileObj.size
+      fileName = fileObj.name || "resume.pdf"
+      fileSize = fileObj.size || 0
       isDefault = isDefaultVal === "true"
 
       // Enforce 5MB payload limit to prevent memory exhaustion DoS
       const MAX_FILE_SIZE = 5 * 1024 * 1024
-      if (fileObj.size > MAX_FILE_SIZE) {
+      if (fileSize > MAX_FILE_SIZE) {
         return NextResponse.json({ error: "File size exceeds 5MB limit" }, { status: 400 })
       }
 
       // Read file buffer
       const buffer = Buffer.from(await fileObj.arrayBuffer())
 
-      // Store in private server directory outside public web root to prevent unauthorized public exposure
-      const uploadDir = path.join(process.cwd(), "storage", "resumes")
-      await mkdir(uploadDir, { recursive: true })
-
-      // Generate unique name
-      const fileExt = fileName.split(".").pop() || "pdf"
-      const finalFileName = `${crypto.randomUUID()}.${fileExt}`
-      const filePath = path.join(uploadDir, finalFileName)
-
-      // Write to private storage disk
-      await writeFile(filePath, new Uint8Array(buffer))
-      fileUrl = `/storage/resumes/${finalFileName}`
+      // Resiliently store file across persistent disk, tmpdir, or virtual fallback
+      fileUrl = await storeResumeFile(buffer, fileName)
 
       // Extract text content
-      if (fileObj.type === "application/pdf" || fileExt.toLowerCase() === "pdf") {
+      const fileExt = fileName.split(".").pop()?.toLowerCase() || "pdf"
+      if (fileObj.type === "application/pdf" || fileExt === "pdf") {
         try {
           const parser = new PDFParse({ data: buffer })
           const result = await parser.getText()
@@ -87,8 +79,9 @@ export async function POST(req: Request) {
           await parser.destroy()
         } catch (err) {
           console.error("PDF parsing error:", err)
+          textContent = buffer.toString("utf-8")
         }
-      } else if (fileObj.type.startsWith("text/") || ["txt", "md"].includes(fileExt.toLowerCase())) {
+      } else if (fileObj.type.startsWith("text/") || ["txt", "md"].includes(fileExt)) {
         textContent = buffer.toString("utf-8")
       }
     } else {
@@ -145,8 +138,17 @@ export async function POST(req: Request) {
     void invalidateCache(`user:resume:${userId}`, `user:knowledge-graph:${userId}`)
 
     return NextResponse.json(resume, { status: 201 })
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Resume upload error:", error)
-    return NextResponse.json({ error: "Failed to create resume" }, { status: 500 })
+    Sentry.captureException(error)
+    const message = error instanceof Error ? error.message : "Failed to create resume"
+    return NextResponse.json(
+      {
+        error: message,
+        message,
+        code: typeof error === "object" && error !== null && "code" in error ? String(error.code) : "SERVER_ERROR",
+      },
+      { status: 500 }
+    )
   }
 }

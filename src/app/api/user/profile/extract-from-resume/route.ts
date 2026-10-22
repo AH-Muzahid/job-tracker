@@ -3,16 +3,16 @@ import { getInternalUserId } from "@/lib/auth"
 import { prisma, withDbRetry } from "@/lib/prisma"
 import { resilientGenerateText } from "@/lib/ai/resilience"
 import { PDFParse } from "pdf-parse"
-import path from "path"
-import { writeFile, mkdir } from "fs/promises"
+import { storeResumeFile } from "@/lib/storage"
+import * as Sentry from "@sentry/nextjs"
 
 export const dynamic = "force-dynamic"
 
 export async function POST(req: NextRequest) {
-  const userId = await getInternalUserId()
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-
   try {
+    const userId = await getInternalUserId()
+    if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
     const contentType = req.headers.get("content-type") || ""
     let rawResumeText = ""
 
@@ -34,18 +34,13 @@ export async function POST(req: NextRequest) {
 
       if (!rawResumeText && fileObj) {
         const buffer = Buffer.from(await fileObj.arrayBuffer())
-        const fileName = fileObj.name
-        const fileExt = fileName.split(".").pop() || "pdf"
+        const fileName = fileObj.name || "resume.pdf"
+        const fileExt = fileName.split(".").pop()?.toLowerCase() || "pdf"
 
-        // Save resume for user in private storage
-        const uploadDir = path.join(process.cwd(), "storage", "resumes")
-        await mkdir(uploadDir, { recursive: true })
-        const finalFileName = `${crypto.randomUUID()}.${fileExt}`
-        const filePath = path.join(uploadDir, finalFileName)
-        await writeFile(filePath, new Uint8Array(buffer))
-        const fileUrl = `/storage/resumes/${finalFileName}`
+        // Resiliently store file across persistent disk, tmpdir, or virtual fallback
+        const fileUrl = await storeResumeFile(buffer, fileName)
 
-        if (fileObj.type === "application/pdf" || fileExt.toLowerCase() === "pdf") {
+        if (fileObj.type === "application/pdf" || fileExt === "pdf") {
           try {
             const parser = new PDFParse({ data: buffer })
             const result = await parser.getText()
@@ -59,20 +54,25 @@ export async function POST(req: NextRequest) {
           rawResumeText = buffer.toString("utf-8")
         }
 
-        // Save as resume record
-        await withDbRetry(() =>
-          prisma.resume.create({
-            data: {
-              userId,
-              title: fileName.replace(/\.[^/.]+$/, ""),
-              fileName,
-              fileUrl,
-              fileSize: fileObj.size,
-              isDefault: true,
-              textContent: rawResumeText,
-            },
-          })
-        )
+        // Save as resume record (gracefully caught so DB hitch never blocks profile extraction)
+        try {
+          await withDbRetry(() =>
+            prisma.resume.create({
+              data: {
+                userId,
+                title: (fileName || "Resume").replace(/\.[^/.]+$/, ""),
+                fileName,
+                fileUrl,
+                fileSize: fileObj.size || buffer.length || 0,
+                isDefault: true,
+                textContent: rawResumeText,
+              },
+            })
+          )
+        } catch (dbErr) {
+          console.warn("Failed to auto-save resume record during extraction:", dbErr)
+          Sentry.captureException(dbErr)
+        }
       }
     } else {
       const body = await req.json()
@@ -178,10 +178,16 @@ ${truncatedText}`
       extracted: parsedData,
       rawLength: rawResumeText.length,
     })
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Resume profile extraction error:", error)
+    Sentry.captureException(error)
+    const message = error instanceof Error ? error.message : "Failed to extract profile from resume"
     return NextResponse.json(
-      { error: "Failed to extract profile from resume" },
+      {
+        error: message,
+        message,
+        code: typeof error === "object" && error !== null && "code" in error ? String(error.code) : "SERVER_ERROR",
+      },
       { status: 500 }
     )
   }
