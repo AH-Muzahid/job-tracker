@@ -1,6 +1,13 @@
 import * as fs from "fs"
 import * as path from "path"
-import { Langfuse } from "langfuse"
+import { LangfuseClient } from "@langfuse/client"
+import { LangfuseSpanProcessor } from "@langfuse/otel"
+import { NodeTracerProvider } from "@opentelemetry/sdk-trace-node"
+import {
+  startObservation,
+  propagateAttributes,
+  setLangfuseTracerProvider,
+} from "@langfuse/tracing"
 import { buildTraceTagsAndMetadata } from "../src/lib/ai/graph/telemetry"
 
 // Manual .env loader for standalone tsx execution
@@ -36,7 +43,7 @@ async function runVerification() {
   loadEnvFiles()
 
   console.log("=================================================")
-  console.log("  CareerTrack: Langfuse Production Telemetry Check")
+  console.log("  CareerTrack: Langfuse v4 Production Telemetry Check")
   console.log("=================================================")
 
   const publicKey = process.env.LANGFUSE_PUBLIC_KEY
@@ -44,15 +51,13 @@ async function runVerification() {
   const baseUrl = process.env.LANGFUSE_BASE_URL || "https://cloud.langfuse.com"
 
   console.log(`• Base URL: ${baseUrl}`)
-  console.log(`• Public Key: ${publicKey ? `${publicKey.slice(0, 10)}...` : "(not set)"}`)
-  console.log(`• Secret Key: ${secretKey ? `${secretKey.slice(0, 10)}...` : "(not set)"}`)
+  console.log(`• Public key configured: ${Boolean(publicKey)}`)
+  console.log(`• Secret key configured: ${Boolean(secretKey)}`)
   console.log("-------------------------------------------------")
 
   if (!publicKey || !secretKey) {
     console.log("ℹ️  Langfuse credentials are not configured in environment.")
-    console.log("   --> Fallback Mode: [ACTIVE & VERIFIED]")
-    console.log("   --> createLangfuseCallbackHandler() returns null gracefully.")
-    console.log("   --> All LLM & LangGraph calls will execute without crashing.")
+    console.log("   --> Telemetry disabled; no live verification performed.")
     console.log("   To enable live Langfuse cloud observability, set LANGFUSE_PUBLIC_KEY & LANGFUSE_SECRET_KEY in .env.local.")
     console.log("=================================================\n")
     process.exit(0)
@@ -60,58 +65,95 @@ async function runVerification() {
 
   const startTime = Date.now()
   try {
-    const langfuse = new Langfuse({
+    const processor = new LangfuseSpanProcessor({
+      publicKey,
+      secretKey,
+      baseUrl,
+    })
+    const provider = new NodeTracerProvider({
+      spanProcessors: [processor],
+    })
+    setLangfuseTracerProvider(provider)
+
+    const client = new LangfuseClient({
       publicKey,
       secretKey,
       baseUrl,
     })
 
     const testTraceId = `verify-${Date.now()}`
-    const { tags, metadata } = buildTraceTagsAndMetadata({
+    const { tags } = buildTraceTagsAndMetadata({
       category: "telemetry_verification",
       userId: "sys_verifier",
       sessionId: testTraceId,
-      additionalTags: ["script_check", "ci_cd"],
+      additionalTags: ["script_check", "ci_cd", "v4_migrated"],
       additionalMetadata: { script: "scripts/verify-langfuse.ts" },
     })
 
-    console.log("1. Creating synthetic test trace...")
-    const trace = langfuse.trace({
-      id: testTraceId,
-      name: "telemetry-verification-test",
-      userId: "sys_verifier",
-      sessionId: testTraceId,
-      tags,
-      metadata,
-    })
+    console.log("1. Creating synthetic test trace with propagated attributes...")
+    let resultingTraceId = ""
 
-    console.log("2. Emitting span & generation metrics...")
-    trace.span({
-      name: "verification-span",
-      input: { ping: "ping_payload" },
-      output: { pong: "pong_payload", status: "OK" },
-      level: "DEFAULT",
-      statusMessage: "Synthetic healthcheck successful",
-    })
+    await propagateAttributes(
+      {
+        traceName: "telemetry-verification-test",
+        userId: "sys_verifier",
+        sessionId: testTraceId,
+        tags,
+        metadata: {
+          script: "scripts/verify-langfuse.ts",
+          category: "telemetry_verification",
+        },
+      },
+      async () => {
+        const root = startObservation("telemetry-verification-test", {
+          input: { ping: "ping_payload" },
+          output: { pong: "pong_payload", status: "OK" },
+          level: "DEFAULT",
+          statusMessage: "Synthetic healthcheck successful",
+        })
+        resultingTraceId = root.traceId
 
-    console.log("3. Attaching quantitative feedback score...")
-    langfuse.score({
-      traceId: testTraceId,
-      name: "telemetry_healthcheck",
-      value: 1.0,
-      comment: "Automated verification script passed",
-      dataType: "NUMERIC",
-    })
+        console.log("2. Emitting nested generation observation & token metrics...")
+        const gen = root.startObservation(
+          "verification-generation",
+          {
+            model: "gpt-4o-mini",
+            input: { prompt: "ping_payload" },
+            output: { completion: "pong_payload" },
+            usageDetails: {
+              promptTokens: 5,
+              completionTokens: 5,
+              totalTokens: 10,
+            },
+            level: "DEFAULT",
+            statusMessage: "Synthetic generation successful",
+          },
+          { asType: "generation" }
+        )
+        gen.end()
+        root.end()
 
-    console.log("4. Flushing events to Langfuse server via langfuse.flushAsync()...")
-    await langfuse.flushAsync()
-    await langfuse.shutdownAsync()
+        console.log("3. Attaching quantitative feedback score via Langfuse v4 API...")
+        await client.score.create({
+          traceId: root.traceId,
+          name: "telemetry_healthcheck",
+          value: 1.0,
+          comment: "Automated verification script passed on Langfuse v4",
+          dataType: "NUMERIC",
+        })
+      }
+    )
+
+    console.log("4. Flushing events via LangfuseSpanProcessor and LangfuseClient...")
+    await processor.forceFlush()
+    await client.flush()
+    await processor.shutdown()
 
     const latency = Date.now() - startTime
     console.log("-------------------------------------------------")
     console.log(`✓ Telemetry connection verified and flushed successfully in ${latency}ms!`)
-    console.log(`✓ Trace ID: ${testTraceId}`)
-    console.log("✓ Trace URL: " + `${baseUrl}/project/traces?search=${testTraceId}`)
+    console.log(`✓ Trace ID: ${resultingTraceId}`)
+    console.log("✓ Trace URL: " + `${baseUrl}/project/traces?search=${resultingTraceId}`)
     console.log("=================================================\n")
     process.exit(0)
   } catch (err: unknown) {

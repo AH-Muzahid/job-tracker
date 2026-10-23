@@ -1,6 +1,11 @@
-import { getLangfuseInstance, flushLangfuse } from "./graph/telemetry"
+import {
+  getLangfuseSpanProcessor,
+  flushLangfuse,
+  toOtelTraceId,
+} from "./graph/telemetry"
 import { redactTelemetry } from "./telemetry-redaction"
 import { recordLLMCallToRing } from "@/lib/ops/telemetry-ring"
+import { startObservation, propagateAttributes } from "@langfuse/tracing"
 
 export interface AITelemetryPayload {
   traceId: string
@@ -42,8 +47,9 @@ export interface TraceAIGenerationParams {
 const sanitizeForTelemetry = redactTelemetry
 
 /**
- * Records a full LLM Generation trace in Langfuse adhering to production best practices:
- * - Proper observation typing (trace + generation)
+ * Records a full LLM Generation trace in Langfuse adhering to production best practices in v4:
+ * - Observations-first data model with typed root span + generation child observation
+ * - Propagates correlating attributes (userId, sessionId, traceName, tags, metadata)
  * - PII masking on inputs & outputs
  * - Exact model & token accounting
  * - Latency, provider, and fallback metadata
@@ -64,51 +70,82 @@ export async function traceAIGeneration(params: TraceAIGenerationParams): Promis
     sessionId: params.sessionId,
   })
 
-  const langfuse = getLangfuseInstance()
-  if (!langfuse) return
+  const processor = getLangfuseSpanProcessor()
+  if (!processor) return
 
   try {
     const env = process.env.NODE_ENV || "development"
     const defaultTags = [env, "career-track"]
     const tags = Array.from(new Set([...defaultTags, ...(params.tags || [])]))
 
-    const traceId = `${params.name}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
-    const trace = langfuse.trace({
-      id: traceId,
-      name: params.name,
-      userId: params.userId,
-      sessionId: params.sessionId,
-      tags,
-      metadata: {
-        provider: params.provider,
-        status: params.status,
-        ...(params.metadata || {}),
-      },
-    })
-
     const sanitizedInput = sanitizeForTelemetry(params.input)
     const sanitizedOutput = sanitizeForTelemetry(params.output)
-
     const totalTokens = (params.promptTokens ?? 0) + (params.completionTokens ?? 0)
 
-    trace.generation({
-      name: `${params.name}-generation`,
-      model: params.model,
-      input: sanitizedInput,
-      output: sanitizedOutput,
-      usage: {
-        promptTokens: params.promptTokens,
-        completionTokens: params.completionTokens,
-        totalTokens: totalTokens > 0 ? totalTokens : undefined,
+    await propagateAttributes(
+      {
+        traceName: params.name,
+        userId: params.userId,
+        sessionId: params.sessionId,
+        tags,
+        metadata: {
+          provider: params.provider || "unknown",
+          status: params.status,
+          latencyMs: String(params.latencyMs),
+          ...(params.metadata
+            ? Object.fromEntries(
+                Object.entries(params.metadata).map(([k, v]) => [
+                  k,
+                  typeof v === "object" ? JSON.stringify(v) : String(v),
+                ])
+              )
+            : {}),
+        },
       },
-      metadata: {
-        latencyMs: params.latencyMs,
-        provider: params.provider,
-        error: params.error ? "Generation failed" : undefined,
-      },
-      level: params.status === "error" ? "ERROR" : "DEFAULT",
-      statusMessage: params.status === "error" ? "Generation Failed" : "OK",
-    })
+      async () => {
+        // Root observation captures overall input & output per v4 architecture
+        const rootObs = startObservation(
+          params.name,
+          {
+            input: sanitizedInput,
+            output: sanitizedOutput,
+            level: params.status === "error" ? "ERROR" : "DEFAULT",
+            statusMessage: params.status === "error" ? "Generation Failed" : "OK",
+            metadata: {
+              provider: params.provider,
+              latencyMs: params.latencyMs,
+              error: params.error ? "Generation failed" : undefined,
+            },
+          },
+          { asType: "span" }
+        )
+
+        // Nested child generation observation captures specific LLM parameters and token usage
+        const gen = rootObs.startObservation(
+          `${params.name}-generation`,
+          {
+            model: params.model,
+            input: sanitizedInput,
+            output: sanitizedOutput,
+            usageDetails: {
+              promptTokens: params.promptTokens,
+              completionTokens: params.completionTokens,
+              totalTokens: totalTokens > 0 ? totalTokens : undefined,
+            },
+            metadata: {
+              latencyMs: params.latencyMs,
+              provider: params.provider,
+              error: params.error ? "Generation failed" : undefined,
+            },
+            level: params.status === "error" ? "ERROR" : "DEFAULT",
+            statusMessage: params.status === "error" ? "Generation Failed" : "OK",
+          },
+          { asType: "generation" }
+        )
+        gen.end()
+        rootObs.end()
+      }
+    )
 
     if (params.flush) {
       await flushLangfuse(1500)
@@ -139,38 +176,68 @@ export function logAITransaction(data: AITelemetryPayload) {
     )
   }
 
-  // Connect to Langfuse for generation tracing
-  const langfuse = getLangfuseInstance()
-  if (langfuse) {
-    try {
-      const trace = langfuse.trace({
-        id: data.traceId,
-        name: data.endpoint,
+  // Connect to Langfuse for generation tracing in v4 observations-first model
+  const processor = getLangfuseSpanProcessor()
+  if (processor) {
+    const otelTraceId = toOtelTraceId(data.traceId)
+    const totalTokens = (data.promptTokens ?? 0) + (data.completionTokens ?? 0)
+
+    void propagateAttributes(
+      {
+        traceName: data.endpoint,
         userId: data.userId,
         sessionId: data.sessionId,
         metadata: {
           provider: data.provider,
           status: data.status,
-          toolCallsCount: data.toolCallsCount,
+          toolCallsCount: String(data.toolCallsCount ?? 0),
         },
-      })
+      },
+      async () => {
+        const rootObs = startObservation(
+          data.endpoint,
+          {
+            level: data.status === "error" ? "ERROR" : "DEFAULT",
+            statusMessage: data.status === "error" ? "Transaction Failed" : "OK",
+            metadata: {
+              provider: data.provider,
+              status: data.status,
+              latencyMs: data.latencyMs,
+              ttftMs: data.ttftMs,
+            },
+          },
+          {
+            asType: "span",
+            parentSpanContext: {
+              traceId: otelTraceId,
+              spanId: otelTraceId.slice(0, 16),
+              traceFlags: 1,
+            },
+          }
+        )
 
-      trace.generation({
-        name: `${data.endpoint}-generation`,
-        model: data.model,
-        usage: {
-          promptTokens: data.promptTokens,
-          completionTokens: data.completionTokens,
-          totalTokens: (data.promptTokens ?? 0) + (data.completionTokens ?? 0),
-        },
-        metadata: {
-          latencyMs: data.latencyMs,
-          ttftMs: data.ttftMs,
-          error: data.error ? "Generation failed" : undefined,
-        },
-      })
-    } catch (err) {
+        const gen = rootObs.startObservation(
+          `${data.endpoint}-generation`,
+          {
+            model: data.model,
+            usageDetails: {
+              promptTokens: data.promptTokens,
+              completionTokens: data.completionTokens,
+              totalTokens: totalTokens > 0 ? totalTokens : undefined,
+            },
+            metadata: {
+              latencyMs: data.latencyMs,
+              ttftMs: data.ttftMs,
+              error: data.error ? "Generation failed" : undefined,
+            },
+          },
+          { asType: "generation" }
+        )
+        gen.end()
+        rootObs.end()
+      }
+    ).catch((err) => {
       console.warn("[Langfuse Telemetry Direct Log Warning]:", err)
-    }
+    })
   }
 }

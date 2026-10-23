@@ -1,15 +1,16 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 import {
   getLangfuseInstance,
-  createLangfuseCallbackHandler,
+  getLangfuseSpanProcessor,
   buildTraceTagsAndMetadata,
   trackGraphExecution,
   scoreTrace,
   flushLangfuse,
+  shutdownLangfuse,
 } from "../graph/telemetry"
 import { logAITransaction, traceAIGeneration } from "../telemetry"
 
-describe("Langfuse AI Observability & Tracing Suite", () => {
+describe("Langfuse AI Observability & Tracing Suite (v4)", () => {
   const originalEnv = process.env
 
   beforeEach(() => {
@@ -25,30 +26,22 @@ describe("Langfuse AI Observability & Tracing Suite", () => {
     delete process.env.LANGFUSE_PUBLIC_KEY
     delete process.env.LANGFUSE_SECRET_KEY
 
-    const handler = createLangfuseCallbackHandler({
-      userId: "user-123",
-      sessionId: "session-456",
-    })
-    expect(handler).toBeNull()
-
     const instance = getLangfuseInstance()
     expect(instance).toBeNull()
+
+    const processor = getLangfuseSpanProcessor()
+    expect(processor).toBeNull()
   })
 
-  it("initializes CallbackHandler with dynamic tags when credentials are present", () => {
+  it("initializes Langfuse client and processor when credentials are present", () => {
     process.env.LANGFUSE_PUBLIC_KEY = "pk-lf-test-12345"
     process.env.LANGFUSE_SECRET_KEY = "sk-lf-test-67890"
 
-    const handler = createLangfuseCallbackHandler({
-      userId: "user-test",
-      sessionId: "session-test",
-      category: "job_discovery",
-      tags: ["multi-board"],
-      metadata: { boardCount: 3 },
-    })
+    const instance = getLangfuseInstance()
+    expect(instance).not.toBeNull()
 
-    expect(handler).not.toBeNull()
-    expect(handler?.name).toBeDefined()
+    const processor = getLangfuseSpanProcessor()
+    expect(processor).not.toBeNull()
   })
 
   it("builds consistent dynamic trace tags and structured metadata", () => {
@@ -94,6 +87,7 @@ describe("Langfuse AI Observability & Tracing Suite", () => {
     ).resolves.not.toThrow()
 
     await expect(flushLangfuse(1500)).resolves.not.toThrow()
+    await expect(shutdownLangfuse(1500)).resolves.not.toThrow()
   })
 
   it("logs structured AI transactions safely", () => {

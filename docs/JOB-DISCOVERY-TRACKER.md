@@ -381,3 +381,19 @@ Tracking schema additions for the recommended canonical data model:
 | 2026-10-13 | AI-09/AI-10 | Parameterized owner-checked JSONB merge; unknown fit remains unscored; candidate goals/weaknesses excluded as positive evidence | cover-letter-agent, application-assets, factual-grounding, verified-resume |
 
 | 2026-10-13 | AI-01–AI-12 repair verification | 979 tests passed / 0 failed (144 files); TypeScript and npm production build passed; lint 0 errors / 4 existing warnings; desktop light and mobile dark 4/4 browser checks; production asset/retention SQL verified in isolated PGlite and synthetic Langfuse observation redaction confirmed. Review status: READY FOR REVIEW. | `src/lib/discovery/cover-letter-agent.ts`, `src/app/api/discovery/evaluate/route.ts`, shared AI ownership/assets/grounding/fetch helpers, `docs/AI-REPAIR-REPORT-2026-10-13.md` |
+
+## Agent gap repair / dead-code cleanup — 2026-10-13
+- [x] Remove unused location/declared-skill calculations and unused refetch binding; correct stale memo dependencies for active tab and staged jobs. Verification passed.
+
+| Date | Item | Change | Files |
+| --- | --- | --- | --- |
+| 2026-10-13 | Agent repair cleanup | Remove confirmed dead calculations/binding; include activeTab/stagedJobs in filter memo dependency list | `src/lib/discovery/scoring.ts`, `src/components/discovery/DiscoveryPage.tsx`, `src/hooks/use-job-discovery.ts` |
+
+| 2026-10-13 | Agent gap repair verification | Discovery cleanup and stale-filter fix verified in full suite (1024 tests / 0 failures), final lint 0 errors/warnings, TypeScript and npm production build passed (73 pages); eight browser checks and final ten approval checks passed. Full evidence: `docs/AGENT-GAP-REPAIR-2026-10-13.md`. | `src/lib/discovery/scoring.ts`, `src/components/discovery/DiscoveryPage.tsx`, `src/hooks/use-job-discovery.ts`, `docs/AGENT-GAP-REPAIR-2026-10-13.md` |
+
+## Langfuse v4 Observability & Telemetry Migration — 2026-10-24
+- [x] Migrate repository Langfuse setup to v4 observations-first architecture. Replace legacy unscoped `langfuse` v3 package with official scoped `@langfuse/client@^6.0.2`, `@langfuse/tracing@^6.0.2`, and `@langfuse/otel@^6.0.2`. Migrate `trackGraphExecution`, `traceAIGeneration`, and `logAITransaction` to OpenTelemetry-based attribute propagation and root observation hierarchy. Verify live US Cloud ingestion, token counting, and score dispatch.
+
+| Date | Item | Change | Files |
+| --- | --- | --- | --- |
+| 2026-10-24 | `LANGFUSE-V4-SDK-MIGRATION` | Upgraded Langfuse SDK to v4/v6 (`@langfuse/client`, `@langfuse/tracing`, `@langfuse/otel`, `@opentelemetry/sdk-trace-node`), migrated all graph and LLM generation tracing to observations-first data model with `propagateAttributes` and root observations; verified live US Cloud connectivity and passing test suite. | `package.json`, `package-lock.json`, `src/lib/ai/graph/telemetry.ts`, `src/lib/ai/telemetry.ts`, `src/instrumentation.ts`, `scripts/verify-langfuse.ts`, `src/lib/ai/__tests__/langfuse-tracing.test.ts`, `docs/JOB-DISCOVERY-TRACKER.md` |
