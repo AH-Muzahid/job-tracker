@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma, withDbRetry } from "@/lib/prisma"
 import { getInternalUserId } from "@/lib/auth"
-import { PDFParse } from "pdf-parse"
+import { extractTextFromPdf } from "@/lib/pdf/pdf-parser"
 import { invalidateCache } from "@/lib/redis"
 import { buildCareerGraphFromText, saveKnowledgeGraph } from "@/lib/ai/knowledge-graph"
 import { storeResumeFile } from "@/lib/storage"
@@ -72,15 +72,7 @@ export async function POST(req: Request) {
       // Extract text content
       const fileExt = fileName.split(".").pop()?.toLowerCase() || "pdf"
       if (fileObj.type === "application/pdf" || fileExt === "pdf") {
-        try {
-          const parser = new PDFParse({ data: buffer })
-          const result = await parser.getText()
-          textContent = result.text || ""
-          await parser.destroy()
-        } catch (err) {
-          console.error("PDF parsing error:", err)
-          textContent = buffer.toString("utf-8")
-        }
+        textContent = await extractTextFromPdf(buffer)
       } else if (fileObj.type.startsWith("text/") || ["txt", "md"].includes(fileExt)) {
         textContent = buffer.toString("utf-8")
       }

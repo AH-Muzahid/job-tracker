@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getInternalUserId } from "@/lib/auth"
 import { prisma, withDbRetry } from "@/lib/prisma"
 import { resilientGenerateText } from "@/lib/ai/resilience"
-import { PDFParse } from "pdf-parse"
+import { extractTextFromPdf } from "@/lib/pdf/pdf-parser"
 import { storeResumeFile } from "@/lib/storage"
 import * as Sentry from "@sentry/nextjs"
 
@@ -41,15 +41,7 @@ export async function POST(req: NextRequest) {
         const fileUrl = await storeResumeFile(buffer, fileName)
 
         if (fileObj.type === "application/pdf" || fileExt === "pdf") {
-          try {
-            const parser = new PDFParse({ data: buffer })
-            const result = await parser.getText()
-            rawResumeText = result.text || ""
-            await parser.destroy()
-          } catch (pdfErr) {
-            console.error("PDF parsing error during extract:", pdfErr)
-            rawResumeText = buffer.toString("utf-8")
-          }
+          rawResumeText = await extractTextFromPdf(buffer)
         } else {
           rawResumeText = buffer.toString("utf-8")
         }

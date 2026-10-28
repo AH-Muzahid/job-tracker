@@ -11,7 +11,7 @@
  * Reference: ai-job-search/tools/verify_layout.py
  */
 
-import { PDFParse } from "pdf-parse"
+import { getSafePDFParse } from "./pdf-parser"
 
 export interface LayoutViolation {
   page: number
@@ -149,9 +149,11 @@ export async function verifyPdfLayoutBuffer(
   let numPages = 1
   const allPageLines: ExtractedLine[][] = []
   const pageDimensions: { height: number; width: number }[] = []
-  let parserInstance: PDFParse | null = null
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let parserInstance: any = null
 
   try {
+    const PDFParse = await getSafePDFParse()
     const parser = new PDFParse({ data: pdfBuffer })
     parserInstance = parser
     const rawParser = parser as unknown as {

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { getInternalUserId } from "@/lib/auth"
 import { checkDistributedRateLimit, rateLimitResponse } from "@/lib/rate-limit"
-import { PDFParse } from "pdf-parse"
+import { extractTextFromPdf } from "@/lib/pdf/pdf-parser"
 import * as Sentry from "@sentry/nextjs"
 
 export async function POST(req: Request) {
@@ -31,15 +31,7 @@ export async function POST(req: Request) {
 
     let text = ""
     if (file.type === "application/pdf" || file.name.endsWith(".pdf")) {
-      try {
-        const parser = new PDFParse({ data: buffer })
-        const parsed = await parser.getText()
-        text = parsed.text || ""
-        await parser.destroy()
-      } catch (pdfErr) {
-        console.error("PDF parse JD error:", pdfErr)
-        text = buffer.toString("utf-8")
-      }
+      text = await extractTextFromPdf(buffer)
     } else {
       text = buffer.toString("utf-8")
     }
