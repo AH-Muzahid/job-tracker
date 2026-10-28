@@ -7,14 +7,20 @@
  * 3. Uses dynamic lazy importing so routes (e.g. GET /api/resumes) never crash at module load time.
  */
 
+declare const __non_webpack_require__: ((id: string) => unknown) | undefined
+
 export function ensurePdfPolyfills(): void {
   // Polyfill process.getBuiltinModule for Node.js < 22.3.0 (e.g. Node 20 in Vercel Serverless)
   const proc = process as unknown as { getBuiltinModule?: (name: string) => unknown }
   if (typeof proc.getBuiltinModule !== "function") {
     proc.getBuiltinModule = (name: string) => {
       try {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        return require(name)
+        if (name === "module") {
+          // eslint-disable-next-line @typescript-eslint/no-require-imports
+          return require("module")
+        }
+        const req = typeof __non_webpack_require__ === "function" ? __non_webpack_require__ : require
+        return req(name)
       } catch {
         return null
       }
